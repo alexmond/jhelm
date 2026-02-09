@@ -1,0 +1,242 @@
+[INFO]
+[INFO] --- compiler:3.14.1:compile (default-compile) @ jhelm-kube ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 2 source files with javac [debug parameters release 21] to target/classes
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR :
+[INFO] -------------------------------------------------------------
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[62,20] method createNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+  found:    java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[65,24] method replaceNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+  found:    java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[82,35] method listNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String
+  found:    java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[108,35] method listNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String
+  found:    java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[139,35] method listNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String
+  found:    java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[164,35] method listNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String
+  found:    java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[166,16] method deleteNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,java.lang.String
+  found:    java.lang.String,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[175,29] method listNamespacedPod in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String
+  found:    java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[221,20] method replaceNamespacedCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+  required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+  found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[224,20] method replaceClusterCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+  required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+  found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[230,28] method createNamespacedCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+  required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+  found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[232,28] method createClusterCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+  required: java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+  found:    java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[253,24] method readNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,java.lang.String
+  found:    java.lang.String,java.lang.String,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[254,24] method replaceNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+  found:    java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[257,28] method createNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+  found:    java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[264,24] method readNamespacedService in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,java.lang.String
+  found:    java.lang.String,java.lang.String,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[265,24] method replaceNamespacedService in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1Service
+  found:    java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1Service,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[268,28] method createNamespacedService in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,io.kubernetes.client.openapi.models.V1Service
+  found:    java.lang.String,io.kubernetes.client.openapi.models.V1Service,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[275,24] method readNamespacedSecret in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,java.lang.String
+  found:    java.lang.String,java.lang.String,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[276,24] method replaceNamespacedSecret in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1Secret
+  found:    java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1Secret,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[279,28] method createNamespacedSecret in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,io.kubernetes.client.openapi.models.V1Secret
+  found:    java.lang.String,io.kubernetes.client.openapi.models.V1Secret,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[289,24] method replaceNamespacedCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+  required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+  found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[292,28] method createNamespacedCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+  required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+  found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[328,20] method deleteNamespacedCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+  required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String
+  found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[330,20] method deleteClusterCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+  required: java.lang.String,java.lang.String,java.lang.String,java.lang.String
+  found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[356,16] method createNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+  found:    java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[359,20] method replaceNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+  required: java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+  found:    java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+  reason: actual and formal argument lists differ in length
+[INFO] 27 errors
+[INFO] -------------------------------------------------------------
+--
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.740 s
+[INFO] Finished at: 2026-02-09T03:53:53-05:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.14.1:compile (default-compile) on project jhelm-kube: Compilation failure: Compilation failure:
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[62,20] method createNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+[ERROR]   found:    java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[65,24] method replaceNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+[ERROR]   found:    java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[82,35] method listNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String
+[ERROR]   found:    java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[108,35] method listNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String
+[ERROR]   found:    java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[139,35] method listNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String
+[ERROR]   found:    java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[164,35] method listNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String
+[ERROR]   found:    java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[166,16] method deleteNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String
+[ERROR]   found:    java.lang.String,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[175,29] method listNamespacedPod in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String
+[ERROR]   found:    java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[221,20] method replaceNamespacedCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+[ERROR]   found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[224,20] method replaceClusterCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+[ERROR]   found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[230,28] method createNamespacedCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+[ERROR]   found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[232,28] method createClusterCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+[ERROR]   found:    java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[253,24] method readNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String
+[ERROR]   found:    java.lang.String,java.lang.String,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[254,24] method replaceNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+[ERROR]   found:    java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[257,28] method createNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+[ERROR]   found:    java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[264,24] method readNamespacedService in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String
+[ERROR]   found:    java.lang.String,java.lang.String,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[265,24] method replaceNamespacedService in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1Service
+[ERROR]   found:    java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1Service,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[268,28] method createNamespacedService in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,io.kubernetes.client.openapi.models.V1Service
+[ERROR]   found:    java.lang.String,io.kubernetes.client.openapi.models.V1Service,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[275,24] method readNamespacedSecret in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String
+[ERROR]   found:    java.lang.String,java.lang.String,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[276,24] method replaceNamespacedSecret in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1Secret
+[ERROR]   found:    java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1Secret,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[279,28] method createNamespacedSecret in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,io.kubernetes.client.openapi.models.V1Secret
+[ERROR]   found:    java.lang.String,io.kubernetes.client.openapi.models.V1Secret,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[289,24] method replaceNamespacedCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+[ERROR]   found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[292,28] method createNamespacedCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.Object
+[ERROR]   found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,io.kubernetes.client.common.KubernetesObject,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[328,20] method deleteNamespacedCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String
+[ERROR]   found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[330,20] method deleteClusterCustomObject in class io.kubernetes.client.openapi.apis.CustomObjectsApi cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,java.lang.String,java.lang.String
+[ERROR]   found:    java.lang.String,java.lang.String,java.lang.String,java.lang.String,<nulltype>,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[356,16] method createNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+[ERROR]   found:    java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] /Users/alex.mondshain/IdeaProjects/jhelm/jhelm-kube/src/main/java/org/alexmond/jhelm/kube/HelmKubeService.java:[359,20] method replaceNamespacedConfigMap in class io.kubernetes.client.openapi.apis.CoreV1Api cannot be applied to given types;
+[ERROR]   required: java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap
+[ERROR]   found:    java.lang.String,java.lang.String,io.kubernetes.client.openapi.models.V1ConfigMap,<nulltype>,<nulltype>,<nulltype>,<nulltype>
+[ERROR]   reason: actual and formal argument lists differ in length
+[ERROR] -> [Help 1]
+[ERROR]
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR]
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+[ERROR]
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :jhelm-kube
