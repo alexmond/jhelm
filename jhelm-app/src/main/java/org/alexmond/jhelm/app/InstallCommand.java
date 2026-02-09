@@ -26,6 +26,9 @@ public class InstallCommand implements Runnable {
     @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
     private String namespace;
 
+    @CommandLine.Option(names = {"--dry-run"}, description = "simulate an install")
+    private boolean dryRun;
+
     private final HelmKubeService helmKubeService;
     private final InstallAction installAction;
 
@@ -40,9 +43,18 @@ public class InstallCommand implements Runnable {
             ChartLoader loader = new ChartLoader();
             Chart chart = loader.load(new File(chartPath));
             
-            installAction.install(chart, name, namespace, new HashMap<>(), 1);
+            Release release = installAction.install(chart, name, namespace, new HashMap<>(), 1, dryRun);
             
-            log.info("Release \"{}\" has been installed.", name);
+            if (dryRun) {
+                log.info("NAME: {}", release.getName());
+                log.info("LAST DEPLOYED: {}", release.getInfo().getLastDeployed());
+                log.info("NAMESPACE: {}", release.getNamespace());
+                log.info("STATUS: {}", release.getInfo().getStatus());
+                log.info("REVISION: {}", release.getVersion());
+                log.info("\nMANIFEST:\n{}", release.getManifest());
+            } else {
+                log.info("Release \"{}\" has been installed.", name);
+            }
         } catch (Exception e) {
             log.error("Error installing chart: {}", e.getMessage(), e);
         }

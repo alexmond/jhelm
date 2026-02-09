@@ -33,7 +33,7 @@ class HelmIntegrationTest {
         assertNotNull(chart.getMetadata());
 
         // 2. Prepare Install Action
-        Release release = installAction.install(chart, "test-release", "default", new java.util.HashMap<>(), 1);
+        Release release = installAction.install(chart, "test-release", "default", new java.util.HashMap<>(), 1, false);
         assertNotNull(release);
         assertNotNull(release.getManifest());
         assertTrue(release.getManifest().contains("test-configmap"));

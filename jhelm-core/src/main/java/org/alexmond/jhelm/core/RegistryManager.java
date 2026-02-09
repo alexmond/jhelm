@@ -64,12 +64,18 @@ public class RegistryManager {
         saveConfig(config);
     }
 
-    private Config loadConfig() throws IOException {
+    public Config loadConfig() throws IOException {
         File file = new File(configPath);
         if (!file.exists()) {
             return Config.builder().build();
         }
         return jsonMapper.readValue(file, Config.class);
+    }
+
+    public String getAuth(String registry) throws IOException {
+        Config config = loadConfig();
+        Config.Auth auth = config.getAuths().get(registry);
+        return auth != null ? auth.getAuth() : null;
     }
 
     private void saveConfig(Config config) throws IOException {

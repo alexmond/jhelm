@@ -12,7 +12,7 @@ public class InstallAction {
     private final Engine engine;
     private final KubeService kubeService;
 
-    public Release install(Chart chart, String releaseName, String namespace, Map<String, Object> overrideValues, int version) throws Exception {
+    public Release install(Chart chart, String releaseName, String namespace, Map<String, Object> overrideValues, int version, boolean dryRun) throws Exception {
         Map<String, Object> values = new HashMap<>(chart.getValues());
         if (overrideValues != null) {
             values.putAll(overrideValues);
@@ -21,8 +21,8 @@ public class InstallAction {
         Release.ReleaseInfo info = Release.ReleaseInfo.builder()
                 .firstDeployed(OffsetDateTime.now())
                 .lastDeployed(OffsetDateTime.now())
-                .status("deployed")
-                .description("Install complete")
+                .status(dryRun ? "pending-install" : "deployed")
+                .description(dryRun ? "Dry run complete" : "Install complete")
                 .build();
 
         Release release = Release.builder()
@@ -45,7 +45,7 @@ public class InstallAction {
         
         release.setManifest(manifest);
 
-        if (kubeService != null) {
+        if (kubeService != null && !dryRun) {
             kubeService.apply(namespace, manifest);
             kubeService.storeRelease(release);
         }

@@ -12,7 +12,7 @@ public class UpgradeAction {
     private final Engine engine;
     private final KubeService kubeService;
 
-    public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues) throws Exception {
+    public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues, boolean dryRun) throws Exception {
         Map<String, Object> values = new HashMap<>(newChart.getValues());
         if (overrideValues != null) {
             values.putAll(overrideValues);
@@ -21,8 +21,8 @@ public class UpgradeAction {
         Release.ReleaseInfo info = Release.ReleaseInfo.builder()
                 .firstDeployed(currentRelease.getInfo().getFirstDeployed())
                 .lastDeployed(OffsetDateTime.now())
-                .status("deployed")
-                .description("Upgrade complete")
+                .status(dryRun ? "pending-upgrade" : "deployed")
+                .description(dryRun ? "Dry run complete" : "Upgrade complete")
                 .build();
 
         Release newRelease = Release.builder()
@@ -43,7 +43,7 @@ public class UpgradeAction {
         String manifest = engine.render(newChart, values, releaseData);
         newRelease.setManifest(manifest);
 
-        if (kubeService != null) {
+        if (kubeService != null && !dryRun) {
             kubeService.apply(newRelease.getNamespace(), manifest);
             kubeService.storeRelease(newRelease);
         }

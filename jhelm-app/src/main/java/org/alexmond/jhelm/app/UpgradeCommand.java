@@ -27,6 +27,9 @@ public class UpgradeCommand implements Runnable {
     @CommandLine.Option(names = {"--install"}, description = "install if not exists")
     private boolean install;
 
+    @CommandLine.Option(names = {"--dry-run"}, description = "simulate an upgrade")
+    private boolean dryRun;
+
     private final HelmKubeService helmKubeService;
     private final InstallAction installAction;
     private final UpgradeAction upgradeAction;
@@ -46,17 +49,35 @@ public class UpgradeCommand implements Runnable {
 
             if (currentReleaseOpt.isEmpty()) {
                 if (install) {
-                    installAction.install(chart, name, namespace, new HashMap<>(), 1);
-                    log.info("Release \"{}\" does not exist. Installing it now.", name);
+                    Release release = installAction.install(chart, name, namespace, new HashMap<>(), 1, dryRun);
+                    if (dryRun) {
+                        log.info("NAME: {}", release.getName());
+                        log.info("LAST DEPLOYED: {}", release.getInfo().getLastDeployed());
+                        log.info("NAMESPACE: {}", release.getNamespace());
+                        log.info("STATUS: {}", release.getInfo().getStatus());
+                        log.info("REVISION: {}", release.getVersion());
+                        log.info("\nMANIFEST:\n{}", release.getManifest());
+                    } else {
+                        log.info("Release \"{}\" does not exist. Installing it now.", name);
+                    }
                 } else {
                     log.error("Error: release \"{}\" does not exist", name);
                 }
                 return;
             }
 
-            upgradeAction.upgrade(currentReleaseOpt.get(), chart, new HashMap<>());
+            Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, new HashMap<>(), dryRun);
             
-            log.info("Release \"{}\" has been upgraded. Happy Helming!", name);
+            if (dryRun) {
+                log.info("NAME: {}", upgradedRelease.getName());
+                log.info("LAST DEPLOYED: {}", upgradedRelease.getInfo().getLastDeployed());
+                log.info("NAMESPACE: {}", upgradedRelease.getNamespace());
+                log.info("STATUS: {}", upgradedRelease.getInfo().getStatus());
+                log.info("REVISION: {}", upgradedRelease.getVersion());
+                log.info("\nMANIFEST:\n{}", upgradedRelease.getManifest());
+            } else {
+                log.info("Release \"{}\" has been upgraded. Happy Helming!", name);
+            }
         } catch (Exception e) {
             log.error("Error upgrading release: {}", e.getMessage(), e);
         }
