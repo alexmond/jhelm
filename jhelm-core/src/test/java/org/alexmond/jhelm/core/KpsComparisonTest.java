@@ -38,6 +38,49 @@ class KpsComparisonTest {
     }
 
     @Test
+    void testSearchAndCompare() throws Exception {
+        String query = "bitnami/nginx";
+        String repo = "bitnami";
+        String chart = "nginx";
+        
+        repoManager.addRepo(repo, "https://charts.bitnami.com/bitnami");
+        var versions = repoManager.getChartVersions(repo, chart);
+        assertFalse(versions.isEmpty());
+        
+        // Helm search
+        String helmOutput = runHelmSearchRepo(query);
+        if (helmOutput != null) {
+            log.info("Helm search output for {}:\n{}", query, helmOutput);
+            // Verify our latest version matches Helm's latest version (first line of output)
+            String latestJHelm = versions.get(0).getChartVersion();
+            assertTrue(helmOutput.contains(latestJHelm), "Helm output should contain jhelm latest version " + latestJHelm);
+        }
+    }
+
+    private String runHelmSearchRepo(String query) {
+        System.out.println("[DEBUG_LOG] Running helm search repo for " + query);
+        try {
+            ProcessBuilder pb = new ProcessBuilder("helm", "search", "repo", query);
+            Process process = pb.start();
+            
+            String output;
+            try (InputStream is = process.getInputStream();
+                 Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A")) {
+                output = s.hasNext() ? s.next() : "";
+            }
+            
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                return null;
+            }
+            return output;
+        } catch (Exception e) {
+            log.error("Failed to run helm search", e);
+            return null;
+        }
+    }
+
+    @Test
     void testSimpleRendering() throws Exception {
         Chart chart = Chart.builder()
                 .metadata(ChartMetadata.builder().name("simple").build())

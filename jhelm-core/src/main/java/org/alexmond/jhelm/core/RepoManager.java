@@ -33,9 +33,28 @@ public class RepoManager {
     @Setter
     private RegistryManager registryManager;
 
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    public static class ChartVersion {
+        private String name;         // repo/chart
+        private String chartVersion; // version
+        private String appVersion;   // appVersion (may be null)
+        private String description;  // description (may be null)
+    }
+
     public RepoManager() {
-        YAMLFactory yamlFactory = new YAMLFactory()
-                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER);
+        org.yaml.snakeyaml.LoaderOptions loaderOptions = new org.yaml.snakeyaml.LoaderOptions();
+        loaderOptions.setCodePointLimit(50_000_000); // 50MB
+        YAMLFactory yamlFactory = YAMLFactory.builder()
+                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+                .loaderOptions(loaderOptions)
+                .build();
+        
+        com.fasterxml.jackson.core.StreamReadConstraints constraints = com.fasterxml.jackson.core.StreamReadConstraints.builder()
+                .maxStringLength(50_000_000)
+                .build();
+        yamlFactory.setStreamReadConstraints(constraints);
+
         this.yamlMapper = new ObjectMapper(yamlFactory);
         
         String home = System.getProperty("user.home");
@@ -85,6 +104,82 @@ public class RepoManager {
         config.setGenerated(OffsetDateTime.now().toString());
         saveConfig(config);
     }
+
+    public String getRepoUrl(String name) throws IOException {
+        RepositoryConfig config = loadConfig();
+        return config.getRepositories().stream()
+                .filter(r -> r.getName().equals(name))
+                .map(RepositoryConfig.Repository::getUrl)
+                .findFirst()
+                .orElse(null);
+    }
+
+    public java.util.List<ChartVersion> getChartVersions(String repoName, String chartName) throws IOException {
+        String repoUrl = getRepoUrl(repoName);
+        if (repoUrl == null) {
+            throw new IOException("Repository not found: " + repoName + ". Please run: jhelm repo add " + repoName + " <url>");
+        }
+        String indexUrl = repoUrl.endsWith("/") ? repoUrl + "index.yaml" : repoUrl + "/index.yaml";
+        URL url = new URL(indexUrl);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        if (insecureSkipTlsVerify && conn instanceof HttpsURLConnection httpsConn) {
+            setupInsecureSsl(httpsConn);
+        }
+        conn.setRequestProperty("User-Agent", "jhelm");
+        java.util.List<ChartVersion> result = new java.util.ArrayList<>();
+        try (InputStream in = conn.getInputStream()) {
+            // Parse YAML as Map<String,Object>
+            java.util.Map<?,?> root = yamlMapper.readValue(in, java.util.Map.class);
+            Object entriesObj = root.get("entries");
+            if (!(entriesObj instanceof java.util.Map<?,?> entries)) {
+                return result;
+            }
+            Object chartListObj = entries.get(chartName);
+            if (!(chartListObj instanceof java.util.List<?> list)) {
+                return result;
+            }
+            for (Object o : list) {
+                if (o instanceof java.util.Map<?,?> m) {
+                    String version = asString(m.get("version"));
+                    String appVersion = asString(m.get("appVersion"));
+                    String description = asString(m.get("description"));
+                    result.add(new ChartVersion(repoName + "/" + chartName, version, appVersion, description));
+                }
+            }
+        }
+        // Helm shows latest first by default for --versions output, so sort descending semver-ish (string fallback)
+        result.sort((a,b) -> safeCompareVersions(b.getChartVersion(), a.getChartVersion()));
+        return result;
+    }
+
+    private int safeCompareVersions(String v1, String v2) {
+        if (v1 == null && v2 == null) return 0;
+        if (v1 == null) return -1;
+        if (v2 == null) return 1;
+        // simple split by dots, compare numerically when possible, else lexicographically
+        String[] p1 = v1.split("[.-]");
+        String[] p2 = v2.split("[.-]");
+        int n = Math.max(p1.length, p2.length);
+        for (int i=0;i<n;i++) {
+            String a = i < p1.length ? p1[i] : "0";
+            String b = i < p2.length ? p2[i] : "0";
+            int ai = parseIntSafe(a);
+            int bi = parseIntSafe(b);
+            if (ai != Integer.MIN_VALUE && bi != Integer.MIN_VALUE) {
+                if (ai != bi) return Integer.compare(ai, bi);
+            } else {
+                int c = a.compareTo(b);
+                if (c != 0) return c;
+            }
+        }
+        return 0;
+    }
+
+    private int parseIntSafe(String s) {
+        try { return Integer.parseInt(s); } catch (Exception e) { return Integer.MIN_VALUE; }
+    }
+
+    private String asString(Object o) { return o == null ? null : String.valueOf(o); }
 
     public void pull(String chartFullName, String repoName, String version, String destDir) throws IOException {
         String finalChartName = chartFullName;

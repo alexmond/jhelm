@@ -13,7 +13,8 @@ import java.io.IOException;
         subcommands = {
                 RepoCommand.AddCommand.class,
                 RepoCommand.ListCommand.class,
-                RepoCommand.RemoveCommand.class
+                RepoCommand.RemoveCommand.class,
+                RepoCommand.SearchCommand.class
         })
 @Slf4j
 public class RepoCommand implements Runnable {
@@ -95,5 +96,54 @@ public class RepoCommand implements Runnable {
                 log.error("Error removing repository: {}", e.getMessage());
             }
         }
+    }
+
+    @Component
+    @CommandLine.Command(name = "search", description = "search the added repositories for a chart (supports repo/chart); use --versions to show all versions like Helm)")
+    @Slf4j
+    public static class SearchCommand implements Runnable {
+        private final RepoManager repoManager;
+
+        @CommandLine.Parameters(index = "0", description = "chart query in the form repo/chart")
+        private String query;
+
+        @CommandLine.Option(names = {"--versions"}, description = "show all versions")
+        private boolean showAllVersions;
+
+        public SearchCommand(RepoManager repoManager) {
+            this.repoManager = repoManager;
+        }
+
+        @Override
+        public void run() {
+            try {
+                if (query == null || !query.contains("/")) {
+                    log.error("Please specify chart as repo/chart (e.g., bitnami/ghost)");
+                    return;
+                }
+                String repo = query.substring(0, query.indexOf('/'));
+                String chart = query.substring(query.indexOf('/') + 1);
+
+                var versions = repoManager.getChartVersions(repo, chart);
+                if (versions.isEmpty()) {
+                    log.info("No results found for {}. Make sure the repo is added (jhelm repo add) and contains the chart.", query);
+                    return;
+                }
+
+                System.out.printf("%-40s %-15s %-15s %-s\n", "NAME", "CHART VERSION", "APP VERSION", "DESCRIPTION");
+                if (showAllVersions) {
+                    for (var v : versions) {
+                        System.out.printf("%-40s %-15s %-15s %-s\n", v.getName(), nv(v.getChartVersion()), nv(v.getAppVersion()), nv(v.getDescription()));
+                    }
+                } else {
+                    var v = versions.get(0);
+                    System.out.printf("%-40s %-15s %-15s %-s\n", v.getName(), nv(v.getChartVersion()), nv(v.getAppVersion()), nv(v.getDescription()));
+                }
+            } catch (Exception e) {
+                log.error("Error searching repositories: {}", e.getMessage());
+            }
+        }
+
+        private String nv(String s) { return s == null ? "" : s; }
     }
 }
