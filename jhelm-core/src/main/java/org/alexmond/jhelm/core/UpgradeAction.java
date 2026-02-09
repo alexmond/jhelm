@@ -10,25 +10,28 @@ import java.util.Map;
 public class UpgradeAction {
 
     private final Engine engine;
+    private final KubeService kubeService;
 
-    public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues) {
-        Release newRelease = new Release();
-        newRelease.setName(currentRelease.getName());
-        newRelease.setNamespace(currentRelease.getNamespace());
-        newRelease.setVersion(currentRelease.getVersion() + 1);
-        newRelease.setChart(newChart);
-
+    public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues) throws Exception {
         Map<String, Object> values = new HashMap<>(newChart.getValues());
         if (overrideValues != null) {
             values.putAll(overrideValues);
         }
 
-        Release.ReleaseInfo info = new Release.ReleaseInfo();
-        info.setFirstDeployed(currentRelease.getInfo().getFirstDeployed());
-        info.setLastDeployed(OffsetDateTime.now());
-        info.setStatus("deployed");
-        info.setDescription("Upgrade complete");
-        newRelease.setInfo(info);
+        Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+                .firstDeployed(currentRelease.getInfo().getFirstDeployed())
+                .lastDeployed(OffsetDateTime.now())
+                .status("deployed")
+                .description("Upgrade complete")
+                .build();
+
+        Release newRelease = Release.builder()
+                .name(currentRelease.getName())
+                .namespace(currentRelease.getNamespace())
+                .version(currentRelease.getVersion() + 1)
+                .chart(newChart)
+                .info(info)
+                .build();
 
         Map<String, Object> releaseData = new HashMap<>();
         releaseData.put("Name", newRelease.getName());
@@ -39,6 +42,11 @@ public class UpgradeAction {
 
         String manifest = engine.render(newChart, values, releaseData);
         newRelease.setManifest(manifest);
+
+        if (kubeService != null) {
+            kubeService.apply(newRelease.getNamespace(), manifest);
+            kubeService.storeRelease(newRelease);
+        }
 
         return newRelease;
     }

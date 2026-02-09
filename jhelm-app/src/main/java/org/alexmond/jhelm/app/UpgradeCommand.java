@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app;
 
+import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.*;
 import org.alexmond.jhelm.kube.HelmKubeService;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import java.util.Optional;
 
 @Component
 @CommandLine.Command(name = "upgrade", description = "upgrade a release")
+@Slf4j
 public class UpgradeCommand implements Runnable {
 
     @CommandLine.Parameters(index = "0", description = "release name")
@@ -44,24 +46,19 @@ public class UpgradeCommand implements Runnable {
 
             if (currentReleaseOpt.isEmpty()) {
                 if (install) {
-                    Release release = installAction.install(chart, name, namespace, new HashMap<>(), 1);
-                    helmKubeService.apply(namespace, release.getManifest());
-                    helmKubeService.storeRelease(release);
-                    System.out.println("Release \"" + name + "\" does not exist. Installing it now.");
+                    installAction.install(chart, name, namespace, new HashMap<>(), 1);
+                    log.info("Release \"{}\" does not exist. Installing it now.", name);
                 } else {
-                    System.err.println("Error: release \"" + name + "\" does not exist");
+                    log.error("Error: release \"{}\" does not exist", name);
                 }
                 return;
             }
 
-            Release newRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, new HashMap<>());
-            helmKubeService.apply(namespace, newRelease.getManifest());
-            helmKubeService.storeRelease(newRelease);
+            upgradeAction.upgrade(currentReleaseOpt.get(), chart, new HashMap<>());
             
-            System.out.println("Release \"" + name + "\" has been upgraded. Happy Helming!");
+            log.info("Release \"{}\" has been upgraded. Happy Helming!", name);
         } catch (Exception e) {
-            System.err.println("Error upgrading release: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error upgrading release: {}", e.getMessage(), e);
         }
     }
 }

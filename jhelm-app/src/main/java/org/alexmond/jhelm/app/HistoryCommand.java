@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app;
 
+import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.Release;
 import org.alexmond.jhelm.kube.HelmKubeService;
 import org.springframework.stereotype.Component;
@@ -9,6 +10,7 @@ import java.util.List;
 
 @Component
 @CommandLine.Command(name = "history", description = "fetch release history")
+@Slf4j
 public class HistoryCommand implements Runnable {
 
     @CommandLine.Parameters(index = "0", description = "release name")
@@ -34,7 +36,7 @@ public class HistoryCommand implements Runnable {
                     r.getVersion(), r.getInfo().getLastDeployed(), r.getInfo().getStatus(), chartInfo, r.getInfo().getDescription());
             }
         } catch (Exception e) {
-            System.err.println("Error fetching history: " + e.getMessage());
+            log.error("Error fetching history: {}", e.getMessage());
         }
     }
 }

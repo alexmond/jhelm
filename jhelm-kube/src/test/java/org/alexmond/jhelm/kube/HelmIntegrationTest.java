@@ -24,7 +24,7 @@ class HelmIntegrationTest {
     private InstallAction installAction;
 
     @Test
-    void testFullInstallCycle() throws IOException, ApiException {
+    void testFullInstallCycle() throws Exception {
         // 1. Load Chart
         ChartLoader loader = new ChartLoader();
         File chartDir = Paths.get("src", "test", "resources", "test-chart").toFile();

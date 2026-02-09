@@ -22,12 +22,22 @@ public class CoreConfig {
     }
 
     @Bean
-    public InstallAction installAction(Engine engine) {
-        return new InstallAction(engine);
+    public InstallAction installAction(Engine engine, KubeService kubeService) {
+        return new InstallAction(engine, kubeService);
     }
 
     @Bean
-    public UpgradeAction upgradeAction(Engine engine) {
-        return new UpgradeAction(engine);
+    public UpgradeAction upgradeAction(Engine engine, KubeService kubeService) {
+        return new UpgradeAction(engine, kubeService);
+    }
+
+    @Bean
+    public UninstallAction uninstallAction(KubeService kubeService) {
+        return new UninstallAction(kubeService);
+    }
+
+    @Bean
+    public ListAction listAction(KubeService kubeService) {
+        return new ListAction(kubeService);
     }
 }

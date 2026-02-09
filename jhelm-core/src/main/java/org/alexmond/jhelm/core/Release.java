@@ -1,10 +1,16 @@
 package org.alexmond.jhelm.core;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Release {
     private String name;
     private String namespace;
@@ -15,6 +21,9 @@ public class Release {
     private String manifest;
 
     @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ReleaseInfo {
         private OffsetDateTime firstDeployed;
         private OffsetDateTime lastDeployed;
@@ -24,6 +33,9 @@ public class Release {
     }
 
     @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class MapConfig {
         private java.util.Map<String, Object> values;
     }

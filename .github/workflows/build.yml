@@ -30,17 +30,6 @@ jobs:
       with:
         version: v3.14.2
 
-    - name: Pull Helm Charts
-      run: |
-        chmod +x pull_charts.sh
-        ./pull_charts.sh
-
-    - name: Verify Cluster
-      run: |
-        kubectl cluster-info
-        kubectl get nodes
-        kubectl get pods -A
-
     - name: Build with Maven
       run: ./mvnw clean install -B
 

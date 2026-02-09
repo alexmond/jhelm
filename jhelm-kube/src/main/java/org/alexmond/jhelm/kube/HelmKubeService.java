@@ -11,6 +11,7 @@ import io.kubernetes.client.openapi.models.*;
 import io.kubernetes.client.util.Yaml;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.KubeService;
 import org.alexmond.jhelm.core.Release;
 import org.springframework.stereotype.Service;
 
@@ -20,7 +21,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class HelmKubeService {
+public class HelmKubeService implements KubeService {
 
     private final ApiClient apiClient;
     private final ObjectMapper objectMapper = new ObjectMapper()
@@ -193,8 +194,7 @@ public class HelmKubeService {
         String name = obj.getMetadata().getName();
         String plural = inferPlural(kind);
 
-        log.info("Applying {} {} in namespace {}", kind, name, namespace);
-        System.out.println("[DEBUG_LOG] Applying " + kind + " (" + group + "/" + version + ") " + name + " in namespace " + namespace);
+        log.info("Applying {} ({}/{}) {} in namespace {}", kind, group, version, name, namespace);
 
         if (group.isEmpty() && version.equals("v1")) {
             applyCoreResource(namespace, kind, name, obj);
@@ -221,11 +221,11 @@ public class HelmKubeService {
                         api.createClusterCustomObject(group, version, plural, obj).execute();
                     }
                 } catch (Exception ce) {
-                    System.err.println("[DEBUG_LOG] Create failed for " + kind + ": " + (ce instanceof ApiException cae ? cae.getResponseBody() : ce.getMessage()));
+                    log.error("Create failed for {}: {}", kind, ce instanceof ApiException cae ? cae.getResponseBody() : ce.getMessage());
                     throw ce;
                 }
             } else {
-                System.err.println("[DEBUG_LOG] Apply failed for " + kind + ": " + (e instanceof ApiException ae2 ? ae2.getResponseBody() : e.getMessage()));
+                log.error("Apply failed for {}: {}", kind, e instanceof ApiException ae2 ? ae2.getResponseBody() : e.getMessage());
                 throw e;
             }
         }
@@ -342,16 +342,16 @@ public class HelmKubeService {
         V1ConfigMap cm = Yaml.loadAs(yamlContent, V1ConfigMap.class);
         
         try {
-            System.out.println("[DEBUG_LOG] Creating ConfigMap " + cm.getMetadata().getName() + " in " + namespace);
+            log.info("Creating ConfigMap {} in {}", cm.getMetadata().getName(), namespace);
             api.createNamespacedConfigMap(namespace, cm).execute();
         } catch (Exception e) {
             if (e instanceof ApiException ae && ae.getCode() == 409) { // Conflict/Already exists
-                System.out.println("[DEBUG_LOG] ConfigMap already exists, replacing");
+                log.info("ConfigMap already exists, replacing");
                 api.replaceNamespacedConfigMap(cm.getMetadata().getName(), namespace, cm).execute();
             } else {
-                System.err.println("[DEBUG_LOG] Error installing ConfigMap: " + e.getMessage());
+                log.error("Error installing ConfigMap: {}", e.getMessage());
                 if (e instanceof ApiException ae) {
-                    System.err.println("[DEBUG_LOG] API Response: " + ae.getResponseBody());
+                    log.error("API Response: {}", ae.getResponseBody());
                 }
                 throw e;
             }

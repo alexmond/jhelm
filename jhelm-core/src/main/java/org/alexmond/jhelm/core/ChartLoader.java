@@ -20,14 +20,12 @@ public class ChartLoader {
             throw new IllegalArgumentException("Chart directory does not exist: " + chartDir.getPath());
         }
 
-        Chart chart = new Chart();
-        
         // Load Chart.yaml
         File metadataFile = new File(chartDir, "Chart.yaml");
         if (!metadataFile.exists()) {
              throw new IllegalArgumentException("Chart.yaml not found in " + chartDir.getPath());
         }
-        chart.setMetadata(yamlMapper.readValue(metadataFile, ChartMetadata.class));
+        ChartMetadata metadata = yamlMapper.readValue(metadataFile, ChartMetadata.class);
 
         // Load values.yaml
         File valuesFile = new File(chartDir, "values.yaml");
@@ -35,7 +33,6 @@ public class ChartLoader {
         if (valuesFile.exists()) {
             values = yamlMapper.readValue(valuesFile, Map.class);
         }
-        chart.setValues(values);
 
         // Load templates
         File templatesDir = new File(chartDir, "templates");
@@ -43,7 +40,6 @@ public class ChartLoader {
         if (templatesDir.exists() && templatesDir.isDirectory()) {
             loadTemplatesRecursive(templatesDir, "", templates);
         }
-        chart.setTemplates(templates);
         
         // Load dependencies (subcharts)
         File chartsDir = new File(chartDir, "charts");
@@ -56,9 +52,13 @@ public class ChartLoader {
                 }
             }
         }
-        chart.setDependencies(dependencies);
 
-        return chart;
+        return Chart.builder()
+                .metadata(metadata)
+                .values(values)
+                .templates(templates)
+                .dependencies(dependencies)
+                .build();
     }
     private void loadTemplatesRecursive(File dir, String path, List<Chart.Template> templates) throws IOException {
         File[] files = dir.listFiles();
@@ -68,9 +68,10 @@ public class ChartLoader {
             if (file.isDirectory()) {
                 loadTemplatesRecursive(file, name, templates);
             } else if (name.endsWith(".yaml") || name.endsWith(".tpl")) {
-                Chart.Template template = new Chart.Template();
-                template.setName(name);
-                template.setData(Files.readString(file.toPath()));
+                Chart.Template template = Chart.Template.builder()
+                        .name(name)
+                        .data(Files.readString(file.toPath()))
+                        .build();
                 templates.add(template);
             }
         }

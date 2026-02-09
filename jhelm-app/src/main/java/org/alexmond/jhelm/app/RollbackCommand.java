@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app;
 
+import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.Release;
 import org.alexmond.jhelm.kube.HelmKubeService;
 import org.springframework.stereotype.Component;
@@ -10,6 +11,7 @@ import java.util.Optional;
 
 @Component
 @CommandLine.Command(name = "rollback", description = "roll back a release to a previous revision")
+@Slf4j
 public class RollbackCommand implements Runnable {
 
     @CommandLine.Parameters(index = "0", description = "release name")
@@ -36,7 +38,7 @@ public class RollbackCommand implements Runnable {
                 .findFirst();
 
             if (targetReleaseOpt.isEmpty()) {
-                System.err.println("Error: revision " + revision + " not found for release " + name);
+                log.error("Error: revision {} not found for release {}", revision, name);
                 return;
             }
 
@@ -44,26 +46,26 @@ public class RollbackCommand implements Runnable {
             int nextRevision = currentReleaseOpt.map(r -> r.getVersion() + 1).orElse(1);
 
             Release targetRelease = targetReleaseOpt.get();
-            Release newRelease = new Release();
-            newRelease.setName(targetRelease.getName());
-            newRelease.setNamespace(targetRelease.getNamespace());
-            newRelease.setVersion(nextRevision);
-            newRelease.setChart(targetRelease.getChart());
-            newRelease.setManifest(targetRelease.getManifest());
-            
-            Release.ReleaseInfo info = new Release.ReleaseInfo();
-            info.setFirstDeployed(targetRelease.getInfo().getFirstDeployed());
-            info.setLastDeployed(java.time.OffsetDateTime.now());
-            info.setStatus("deployed");
-            info.setDescription("Rollback to " + revision);
-            newRelease.setInfo(info);
+            Release newRelease = Release.builder()
+                .name(targetRelease.getName())
+                .namespace(targetRelease.getNamespace())
+                .version(nextRevision)
+                .chart(targetRelease.getChart())
+                .manifest(targetRelease.getManifest())
+                .info(Release.ReleaseInfo.builder()
+                    .firstDeployed(targetRelease.getInfo().getFirstDeployed())
+                    .lastDeployed(java.time.OffsetDateTime.now())
+                    .status("deployed")
+                    .description("Rollback to " + revision)
+                    .build())
+                .build();
 
             helmKubeService.apply(namespace, newRelease.getManifest());
             helmKubeService.storeRelease(newRelease);
             
-            System.out.println("Rollback was a success! Happy Helming!");
+            log.info("Rollback was a success! Happy Helming!");
         } catch (Exception e) {
-            System.err.println("Error during rollback: " + e.getMessage());
+            log.error("Error during rollback: {}", e.getMessage());
         }
     }
 }

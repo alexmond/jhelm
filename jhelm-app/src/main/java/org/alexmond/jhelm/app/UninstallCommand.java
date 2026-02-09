@@ -1,6 +1,8 @@
 package org.alexmond.jhelm.app;
 
+import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.Release;
+import org.alexmond.jhelm.core.UninstallAction;
 import org.alexmond.jhelm.kube.HelmKubeService;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -9,6 +11,7 @@ import java.util.Optional;
 
 @Component
 @CommandLine.Command(name = "uninstall", description = "uninstall a release")
+@Slf4j
 public class UninstallCommand implements Runnable {
 
     @CommandLine.Parameters(index = "0", description = "release name")
@@ -17,28 +20,19 @@ public class UninstallCommand implements Runnable {
     @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
     private String namespace;
 
-    private final HelmKubeService helmKubeService;
+    private final UninstallAction uninstallAction;
 
-    public UninstallCommand(HelmKubeService helmKubeService) {
-        this.helmKubeService = helmKubeService;
+    public UninstallCommand(UninstallAction uninstallAction) {
+        this.uninstallAction = uninstallAction;
     }
 
     @Override
     public void run() {
         try {
-            Optional<Release> releaseOpt = helmKubeService.getRelease(name, namespace);
-            if (releaseOpt.isEmpty()) {
-                System.err.println("Error: uninstall: Release not found: " + name);
-                return;
-            }
-
-            Release release = releaseOpt.get();
-            helmKubeService.delete(namespace, release.getManifest());
-            helmKubeService.deleteReleaseHistory(name, namespace);
-            
-            System.out.println("release \"" + name + "\" uninstalled");
+            uninstallAction.uninstall(name, namespace);
+            log.info("release \"{}\" uninstalled", name);
         } catch (Exception e) {
-            System.err.println("Error uninstalling release: " + e.getMessage());
+            log.error("Error uninstalling release: {}", e.getMessage());
         }
     }
 }

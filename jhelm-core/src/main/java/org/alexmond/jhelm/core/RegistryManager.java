@@ -1,8 +1,11 @@
 package org.alexmond.jhelm.core;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import lombok.NoArgsConstructor;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,10 +20,17 @@ public class RegistryManager {
     private final String configPath;
 
     @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Config {
+        @Builder.Default
         private Map<String, Auth> auths = new HashMap<>();
 
         @Data
+        @Builder
+        @NoArgsConstructor
+        @AllArgsConstructor
         public static class Auth {
             private String auth;
         }
@@ -41,8 +51,9 @@ public class RegistryManager {
     public void login(String registry, String username, String password) throws IOException {
         Config config = loadConfig();
         String auth = Base64.getEncoder().encodeToString((username + ":" + password).getBytes());
-        Config.Auth authObj = new Config.Auth();
-        authObj.setAuth(auth);
+        Config.Auth authObj = Config.Auth.builder()
+                .auth(auth)
+                .build();
         config.getAuths().put(registry, authObj);
         saveConfig(config);
     }
@@ -56,7 +67,7 @@ public class RegistryManager {
     private Config loadConfig() throws IOException {
         File file = new File(configPath);
         if (!file.exists()) {
-            return new Config();
+            return Config.builder().build();
         }
         return jsonMapper.readValue(file, Config.class);
     }

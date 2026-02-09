@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app;
 
+import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.Release;
 import org.alexmond.jhelm.kube.HelmKubeService;
 import org.springframework.stereotype.Component;
@@ -9,6 +10,7 @@ import java.util.Optional;
 
 @Component
 @CommandLine.Command(name = "status", description = "display the status of the named release")
+@Slf4j
 public class StatusCommand implements Runnable {
 
     @CommandLine.Parameters(index = "0", description = "release name")
@@ -28,20 +30,19 @@ public class StatusCommand implements Runnable {
         try {
             Optional<Release> releaseOpt = helmKubeService.getRelease(name, namespace);
             if (releaseOpt.isEmpty()) {
-                System.err.println("Error: release not found: " + name);
+                log.error("Error: release not found: {}", name);
                 return;
             }
 
             Release r = releaseOpt.get();
-            System.out.println("NAME: " + r.getName());
-            System.out.println("LAST DEPLOYED: " + r.getInfo().getLastDeployed());
-            System.out.println("NAMESPACE: " + r.getNamespace());
-            System.out.println("STATUS: " + r.getInfo().getStatus());
-            System.out.println("REVISION: " + r.getVersion());
-            System.out.println("\nMANIFEST:");
-            System.out.println(r.getManifest());
+            log.info("NAME: {}", r.getName());
+            log.info("LAST DEPLOYED: {}", r.getInfo().getLastDeployed());
+            log.info("NAMESPACE: {}", r.getNamespace());
+            log.info("STATUS: {}", r.getInfo().getStatus());
+            log.info("REVISION: {}", r.getVersion());
+            log.info("\nMANIFEST:\n{}", r.getManifest());
         } catch (Exception e) {
-            System.err.println("Error fetching status: " + e.getMessage());
+            log.error("Error fetching status: {}", e.getMessage());
         }
     }
 }

@@ -1,16 +1,25 @@
 package org.alexmond.jhelm.core;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class RepositoryConfig {
     private String apiVersion;
     private String generated;
     private List<Repository> repositories;
 
     @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Repository {
         private String name;
         private String url;

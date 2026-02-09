@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app;
 
+import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.Chart;
 import org.alexmond.jhelm.core.ChartLoader;
 import org.alexmond.jhelm.core.InstallAction;
@@ -13,6 +14,7 @@ import java.util.HashMap;
 
 @Component
 @CommandLine.Command(name = "install", description = "install a chart")
+@Slf4j
 public class InstallCommand implements Runnable {
 
     @CommandLine.Parameters(index = "0", description = "release name")
@@ -38,14 +40,11 @@ public class InstallCommand implements Runnable {
             ChartLoader loader = new ChartLoader();
             Chart chart = loader.load(new File(chartPath));
             
-            Release release = installAction.install(chart, name, namespace, new HashMap<>(), 1);
-            helmKubeService.apply(namespace, release.getManifest());
-            helmKubeService.storeRelease(release);
+            installAction.install(chart, name, namespace, new HashMap<>(), 1);
             
-            System.out.println("Release \"" + name + "\" has been installed.");
+            log.info("Release \"{}\" has been installed.", name);
         } catch (Exception e) {
-            System.err.println("Error installing chart: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error installing chart: {}", e.getMessage(), e);
         }
     }
 }

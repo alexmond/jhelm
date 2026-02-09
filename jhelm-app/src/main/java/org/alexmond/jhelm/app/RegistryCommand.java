@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app;
 
+import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.RegistryManager;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -12,6 +13,7 @@ import java.io.IOException;
                 RegistryCommand.LoginCommand.class,
                 RegistryCommand.LogoutCommand.class
         })
+@Slf4j
 public class RegistryCommand implements Runnable {
     @Override
     public void run() {
@@ -20,6 +22,7 @@ public class RegistryCommand implements Runnable {
 
     @Component
     @CommandLine.Command(name = "login", description = "login to a registry")
+    @Slf4j
     public static class LoginCommand implements Runnable {
         private final RegistryManager registryManager;
 
@@ -40,15 +43,16 @@ public class RegistryCommand implements Runnable {
         public void run() {
             try {
                 registryManager.login(server, username, password);
-                System.out.println("Login Succeeded");
+                log.info("Login Succeeded");
             } catch (IOException e) {
-                System.err.println("Error logging in: " + e.getMessage());
+                log.error("Error logging in: {}", e.getMessage());
             }
         }
     }
 
     @Component
     @CommandLine.Command(name = "logout", description = "logout from a registry")
+    @Slf4j
     public static class LogoutCommand implements Runnable {
         private final RegistryManager registryManager;
 
@@ -63,9 +67,9 @@ public class RegistryCommand implements Runnable {
         public void run() {
             try {
                 registryManager.logout(server);
-                System.out.println("Logout Succeeded");
+                log.info("Logout Succeeded");
             } catch (IOException e) {
-                System.err.println("Error logging out: " + e.getMessage());
+                log.error("Error logging out: {}", e.getMessage());
             }
         }
     }

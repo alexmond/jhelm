@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app;
 
+import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.Chart;
 import org.alexmond.jhelm.core.ChartLoader;
 import org.alexmond.jhelm.core.Engine;
@@ -12,6 +13,7 @@ import java.util.Map;
 
 @Component
 @CommandLine.Command(name = "template", description = "locally render templates")
+@Slf4j
 public class TemplateCommand implements Runnable {
 
     @CommandLine.Parameters(index = "0", description = "release name")
@@ -41,9 +43,9 @@ public class TemplateCommand implements Runnable {
             releaseData.put("Revision", 1);
 
             String manifest = engine.render(chart, chart.getValues(), releaseData);
-            System.out.println(manifest);
+            log.info("\n{}", manifest);
         } catch (Exception e) {
-            System.err.println("Error rendering template: " + e.getMessage());
+            log.error("Error rendering template: {}", e.getMessage());
         }
     }
 }
