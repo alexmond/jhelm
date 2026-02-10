@@ -248,18 +248,23 @@ public class RepoManager {
             path = path.substring(0, colon);
         }
 
-        // 1. Get Token (if registryManager is available)
+        // 1. Get Token
         String token = null;
+        String auth = null;
         if (registryManager != null) {
-            String auth = registryManager.getAuth(registry);
-            if (auth != null) {
-                token = fetchOciToken(registry, path, auth);
-            }
+            auth = registryManager.getAuth(registry);
         }
+        token = fetchOciToken(registry, path, auth);
 
         // 2. Get Manifest
         String manifestUrl = "https://" + registry + "/v2/" + path + "/manifests/" + tag;
-        JsonNode manifest = callOciApi(manifestUrl, token, "application/vnd.oci.image.manifest.v1+json");
+        JsonNode manifest = null;
+        try {
+            manifest = callOciApi(manifestUrl, token, "application/vnd.oci.image.manifest.v1+json");
+        } catch (IOException e) {
+            log.warn("Failed to get OCI manifest with v1+json, trying without specific accept header: {}", e.getMessage());
+            manifest = callOciApi(manifestUrl, token, null);
+        }
 
         // 3. Find chart layer
         String digest = null;
@@ -284,21 +289,36 @@ public class RepoManager {
     }
 
     private String fetchOciToken(String registry, String path, String auth) throws IOException {
-        // This is a simplified OCI auth challenge handler. 
-        // In a real implementation, we should first try the request, get 401, parse WWW-Authenticate header.
-        // For now, we assume standard Docker/OCI bearer token flow.
-        String url = "https://" + registry + "/v2/token?service=" + registry + "&scope=repository:" + path + ":pull";
+        // Standard Docker/OCI bearer token flow.
+        // If it's registry-1.docker.io, use auth.docker.io
+        String tokenService = registry;
+        String tokenUrlPrefix = "https://" + registry + "/v2/token";
+        if ("registry-1.docker.io".equals(registry)) {
+            tokenUrlPrefix = "https://auth.docker.io/token";
+            tokenService = "registry.docker.io";
+        }
+
+        String url = tokenUrlPrefix + "?service=" + tokenService + "&scope=repository:" + path + ":pull";
         URL u = new URL(url);
         HttpURLConnection conn = (HttpURLConnection) u.openConnection();
         if (insecureSkipTlsVerify && conn instanceof HttpsURLConnection httpsConn) {
             setupInsecureSsl(httpsConn);
         }
-        conn.setRequestProperty("Authorization", "Basic " + auth);
+        if (auth != null) {
+            conn.setRequestProperty("Authorization", "Basic " + auth);
+        }
+        
+        int responseCode = conn.getResponseCode();
+        if (responseCode != 200) {
+            log.warn("Failed to fetch OCI token: HTTP {}", responseCode);
+            return null;
+        }
+
         try (InputStream in = conn.getInputStream()) {
             JsonNode node = jsonMapper.readTree(in);
-            return node.get("token").asText();
+            return node.has("token") ? node.get("token").asText() : node.get("access_token").asText();
         } catch (Exception e) {
-            log.warn("Failed to fetch OCI token: {}", e.getMessage());
+            log.warn("Failed to parse OCI token: {}", e.getMessage());
             return null;
         }
     }

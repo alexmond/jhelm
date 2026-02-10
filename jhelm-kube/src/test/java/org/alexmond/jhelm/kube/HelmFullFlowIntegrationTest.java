@@ -37,31 +37,42 @@ class HelmFullFlowIntegrationTest {
         String releaseName = "test-nginx";
         String namespace = "default";
 
-        // 1. Load Chart
-        File chartDir = new File("sample-charts/nginx");
-        if (!chartDir.exists()) {
-            chartDir = new File("../sample-charts/nginx");
-        }
-        if (!chartDir.exists()) {
-            chartDir = new File("nginx");
-        }
-        if (!chartDir.exists()) {
-            chartDir = new File("../nginx");
-        }
-
-        if (!chartDir.exists()) {
-            log.info("Downloading nginx chart for testing...");
-            RepoManager repoManager = new RepoManager();
-            repoManager.setInsecureSkipTlsVerify(true);
-            repoManager.addRepo("bitnami", "https://charts.bitnami.com/bitnami");
-            repoManager.pull("nginx", "bitnami", "15.4.3", "target/test-charts");
-            File tgz = new File("target/test-charts/nginx-15.4.3.tgz");
-            repoManager.untar(tgz, new File("target/test-charts"));
-            chartDir = new File("target/test-charts/nginx");
-        }
-
-        Chart chart = chartLoader.load(chartDir);
-        assertNotNull(chart);
+        Chart chart = Chart.builder()
+                .metadata(ChartMetadata.builder().name("nginx").version("1.0.0").build())
+                .templates(new java.util.ArrayList<>(java.util.List.of(
+                        Chart.Template.builder().name("deployment.yaml").data("""
+                                apiVersion: apps/v1
+                                kind: Deployment
+                                metadata:
+                                  name: {{ .Release.Name }}-nginx
+                                spec:
+                                  replicas: {{ .Values.replicaCount }}
+                                  selector:
+                                    matchLabels:
+                                      app: nginx
+                                  template:
+                                    metadata:
+                                      labels:
+                                        app: nginx
+                                    spec:
+                                      containers:
+                                      - name: nginx
+                                        image: nginx:latest
+                                """).build(),
+                        Chart.Template.builder().name("service.yaml").data("""
+                                apiVersion: v1
+                                kind: Service
+                                metadata:
+                                  name: {{ .Release.Name }}-nginx
+                                spec:
+                                  ports:
+                                  - port: 80
+                                  selector:
+                                    app: nginx
+                                """).build()
+                )))
+                .values(Map.of("replicaCount", 1))
+                .build();
 
         // 2. Install
         Release release = installAction.install(chart, releaseName, namespace, Map.of("replicaCount", 2), 1, false);

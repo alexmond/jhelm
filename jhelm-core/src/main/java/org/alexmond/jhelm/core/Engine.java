@@ -17,6 +17,7 @@ public class Engine {
     private final Handlebars handlebars;
 
     private final Map<String, String> namedTemplates = new HashMap<>();
+    private final Map<String, Template> compiledTemplates = new HashMap<>();
 
     public Engine() {
         this.handlebars = new Handlebars();
@@ -70,6 +71,16 @@ public class Engine {
 
         handlebars.registerHelper("with", (context, options) -> {
             return options.fn(context);
+        });
+
+        handlebars.registerHelper("b64enc", (context, options) -> {
+            if (context == null) return "";
+            return java.util.Base64.getEncoder().encodeToString(context.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        });
+
+        handlebars.registerHelper("b64dec", (context, options) -> {
+            if (context == null) return "";
+            return new String(java.util.Base64.getDecoder().decode(context.toString()), java.nio.charset.StandardCharsets.UTF_8);
         });
 
         handlebars.registerHelper("default", (context, options) -> {
@@ -145,6 +156,14 @@ public class Engine {
             // Helm allows unquoted names in template, but we mapped to quoted in regex
             templateName = templateName.replace("\"", "");
             
+            // Track nesting depth for include
+            Integer depth = options.data("include-depth");
+            if (depth == null) depth = 0;
+            if (depth > 10) { // Reduced depth limit
+                log.warn("Too many nested includes (>10) for template {}", templateName);
+                return "ERROR: Deep nesting";
+            }
+
             // Extract actual template context from options.params or options.context
             Object templateContext = options.params.length > 0 ? options.params[0] : options.context;
             
@@ -158,10 +177,13 @@ public class Engine {
                     return "";
                 }
                 
-                // Reuse the same handlebars instance to avoid re-registering helpers and potential conflicts
-                // Handlebars.compile caches templates by default if we use a cache, but here we compile on the fly
-                Template template = handlebars.compile(new StringTemplateSource(templateName, templateData));
-                return template.apply(templateContext);
+                Template template = compiledTemplates.get(templateName);
+                if (template == null) {
+                    template = handlebars.compile(new StringTemplateSource(templateName, templateData));
+                    compiledTemplates.put(templateName, template);
+                }
+                return template.apply(com.github.jknack.handlebars.Context.copy(options.context, templateContext)
+                        .data("include-depth", depth + 1));
             } catch (Throwable e) {
                 // If it's a stack overflow or too deep nesting, we should stop
                 if (e instanceof StackOverflowError) {
@@ -170,7 +192,7 @@ public class Engine {
                 }
                 // Avoid logging full stack trace for known common issues
                 log.error("Failed to include template {}: {}", templateName, e.getMessage());
-                return "";
+                return "ERROR: Include failed";
             }
         });
 
@@ -219,6 +241,50 @@ public class Engine {
         handlebars.registerHelper("upper", (context, options) -> {
             return context == null ? "" : context.toString().toUpperCase();
         });
+
+        handlebars.registerHelper("trunc", (context, options) -> {
+            if (context == null) return "";
+            int length = options.param(0, 0);
+            String s = context.toString();
+            if (s.length() <= length) return s;
+            return s.substring(0, length);
+        });
+
+        handlebars.registerHelper("eq", (context, options) -> {
+            Object other = options.param(0);
+            if (context == null) return other == null;
+            return context.toString().equals(other == null ? null : other.toString());
+        });
+
+        handlebars.registerHelper("ne", (context, options) -> {
+            Object other = options.param(0);
+            if (context == null) return other != null;
+            return !context.toString().equals(other == null ? null : other.toString());
+        });
+
+        handlebars.registerHelper("toString", (context, options) -> {
+            return context == null ? "" : context.toString();
+        });
+
+        handlebars.registerHelper("first", (context, options) -> {
+            if (context instanceof List list && !list.isEmpty()) return list.get(0);
+            if (context != null && context.getClass().isArray()) {
+                Object[] arr = (Object[]) context;
+                if (arr.length > 0) return arr[0];
+            }
+            return context;
+        });
+
+        handlebars.registerHelper("omit", (context, options) -> {
+            if (context instanceof Map map) {
+                Map<String, Object> result = new HashMap<>(map);
+                for (Object param : options.params) {
+                    result.remove(param.toString());
+                }
+                return result;
+            }
+            return context;
+        });
     }
 
     private boolean isTruthy(Object context) {
@@ -234,11 +300,19 @@ public class Engine {
     @SneakyThrows
     public String render(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
         namedTemplates.clear();
+        compiledTemplates.clear();
         // Collect all named templates (define blocks) first
         collectNamedTemplates(chart);
         log.info("Collected {} named templates", namedTemplates.size());
         
-        return renderWithSubcharts(chart, values, releaseInfo);
+        try {
+            // Using a shared set for the whole rendering process to avoid redundant work and loops
+            java.util.Set<String> renderedCharts = new java.util.HashSet<>();
+            return renderWithSubcharts(chart, values, releaseInfo, renderedCharts, 0);
+        } catch (StackOverflowError e) {
+            log.error("Global StackOverflowError during rendering of chart {}: {}", chart.getMetadata().getName(), e.getMessage());
+            return "ERROR: Recursive template inclusion or too deep nesting";
+        }
     }
 
     private void collectNamedTemplates(Chart chart) {
@@ -289,7 +363,18 @@ public class Engine {
         return -1;
     }
 
-    private String renderWithSubcharts(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
+    private String renderWithSubcharts(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo, java.util.Set<String> renderedCharts, int depth) {
+        String chartKey = chart.getMetadata().getName() + ":" + chart.getMetadata().getVersion();
+        if (renderedCharts.contains(chartKey)) {
+            log.debug("Chart {} already rendered in this path, skipping to avoid recursion", chartKey);
+            return "";
+        }
+        if (depth > 3) { // Even further reduced depth
+            log.warn("Subchart nesting depth too high (>3) for chart {}", chartKey);
+            return "";
+        }
+        renderedCharts.add(chartKey);
+
         // Merge chart default values with provided values
         Map<String, Object> chartValues = chart.getValues() != null ? chart.getValues() : new HashMap<>();
         Map<String, Object> mergedValues = mergeValues(chartValues, values);
@@ -325,8 +410,12 @@ public class Engine {
                     if (rendered != null && !rendered.trim().isEmpty()) {
                         sb.append(rendered).append("\n---\n");
                     }
+                } catch (StackOverflowError e) {
+                    log.error("StackOverflowError rendering template {}: {}", t.getName(), e.getMessage());
+                    // Skip this template but don't fail the whole chart if possible
                 } catch (Exception e) {
                     log.error("Failed to render template {}: {}", t.getName(), e.getMessage());
+                    throw new RuntimeException("Failed to render template " + t.getName(), e);
                 }
             }
         }
@@ -349,7 +438,7 @@ public class Engine {
                 subchartOverrides.put("global", mergedValues.get("global"));
             }
 
-            sb.append(renderWithSubcharts(subchart, subchartOverrides, releaseInfo));
+            sb.append(renderWithSubcharts(subchart, subchartOverrides, releaseInfo, renderedCharts, depth + 1));
         }
 
         return sb.toString();
@@ -380,33 +469,47 @@ public class Engine {
             // Map Go template tags to Handlebars tags
             // Use a more sophisticated approach to handle nested tags and generic 'end'
             templateData = translateGoTemplateToHbs(templateData);
+            log.info("Translated template {}:\n{}", template.getName(), templateData);
             
-            Template hbsTemplate = handlebars.compile(new StringTemplateSource(template.getName(), templateData));
-            return hbsTemplate.apply(context);
+            try {
+                Template hbsTemplate = handlebars.compile(new StringTemplateSource(template.getName(), templateData));
+                return hbsTemplate.apply(context);
+            } catch (Exception e) {
+                log.error("Handlebars compilation/execution failed for {}. Template data:\n{}", template.getName(), templateData);
+                throw e;
+            }
         } catch (IOException e) {
+            log.error("Failed to render template {}: {}", template.getName(), e.getMessage());
             throw new RuntimeException("Failed to render template " + template.getName(), e);
         }
     }
 
     private String translateGoTemplateToHbs(String data) {
+        if (data == null) return "";
+        // Simple heuristic to avoid translating extremely large or already translated templates
+        if (data.length() > 50000) {
+            log.warn("Template data too large ({}), skipping full translation", data.length());
+            return data;
+        }
         // Strip Go comments
         data = data.replaceAll("\\{\\{\\s*/\\*.*?\\*/\\s*\\}\\}", "");
         
-        // Strip assignment blocks like {{ $foo := ... }}
-        data = data.replaceAll("\\{\\{(-?)\\s*\\$.*?:=.*?(-?)\\}\\}", "");
+        // Strip assignment blocks like {{ $foo := ... }} or {{ $k, $v := ... }}
+        // and also handle {{ $foo = ... }}
+        data = data.replaceAll("\\{\\{(-?)\\s*\\$.*?\\s*[:=]=?.*?(-?)\\}\\}", "");
         
-            // Handle {{- if ... }} or {{- range ... }} with whitespace control
-            // Handlebars uses {{{~ ... }}} or {{#if ... ~}} for whitespace control
-            // but for simplicity and to avoid parsing issues, let's just use standard {{#if ...}}
-            // and handle the - separately if needed, or strip it for now to avoid errors.
-            data = data.replaceAll("\\{\\{\\s*-\\s*", "{{");
-            data = data.replaceAll("\\s*-\\s*\\}\\}", "}}");
+        // Strip the variable part in range if it exists: {{ range $k, $v := .Values }} -> {{ range .Values }}
+        data = data.replaceAll("range\\s+\\$.*?,\\s*\\$.*?\\s*[:=]=?\\s*", "range ");
+        data = data.replaceAll("range\\s+\\$.*?\\s*[:=]=?\\s*", "range ");
+
+        // Handle {{- if ... }} or {{- range ... }} with whitespace control
+        data = data.replaceAll("\\{\\{\\s*-\\s*", "{{");
+        data = data.replaceAll("\\s*-\\s*\\}\\}", "}}");
 
         StringBuilder sb = new StringBuilder();
         java.util.Stack<String> stack = new java.util.Stack<>();
         
         // Match both with and without whitespace control (the -)
-        // Also handle the case where it's just {{ .Values.foo }}
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("\\{\\{(-?)\\s*(range|if|else|end|with|template|include|define)?\\s*(.*?)\\s*(-?)\\}\\}", java.util.regex.Pattern.DOTALL);
         java.util.regex.Matcher matcher = pattern.matcher(data);
         
@@ -434,22 +537,42 @@ public class Engine {
                     sb.append("{{else}}");
                 }
             } else if ("end".equals(command)) {
-                String top = stack.isEmpty() ? "if" : stack.pop();
-                sb.append("{{/").append(top).append("}}");
+                if (stack.isEmpty()) {
+                    log.debug("Unmatched end tag found in template");
+                    continue;
+                }
+                String top = stack.pop();
+                if ("define".equals(top)) {
+                    sb.append("{{/if}}");
+                } else {
+                    sb.append("{{/").append(top).append("}}");
+                }
             } else if ("define".equals(command)) {
-                stack.push("if");
-                sb.append("{{!-- define ").append(args).append(" --}}");
+                // Ignore define blocks entirely for Handlebars translation
+                // since they are collected separately
+                stack.push("define");
+                sb.append("{{#if false}}");
             } else if ("template".equals(command) || "include".equals(command)) {
-                sb.append("{{include ").append(translateExpression(args)).append("}}");
+                String translated = translateExpression(command + " " + args);
+                if (translated.startsWith("(include ") && translated.endsWith(")")) {
+                    translated = translated.substring(1, translated.length() - 1);
+                } else if (translated.startsWith("include ")) {
+                    // already starts with include
+                } else {
+                    translated = "include " + translated;
+                }
+                sb.append("{{").append(translated).append("}}");
             } else if (command == null || command.isEmpty()) {
                 if (args.startsWith("/*") && args.endsWith("*/")) {
                     // ignore
                 } else {
                     String translated = translateExpression(args);
-                    if (translated.startsWith("tpl ")) {
-                        translated = translated.replaceFirst("tpl\\s+", "include ");
+                    if (translated != null && !translated.isEmpty()) {
+                        if (translated.startsWith("tpl ")) {
+                            translated = translated.replaceFirst("tpl\\s+", "include ");
+                        }
+                        sb.append("{{").append(translated).append("}}");
                     }
-                    sb.append("{{").append(translated).append("}}");
                 }
             } else {
                 sb.append(matcher.group(0));
@@ -463,10 +586,19 @@ public class Engine {
 
     private String translateExpression(String expr) {
         if (expr == null || expr.isEmpty() || expr.equals(".")) return expr;
+        if (expr.equals("$")) return "this";
         
         // Handle ( ... )
         if (expr.startsWith("(") && expr.endsWith(")")) {
-            return "(" + translateExpression(expr.substring(1, expr.length() - 1)) + ")";
+            String inner = expr.substring(1, expr.length() - 1).trim();
+            String translated = translateExpression(inner);
+            if (translated.startsWith("(include ") && translated.endsWith(")")) {
+                return translated;
+            }
+            if (translated.startsWith("include ")) {
+                return "(" + translated + ")";
+            }
+            return "(" + translated + ")";
         }
 
         // Handle quoted strings
@@ -480,28 +612,58 @@ public class Engine {
              String var = translateExpression(pipeParts[0].trim());
              String funcPart = pipeParts[1].trim();
              
-             // if funcPart is just a helper name, it becomes (helper var)
-             // if it has args, it becomes (helper var args)
              String[] funcAndArgs = funcPart.split("\\s+(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
              StringBuilder res = new StringBuilder();
              res.append(funcAndArgs[0]);
-             res.append(" ").append(var);
+             res.append(" ");
+             
+             if (var.startsWith("include ") || var.startsWith("(include ")) {
+                 res.append(var);
+             } else if (var.contains(" ")) {
+                 res.append("(").append(var).append(")");
+             } else {
+                 res.append(var);
+             }
              for (int i = 1; i < funcAndArgs.length; i++) {
                  res.append(" ").append(translateExpression(funcAndArgs[i]));
              }
-             return "(" + res.toString().trim() + ")";
+             return res.toString().trim();
         }
 
+        // Split into parts to handle functions and their arguments
         String[] parts = expr.split("\\s+(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
         if (parts.length > 1) {
             String first = parts[0];
-            if (first.equals("not") || first.equals("and") || first.equals("or")) {
-                StringBuilder sb = new StringBuilder(first).append(" ");
+            if ("include".equals(first) || "template".equals(first)) {
+                StringBuilder sb = new StringBuilder("(include ");
                 for (int i = 1; i < parts.length; i++) {
                     sb.append(translateExpression(parts[i])).append(" ");
                 }
+                return sb.toString().trim() + ")";
+            }
+            if ("and".equals(first) || "or".equals(first) || "not".equals(first)) {
+                StringBuilder sb = new StringBuilder(first).append(" ");
+                for (int i = 1; i < parts.length; i++) {
+                    String translated = translateExpression(parts[i]);
+                    if (translated.contains(" ") && !translated.startsWith("\"")) {
+                        sb.append("(").append(translated).append(") ");
+                    } else {
+                        sb.append(translated).append(" ");
+                    }
+                }
                 return "(" + sb.toString().trim() + ")";
             }
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < parts.length; i++) {
+                String translated = translateExpression(parts[i]);
+                if (translated.contains(" ") && !translated.startsWith("\"")) {
+                    sb.append("(").append(translated).append(") ");
+                } else {
+                    sb.append(translated).append(" ");
+                }
+            }
+            return sb.toString().trim();
         }
 
         return stripDot(expr);
