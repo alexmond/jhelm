@@ -42,14 +42,14 @@ public class InstallAction {
         releaseData.put("Revision", release.getVersion());
 
         String manifest = engine.render(chart, values, releaseData);
-        
+
         release.setManifest(manifest);
 
         if (kubeService != null && !dryRun) {
             kubeService.apply(namespace, manifest);
             kubeService.storeRelease(release);
         }
-        
+
         return release;
     }
 }

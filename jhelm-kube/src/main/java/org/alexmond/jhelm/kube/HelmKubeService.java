@@ -33,7 +33,7 @@ public class HelmKubeService implements KubeService {
     public void storeRelease(Release release) throws ApiException {
         CoreV1Api api = new CoreV1Api(apiClient);
         String name = "sh.helm.release.v1." + release.getName() + ".v" + release.getVersion();
-        
+
         try {
             byte[] releaseJson = objectMapper.writeValueAsBytes(release);
             String encoded = Base64.getEncoder().encodeToString(releaseJson);
@@ -68,9 +68,9 @@ public class HelmKubeService implements KubeService {
     public Optional<Release> getRelease(String name, String namespace) throws ApiException {
         CoreV1Api api = new CoreV1Api(apiClient);
         String labelSelector = "owner=helm,name=" + name;
-        
+
         V1ConfigMapList list = api.listNamespacedConfigMap(namespace).labelSelector(labelSelector).execute();
-        
+
         return list.getItems().stream()
                 .sorted((s1, s2) -> {
                     int v1 = Integer.parseInt(s1.getMetadata().getLabels().get("version"));
@@ -163,7 +163,7 @@ public class HelmKubeService implements KubeService {
     public List<String> listPods(String namespace) throws ApiException {
         CoreV1Api api = new CoreV1Api(apiClient);
         V1PodList list = api.listNamespacedPod(namespace).execute();
-        
+
         return list.getItems().stream()
                 .map(pod -> pod.getMetadata().getName())
                 .collect(Collectors.toList());
@@ -234,7 +234,7 @@ public class HelmKubeService implements KubeService {
     private void applyCoreResource(String namespace, String kind, String name, KubernetesObject obj) throws ApiException {
         CoreV1Api api = new CoreV1Api(apiClient);
         String yaml = Yaml.dump(obj);
-        
+
         switch (kind) {
             case "ConfigMap" -> {
                 V1ConfigMap cm = Yaml.loadAs(yaml, V1ConfigMap.class);
@@ -340,7 +340,7 @@ public class HelmKubeService implements KubeService {
     public void installConfigMap(String namespace, String yamlContent) throws ApiException {
         CoreV1Api api = new CoreV1Api(apiClient);
         V1ConfigMap cm = Yaml.loadAs(yamlContent, V1ConfigMap.class);
-        
+
         try {
             log.info("Creating ConfigMap {} in {}", cm.getMetadata().getName(), namespace);
             api.createNamespacedConfigMap(namespace, cm).execute();

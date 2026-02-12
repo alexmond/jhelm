@@ -3,7 +3,6 @@ package org.alexmond.jhelm.app;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.ListAction;
 import org.alexmond.jhelm.core.Release;
-import org.alexmond.jhelm.kube.HelmKubeService;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -14,10 +13,9 @@ import java.util.List;
 @Slf4j
 public class ListCommand implements Runnable {
 
+    private final ListAction listAction;
     @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
     private String namespace;
-
-    private final ListAction listAction;
 
     public ListCommand(ListAction listAction) {
         this.listAction = listAction;
@@ -30,8 +28,8 @@ public class ListCommand implements Runnable {
             System.out.printf("%-20s %-10s %-10s %-30s\n", "NAME", "REVISION", "STATUS", "CHART");
             for (Release r : releases) {
                 String chartInfo = r.getChart().getMetadata().getName() + "-" + r.getChart().getMetadata().getVersion();
-                System.out.printf("%-20s %-10d %-10s %-30s\n", 
-                    r.getName(), r.getVersion(), r.getInfo().getStatus(), chartInfo);
+                System.out.printf("%-20s %-10d %-10s %-30s\n",
+                        r.getName(), r.getVersion(), r.getInfo().getStatus(), chartInfo);
             }
         } catch (Exception e) {
             log.error("Error listing releases: {}", e.getMessage());

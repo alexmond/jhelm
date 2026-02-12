@@ -1,6 +1,5 @@
 package org.alexmond.jhelm.kube;
 
-import io.kubernetes.client.openapi.ApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.*;
 import org.junit.jupiter.api.Test;
@@ -8,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 
@@ -18,19 +16,15 @@ import static org.junit.jupiter.api.Assertions.*;
 @Slf4j
 class HelmFullFlowIntegrationTest {
 
+    private final ChartLoader chartLoader = new ChartLoader();
     @Autowired
     private HelmKubeService helmKubeService;
-
     @Autowired
     private InstallAction installAction;
-
     @Autowired
     private UpgradeAction upgradeAction;
-
     @Autowired
     private UninstallAction uninstallAction;
-
-    private final ChartLoader chartLoader = new ChartLoader();
 
     @Test
     void testFullFlow() throws Exception {
@@ -112,29 +106,29 @@ class HelmFullFlowIntegrationTest {
         File chartDir = new File("sample-charts/nginx");
         if (!chartDir.exists()) chartDir = new File("nginx");
         if (!chartDir.exists()) {
-             // Basic fallback for CI or local dev if above fails
-             Chart simpleChart = Chart.builder()
-                     .metadata(ChartMetadata.builder().name("simple").version("0.1.0").build())
-                     .templates(new java.util.ArrayList<>(java.util.List.of(
-                             Chart.Template.builder().name("cm.yaml").data("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Release.Name }}").build()
-                     )))
-                     .values(new java.util.HashMap<>())
-                     .build();
-             
-             // Install Dry Run
-             Release release = installAction.install(simpleChart, releaseName, namespace, Map.of(), 1, true);
-             assertNotNull(release);
-             assertTrue(release.getManifest().contains("name: dry-run-release"));
-             assertEquals("pending-install", release.getInfo().getStatus());
+            // Basic fallback for CI or local dev if above fails
+            Chart simpleChart = Chart.builder()
+                    .metadata(ChartMetadata.builder().name("simple").version("0.1.0").build())
+                    .templates(new java.util.ArrayList<>(java.util.List.of(
+                            Chart.Template.builder().name("cm.yaml").data("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Release.Name }}").build()
+                    )))
+                    .values(new java.util.HashMap<>())
+                    .build();
 
-             // Verify NOT in Kube
-             Optional<Release> storedRelease = helmKubeService.getRelease(releaseName, namespace);
-             assertFalse(storedRelease.isPresent());
-             return;
+            // Install Dry Run
+            Release release = installAction.install(simpleChart, releaseName, namespace, Map.of(), 1, true);
+            assertNotNull(release);
+            assertTrue(release.getManifest().contains("name: dry-run-release"));
+            assertEquals("pending-install", release.getInfo().getStatus());
+
+            // Verify NOT in Kube
+            Optional<Release> storedRelease = helmKubeService.getRelease(releaseName, namespace);
+            assertFalse(storedRelease.isPresent());
+            return;
         }
 
         Chart chart = chartLoader.load(chartDir);
-        
+
         // 1. Install Dry Run
         Release release = installAction.install(chart, releaseName, namespace, Map.of("replicaCount", 5), 1, true);
         assertNotNull(release);
@@ -148,7 +142,7 @@ class HelmFullFlowIntegrationTest {
         // 3. Upgrade Dry Run (need a real release first)
         Release realRelease = installAction.install(chart, releaseName, namespace, Map.of("replicaCount", 1), 1, false);
         assertNotNull(realRelease);
-        
+
         Release dryUpgraded = upgradeAction.upgrade(realRelease, chart, Map.of("replicaCount", 10), true);
         assertNotNull(dryUpgraded);
         assertTrue(dryUpgraded.getManifest().contains("replicas: 10"));

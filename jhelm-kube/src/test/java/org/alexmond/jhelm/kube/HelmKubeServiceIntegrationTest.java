@@ -39,15 +39,15 @@ class HelmKubeServiceIntegrationTest {
                 data:
                   key: value
                 """;
-        
+
         helmKubeService.installConfigMap("default", yaml);
-        
+
         // Verify
-        CoreV1Api api = new CoreV1Api(apiClient); 
+        CoreV1Api api = new CoreV1Api(apiClient);
         V1ConfigMap cm = api.readNamespacedConfigMap("jhelm-test-cm", "default").execute();
         assertNotNull(cm);
         assertEquals("value", cm.getData().get("key"));
-        
+
         // Cleanup
         api.deleteNamespacedConfigMap("jhelm-test-cm", "default");
     }

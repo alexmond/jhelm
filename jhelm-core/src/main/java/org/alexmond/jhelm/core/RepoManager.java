@@ -6,7 +6,14 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -14,14 +21,9 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import javax.net.ssl.*;
 import java.security.cert.X509Certificate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
 @Slf4j
 public class RepoManager {
@@ -33,15 +35,6 @@ public class RepoManager {
     @Setter
     private RegistryManager registryManager;
 
-    @lombok.Data
-    @lombok.AllArgsConstructor
-    public static class ChartVersion {
-        private String name;         // repo/chart
-        private String chartVersion; // version
-        private String appVersion;   // appVersion (may be null)
-        private String description;  // description (may be null)
-    }
-
     public RepoManager() {
         org.yaml.snakeyaml.LoaderOptions loaderOptions = new org.yaml.snakeyaml.LoaderOptions();
         loaderOptions.setCodePointLimit(50_000_000); // 50MB
@@ -49,14 +42,14 @@ public class RepoManager {
                 .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
                 .loaderOptions(loaderOptions)
                 .build();
-        
+
         com.fasterxml.jackson.core.StreamReadConstraints constraints = com.fasterxml.jackson.core.StreamReadConstraints.builder()
                 .maxStringLength(50_000_000)
                 .build();
         yamlFactory.setStreamReadConstraints(constraints);
 
         this.yamlMapper = new ObjectMapper(yamlFactory);
-        
+
         String home = System.getProperty("user.home");
         String os = System.getProperty("os.name").toLowerCase();
         if (os.contains("mac")) {
@@ -96,6 +89,12 @@ public class RepoManager {
         config.getRepositories().add(repo);
         config.setGenerated(OffsetDateTime.now().toString());
         saveConfig(config);
+        // Eagerly update index on add for convenience, like `helm repo add` often followed by update
+        try {
+            updateRepo(name);
+        } catch (IOException e) {
+            log.warn("Failed to update repo '{}' immediately after add: {}", name, e.getMessage());
+        }
     }
 
     public void removeRepo(String name) throws IOException {
@@ -114,24 +113,92 @@ public class RepoManager {
                 .orElse(null);
     }
 
-    public java.util.List<ChartVersion> getChartVersions(String repoName, String chartName) throws IOException {
-        String repoUrl = getRepoUrl(repoName);
+    private File getCacheDir() {
+        String home = System.getProperty("user.home");
+        String os = System.getProperty("os.name").toLowerCase();
+        File base;
+        if (os.contains("mac")) {
+            base = Paths.get(home, "Library/Caches/jhelm/repository").toFile();
+        } else if (os.contains("win")) {
+            base = Paths.get(System.getenv("LOCALAPPDATA"), "jhelm/repository").toFile();
+        } else {
+            base = Paths.get(home, ".cache/jhelm/repository").toFile();
+        }
+        base.mkdirs();
+        return base;
+    }
+
+    private File getIndexCacheFile(String repoName) {
+        return new File(getCacheDir(), repoName + "-index.yaml");
+    }
+
+    public void updateRepo(String name) throws IOException {
+        String repoUrl = getRepoUrl(name);
         if (repoUrl == null) {
-            throw new IOException("Repository not found: " + repoName + ". Please run: jhelm repo add " + repoName + " <url>");
+            throw new IOException("Repository not found: " + name);
         }
         String indexUrl = repoUrl.endsWith("/") ? repoUrl + "index.yaml" : repoUrl + "/index.yaml";
+        log.info("Updating repository '{}' from {}", name, indexUrl);
         URL url = new URL(indexUrl);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         if (insecureSkipTlsVerify && conn instanceof HttpsURLConnection httpsConn) {
             setupInsecureSsl(httpsConn);
         }
         conn.setRequestProperty("User-Agent", "jhelm");
+        int responseCode = conn.getResponseCode();
+        if (responseCode != 200) {
+            throw new IOException("Failed to download index from " + indexUrl + ": " + responseCode + " " + conn.getResponseMessage());
+        }
+        try (InputStream in = conn.getInputStream(); OutputStream out = new FileOutputStream(getIndexCacheFile(name))) {
+            in.transferTo(out);
+        }
+        log.info("Repository '{}' index updated", name);
+    }
+
+    public void updateAll() throws IOException {
+        RepositoryConfig config = loadConfig();
+        for (RepositoryConfig.Repository r : config.getRepositories()) {
+            try {
+                updateRepo(r.getName());
+            } catch (IOException e) {
+                log.warn("Failed to update repo {}: {}", r.getName(), e.getMessage());
+            }
+        }
+    }
+
+    public java.util.List<ChartVersion> getChartVersions(String repoName, String chartName) throws IOException {
+        // Prefer cached index if exists, else fetch live
+        File indexFile = getIndexCacheFile(repoName);
+        InputStream indexIn;
+        if (indexFile.exists()) {
+            indexIn = new FileInputStream(indexFile);
+        } else {
+            String repoUrl = getRepoUrl(repoName);
+            if (repoUrl == null) {
+                // If repoName is null or empty, it might be an absolute URL pull or something else,
+                // but for getChartVersions we need a repo.
+                throw new IOException("Repository name is required to get chart versions. Found: " + repoName);
+            }
+            String indexUrl = repoUrl.endsWith("/") ? repoUrl + "index.yaml" : repoUrl + "/index.yaml";
+            log.info("Downloading index from {} ...", indexUrl);
+            URL url = new URL(indexUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            if (insecureSkipTlsVerify && conn instanceof HttpsURLConnection httpsConn) {
+                setupInsecureSsl(httpsConn);
+            }
+            conn.setRequestProperty("User-Agent", "jhelm");
+            int responseCode = conn.getResponseCode();
+            if (responseCode != 200) {
+                throw new IOException("Failed to download index from " + indexUrl + ": " + responseCode);
+            }
+            indexIn = conn.getInputStream();
+        }
         java.util.List<ChartVersion> result = new java.util.ArrayList<>();
-        try (InputStream in = conn.getInputStream()) {
+        try (InputStream in = indexIn) {
             // Parse YAML as Map<String,Object>
-            java.util.Map<?,?> root = yamlMapper.readValue(in, java.util.Map.class);
+            java.util.Map<?, ?> root = yamlMapper.readValue(in, java.util.Map.class);
             Object entriesObj = root.get("entries");
-            if (!(entriesObj instanceof java.util.Map<?,?> entries)) {
+            if (!(entriesObj instanceof java.util.Map<?, ?> entries)) {
                 return result;
             }
             Object chartListObj = entries.get(chartName);
@@ -139,7 +206,7 @@ public class RepoManager {
                 return result;
             }
             for (Object o : list) {
-                if (o instanceof java.util.Map<?,?> m) {
+                if (o instanceof java.util.Map<?, ?> m) {
                     String version = asString(m.get("version"));
                     String appVersion = asString(m.get("appVersion"));
                     String description = asString(m.get("description"));
@@ -148,7 +215,7 @@ public class RepoManager {
             }
         }
         // Helm shows latest first by default for --versions output, so sort descending semver-ish (string fallback)
-        result.sort((a,b) -> safeCompareVersions(b.getChartVersion(), a.getChartVersion()));
+        result.sort((a, b) -> safeCompareVersions(b.getChartVersion(), a.getChartVersion()));
         return result;
     }
 
@@ -160,7 +227,7 @@ public class RepoManager {
         String[] p1 = v1.split("[.-]");
         String[] p2 = v2.split("[.-]");
         int n = Math.max(p1.length, p2.length);
-        for (int i=0;i<n;i++) {
+        for (int i = 0; i < n; i++) {
             String a = i < p1.length ? p1[i] : "0";
             String b = i < p2.length ? p2[i] : "0";
             int ai = parseIntSafe(a);
@@ -176,17 +243,23 @@ public class RepoManager {
     }
 
     private int parseIntSafe(String s) {
-        try { return Integer.parseInt(s); } catch (Exception e) { return Integer.MIN_VALUE; }
+        try {
+            return Integer.parseInt(s);
+        } catch (Exception e) {
+            return Integer.MIN_VALUE;
+        }
     }
 
-    private String asString(Object o) { return o == null ? null : String.valueOf(o); }
+    private String asString(Object o) {
+        return o == null ? null : String.valueOf(o);
+    }
 
     public void pull(String chartFullName, String repoName, String version, String destDir) throws IOException {
         String finalChartName = chartFullName;
         String finalRepoName = repoName;
 
-        if (chartFullName.contains("/") && (repoName == null || repoName.isEmpty())) {
-            int slashIndex = chartFullName.indexOf("/");
+        if (chartFullName.contains("/")) {
+            int slashIndex = chartFullName.lastIndexOf("/");
             finalRepoName = chartFullName.substring(0, slashIndex);
             finalChartName = chartFullName.substring(slashIndex + 1);
         }
@@ -202,9 +275,41 @@ public class RepoManager {
                 .findFirst()
                 .orElseThrow(() -> new IOException("Repository not found: " + searchRepoName));
 
-        // Simplified: assuming chart is available at repoUrl/chartName-version.tgz
-        // In reality, we should parse index.yaml
-        String chartUrl = repo.getUrl() + "/" + finalChartName + "-" + version + ".tgz";
+        // Try to find the actual URL from the index.yaml if available
+        String chartUrl = null;
+        File indexFile = getIndexCacheFile(finalRepoName);
+        if (indexFile.exists()) {
+            try (InputStream in = new FileInputStream(indexFile)) {
+                java.util.Map<?, ?> root = yamlMapper.readValue(in, java.util.Map.class);
+                java.util.Map<?, ?> entries = (java.util.Map<?, ?>) root.get("entries");
+                if (entries != null) {
+                    java.util.List<?> versions = (java.util.List<?>) entries.get(finalChartName);
+                    if (versions != null) {
+                        for (Object o : versions) {
+                            java.util.Map<?, ?> m = (java.util.Map<?, ?>) o;
+                            if (version.equals(asString(m.get("version")))) {
+                                java.util.List<?> urls = (java.util.List<?>) m.get("urls");
+                                if (urls != null && !urls.isEmpty()) {
+                                    chartUrl = asString(urls.get(0));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (chartUrl == null) {
+            // Fallback to convention
+            chartUrl = repo.getUrl() + "/" + finalChartName + "-" + version + ".tgz";
+        } else if (!chartUrl.contains("://")) {
+            // Handle relative URLs
+            String base = repo.getUrl();
+            if (!base.endsWith("/")) base += "/";
+            chartUrl = base + chartUrl;
+        }
+
         pullFromUrl(chartUrl, destDir, finalChartName + "-" + version + ".tgz");
     }
 
@@ -224,13 +329,16 @@ public class RepoManager {
             setupInsecureSsl(httpsConn);
         }
         conn.setRequestProperty("User-Agent", "jhelm");
-        
+
         try (InputStream in = conn.getInputStream();
              ReadableByteChannel rbc = Channels.newChannel(in);
              FileOutputStream fos = new FileOutputStream(destFile)) {
             fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
         }
         log.info("Chart pulled successfully to {}", destFile.getAbsolutePath());
+
+        // Automatically untar regular charts too
+        untar(destFile, new File(destDir));
     }
 
     public void pullOci(String ociUrl, String destDir, String fileName) throws IOException {
@@ -272,7 +380,7 @@ public class RepoManager {
             for (JsonNode layer : manifest.get("layers")) {
                 String mediaType = layer.get("mediaType").asText();
                 if ("application/vnd.cncf.helm.chart.content.v1.tar+gzip".equals(mediaType) ||
-                    "application/vnd.oci.image.layer.v1.tar+gzip".equals(mediaType)) {
+                        "application/vnd.oci.image.layer.v1.tar+gzip".equals(mediaType)) {
                     digest = layer.get("digest").asText();
                     break;
                 }
@@ -286,6 +394,10 @@ public class RepoManager {
         // 4. Download Layer (blob)
         String blobUrl = "https://" + registry + "/v2/" + path + "/blobs/" + digest;
         downloadBlob(blobUrl, token, destDir, fileName);
+
+        // 5. Untar it automatically to match helm behavior
+        File tgzFile = new File(destDir, fileName);
+        untar(tgzFile, new File(destDir));
     }
 
     private String fetchOciToken(String registry, String path, String auth) throws IOException {
@@ -307,7 +419,7 @@ public class RepoManager {
         if (auth != null) {
             conn.setRequestProperty("Authorization", "Basic " + auth);
         }
-        
+
         int responseCode = conn.getResponseCode();
         if (responseCode != 200) {
             log.warn("Failed to fetch OCI token: HTTP {}", responseCode);
@@ -352,7 +464,7 @@ public class RepoManager {
         if (token != null) {
             conn.setRequestProperty("Authorization", "Bearer " + token);
         }
-        
+
         // Handle redirects (common for blobs stored in S3/GCS)
         int status = conn.getResponseCode();
         if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == 307 || status == 308) {
@@ -373,9 +485,15 @@ public class RepoManager {
         try {
             SSLContext sc = SSLContext.getInstance("SSL");
             sc.init(null, new TrustManager[]{new X509TrustManager() {
-                public X509Certificate[] getAcceptedIssuers() { return null; }
-                public void checkClientTrusted(X509Certificate[] certs, String authType) { }
-                public void checkServerTrusted(X509Certificate[] certs, String authType) { }
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+
+                public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                }
+
+                public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                }
             }}, new java.security.SecureRandom());
             conn.setSSLSocketFactory(sc.getSocketFactory());
             conn.setHostnameVerifier((hostname, session) -> true);
@@ -412,5 +530,14 @@ public class RepoManager {
                 }
             }
         }
+    }
+
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    public static class ChartVersion {
+        private String name;         // repo/chart
+        private String chartVersion; // version
+        private String appVersion;   // appVersion (may be null)
+        private String description;  // description (may be null)
     }
 }

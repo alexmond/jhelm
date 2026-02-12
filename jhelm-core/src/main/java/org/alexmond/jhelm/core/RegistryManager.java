@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,23 +18,6 @@ import java.util.Map;
 public class RegistryManager {
     private final ObjectMapper jsonMapper = new ObjectMapper();
     private final String configPath;
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Config {
-        @Builder.Default
-        private Map<String, Auth> auths = new HashMap<>();
-
-        @Data
-        @Builder
-        @NoArgsConstructor
-        @AllArgsConstructor
-        public static class Auth {
-            private String auth;
-        }
-    }
 
     public RegistryManager() {
         String home = System.getProperty("user.home");
@@ -82,5 +65,22 @@ public class RegistryManager {
         File file = new File(configPath);
         file.getParentFile().mkdirs();
         jsonMapper.writeValue(file, config);
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Config {
+        @Builder.Default
+        private Map<String, Auth> auths = new HashMap<>();
+
+        @Data
+        @Builder
+        @NoArgsConstructor
+        @AllArgsConstructor
+        public static class Auth {
+            private String auth;
+        }
     }
 }

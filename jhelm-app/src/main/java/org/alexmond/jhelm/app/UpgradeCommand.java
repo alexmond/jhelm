@@ -15,24 +15,19 @@ import java.util.Optional;
 @Slf4j
 public class UpgradeCommand implements Runnable {
 
-    @CommandLine.Parameters(index = "0", description = "release name")
-    private String name;
-
-    @CommandLine.Parameters(index = "1", description = "chart path")
-    private String chartPath;
-
-    @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
-    private String namespace;
-
-    @CommandLine.Option(names = {"--install"}, description = "install if not exists")
-    private boolean install;
-
-    @CommandLine.Option(names = {"--dry-run"}, description = "simulate an upgrade")
-    private boolean dryRun;
-
     private final HelmKubeService helmKubeService;
     private final InstallAction installAction;
     private final UpgradeAction upgradeAction;
+    @CommandLine.Parameters(index = "0", description = "release name")
+    private String name;
+    @CommandLine.Parameters(index = "1", description = "chart path")
+    private String chartPath;
+    @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
+    private String namespace;
+    @CommandLine.Option(names = {"--install"}, description = "install if not exists")
+    private boolean install;
+    @CommandLine.Option(names = {"--dry-run"}, description = "simulate an upgrade")
+    private boolean dryRun;
 
     public UpgradeCommand(HelmKubeService helmKubeService, InstallAction installAction, UpgradeAction upgradeAction) {
         this.helmKubeService = helmKubeService;
@@ -67,7 +62,7 @@ public class UpgradeCommand implements Runnable {
             }
 
             Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, new HashMap<>(), dryRun);
-            
+
             if (dryRun) {
                 log.info("NAME: {}", upgradedRelease.getName());
                 log.info("LAST DEPLOYED: {}", upgradedRelease.getInfo().getLastDeployed());
