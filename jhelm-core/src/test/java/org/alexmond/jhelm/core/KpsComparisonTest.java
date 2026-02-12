@@ -1,11 +1,16 @@
 package org.alexmond.jhelm.core;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
 
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,12 +18,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import javax.net.ssl.*;
 import java.security.cert.X509Certificate;
 import java.util.Map;
 import java.util.Scanner;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -31,6 +33,8 @@ class KpsComparisonTest {
     private final InstallAction installAction = new InstallAction(engine, null);
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private final java.util.Set<String> addedRepos = new java.util.HashSet<>();
+
     private RepoManager createRepoManager() {
         RepoManager rm = new RepoManager();
         rm.setInsecureSkipTlsVerify(true);
@@ -42,11 +46,11 @@ class KpsComparisonTest {
         String query = "bitnami/nginx";
         String repo = "bitnami";
         String chart = "nginx";
-        
+
         repoManager.addRepo(repo, "https://charts.bitnami.com/bitnami");
         var versions = repoManager.getChartVersions(repo, chart);
         assertFalse(versions.isEmpty());
-        
+
         // Helm search
         String helmOutput = runHelmSearchRepo(query);
         if (helmOutput != null) {
@@ -62,13 +66,13 @@ class KpsComparisonTest {
         try {
             ProcessBuilder pb = new ProcessBuilder("helm", "search", "repo", query);
             Process process = pb.start();
-            
+
             String output;
             try (InputStream is = process.getInputStream();
                  Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A")) {
                 output = s.hasNext() ? s.next() : "";
             }
-            
+
             int exitCode = process.waitFor();
             if (exitCode != 0) {
                 return null;
@@ -92,7 +96,7 @@ class KpsComparisonTest {
                                 .build()
                 )))
                 .build();
-        
+
         Release release = installAction.install(chart, "simple", "default", Map.of(), 1, false);
         log.info("Simple manifest: [{}]", release.getManifest().trim());
         assertTrue(release.getManifest().contains("hello world enabled"));
@@ -104,95 +108,96 @@ class KpsComparisonTest {
         // Since we don't have a real Helm repo set up in CI, we use the local directory as our "repo"
         File repoDir = new File("sample-charts");
         if (!repoDir.exists()) repoDir = new File("../sample-charts");
-        
+
         File nginxDir = new File(repoDir, "nginx");
         if (nginxDir.exists()) {
-            compareChart("nginx", "pulled-nginx");
+            compareChart("nginx", "pulled-nginx", "bitnami", "https://charts.bitnami.com/bitnami");
         }
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/charts.csv")
-    void compareAllTopCharts(String chartName) throws IOException {
-        compareChart(chartName, "release-" + chartName);
+    void compareAllTopCharts(String chartName, String repoId, String repoUrl) throws IOException {
+        compareChart(chartName, "release-" + chartName, repoId, repoUrl);
     }
 
-    private void compareChart(String chartName, String releaseName) throws IOException {
-        // Skip extremely complex charts that cause issues in current Handlebars implementation
-        if (chartName.contains("jenkins") || 
-            chartName.contains("kafka") || 
-            chartName.contains("rabbitmq") || 
-            chartName.contains("elasticsearch") || 
-            chartName.contains("drupal") ||
-            chartName.contains("wordpress") ||
-            chartName.contains("joomla") ||
-            chartName.contains("ghost") ||
-            chartName.contains("moodle") ||
-            chartName.contains("magento") ||
-            chartName.contains("redmine") ||
-            chartName.contains("kube-prometheus-stack") ||
-            chartName.contains("argo-cd") ||
-            chartName.contains("prometheus") ||
-            chartName.contains("nginx") ||
-            chartName.contains("cert-manager") ||
-            chartName.contains("karpenter") ||
-            chartName.contains("grafana") ||
-            chartName.contains("mongodb") ||
-            chartName.contains("postgresql") ||
-            chartName.contains("redis") ||
-            chartName.contains("mysql") ||
-            chartName.contains("mariadb") ||
-            chartName.contains("apache")) {
-            log.info("Skipping complex chart {} for now", chartName);
-            return;
-        }
+    private void compareChart(String chartName, String releaseName, String repoId, String repoUrl) throws IOException {
+        // No charts skipped anymore
 
         File chartDir = findChartDir(chartName);
 
         if (chartDir == null) {
-            log.info("Chart {} not found locally, fetching from Artifact Hub...", chartName);
+            log.info("Chart {} not found locally, fetching from repository {}...", chartName, repoUrl);
             try {
-                fetchFromArtifactHub(chartName);
+                addHelmRepo(repoId, repoUrl);
+                fetchFromHelmRepo(chartName);
                 chartDir = findChartDir(chartName);
             } catch (Exception e) {
-                log.error("Failed to fetch chart {} from Artifact Hub: {}", chartName, e.getMessage());
-                fail("Failed to fetch chart " + chartName + " from Artifact Hub: " + e.getMessage());
+                log.error("Failed to fetch chart {} from repository: {}", chartName, e.getMessage());
+                fail("Failed to fetch chart " + chartName + " from repository: " + e.getMessage());
             }
         }
-        
+
         if (chartDir == null) {
             fail("Skipping chart " + chartName + " - directory not found and could not be fetched");
         }
 
+        // Sanitize release name to be valid for Helm (alphanumeric and hyphens only, no slashes)
+        String sanitizedReleaseName = releaseName.replaceAll("[^a-z0-9-]", "-").replaceAll("-+", "-");
+        if (sanitizedReleaseName.startsWith("-")) {
+            sanitizedReleaseName = "r" + sanitizedReleaseName;
+        }
+        if (sanitizedReleaseName.endsWith("-")) {
+            sanitizedReleaseName = sanitizedReleaseName.substring(0, sanitizedReleaseName.length() - 1);
+        }
+
+        log.info("Using sanitized release name: {} (from {})", sanitizedReleaseName, releaseName);
+
+        String sanitizedName = chartName.replace("/", "_");
+
+        // STEP 1: Run Helm template FIRST and save output
+        log.info("{} - Running Helm template first...", chartName);
+        String helmManifest = runHelmInstallDryRun(chartDir, sanitizedReleaseName, "default");
+
+        if (helmManifest == null) {
+            // Helm failed - log error and do NOT continue to Java rendering
+            log.error("{} - Helm template failed, skipping Java rendering", chartName);
+            fail(chartName + " - Helm template command failed - see logs for details");
+        }
+
+        // Save Helm output to target/helm-output/
+        File helmOutputDir = new File("target/helm-output");
+        helmOutputDir.mkdirs();
+        File helmOutputFile = new File(helmOutputDir, sanitizedName + ".yaml");
+        Files.writeString(helmOutputFile.toPath(), helmManifest);
+        log.info("{} - Saved Helm output to {}", chartName, helmOutputFile.getPath());
+
+        // STEP 2: Load chart and run Java rendering (only if Helm succeeded)
         Chart chart = chartLoader.load(chartDir);
         assertNotNull(chart);
 
         try {
+            log.info("{} - Running JHelm rendering...", chartName);
             // JHelm dry-run
-            Release release = installAction.install(chart, releaseName, "default", Map.of(), 1, true);
+            Release release = installAction.install(chart, sanitizedReleaseName, "default", Map.of(), 1, true);
             assertNotNull(release);
-        
+
             String jhelmManifest = release.getManifest();
             log.info("{} - JHelm manifest length: {}", chartName, jhelmManifest.length());
-        
-            String sanitizedName = chartName.replace("/", "_");
+
             File actualFile = new File("target/test-output/actual_" + sanitizedName + ".yaml");
             actualFile.getParentFile().mkdirs();
             Files.writeString(actualFile.toPath(), jhelmManifest);
 
-            // Helm dry-run comparison
-            String helmManifest = runHelmInstallDryRun(chartDir, releaseName, "default");
-            assertNotNull(helmManifest, chartName + " - Could not run helm dry-run for comparison");
-            
             File expectedFile = new File("target/test-output/expected_" + sanitizedName + ".yaml");
             Files.writeString(expectedFile.toPath(), helmManifest);
-            
+
             // Compare manifests
             compareManifests(chartName, jhelmManifest, helmManifest);
-            
+
         } catch (Exception e) {
-            log.error("{} - Rendering failed", chartName, e);
-            fail(chartName + " - Rendering failed: " + e.getMessage());
+            log.error("{} - JHelm rendering failed", chartName, e);
+            fail(chartName + " - JHelm rendering failed: " + e.getMessage());
         }
     }
 
@@ -200,17 +205,17 @@ class KpsComparisonTest {
         System.out.println("[DEBUG_LOG] Running helm install dry-run for " + releaseName + " using chart " + chartDir.getAbsolutePath());
         try {
             ProcessBuilder pb = new ProcessBuilder(
-                "helm", "install", releaseName, chartDir.getAbsolutePath(), 
-                "--dry-run", "--namespace", namespace
+                    "helm", "template", releaseName, chartDir.getAbsolutePath(),
+                    "--namespace", namespace
             );
             Process process = pb.start();
-            
+
             String output;
             try (InputStream is = process.getInputStream();
                  Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A")) {
                 output = s.hasNext() ? s.next() : "";
             }
-            
+
             int exitCode = process.waitFor();
             if (exitCode != 0) {
                 try (InputStream es = process.getErrorStream();
@@ -222,22 +227,15 @@ class KpsComparisonTest {
                 return null;
             }
 
-            // Extract manifest from helm output
-            int manifestStart = output.indexOf("MANIFEST:");
-            if (manifestStart == -1) {
-                System.err.println("[DEBUG_LOG] MANIFEST: section not found in helm output");
+            // helm template outputs the manifest directly (no MANIFEST: prefix)
+            // Just return the output, but skip any leading/trailing whitespace
+            if (output == null || output.trim().isEmpty()) {
+                System.err.println("[DEBUG_LOG] Helm template returned empty output");
                 return null;
             }
-            
-            String manifest = output.substring(manifestStart + "MANIFEST:".length()).trim();
-            // Remove NOTES if present
-            int notesStart = manifest.indexOf("NOTES:");
-            if (notesStart != -1) {
-                manifest = manifest.substring(0, notesStart).trim();
-            }
-            
-            System.out.println("[DEBUG_LOG] Successfully captured helm manifest for " + releaseName);
-            return manifest;
+
+            System.out.println("[DEBUG_LOG] Successfully captured helm manifest for " + releaseName + " (" + output.length() + " bytes)");
+            return output.trim();
         } catch (Exception e) {
             System.err.println("[DEBUG_LOG] Failed to run helm: " + e.getMessage());
             log.error("Failed to run helm", e);
@@ -249,11 +247,11 @@ class KpsComparisonTest {
         System.out.println("[DEBUG_LOG] Comparing manifests for " + chartName);
         // Simple comparison for now: check if they contain similar key resources
         // Direct string comparison might fail due to comments, order, or labels
-        
+
         // Remove comments and empty lines for a slightly more robust comparison
         String jhelmClean = cleanManifest(jhelm);
         String helmClean = cleanManifest(helm);
-        
+
         if (!jhelmClean.equals(helmClean)) {
             System.out.println("[DEBUG_LOG] " + chartName + " - Manifests differ from Helm's output");
             log.warn("{} - Manifests differ from Helm's output", chartName);
@@ -278,12 +276,14 @@ class KpsComparisonTest {
     private File findChartDir(String chartFullName) {
         String chartName = chartFullName.contains("/") ? chartFullName.substring(chartFullName.lastIndexOf("/") + 1) : chartFullName;
         String[] paths = {
-            "sample-charts/" + chartName,
-            "../sample-charts/" + chartName,
-            "target/test-charts/" + chartName,
-            "target/test-charts/bitnami/" + chartName, // common subfolder in bitnami tgz
-            chartName, // legacy check
-            "../" + chartName
+                "target/temp-charts/" + chartName,
+                "target/temp-charts/" + chartFullName,
+                "sample-charts/" + chartName,
+                "../sample-charts/" + chartName,
+                "target/test-charts/" + chartName,
+                "target/test-charts/bitnami/" + chartName, // common subfolder in bitnami tgz
+                chartName, // legacy check
+                "../" + chartName
         };
         for (String p : paths) {
             File f = new File(p);
@@ -292,6 +292,49 @@ class KpsComparisonTest {
             }
         }
         return null;
+    }
+
+    private void addHelmRepo(String repoId, String repoUrl) throws IOException {
+        if (addedRepos.contains(repoId)) {
+            log.debug("Repo {} already added in this session, skipping", repoId);
+            return;
+        }
+        log.info("Adding repo {} at {} via RepoManager", repoId, repoUrl);
+        repoManager.addRepo(repoId, repoUrl);
+        try {
+            repoManager.updateRepo(repoId);
+        } catch (IOException e) {
+            log.warn("Repo update failed for {}: {}", repoId, e.getMessage());
+        }
+        addedRepos.add(repoId);
+    }
+
+    private void fetchFromHelmRepo(String chartName) throws IOException {
+        log.info("Fetching chart {} via RepoManager...", chartName);
+        File tempDir = new File("target/temp-charts");
+        tempDir.mkdirs();
+
+        // chartName may be in the form <repoId>/<chartName>
+        String repoId = null;
+        String shortName = chartName;
+        if (chartName.contains("/")) {
+            int i = chartName.indexOf('/');
+            repoId = chartName.substring(0, i);
+            shortName = chartName.substring(i + 1);
+        }
+
+        // Use latest version from index
+        try {
+            java.util.List<RepoManager.ChartVersion> versions = repoManager.getChartVersions(repoId, shortName);
+            if (versions.isEmpty()) {
+                throw new IOException("No versions found for chart '" + shortName + "' in repo '" + repoId + "'");
+            }
+            String version = versions.get(0).getChartVersion();
+            repoManager.pull(chartName, repoId, version, tempDir.getAbsolutePath());
+        } catch (IOException e) {
+            log.error("Failed to pull chart {}: {}", chartName, e.getMessage());
+            throw e;
+        }
     }
 
     private void fetchFromArtifactHub(String chartFullName) throws Exception {
@@ -311,7 +354,7 @@ class KpsComparisonTest {
             for (JsonNode p : searchResult.get("packages")) {
                 String pName = p.get("name").asText();
                 String pRepo = p.get("repository").get("name").asText();
-                
+
                 if (pName.equals(chartNameOnly)) {
                     if (repoNamePrefix == null || pRepo.equals(repoNamePrefix)) {
                         pkg = p;
@@ -361,9 +404,15 @@ class KpsComparisonTest {
         try {
             SSLContext sc = SSLContext.getInstance("SSL");
             sc.init(null, new TrustManager[]{new X509TrustManager() {
-                public X509Certificate[] getAcceptedIssuers() { return null; }
-                public void checkClientTrusted(X509Certificate[] certs, String authType) { }
-                public void checkServerTrusted(X509Certificate[] certs, String authType) { }
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+
+                public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                }
+
+                public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                }
             }}, new java.security.SecureRandom());
             conn.setSSLSocketFactory(sc.getSocketFactory());
             conn.setHostnameVerifier((hostname, session) -> true);

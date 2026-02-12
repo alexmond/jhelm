@@ -144,6 +144,8 @@ public class RepoCommand implements Runnable {
             }
         }
 
-        private String nv(String s) { return s == null ? "" : s; }
+        private String nv(String s) {
+            return s == null ? "" : s;
+        }
     }
 }

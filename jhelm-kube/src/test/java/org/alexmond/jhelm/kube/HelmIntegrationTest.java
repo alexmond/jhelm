@@ -1,13 +1,11 @@
 package org.alexmond.jhelm.kube;
 
-import io.kubernetes.client.openapi.ApiException;
 import org.alexmond.jhelm.core.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Optional;
 

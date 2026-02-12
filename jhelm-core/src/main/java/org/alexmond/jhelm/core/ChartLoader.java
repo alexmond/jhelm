@@ -23,7 +23,7 @@ public class ChartLoader {
         // Load Chart.yaml
         File metadataFile = new File(chartDir, "Chart.yaml");
         if (!metadataFile.exists()) {
-             throw new IllegalArgumentException("Chart.yaml not found in " + chartDir.getPath());
+            throw new IllegalArgumentException("Chart.yaml not found in " + chartDir.getPath());
         }
         ChartMetadata metadata = yamlMapper.readValue(metadataFile, ChartMetadata.class);
 
@@ -40,7 +40,7 @@ public class ChartLoader {
         if (templatesDir.exists() && templatesDir.isDirectory()) {
             loadTemplatesRecursive(templatesDir, "", templates);
         }
-        
+
         // Load dependencies (subcharts)
         File chartsDir = new File(chartDir, "charts");
         List<Chart> dependencies = new ArrayList<>();
@@ -60,6 +60,7 @@ public class ChartLoader {
                 .dependencies(dependencies)
                 .build();
     }
+
     private void loadTemplatesRecursive(File dir, String path, List<Chart.Template> templates) throws IOException {
         File[] files = dir.listFiles();
         if (files == null) return;

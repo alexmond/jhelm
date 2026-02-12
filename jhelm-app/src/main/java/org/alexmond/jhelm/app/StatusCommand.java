@@ -13,13 +13,11 @@ import java.util.Optional;
 @Slf4j
 public class StatusCommand implements Runnable {
 
+    private final HelmKubeService helmKubeService;
     @CommandLine.Parameters(index = "0", description = "release name")
     private String name;
-
     @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
     private String namespace;
-
-    private final HelmKubeService helmKubeService;
 
     public StatusCommand(HelmKubeService helmKubeService) {
         this.helmKubeService = helmKubeService;

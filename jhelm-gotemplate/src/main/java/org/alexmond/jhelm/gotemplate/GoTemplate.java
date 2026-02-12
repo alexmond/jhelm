@@ -1,0 +1,52 @@
+package org.alexmond.jhelm.gotemplate;
+
+import org.alexmond.jhelm.gotemplate.internal.Executor;
+import org.alexmond.jhelm.gotemplate.internal.ast.Node;
+
+import java.io.IOException;
+import java.io.Writer;
+import java.util.Map;
+
+/**
+ * Go template wrapper providing execution capabilities
+ */
+public class GoTemplate {
+
+    /**
+     * Common factory for a template group
+     */
+    private final GoTemplateFactory factory;
+
+    /**
+     * The name of this template
+     */
+    private final String name;
+
+    private final Node rootNode;
+
+
+    public GoTemplate(GoTemplateFactory factory, String name, Node rootNode) {
+        this.factory = factory;
+        this.name = name;
+        this.rootNode = rootNode;
+    }
+
+
+    public void execute(Object data, Writer writer) throws IOException,
+            TemplateNotFoundException, TemplateExecutionException {
+        Executor executor = new Executor(factory.getRootNodes(), getFunctions());
+        executor.execute(name, data, writer);
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public Node root() {
+        return rootNode;
+    }
+
+    private Map<String, Function> getFunctions() {
+        return factory.getFunctions();
+    }
+}

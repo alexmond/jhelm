@@ -16,13 +16,11 @@ import java.util.Map;
 @Slf4j
 public class TemplateCommand implements Runnable {
 
+    private final Engine engine;
     @CommandLine.Parameters(index = "0", description = "release name")
     private String name;
-
     @CommandLine.Parameters(index = "1", description = "chart path")
     private String chartPath;
-
-    private final Engine engine;
 
     public TemplateCommand(Engine engine) {
         this.engine = engine;
@@ -33,7 +31,7 @@ public class TemplateCommand implements Runnable {
         try {
             ChartLoader loader = new ChartLoader();
             Chart chart = loader.load(new File(chartPath));
-            
+
             Map<String, Object> releaseData = new HashMap<>();
             releaseData.put("Name", name);
             releaseData.put("Namespace", "default");

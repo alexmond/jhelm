@@ -17,20 +17,16 @@ import java.util.HashMap;
 @Slf4j
 public class InstallCommand implements Runnable {
 
-    @CommandLine.Parameters(index = "0", description = "release name")
-    private String name;
-
-    @CommandLine.Parameters(index = "1", description = "chart path")
-    private String chartPath;
-
-    @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
-    private String namespace;
-
-    @CommandLine.Option(names = {"--dry-run"}, description = "simulate an install")
-    private boolean dryRun;
-
     private final HelmKubeService helmKubeService;
     private final InstallAction installAction;
+    @CommandLine.Parameters(index = "0", description = "release name")
+    private String name;
+    @CommandLine.Parameters(index = "1", description = "chart path")
+    private String chartPath;
+    @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
+    private String namespace;
+    @CommandLine.Option(names = {"--dry-run"}, description = "simulate an install")
+    private boolean dryRun;
 
     public InstallCommand(HelmKubeService helmKubeService, InstallAction installAction) {
         this.helmKubeService = helmKubeService;
@@ -42,9 +38,9 @@ public class InstallCommand implements Runnable {
         try {
             ChartLoader loader = new ChartLoader();
             Chart chart = loader.load(new File(chartPath));
-            
+
             Release release = installAction.install(chart, name, namespace, new HashMap<>(), 1, dryRun);
-            
+
             if (dryRun) {
                 log.info("NAME: {}", release.getName());
                 log.info("LAST DEPLOYED: {}", release.getInfo().getLastDeployed());

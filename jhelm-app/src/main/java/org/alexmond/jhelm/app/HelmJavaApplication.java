@@ -19,6 +19,10 @@ public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator
         this.jHelmCommand = jHelmCommand;
     }
 
+    public static void main(String[] args) {
+        System.exit(SpringApplication.exit(SpringApplication.run(HelmJavaApplication.class, args)));
+    }
+
     @Override
     public void run(String... args) {
         exitCode = new CommandLine(jHelmCommand, factory).execute(args);
@@ -27,9 +31,5 @@ public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator
     @Override
     public int getExitCode() {
         return exitCode;
-    }
-
-    public static void main(String[] args) {
-        System.exit(SpringApplication.exit(SpringApplication.run(HelmJavaApplication.class, args)));
     }
 }

@@ -13,13 +13,11 @@ import java.util.List;
 @Slf4j
 public class HistoryCommand implements Runnable {
 
+    private final HelmKubeService helmKubeService;
     @CommandLine.Parameters(index = "0", description = "release name")
     private String name;
-
     @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
     private String namespace;
-
-    private final HelmKubeService helmKubeService;
 
     public HistoryCommand(HelmKubeService helmKubeService) {
         this.helmKubeService = helmKubeService;
@@ -32,8 +30,8 @@ public class HistoryCommand implements Runnable {
             System.out.printf("%-10s %-30s %-10s %-20s %-30s\n", "REVISION", "UPDATED", "STATUS", "CHART", "DESCRIPTION");
             for (Release r : history) {
                 String chartInfo = r.getChart().getMetadata().getName() + "-" + r.getChart().getMetadata().getVersion();
-                System.out.printf("%-10d %-30s %-10s %-20s %-30s\n", 
-                    r.getVersion(), r.getInfo().getLastDeployed(), r.getInfo().getStatus(), chartInfo, r.getInfo().getDescription());
+                System.out.printf("%-10d %-30s %-10s %-20s %-30s\n",
+                        r.getVersion(), r.getInfo().getLastDeployed(), r.getInfo().getStatus(), chartInfo, r.getInfo().getDescription());
             }
         } catch (Exception e) {
             log.error("Error fetching history: {}", e.getMessage());

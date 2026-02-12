@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
@@ -16,6 +16,7 @@
     <description>jhelm</description>
 
     <modules>
+        <module>jhelm-gotemplate</module>
         <module>jhelm-core</module>
         <module>jhelm-kube</module>
         <module>jhelm-app</module>
@@ -24,7 +25,6 @@
     <properties>
         <java.version>21</java.version>
         <kubernetes-client.version>25.0.0</kubernetes-client.version>
-        <handlebars.version>4.3.1</handlebars.version>
         <picocli.version>4.7.6</picocli.version>
         <jackson-yaml.version>2.18.2</jackson-yaml.version>
     </properties>
@@ -38,6 +38,11 @@
                 <version>${picocli.version}</version>
             </dependency>
             <!-- Internal Modules -->
+            <dependency>
+                <groupId>org.alexmond</groupId>
+                <artifactId>jhelm-gotemplate</artifactId>
+                <version>${project.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.alexmond</groupId>
                 <artifactId>jhelm-core</artifactId>
@@ -59,16 +64,6 @@
                 <groupId>io.kubernetes</groupId>
                 <artifactId>client-java</artifactId>
                 <version>${kubernetes-client.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.github.jknack</groupId>
-                <artifactId>handlebars</artifactId>
-                <version>${handlebars.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.github.jknack</groupId>
-                <artifactId>handlebars-jackson2</artifactId>
-                <version>${handlebars.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
