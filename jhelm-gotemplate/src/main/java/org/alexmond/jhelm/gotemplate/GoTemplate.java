@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.gotemplate;
 
+import lombok.Getter;
 import org.alexmond.jhelm.gotemplate.internal.Executor;
 import org.alexmond.jhelm.gotemplate.internal.ast.Node;
 
@@ -10,6 +11,7 @@ import java.util.Map;
 /**
  * Go template wrapper providing execution capabilities
  */
+@Getter
 public class GoTemplate {
 
     /**
@@ -36,10 +38,6 @@ public class GoTemplate {
             TemplateNotFoundException, TemplateExecutionException {
         Executor executor = new Executor(factory.getRootNodes(), getFunctions());
         executor.execute(name, data, writer);
-    }
-
-    public String getName() {
-        return name;
     }
 
     public Node root() {

@@ -1,5 +1,8 @@
 package org.alexmond.jhelm.gotemplate.internal.lang;
 
+import lombok.Getter;
+
+@Getter
 public class Complex {
 
     private final double real;
@@ -30,14 +33,6 @@ public class Complex {
 
         double imaginary = Double.parseDouble(trim.substring(0, len - 1));
         return new Complex(0, imaginary);
-    }
-
-    public double getReal() {
-        return real;
-    }
-
-    public double getImaginary() {
-        return imaginary;
     }
 
 }

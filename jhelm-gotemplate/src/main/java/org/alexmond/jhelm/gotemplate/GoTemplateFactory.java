@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.gotemplate;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.gotemplate.internal.IOUtils;
 import org.alexmond.jhelm.gotemplate.internal.Parser;
@@ -16,10 +17,10 @@ import java.util.Map;
  * Factory for creating and managing Go templates
  */
 @Slf4j
+@Getter
 public class GoTemplateFactory {
 
     private final Map<String, Function> functions;
-
     private final Map<String, Node> rootNodes;
 
 
@@ -111,14 +112,6 @@ public class GoTemplateFactory {
             throw new TemplateNotFoundException(String.format("Template '%s' not found.", name));
         }
         return new GoTemplate(this, name, rootNode);
-    }
-
-    public Map<String, Function> getFunctions() {
-        return functions;
-    }
-
-    public Map<String, Node> getRootNodes() {
-        return rootNodes;
     }
 
 }

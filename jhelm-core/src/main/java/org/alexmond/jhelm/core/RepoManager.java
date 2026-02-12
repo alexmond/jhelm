@@ -10,15 +10,18 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
-import javax.net.ssl.HttpsURLConnection;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.config.TlsConfig;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
+import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.ssl.SSLContextBuilder;
+import org.apache.hc.core5.ssl.TrustStrategy;
+
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.cert.X509Certificate;
@@ -30,6 +33,7 @@ public class RepoManager {
     private final ObjectMapper yamlMapper;
     private final ObjectMapper jsonMapper = new ObjectMapper();
     private final String configPath;
+    private CloseableHttpClient httpClient;
     @Setter
     private boolean insecureSkipTlsVerify = false;
     @Setter
@@ -58,6 +62,34 @@ public class RepoManager {
             this.configPath = Paths.get(System.getenv("APPDATA"), "helm/repositories.yaml").toString();
         } else {
             this.configPath = Paths.get(home, ".config/helm/repositories.yaml").toString();
+        }
+
+        initHttpClient();
+    }
+
+    private void initHttpClient() {
+        try {
+//            if (insecureSkipTlsVerify) {
+//                TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String authType) -> true;
+//                SSLContext sslContext = SSLContextBuilder.create()
+//                        .loadTrustMaterial(null, acceptingTrustStrategy)
+//                        .build();
+//                TlsConfig tlsConfig = TlsConfig.custom()
+//                        .setSslContext(sslContext)
+//                        .build();
+//                var connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
+//                        .setDefaultTlsConfig(tlsConfig)
+//                        .build();
+//                httpClient = HttpClients.custom()
+//                        .setConnectionManager(connectionManager)
+//                        .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
+//                        .build();
+//            } else {
+                httpClient = HttpClients.createDefault();
+//            }
+        } catch (Exception e) {
+            log.error("Failed to initialize HTTP client", e);
+            httpClient = HttpClients.createDefault();
         }
     }
 
@@ -139,19 +171,24 @@ public class RepoManager {
         }
         String indexUrl = repoUrl.endsWith("/") ? repoUrl + "index.yaml" : repoUrl + "/index.yaml";
         log.info("Updating repository '{}' from {}", name, indexUrl);
-        URL url = new URL(indexUrl);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        if (insecureSkipTlsVerify && conn instanceof HttpsURLConnection httpsConn) {
-            setupInsecureSsl(httpsConn);
-        }
-        conn.setRequestProperty("User-Agent", "jhelm");
-        int responseCode = conn.getResponseCode();
-        if (responseCode != 200) {
-            throw new IOException("Failed to download index from " + indexUrl + ": " + responseCode + " " + conn.getResponseMessage());
-        }
-        try (InputStream in = conn.getInputStream(); OutputStream out = new FileOutputStream(getIndexCacheFile(name))) {
-            in.transferTo(out);
-        }
+
+        HttpGet httpGet = new HttpGet(indexUrl);
+        httpGet.setHeader("User-Agent", "jhelm");
+
+        httpClient.execute(httpGet, response -> {
+            int statusCode = response.getCode();
+            if (statusCode != 200) {
+                throw new IOException("Failed to download index from " + indexUrl + ": " + statusCode + " " + response.getReasonPhrase());
+            }
+            HttpEntity entity = response.getEntity();
+            if (entity != null) {
+                try (InputStream in = entity.getContent();
+                     OutputStream out = new FileOutputStream(getIndexCacheFile(name))) {
+                    in.transferTo(out);
+                }
+            }
+            return null;
+        });
         log.info("Repository '{}' index updated", name);
     }
 
@@ -181,17 +218,24 @@ public class RepoManager {
             }
             String indexUrl = repoUrl.endsWith("/") ? repoUrl + "index.yaml" : repoUrl + "/index.yaml";
             log.info("Downloading index from {} ...", indexUrl);
-            URL url = new URL(indexUrl);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            if (insecureSkipTlsVerify && conn instanceof HttpsURLConnection httpsConn) {
-                setupInsecureSsl(httpsConn);
-            }
-            conn.setRequestProperty("User-Agent", "jhelm");
-            int responseCode = conn.getResponseCode();
-            if (responseCode != 200) {
-                throw new IOException("Failed to download index from " + indexUrl + ": " + responseCode);
-            }
-            indexIn = conn.getInputStream();
+
+            HttpGet httpGet = new HttpGet(indexUrl);
+            httpGet.setHeader("User-Agent", "jhelm");
+
+            // Download to byte array to avoid stream lifecycle issues
+            byte[] indexData = httpClient.execute(httpGet, response -> {
+                int statusCode = response.getCode();
+                if (statusCode != 200) {
+                    throw new IOException("Failed to download index from " + indexUrl + ": " + statusCode);
+                }
+                HttpEntity entity = response.getEntity();
+                if (entity != null) {
+                    return entity.getContent().readAllBytes();
+                } else {
+                    throw new IOException("Empty response from " + indexUrl);
+                }
+            });
+            indexIn = new java.io.ByteArrayInputStream(indexData);
         }
         java.util.List<ChartVersion> result = new java.util.ArrayList<>();
         try (InputStream in = indexIn) {
@@ -323,18 +367,23 @@ public class RepoManager {
         File destFile = new File(destDir, fileName);
         destFile.getParentFile().mkdirs();
 
-        URL url = new URL(chartUrl);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        if (insecureSkipTlsVerify && conn instanceof HttpsURLConnection httpsConn) {
-            setupInsecureSsl(httpsConn);
-        }
-        conn.setRequestProperty("User-Agent", "jhelm");
+        HttpGet httpGet = new HttpGet(chartUrl);
+        httpGet.setHeader("User-Agent", "jhelm");
 
-        try (InputStream in = conn.getInputStream();
-             ReadableByteChannel rbc = Channels.newChannel(in);
-             FileOutputStream fos = new FileOutputStream(destFile)) {
-            fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
-        }
+        httpClient.execute(httpGet, response -> {
+            int statusCode = response.getCode();
+            if (statusCode != 200) {
+                throw new IOException("Failed to download chart from " + chartUrl + ": " + statusCode);
+            }
+            HttpEntity entity = response.getEntity();
+            if (entity != null) {
+                try (InputStream in = entity.getContent();
+                     FileOutputStream fos = new FileOutputStream(destFile)) {
+                    in.transferTo(fos);
+                }
+            }
+            return null;
+        });
         log.info("Chart pulled successfully to {}", destFile.getAbsolutePath());
 
         // Automatically untar regular charts too
@@ -411,24 +460,28 @@ public class RepoManager {
         }
 
         String url = tokenUrlPrefix + "?service=" + tokenService + "&scope=repository:" + path + ":pull";
-        URL u = new URL(url);
-        HttpURLConnection conn = (HttpURLConnection) u.openConnection();
-        if (insecureSkipTlsVerify && conn instanceof HttpsURLConnection httpsConn) {
-            setupInsecureSsl(httpsConn);
-        }
+        HttpGet httpGet = new HttpGet(url);
         if (auth != null) {
-            conn.setRequestProperty("Authorization", "Basic " + auth);
+            httpGet.setHeader("Authorization", "Basic " + auth);
         }
 
-        int responseCode = conn.getResponseCode();
-        if (responseCode != 200) {
-            log.warn("Failed to fetch OCI token: HTTP {}", responseCode);
-            return null;
-        }
+        try {
+            return httpClient.execute(httpGet, response -> {
+                int statusCode = response.getCode();
+                if (statusCode != 200) {
+                    log.warn("Failed to fetch OCI token: HTTP {}", statusCode);
+                    return null;
+                }
 
-        try (InputStream in = conn.getInputStream()) {
-            JsonNode node = jsonMapper.readTree(in);
-            return node.has("token") ? node.get("token").asText() : node.get("access_token").asText();
+                HttpEntity entity = response.getEntity();
+                if (entity != null) {
+                    try (InputStream in = entity.getContent()) {
+                        JsonNode node = jsonMapper.readTree(in);
+                        return node.has("token") ? node.get("token").asText() : node.get("access_token").asText();
+                    }
+                }
+                return null;
+            });
         } catch (Exception e) {
             log.warn("Failed to parse OCI token: {}", e.getMessage());
             return null;
@@ -436,69 +489,62 @@ public class RepoManager {
     }
 
     private JsonNode callOciApi(String urlStr, String token, String accept) throws IOException {
-        URL url = new URL(urlStr);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        if (insecureSkipTlsVerify && conn instanceof HttpsURLConnection httpsConn) {
-            setupInsecureSsl(httpsConn);
-        }
+        HttpGet httpGet = new HttpGet(urlStr);
         if (token != null) {
-            conn.setRequestProperty("Authorization", "Bearer " + token);
+            httpGet.setHeader("Authorization", "Bearer " + token);
         }
         if (accept != null) {
-            conn.setRequestProperty("Accept", accept);
+            httpGet.setHeader("Accept", accept);
         }
-        try (InputStream in = conn.getInputStream()) {
-            return jsonMapper.readTree(in);
-        }
+
+        return httpClient.execute(httpGet, response -> {
+            HttpEntity entity = response.getEntity();
+            if (entity != null) {
+                try (InputStream in = entity.getContent()) {
+                    return jsonMapper.readTree(in);
+                }
+            }
+            return null;
+        });
     }
 
     private void downloadBlob(String urlStr, String token, String destDir, String fileName) throws IOException {
         File destFile = new File(destDir, fileName);
         destFile.getParentFile().mkdirs();
 
-        URL url = new URL(urlStr);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        if (insecureSkipTlsVerify && conn instanceof HttpsURLConnection httpsConn) {
-            setupInsecureSsl(httpsConn);
-        }
+        HttpGet httpGet = new HttpGet(urlStr);
         if (token != null) {
-            conn.setRequestProperty("Authorization", "Bearer " + token);
+            httpGet.setHeader("Authorization", "Bearer " + token);
         }
 
-        // Handle redirects (common for blobs stored in S3/GCS)
-        int status = conn.getResponseCode();
-        if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == 307 || status == 308) {
-            String newUrl = conn.getHeaderField("Location");
-            downloadBlob(newUrl, null, destDir, fileName); // Redirection might not need the same token if it's a signed URL
-            return;
-        }
+        httpClient.execute(httpGet, response -> {
+            // Handle redirects (common for blobs stored in S3/GCS)
+            int status = response.getCode();
+            if (status == 301 || status == 302 || status == 307 || status == 308) {
+                String newUrl = response.getFirstHeader("Location").getValue();
+                downloadBlob(newUrl, null, destDir, fileName); // Redirection might not need the same token if it's a signed URL
+                return null;
+            }
 
-        try (InputStream in = conn.getInputStream();
-             ReadableByteChannel rbc = Channels.newChannel(in);
-             FileOutputStream fos = new FileOutputStream(destFile)) {
-            fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
-        }
+            HttpEntity entity = response.getEntity();
+            if (entity != null) {
+                try (InputStream in = entity.getContent();
+                     FileOutputStream fos = new FileOutputStream(destFile)) {
+                    in.transferTo(fos);
+                }
+            }
+            return null;
+        });
         log.info("OCI Blob downloaded successfully to {}", destFile.getAbsolutePath());
     }
 
-    private void setupInsecureSsl(HttpsURLConnection conn) {
-        try {
-            SSLContext sc = SSLContext.getInstance("SSL");
-            sc.init(null, new TrustManager[]{new X509TrustManager() {
-                public X509Certificate[] getAcceptedIssuers() {
-                    return null;
-                }
-
-                public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                }
-
-                public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                }
-            }}, new java.security.SecureRandom());
-            conn.setSSLSocketFactory(sc.getSocketFactory());
-            conn.setHostnameVerifier((hostname, session) -> true);
-        } catch (Exception e) {
-            log.error("Failed to setup insecure SSL", e);
+    public void close() {
+        if (httpClient != null) {
+            try {
+                httpClient.close();
+            } catch (IOException e) {
+                log.error("Failed to close HTTP client", e);
+            }
         }
     }
 

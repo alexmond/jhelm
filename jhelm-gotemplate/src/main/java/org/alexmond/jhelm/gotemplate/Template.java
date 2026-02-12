@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.gotemplate;
 
+import lombok.Getter;
 import org.alexmond.jhelm.gotemplate.internal.Executor;
 import org.alexmond.jhelm.gotemplate.internal.IOUtils;
 import org.alexmond.jhelm.gotemplate.internal.Parser;
@@ -17,11 +18,11 @@ import java.util.stream.Stream;
 /**
  * Golang-like template api
  */
+@Getter
 public class Template {
 
     private final String name;
     private final Map<String, Function> functions;
-
     private final Map<String, Node> nodes;
 
 

@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.gotemplate.sprig;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.apache.hc.core5.net.URIBuilder;
 
 import java.lang.reflect.Array;
 import java.text.SimpleDateFormat;
@@ -819,17 +820,7 @@ public class SprigFunctions {
         });
 
         // List functions
-        functions.put("first", args -> {
-            if (args.length == 0) return null;
-            Object val = args[0];
-            if (val instanceof List && !((List<?>) val).isEmpty()) {
-                return ((List<?>) val).get(0);
-            }
-            if (val != null && val.getClass().isArray() && java.lang.reflect.Array.getLength(val) > 0) {
-                return java.lang.reflect.Array.get(val, 0);
-            }
-            return null;
-        });
+        // Note: first function is already defined in Collection manipulation functions section
         functions.put("last", args -> {
             if (args.length == 0) return null;
             Object val = args[0];
@@ -883,13 +874,26 @@ public class SprigFunctions {
         functions.put("urlParse", args -> {
             if (args.length == 0) return Map.of();
             try {
-                java.net.URL url = new java.net.URL(String.valueOf(args[0]));
+                URIBuilder uriBuilder = new URIBuilder(String.valueOf(args[0]));
                 Map<String, Object> result = new HashMap<>();
-                result.put("scheme", url.getProtocol());
-                result.put("host", url.getHost());
-                result.put("port", url.getPort() > 0 ? String.valueOf(url.getPort()) : "");
-                result.put("path", url.getPath());
-                result.put("query", url.getQuery() != null ? url.getQuery() : "");
+                result.put("scheme", uriBuilder.getScheme() != null ? uriBuilder.getScheme() : "");
+                result.put("host", uriBuilder.getHost() != null ? uriBuilder.getHost() : "");
+                result.put("port", uriBuilder.getPort() > 0 ? String.valueOf(uriBuilder.getPort()) : "");
+                result.put("path", uriBuilder.getPath() != null ? uriBuilder.getPath() : "");
+
+                // Get query string
+                StringBuilder queryString = new StringBuilder();
+                if (uriBuilder.getQueryParams() != null && !uriBuilder.getQueryParams().isEmpty()) {
+                    for (int i = 0; i < uriBuilder.getQueryParams().size(); i++) {
+                        if (i > 0) queryString.append("&");
+                        var param = uriBuilder.getQueryParams().get(i);
+                        queryString.append(param.getName());
+                        if (param.getValue() != null) {
+                            queryString.append("=").append(param.getValue());
+                        }
+                    }
+                }
+                result.put("query", queryString.toString());
                 return result;
             } catch (Exception e) {
                 return Map.of();

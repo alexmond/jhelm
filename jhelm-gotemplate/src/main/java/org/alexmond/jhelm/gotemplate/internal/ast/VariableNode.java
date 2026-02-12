@@ -1,5 +1,8 @@
 package org.alexmond.jhelm.gotemplate.internal.ast;
 
+import lombok.Getter;
+
+@Getter
 public class VariableNode implements Node {
 
     private final String[] identifiers;

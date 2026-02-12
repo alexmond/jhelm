@@ -1,15 +1,14 @@
 package org.alexmond.jhelm.gotemplate.internal.ast;
 
+import lombok.Getter;
+
+@Getter
 public class BoolNode implements Node {
 
     private final boolean value;
 
     public BoolNode(String text) {
         this.value = Boolean.parseBoolean(text);
-    }
-
-    public boolean isValue() {
-        return value;
     }
 
     @Override

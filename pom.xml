@@ -70,6 +70,11 @@
                 <artifactId>jackson-dataformat-yaml</artifactId>
                 <version>${jackson-yaml.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents.client5</groupId>
+                <artifactId>httpclient5</artifactId>
+                <version>${httpclient5.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -81,6 +86,8 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <configuration>
+                        <showDeprecation>true</showDeprecation>
+                        <showWarnings>true</showWarnings> <!-- Optional: also show all other warnings -->
                         <annotationProcessorPaths>
                             <path>
                                 <groupId>org.projectlombok</groupId>
@@ -95,6 +102,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <showDeprecation>true</showDeprecation>
+                    <showWarnings>true</showWarnings> <!-- Optional: also show all other warnings -->
+                </configuration>
             </plugin>
         </plugins>
     </build>
