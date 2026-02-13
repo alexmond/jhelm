@@ -46,8 +46,9 @@ class KpsComparisonTest {
         String query = "bitnami/nginx";
         String repo = "bitnami";
         String chart = "nginx";
+        String repoUrl = "https://charts.bitnami.com/bitnami";
 
-        repoManager.addRepo(repo, "https://charts.bitnami.com/bitnami");
+        addHelmRepo(repo, repoUrl);
         var versions = repoManager.getChartVersions(repo, chart);
         assertFalse(versions.isEmpty());
 
@@ -56,7 +57,7 @@ class KpsComparisonTest {
         if (helmOutput != null) {
             log.info("Helm search output for {}:\n{}", query, helmOutput);
             // Verify our latest version matches Helm's latest version (first line of output)
-            String latestJHelm = versions.get(0).getChartVersion();
+            String latestJHelm = versions.getFirst().getChartVersion();
             assertTrue(helmOutput.contains(latestJHelm), "Helm output should contain jhelm latest version " + latestJHelm);
         }
     }
@@ -306,6 +307,16 @@ class KpsComparisonTest {
         } catch (IOException e) {
             log.warn("Repo update failed for {}: {}", repoId, e.getMessage());
         }
+
+        // Also add to helm CLI to ensure tests that depend on helm CLI (like testSearchAndCompare) work
+        try {
+            log.info("Adding repo {} at {} to Helm CLI", repoId, repoUrl);
+            new ProcessBuilder("helm", "repo", "add", repoId, repoUrl).start().waitFor();
+            new ProcessBuilder("helm", "repo", "update", repoId).start().waitFor();
+        } catch (Exception e) {
+            log.warn("Failed to add repo to Helm CLI: {}", e.getMessage());
+        }
+
         addedRepos.add(repoId);
     }
 
@@ -329,7 +340,7 @@ class KpsComparisonTest {
             if (versions.isEmpty()) {
                 throw new IOException("No versions found for chart '" + shortName + "' in repo '" + repoId + "'");
             }
-            String version = versions.get(0).getChartVersion();
+            String version = versions.getFirst().getChartVersion();
             repoManager.pull(chartName, repoId, version, tempDir.getAbsolutePath());
         } catch (IOException e) {
             log.error("Failed to pull chart {}: {}", chartName, e.getMessage());
@@ -362,7 +373,7 @@ class KpsComparisonTest {
                     }
                 }
             }
-            if (pkg == null && repoNamePrefix == null && searchResult.get("packages").size() > 0) {
+            if (pkg == null && repoNamePrefix == null && !searchResult.get("packages").isEmpty()) {
                 pkg = searchResult.get("packages").get(0);
             }
         }
