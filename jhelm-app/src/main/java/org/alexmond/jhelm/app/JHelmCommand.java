@@ -7,6 +7,7 @@ import picocli.CommandLine;
 @CommandLine.Command(name = "jhelm", mixinStandardHelpOptions = true, version = "jhelm 0.0.1",
         description = "A Spring Boot based implementation of Helm-like functionality in Java.",
         subcommands = {
+                CreateCommand.class,
                 RepoCommand.class,
                 RegistryCommand.class,
                 TemplateCommand.class,

@@ -1,96 +1,90 @@
 package org.alexmond.jhelm.gotemplate.helm;
 
 import org.alexmond.jhelm.gotemplate.Function;
-import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.GoTemplateFactory;
+import org.alexmond.jhelm.gotemplate.helm.chart.ChartFunctions;
+import org.alexmond.jhelm.gotemplate.helm.conversion.ConversionFunctions;
+import org.alexmond.jhelm.gotemplate.helm.kubernetes.KubernetesFunctions;
+import org.alexmond.jhelm.gotemplate.helm.kubernetes.KubernetesProvider;
+import org.alexmond.jhelm.gotemplate.helm.template.TemplateFunctions;
 
-import java.io.StringWriter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+/**
+ * Coordinator class for all Helm-specific template functions.
+ * Organizes functions by category: template, conversion, kubernetes, and chart operations.
+ *
+ * @see <a href="https://helm.sh/docs/chart_template_guide/function_list/">Helm Template Functions</a>
+ */
 public class HelmFunctions {
 
-    public static Map<String, Function> getFunctions(GoTemplateFactory factory) {
+    /**
+     * Get all Helm functions from all categories with Kubernetes provider.
+     * Use this when Kubernetes API access is available.
+     *
+     * @param factory            The GoTemplateFactory instance for template operations
+     * @param kubernetesProvider Provider for Kubernetes API access (can be null)
+     * @return Map of function name to Function implementation
+     */
+    public static Map<String, Function> getFunctions(GoTemplateFactory factory, KubernetesProvider kubernetesProvider) {
         Map<String, Function> functions = new HashMap<>();
 
-        functions.put("include", args -> {
-            if (args.length < 2) return "";
-            String name = String.valueOf(args[0]);
-            Object data = args[1];
-            try {
-                GoTemplate template = factory.getTemplate(name);
-                StringWriter writer = new StringWriter();
-                template.execute(data, writer);
-                return writer.toString();
-            } catch (Exception e) {
-                return "";
-            }
-        });
+        // Template operations (include, tpl, required)
+        functions.putAll(TemplateFunctions.getFunctions(factory));
 
-        functions.put("tpl", args -> {
-            if (args.length < 2) return "";
-            String text = String.valueOf(args[0]);
-            Object data = args[1];
-            try {
-                GoTemplateFactory tplFactory = new GoTemplateFactory(factory.getFunctions());
-                tplFactory.getRootNodes().putAll(factory.getRootNodes());
-                tplFactory.parse("inline", text);
-                GoTemplate template = tplFactory.getTemplate("inline");
-                StringWriter writer = new StringWriter();
-                template.execute(data, writer);
-                return writer.toString();
-            } catch (Exception e) {
-                return "";
-            }
-        });
+        // YAML/JSON conversion (toYaml, toJson, fromYaml, fromJson, and must* variants)
+        functions.putAll(ConversionFunctions.getFunctions());
 
-        functions.put("toYaml", args -> {
-            if (args.length == 0 || args[0] == null) return "";
-            try {
-                Class<?> yamlFactoryClass = Class.forName("com.fasterxml.jackson.dataformat.yaml.YAMLFactory");
-                Class<?> objectMapperClass = Class.forName("com.fasterxml.jackson.databind.ObjectMapper");
-                Object yamlFactory = yamlFactoryClass.getDeclaredConstructor().newInstance();
-                Object mapper = objectMapperClass.getDeclaredConstructor(yamlFactoryClass).newInstance(yamlFactory);
+        // Kubernetes operations (lookup, kubeVersion) - with provider
+        functions.putAll(KubernetesFunctions.getFunctions(kubernetesProvider));
 
-                java.lang.reflect.Method disableMethod = objectMapperClass.getMethod("disable", Class.forName("com.fasterxml.jackson.databind.SerializationFeature"));
-                disableMethod.invoke(mapper, Enum.valueOf((Class<Enum>) Class.forName("com.fasterxml.jackson.databind.SerializationFeature"), "WRITE_DATES_AS_TIMESTAMPS"));
-
-                java.lang.reflect.Method writeValueAsString = objectMapperClass.getMethod("writeValueAsString", Object.class);
-                String yaml = (String) writeValueAsString.invoke(mapper, args[0]);
-                if (yaml.startsWith("---\n")) yaml = yaml.substring(4);
-                return yaml.trim();
-            } catch (Exception e) {
-                return String.valueOf(args[0]);
-            }
-        });
-
-        functions.put("fromYaml", args -> {
-            if (args.length == 0 || args[0] == null) return Map.of();
-            try {
-                Class<?> yamlFactoryClass = Class.forName("com.fasterxml.jackson.dataformat.yaml.YAMLFactory");
-                Class<?> objectMapperClass = Class.forName("com.fasterxml.jackson.databind.ObjectMapper");
-                Object yamlFactory = yamlFactoryClass.getDeclaredConstructor().newInstance();
-                Object mapper = objectMapperClass.getDeclaredConstructor(yamlFactoryClass).newInstance(yamlFactory);
-
-                java.lang.reflect.Method readValue = objectMapperClass.getMethod("readValue", String.class, Class.class);
-                return (Map<?, ?>) readValue.invoke(mapper, String.valueOf(args[0]), Map.class);
-            } catch (Exception e) {
-                return Map.of();
-            }
-        });
-
-        // Helm-specific stubs for common required functions
-        functions.put("lookup", args -> Map.of());
-        functions.put("semverCompare", args -> true);
-        functions.put("buildCustomCert", args -> {
-            // Stub for TLS certificate generation used in Bitnami charts
-            // Returns a Map with cert and key fields
-            Map<String, String> cert = new HashMap<>();
-            cert.put("Cert", "-----BEGIN CERTIFICATE-----\n...stub...\n-----END CERTIFICATE-----");
-            cert.put("Key", "-----BEGIN PRIVATE KEY-----\n...stub...\n-----END PRIVATE KEY-----");
-            return cert;
-        });
+        // Chart operations (semverCompare, certificate generation)
+        functions.putAll(ChartFunctions.getFunctions());
 
         return functions;
+    }
+
+    /**
+     * Get all Helm functions from all categories without Kubernetes provider.
+     * Kubernetes functions will return stub data.
+     *
+     * @param factory The GoTemplateFactory instance for template operations
+     * @return Map of function name to Function implementation
+     */
+    public static Map<String, Function> getFunctions(GoTemplateFactory factory) {
+        return getFunctions(factory, null);
+    }
+
+    /**
+     * Get function categories for documentation and introspection.
+     *
+     * @return Map of category name to list of function names
+     */
+    public static Map<String, List<String>> getFunctionCategories() {
+        Map<String, List<String>> categories = new HashMap<>();
+
+        categories.put("Template", List.of(
+                "include", "mustInclude", "tpl", "mustTpl", "required"
+        ));
+
+        categories.put("Conversion", List.of(
+                "toYaml", "toJson", "fromYaml", "fromJson", "fromYamlArray",
+                "toToml", "fromToml",
+                "mustToYaml", "mustToJson", "mustFromYaml", "mustFromJson",
+                "mustToToml", "mustFromToml"
+        ));
+
+        categories.put("Kubernetes", List.of(
+                "lookup", "kubeVersion"
+        ));
+
+        categories.put("Chart", List.of(
+                "semverCompare", "semver",
+                "genPrivateKey", "genCA", "genSignedCert", "genSelfSignedCert"
+        ));
+
+        return categories;
     }
 }
