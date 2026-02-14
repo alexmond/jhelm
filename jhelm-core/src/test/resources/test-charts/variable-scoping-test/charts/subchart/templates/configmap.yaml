@@ -1,0 +1,39 @@
+{{- if .Values.enabled -}}
+{{- $root := . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-subchart
+  labels:
+    app: subchart
+data:
+  # Test 1: Access subchart values
+  subchart-values.txt: |
+    Replicas: {{ .Values.replicas }}
+    Config setting1: {{ .Values.config.setting1 }}
+
+  # Test 2: Access global values from parent
+  global-values.txt: |
+    {{- if .Values.global }}
+    Global domain: {{ .Values.global.domain }}
+    Global environment: {{ .Values.global.environment }}
+    {{- else }}
+    No global values accessible
+    {{- end }}
+
+  # Test 3: Variable scoping in subchart
+  subchart-variable-scoping.txt: |
+    {{- $root := . }}
+    {{- range $key, $value := .Values.config }}
+    Config {{ $key }}: {{ $value }}
+    Root context available: {{ if $root }}YES{{ else }}NO{{ end }}
+    {{- end }}
+
+  # Test 4: Check if parent values are isolated
+  subchart-isolation.txt: |
+    {{- if .Values.serverList }}
+    Parent serverList is accessible (should not be)
+    {{- else }}
+    Parent serverList is not accessible (correct isolation)
+    {{- end }}
+{{- end }}

@@ -19,9 +19,12 @@ public class ConversionFunctions {
     private static final ThreadLocal<ObjectMapper> YAML_MAPPER = ThreadLocal.withInitial(() -> {
         YAMLFactory yamlFactory = YAMLFactory.builder()
                 .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+                .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
                 .build();
         ObjectMapper mapper = new ObjectMapper(yamlFactory);
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        // Sort keys alphabetically for consistent, predictable output
+        mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
         return mapper;
     });
 

@@ -153,4 +153,17 @@ class GoTemplateStandardTest {
         goTemplate.execute(null, writer);
         assertEquals("T0 invokes T1: (T1 invokes T2: (This is T2))", writer.toString());
     }
+
+    @Test
+    void testPrintFunction() throws IOException, TemplateParseException, TemplateNotFoundException, TemplateExecutionException {
+        GoTemplateFactory factory = new GoTemplateFactory();
+        factory.parse("test", "{{ print \"hello\" \"-\" \"world\" }}");
+
+        GoTemplate template = factory.getTemplate("test");
+        StringWriter writer = new StringWriter();
+        template.execute(null, writer);
+
+        // print should concatenate without spaces
+        assertEquals("hello-world", writer.toString());
+    }
 }

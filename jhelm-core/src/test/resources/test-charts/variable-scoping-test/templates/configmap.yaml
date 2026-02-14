@@ -1,0 +1,112 @@
+{{- $root := . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-variable-scoping-test
+  labels:
+    app: variable-scoping-test
+data:
+  # Test 1: Variable assignment and access
+  test-root-variable.txt: |
+    {{- $root := . }}
+    Root variable assigned: {{ if $root }}YES{{ else }}NO{{ end }}
+    Can access Release: {{ if $root.Release }}YES{{ else }}NO{{ end }}
+
+  # Test 2: Variable in range loop
+  test-range-variable.txt: |
+    {{- $root := . }}
+    {{- range $key, $value := .Values.config.items }}
+    Item: {{ $key }}={{ $value }}
+    Can access root in range: {{ if $root }}YES{{ else }}NO{{ end }}
+    Root Release Name: {{ $root.Release.Name }}
+    {{- end }}
+
+  # Test 3: Nested range loops with variable scoping
+  test-nested-range.txt: |
+    {{- $root := . }}
+    {{- range $serverKey, $serverValue := .Values.serverFiles }}
+    File: {{ $serverKey }}
+    {{- range $key, $value := $serverValue }}
+      Setting: {{ $key }}
+      Can access root: {{ if $root }}YES{{ else }}NO{{ end }}
+      Can access outer loop key: {{ $serverKey }}
+    {{- end }}
+    {{- end }}
+
+  # Test 4: If condition with map value
+  test-if-map.txt: |
+    {{- if .Values.config.items }}
+    Map items exists and is truthy
+    {{- else }}
+    Map items is falsy
+    {{- end }}
+
+  # Test 5: If condition with assigned variable
+  test-if-assigned-variable.txt: |
+    {{- $myConfig := .Values.config }}
+    {{- if $myConfig }}
+    Assigned map variable is truthy
+    {{- else }}
+    Assigned map variable is falsy
+    {{- end }}
+
+  # Test 6: If condition with list
+  test-if-list.txt: |
+    {{- if .Values.serverList }}
+    Server list is truthy
+    {{- else }}
+    Server list is falsy
+    {{- end }}
+
+  # Test 7: Or condition with maps
+  test-or-condition.txt: |
+    {{- if or .Values.config .Values.features }}
+    OR with maps works
+    {{- else }}
+    OR with maps failed
+    {{- end }}
+
+  # Test 8: And condition with maps
+  test-and-condition.txt: |
+    {{- if and .Values.config.enabled .Values.config.items }}
+    AND with map and bool works
+    {{- else }}
+    AND with map and bool failed
+    {{- end }}
+
+  # Test 9: Not condition with empty map
+  test-not-empty.txt: |
+    {{- if not (empty .Values.emptyMap) }}
+    Empty map is not empty (wrong)
+    {{- else }}
+    Empty map is empty (correct)
+    {{- end }}
+
+  # Test 10: Complex nested variable access
+  test-complex-variable.txt: |
+    {{- $root := . }}
+    {{- range $idx, $server := .Values.serverList }}
+    {{- if $server.enabled }}
+    Server {{ $server.name }} is enabled
+    {{- if or $root.Values.features.authentication $root.Values.features.monitoring }}
+    Features available from root context
+    {{- end }}
+    {{- end }}
+    {{- end }}
+
+  # Test 11: Variable in with block
+  test-with-variable.txt: |
+    {{- $root := . }}
+    {{- with .Values.features.authentication }}
+    Inside with block
+    Authentication enabled: {{ .enabled }}
+    Root Release Name: {{ $root.Release.Name }}
+    {{- end }}
+
+  # Test 12: Range with index and value
+  test-range-index-value.txt: |
+    {{- $root := . }}
+    {{- range $idx, $server := .Values.serverList }}
+    {{ $idx }}: {{ $server.name }} ({{ $server.port }})
+    Global domain from root: {{ $root.Values.global.domain }}
+    {{- end }}

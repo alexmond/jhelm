@@ -2,6 +2,7 @@ package org.alexmond.jhelm.gotemplate.internal;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.jhelm.gotemplate.Functions;
 import org.alexmond.jhelm.gotemplate.TemplateExecutionException;
 import org.alexmond.jhelm.gotemplate.TemplateNotFoundException;
 import org.alexmond.jhelm.gotemplate.internal.ast.*;
@@ -559,13 +560,7 @@ public class Executor {
      * @return true if evaluation returns a positive result
      */
     private boolean isTrue(Object value) {
-        if (value instanceof Boolean) {
-            return (Boolean) value;
-        }
-        if (value instanceof CharSequence) {
-            return ((CharSequence) value).length() != 0;
-        }
-        return false;
+        return Functions.isTrue(value);
     }
 
     private void printText(Writer writer, String text) throws IOException {

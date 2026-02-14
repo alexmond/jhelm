@@ -1,0 +1,61 @@
+# Test values for variable scoping
+global:
+  domain: example.com
+  environment: production
+
+# Test map types
+config:
+  enabled: true
+  items:
+    alpha: value1
+    beta: value2
+    gamma: value3
+
+# Test list types
+serverList:
+  - name: server1
+    port: 8080
+    enabled: true
+  - name: server2
+    port: 8081
+    enabled: false
+  - name: server3
+    port: 8082
+    enabled: true
+
+# Test nested structures
+serverFiles:
+  config.yaml:
+    settings:
+      timeout: 30
+      retries: 3
+  app.yaml:
+    features:
+      feature1: true
+      feature2: false
+
+# Test empty values
+emptyMap: {}
+emptyList: []
+nullValue: null
+
+# Test conditional rendering
+features:
+  authentication:
+    enabled: true
+    providers:
+      - oauth2
+      - ldap
+  monitoring:
+    enabled: true
+    endpoints:
+      metrics: /metrics
+      health: /health
+
+# Subchart configuration
+subchart:
+  enabled: true
+  replicas: 3
+  config:
+    setting1: value1
+    setting2: value2

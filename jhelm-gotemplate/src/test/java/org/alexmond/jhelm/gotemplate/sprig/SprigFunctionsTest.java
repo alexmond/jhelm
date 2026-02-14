@@ -375,6 +375,49 @@ class SprigFunctionsTest {
     }
 
     @Test
+    void testIndent() throws IOException, TemplateException {
+        Template template = new Template("test");
+        // Test with data containing actual newlines
+        template.parse("{{ indent 4 .text }}");
+
+        StringWriter writer = new StringWriter();
+        Map<String, Object> data = new HashMap<>();
+        data.put("text", "line1\nline2");  // Actual newline character in Java string
+        template.execute(writer, data);
+
+        String result = writer.toString();
+        assertEquals("    line1\n    line2", result);
+    }
+
+    @Test
+    void testRegexReplaceAll() throws IOException, TemplateException {
+        Template template = new Template("test");
+        // Test Sprig signature: regexReplaceAll pattern text replacement
+        template.parse("{{ regexReplaceAll \"[^a-z]\" \"hello123world\" \"-\" }}");
+
+        StringWriter writer = new StringWriter();
+        template.execute(writer, new HashMap<>());
+
+        // Should replace all non-lowercase letters with hyphens
+        assertEquals("hello---world", writer.toString());
+    }
+
+    @Test
+    void testReplaceNewlines() throws IOException, TemplateException {
+        Template template = new Template("test");
+        // Test with data that has actual newlines
+        template.parse("{{ replace \"\\n\" \",\" .text }}");
+
+        StringWriter writer = new StringWriter();
+        Map<String, Object> data = new HashMap<>();
+        data.put("text", "line1\nline2\nline3");
+        template.execute(writer, data);
+
+        // Should replace actual newlines with commas
+        assertEquals("line1,line2,line3", writer.toString());
+    }
+
+    @Test
     void testGenSignedCert() throws IOException, TemplateException {
         Template template = new Template("test");
         template.parse("{{ $cert := genSignedCert \"example.com\" nil nil 365 nil }}{{ hasKey $cert \"Cert\" }}");

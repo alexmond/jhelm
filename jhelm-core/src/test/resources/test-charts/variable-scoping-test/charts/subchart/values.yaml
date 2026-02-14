@@ -1,0 +1,10 @@
+# Subchart values
+enabled: true
+replicas: 1
+config:
+  setting1: default1
+  setting2: default2
+
+# Subchart-specific settings
+subchartSpecific:
+  feature: enabled

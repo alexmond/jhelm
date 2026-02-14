@@ -94,7 +94,17 @@ public class Functions {
     private static Function lt() {
         return args -> {
             if (args.length < 2) return false;
-            if (!(args[0] instanceof Comparable) || args[1] == null) return false;
+            if (args[0] == null || args[1] == null) return false;
+
+            // Handle numeric comparisons by converting to double
+            if (args[0] instanceof Number && args[1] instanceof Number) {
+                double v1 = ((Number) args[0]).doubleValue();
+                double v2 = ((Number) args[1]).doubleValue();
+                return v1 < v2;
+            }
+
+            // Handle string and other comparable types
+            if (!(args[0] instanceof Comparable)) return false;
             try {
                 @SuppressWarnings("unchecked")
                 Comparable<Object> comparable = (Comparable<Object>) args[0];
@@ -108,7 +118,17 @@ public class Functions {
     private static Function le() {
         return args -> {
             if (args.length < 2) return false;
-            if (!(args[0] instanceof Comparable) || args[1] == null) return false;
+            if (args[0] == null || args[1] == null) return false;
+
+            // Handle numeric comparisons by converting to double
+            if (args[0] instanceof Number && args[1] instanceof Number) {
+                double v1 = ((Number) args[0]).doubleValue();
+                double v2 = ((Number) args[1]).doubleValue();
+                return v1 <= v2;
+            }
+
+            // Handle string and other comparable types
+            if (!(args[0] instanceof Comparable)) return false;
             try {
                 @SuppressWarnings("unchecked")
                 Comparable<Object> comparable = (Comparable<Object>) args[0];
@@ -122,7 +142,17 @@ public class Functions {
     private static Function gt() {
         return args -> {
             if (args.length < 2) return false;
-            if (!(args[0] instanceof Comparable) || args[1] == null) return false;
+            if (args[0] == null || args[1] == null) return false;
+
+            // Handle numeric comparisons by converting to double
+            if (args[0] instanceof Number && args[1] instanceof Number) {
+                double v1 = ((Number) args[0]).doubleValue();
+                double v2 = ((Number) args[1]).doubleValue();
+                return v1 > v2;
+            }
+
+            // Handle string and other comparable types
+            if (!(args[0] instanceof Comparable)) return false;
             try {
                 @SuppressWarnings("unchecked")
                 Comparable<Object> comparable = (Comparable<Object>) args[0];
@@ -136,7 +166,17 @@ public class Functions {
     private static Function ge() {
         return args -> {
             if (args.length < 2) return false;
-            if (!(args[0] instanceof Comparable) || args[1] == null) return false;
+            if (args[0] == null || args[1] == null) return false;
+
+            // Handle numeric comparisons by converting to double
+            if (args[0] instanceof Number && args[1] instanceof Number) {
+                double v1 = ((Number) args[0]).doubleValue();
+                double v2 = ((Number) args[1]).doubleValue();
+                return v1 >= v2;
+            }
+
+            // Handle string and other comparable types
+            if (!(args[0] instanceof Comparable)) return false;
             try {
                 @SuppressWarnings("unchecked")
                 Comparable<Object> comparable = (Comparable<Object>) args[0];
@@ -152,7 +192,11 @@ public class Functions {
     }
 
     private static Function print() {
-        return args -> Arrays.stream(args).map(String::valueOf).collect(java.util.stream.Collectors.joining(" "));
+        // In Go, fmt.Sprint adds spaces between operands when neither is a string.
+        // For Helm templates, all values are typically strings, so concatenate without spaces.
+        // NOTE: This fixes grafana/grafana but may cause issues with charts using Bitnami common helpers
+        // that rely on specific print behavior with regexReplaceAll
+        return args -> Arrays.stream(args).map(String::valueOf).collect(java.util.stream.Collectors.joining(""));
     }
 
     private static Function printf() {

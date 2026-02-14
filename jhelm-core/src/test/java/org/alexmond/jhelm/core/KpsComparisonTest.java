@@ -2,6 +2,7 @@ package org.alexmond.jhelm.core;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -114,6 +115,12 @@ class KpsComparisonTest {
         if (nginxDir.exists()) {
             compareChart("nginx", "pulled-nginx", "bitnami", "https://charts.bitnami.com/bitnami");
         }
+    }
+
+    @ParameterizedTest
+    @CsvFileSource(resources = "/single.csv")
+    void compareSingleChart(String chartName, String repoId, String repoUrl) throws IOException {
+        compareChart(chartName, "release-" + chartName, repoId, repoUrl);
     }
 
     @ParameterizedTest
@@ -246,22 +253,124 @@ class KpsComparisonTest {
 
     private void compareManifests(String chartName, String jhelm, String helm) {
         System.out.println("[DEBUG_LOG] Comparing manifests for " + chartName);
-        // Simple comparison for now: check if they contain similar key resources
-        // Direct string comparison might fail due to comments, order, or labels
 
-        // Remove comments and empty lines for a slightly more robust comparison
-        String jhelmClean = cleanManifest(jhelm);
-        String helmClean = cleanManifest(helm);
+        try {
+            // Parse both manifests into YAML documents
+            java.util.List<JsonNode> jhelmDocs = parseYamlDocuments(jhelm);
+            java.util.List<JsonNode> helmDocs = parseYamlDocuments(helm);
 
-        if (!jhelmClean.equals(helmClean)) {
-            System.out.println("[DEBUG_LOG] " + chartName + " - Manifests differ from Helm's output");
-            log.warn("{} - Manifests differ from Helm's output", chartName);
-            // We don't fail yet, but we log the difference in length
-            log.info("{} - JHelm Clean Length: {}, Helm Clean Length: {}", chartName, jhelmClean.length(), helmClean.length());
-        } else {
-            System.out.println("[DEBUG_LOG] " + chartName + " - Manifests match Helm exactly (cleaned)!");
-            log.info("{} - Manifests match Helm exactly (cleaned)!", chartName);
+            log.info("{} - JHelm documents: {}, Helm documents: {}", chartName, jhelmDocs.size(), helmDocs.size());
+
+            if (jhelmDocs.size() != helmDocs.size()) {
+                log.warn("{} - Document count mismatch: JHelm={}, Helm={}", chartName, jhelmDocs.size(), helmDocs.size());
+            }
+
+            // Create a map of documents by kind and name for order-independent comparison
+            var jhelmMap = buildResourceMap(jhelmDocs);
+            var helmMap = buildResourceMap(helmDocs);
+
+            // Check for missing resources
+            var missingInJhelm = new java.util.HashSet<>(helmMap.keySet());
+            missingInJhelm.removeAll(jhelmMap.keySet());
+
+            var missingInHelm = new java.util.HashSet<>(jhelmMap.keySet());
+            missingInHelm.removeAll(helmMap.keySet());
+
+            if (!missingInJhelm.isEmpty()) {
+                log.error("{} - Resources missing in JHelm: {}", chartName, missingInJhelm);
+                fail(chartName + " - Resources missing in JHelm: " + missingInJhelm);
+            }
+
+            if (!missingInHelm.isEmpty()) {
+                log.warn("{} - Extra resources in JHelm: {}", chartName, missingInHelm);
+            }
+
+            // Compare each resource
+            int differences = 0;
+            for (String key : helmMap.keySet()) {
+                if (!jhelmMap.containsKey(key)) continue;
+
+                JsonNode helmDoc = helmMap.get(key);
+                JsonNode jhelmDoc = jhelmMap.get(key);
+
+                if (!helmDoc.equals(jhelmDoc)) {
+                    differences++;
+                    log.warn("{} - Resource {} differs", chartName, key);
+                    log.debug("{} - Helm: {}", key, helmDoc.toPrettyString());
+                    log.debug("{} - JHelm: {}", key, jhelmDoc.toPrettyString());
+                }
+            }
+
+            if (differences == 0) {
+                System.out.println("[DEBUG_LOG] " + chartName + " - All resources match!");
+                log.info("{} - All resources match Helm output!", chartName);
+            } else {
+                System.out.println("[DEBUG_LOG] " + chartName + " - Found " + differences + " resource differences");
+                log.warn("{} - Found {} resource differences", chartName, differences);
+            }
+
+        } catch (Exception e) {
+            log.error("{} - Failed to parse and compare manifests", chartName, e);
+            // Fallback to simple string comparison
+            String jhelmClean = cleanManifest(jhelm);
+            String helmClean = cleanManifest(helm);
+
+            if (!jhelmClean.equals(helmClean)) {
+                log.warn("{} - Manifests differ (fallback comparison)", chartName);
+                log.info("{} - JHelm Length: {}, Helm Length: {}", chartName, jhelmClean.length(), helmClean.length());
+            }
         }
+    }
+
+    private java.util.List<JsonNode> parseYamlDocuments(String yaml) throws IOException {
+        java.util.List<JsonNode> docs = new java.util.ArrayList<>();
+        YAMLMapper yamlMapper = new YAMLMapper();
+
+        // Split by YAML document separator "---" with various whitespace patterns
+        // Pattern matches "---" at the start of a line, with optional whitespace before/after
+        String[] parts = yaml.split("\\r?\\n---\\r?\\n");
+
+        for (int i = 0; i < parts.length; i++) {
+            String doc = parts[i].trim();
+
+            // Skip empty documents
+            if (doc.isEmpty()) continue;
+
+            // Skip comment-only documents
+            if (doc.startsWith("#") && !doc.contains("\n")) continue;
+
+            try {
+                JsonNode node = yamlMapper.readTree(doc);
+                if (node != null && !node.isNull() && !node.isEmpty()) {
+                    docs.add(node);
+                } else {
+                    log.warn("Skipping null/empty YAML node at position {}", i);
+                }
+            } catch (Exception e) {
+                log.warn("Skipping unparseable YAML fragment at position {}: {}. Doc preview: {}",
+                    i, e.getMessage(), doc.substring(0, Math.min(100, doc.length())));
+            }
+        }
+
+        return docs;
+    }
+
+    private java.util.Map<String, JsonNode> buildResourceMap(java.util.List<JsonNode> docs) {
+        java.util.Map<String, JsonNode> map = new java.util.HashMap<>();
+
+        for (JsonNode doc : docs) {
+            String kind = doc.has("kind") ? doc.get("kind").asText() : "Unknown";
+            String name = "unnamed";
+
+            if (doc.has("metadata") && doc.get("metadata").has("name")) {
+                name = doc.get("metadata").get("name").asText();
+            }
+
+            String key = kind + "/" + name;
+            map.put(key, doc);
+        }
+
+        return map;
     }
 
     private String cleanManifest(String m) {

@@ -256,7 +256,9 @@ public class StringFunctions {
             if (args.length < 2) return "";
             int spaces = ((Number) args[0]).intValue();
             String text = String.valueOf(args[1]);
-            return text.replace("\n", "\n" + " ".repeat(spaces));
+            String indentStr = " ".repeat(spaces);
+            // Indent all lines including the first one
+            return indentStr + text.replace("\n", "\n" + indentStr);
         };
     }
 
@@ -275,8 +277,25 @@ public class StringFunctions {
             String old = String.valueOf(args[0]);
             String newStr = String.valueOf(args[1]);
             String text = String.valueOf(args[2]);
+
+            // Handle common escape sequences that appear as literals in templates
+            old = unescapeString(old);
+            newStr = unescapeString(newStr);
+
             return text.replace(old, newStr);
         };
+    }
+
+    /**
+     * Convert common escape sequences from literal strings to actual characters.
+     * In Go templates, string literals like "\n" are passed as literal backslash-n,
+     * but functions like replace need to treat them as the actual escape character.
+     */
+    private static String unescapeString(String s) {
+        return s.replace("\\n", "\n")
+                .replace("\\t", "\t")
+                .replace("\\r", "\r")
+                .replace("\\\\", "\\");
     }
 
     private static Function plural() {
@@ -407,9 +426,15 @@ public class StringFunctions {
         return args -> {
             if (args.length < 3) return "";
             try {
-                return String.valueOf(args[2]).replaceAll(String.valueOf(args[0]), String.valueOf(args[1]));
+                // Sprig signature: regexReplaceAll pattern text replacement
+                // So args are: [0]=pattern, [1]=text, [2]=replacement
+                String pattern = String.valueOf(args[0]);
+                String text = String.valueOf(args[1]);
+                String replacement = String.valueOf(args[2]);
+
+                return text.replaceAll(pattern, replacement);
             } catch (Exception e) {
-                return String.valueOf(args[2]);
+                return String.valueOf(args[1]);  // Return original text on error
             }
         };
     }
@@ -418,7 +443,11 @@ public class StringFunctions {
         return args -> {
             if (args.length < 3) throw new RuntimeException("mustRegexReplaceAll: insufficient arguments");
             try {
-                return String.valueOf(args[2]).replaceAll(String.valueOf(args[0]), String.valueOf(args[1]));
+                // Sprig signature: mustRegexReplaceAll pattern text replacement
+                String pattern = String.valueOf(args[0]);
+                String text = String.valueOf(args[1]);
+                String replacement = String.valueOf(args[2]);
+                return text.replaceAll(pattern, replacement);
             } catch (Exception e) {
                 throw new RuntimeException("mustRegexReplaceAll: " + e.getMessage(), e);
             }
@@ -429,12 +458,13 @@ public class StringFunctions {
         return args -> {
             if (args.length < 3) return "";
             try {
+                // Sprig signature: regexReplaceAllLiteral pattern text replacement
                 String pattern = String.valueOf(args[0]);
-                String replacement = Matcher.quoteReplacement(String.valueOf(args[1]));
-                String text = String.valueOf(args[2]);
+                String text = String.valueOf(args[1]);
+                String replacement = Matcher.quoteReplacement(String.valueOf(args[2]));
                 return text.replaceAll(pattern, replacement);
             } catch (Exception e) {
-                return String.valueOf(args[2]);
+                return String.valueOf(args[1]);  // Return original text on error
             }
         };
     }
@@ -443,9 +473,10 @@ public class StringFunctions {
         return args -> {
             if (args.length < 3) throw new RuntimeException("mustRegexReplaceAllLiteral: insufficient arguments");
             try {
+                // Sprig signature: mustRegexReplaceAllLiteral pattern text replacement
                 String pattern = String.valueOf(args[0]);
-                String replacement = Matcher.quoteReplacement(String.valueOf(args[1]));
-                String text = String.valueOf(args[2]);
+                String text = String.valueOf(args[1]);
+                String replacement = Matcher.quoteReplacement(String.valueOf(args[2]));
                 return text.replaceAll(pattern, replacement);
             } catch (Exception e) {
                 throw new RuntimeException("mustRegexReplaceAllLiteral: " + e.getMessage(), e);

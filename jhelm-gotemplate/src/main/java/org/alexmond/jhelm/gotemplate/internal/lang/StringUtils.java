@@ -45,7 +45,67 @@ public final class StringUtils {
             return unquoted;
         }
 
-        return unquoted;
+        // Unescape escape sequences for double-quoted and single-quoted strings
+        return unescapeQuotedString(unquoted);
+    }
+
+    /**
+     * Unescape escape sequences in a quoted string (for double quotes and single quotes).
+     * Handles: \", \', \\, \n, \t, \r, \b, \f
+     */
+    private static String unescapeQuotedString(String str) {
+        if (!str.contains("\\")) {
+            return str;  // Fast path - no escapes
+        }
+
+        StringBuilder result = new StringBuilder(str.length());
+        for (int i = 0; i < str.length(); i++) {
+            char c = str.charAt(i);
+            if (c == '\\' && i + 1 < str.length()) {
+                char next = str.charAt(i + 1);
+                switch (next) {
+                    case '"':
+                        result.append('"');
+                        i++;
+                        break;
+                    case '\'':
+                        result.append('\'');
+                        i++;
+                        break;
+                    case '\\':
+                        result.append('\\');
+                        i++;
+                        break;
+                    case 'n':
+                        result.append('\n');
+                        i++;
+                        break;
+                    case 't':
+                        result.append('\t');
+                        i++;
+                        break;
+                    case 'r':
+                        result.append('\r');
+                        i++;
+                        break;
+                    case 'b':
+                        result.append('\b');
+                        i++;
+                        break;
+                    case 'f':
+                        result.append('\f');
+                        i++;
+                        break;
+                    default:
+                        // Unknown escape sequence - keep the backslash
+                        result.append(c);
+                        break;
+                }
+            } else {
+                result.append(c);
+            }
+        }
+        return result.toString();
     }
 
 }

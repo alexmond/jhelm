@@ -42,11 +42,43 @@ public class Engine {
         try {
             // Using a shared set for the whole rendering process to avoid redundant work and loops
             java.util.Set<String> renderedCharts = new java.util.HashSet<>();
-            return renderWithSubcharts(chart, values, releaseInfo, renderedCharts, 0);
+            String rendered = renderWithSubcharts(chart, values, releaseInfo, renderedCharts, 0);
+            return cleanManifest(rendered);
         } catch (StackOverflowError e) {
             log.error("Global StackOverflowError during rendering of chart {}: {}", chart.getMetadata().getName(), e.getMessage());
             return "ERROR: Recursive template inclusion or too deep nesting";
         }
+    }
+
+    /**
+     * Clean up the manifest by removing empty YAML documents and trailing separators
+     */
+    private String cleanManifest(String manifest) {
+        if (manifest == null || manifest.isEmpty()) {
+            return manifest;
+        }
+
+        // Split by YAML document separator
+        String[] docs = manifest.split("\n---\n");
+        StringBuilder cleaned = new StringBuilder();
+
+        for (String doc : docs) {
+            String trimmed = doc.trim();
+            // Skip empty documents
+            if (!trimmed.isEmpty()) {
+                if (cleaned.length() > 0) {
+                    cleaned.append("\n---\n");
+                }
+                cleaned.append(trimmed);
+            }
+        }
+
+        // Add final newline if there's content
+        if (cleaned.length() > 0) {
+            cleaned.append("\n");
+        }
+
+        return cleaned.toString();
     }
 
     private void collectNamedTemplates(Chart chart) {
@@ -211,6 +243,8 @@ public class Engine {
             // Subcharts are only rendered if enabled in Values
             Map<String, Object> subchartOverrides = (Map<String, Object>) mergedValues.getOrDefault(subchartName, new HashMap<>());
 
+            log.debug("Subchart {}: overrides={}, enabled={}", subchartName, subchartOverrides, subchartOverrides.get("enabled"));
+
             // If subchart is disabled, skip it
             if (subchartOverrides.containsKey("enabled") && !isTruthy(subchartOverrides.get("enabled"))) {
                 log.info("Subchart {} is disabled", subchartName);
@@ -222,6 +256,7 @@ public class Engine {
                 subchartOverrides.put("global", mergedValues.get("global"));
             }
 
+            log.info("Rendering subchart: {}", subchartName);
             sb.append(renderWithSubcharts(subchart, subchartOverrides, releaseInfo, renderedCharts, depth + 1));
         }
 

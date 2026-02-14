@@ -22,6 +22,30 @@ jhelm (parent)
 - **Integration Tests**: `KpsComparisonTest.java` compares output with native Helm.
 - **Template Tests**: `GoTemplateStandardTest.java`, `TemplateTest.java`.
 
+### Testing Guidelines
+
+**IMPORTANT**: Always run tests after making code changes to ensure they don't break existing functionality.
+
+```bash
+# Run all tests
+./mvnw test
+
+# Run tests for specific module
+./mvnw test -pl jhelm-core
+
+# Run specific test class
+./mvnw test -Dtest=KpsComparisonTest -pl jhelm-core
+
+# Run specific test method
+./mvnw test -Dtest=KpsComparisonTest#testSimpleRendering -pl jhelm-core
+```
+
+Before committing changes:
+1. Run relevant tests to verify your changes work
+2. Check that existing tests still pass
+3. Add new tests for new functionality
+4. Fix any test failures before pushing
+
 ## Debugging Tips
 
 - Enable detailed logging with `@Slf4j` annotations.
