@@ -51,6 +51,7 @@ jobs:
           min-coverage-changed-files: 60
 
       - name: Add coverage to PR
+        if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
