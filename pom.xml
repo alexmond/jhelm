@@ -27,7 +27,6 @@
         <kubernetes-client.version>25.0.0</kubernetes-client.version>
         <picocli.version>4.7.6</picocli.version>
         <jackson-yaml.version>2.18.2</jackson-yaml.version>
-        <httpclient5.version>5.4.1</httpclient5.version>
     </properties>
 
     <dependencyManagement>
