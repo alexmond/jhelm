@@ -7,7 +7,7 @@ import java.util.Map;
 
 /**
  * Helm Kubernetes-specific functions
- * Based on: https://helm.sh/docs/chart_template_guide/function_list/
+ * Based on: <a href="https://helm.sh/docs/chart_template_guide/function_list/">https://helm.sh/docs/chart_template_guide/function_list/</a>
  * <p>
  * These functions provide access to Kubernetes cluster resources during template rendering.
  * Requires a KubernetesProvider implementation to be provided via getFunctions(provider).

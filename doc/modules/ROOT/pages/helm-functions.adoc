@@ -1,0 +1,40 @@
+# Helm Functions
+
+Helm functions are organized into several categories:
+
+- `HelmFunctions.java` - Main coordinator for all Helm functions
+- `conversion/ConversionFunctions.java` - YAML/JSON conversion (toYaml, toJson, **mustToYaml**, **mustToJson**, etc.)
+- `template/TemplateFunctions.java` - Template inclusion (include, tpl, required)
+- `kubernetes/KubernetesFunctions.java` - Kubernetes integration (lookup, kubeVersion)
+- `chart/ChartFunctions.java` - Chart utilities (semverCompare, certificate generation)
+
+## Detailed Function Reference
+
+*(Refer to source code for detailed parameter and return type information)*
+
+### Conversion Functions (`helm/conversion/ConversionFunctions.java`)
+- `toYaml`: Converts an object to a YAML string.
+- `mustToYaml`: Required version that fails on error.
+- `fromYaml`: Parses a YAML string into an object.
+- `mustFromYaml`: Required version that fails on error.
+- `toJson`: Converts an object to a JSON string.
+- `mustToJson`: Required version that fails on error.
+- `toPrettyJson`: Converts an object to a pretty JSON string.
+- `fromJson`: Parses a JSON string into an object.
+- `mustFromJson`: Required version that fails on error.
+
+### Template Functions (`helm/template/TemplateFunctions.java`)
+- `include`: Execute named template and return output.
+- `mustInclude`: Required version that fails on error.
+- `tpl`: Evaluate string as template inline.
+- `mustTpl`: Required version that fails on error.
+- `required`: Validate value is present.
+
+### Kubernetes Functions (`helm/kubernetes/KubernetesFunctions.java`)
+- `lookup`: Query Kubernetes API for resources.
+- `kubeVersion`: Get Kubernetes version info.
+
+### Chart Functions (`helm/chart/ChartFunctions.java`)
+- `semverCompare`: Compares semantic versions.
+- `semver`: Parse semantic version string.
+- `genCA`, `genSelfSignedCert`, `genSignedCert`, `genPrivateKey`: Certificate generation.

@@ -1,0 +1,41 @@
+# Sprig Functions
+
+Sprig functions provide a large library of helper functions for templates.
+
+## Categories & Highlights
+
+### Strings (`sprig/strings/StringFunctions.java`)
+- **Basic**: `trim`, `trimAll`, `trimPrefix`, `trimSuffix`, `upper`, `lower`, `title`, `untitle`
+- **Manipulation**: `repeat`, `substr`, `trunc`, `abbrev`, `initials`, `wrap`, `replace`
+- **Formatting**: `quote`, `squote`, `cat`, `indent`, `nindent`
+- **Case conversion**: `snakecase`, `camelcase`, `kebabcase`
+- **Regex**: `regexMatch`, `regexFind`, `regexReplaceAll`, `regexSplit` (with `must*` variants)
+
+### Collections (`sprig/collections/CollectionFunctions.java`)
+- **Lists**: `list`, `first`, `last`, `rest`, `initial`, `append`, `prepend`, `concat`
+- **Dictionaries**: `dict`, `set`, `unset`, `hasKey`, `pluck`, `merge`, `mustMerge`
+- **Common**: `pick`, `omit`, `keys`, `values`, `sortAlpha`, `reverse`, `compact`, `uniq`, `contains`, `has`
+
+### Logic (`sprig/logic/LogicFunctions.java`)
+- `default`, `empty`, `coalesce`, `ternary`, `and`, `or`, `not`
+
+### Math (`sprig/math/MathFunctions.java`)
+- `add`, `sub`, `mul`, `div`, `mod`, `floor`, `ceil`, `round`, `min`, `max`
+
+### Encoding (`sprig/encoding/EncodingFunctions.java`)
+- `b64enc`, `b64dec`, `b32enc`, `b32dec`, `sha1sum`, `sha256sum`, `adler32sum`
+
+### Crypto (`sprig/crypto/CryptoFunctions.java`)
+- `uuidv4`, `randAlphaNum`, `randAlpha`, `randNumeric`, `randAscii`, `htpasswd`, `encryptAES`, `decryptAES`
+
+### Date (`sprig/date/DateFunctions.java`)
+- `now`, `date`, `dateInZone`, `dateModify`, `unixEpoch`, `htmlDate`, `htmlDateInZone`
+
+### Reflection (`sprig/reflection/ReflectionFunctions.java`)
+- `typeOf`, `kindOf`, `typeIs`, `kindIs`, `deepEqual`, `deepCopy`
+
+### Network (`sprig/network/NetworkFunctions.java`)
+- `getHostByName`
+
+### Semver (`sprig/semver/SemverFunctions.java`)
+- `semver`, `semverCompare`

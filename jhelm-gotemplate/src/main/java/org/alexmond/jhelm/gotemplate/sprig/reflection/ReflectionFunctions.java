@@ -66,8 +66,7 @@ public class ReflectionFunctions {
     /**
      * Checks if the value is of a specific type.
      *
-     * @param args [0] type name (string), [1] value to check
-     * @return true if value matches the type
+     * @return {@code true} if value matches the type
      */
     private static Function typeIs() {
         return args -> {
@@ -87,8 +86,7 @@ public class ReflectionFunctions {
     /**
      * Checks if the value's type is like a specific type (partial match).
      *
-     * @param args [0] type pattern (string), [1] value to check
-     * @return true if value's type matches the pattern
+     * @return {@code true} if value's type matches the pattern
      */
     private static Function typeIsLike() {
         return args -> {
@@ -106,8 +104,7 @@ public class ReflectionFunctions {
     /**
      * Checks if the value's kind matches a specific kind.
      *
-     * @param args [0] kind name (string, number, bool, map, slice, list), [1] value to check
-     * @return true if value's kind matches
+     * @return {@code true} if value's kind matches
      */
     private static Function kindIs() {
         return args -> {
@@ -135,8 +132,7 @@ public class ReflectionFunctions {
      * Performs deep equality comparison between two values.
      * Recursively compares Maps, Collections, and arrays.
      *
-     * @param args [0] first value, [1] second value
-     * @return true if values are deeply equal
+     * @return {@code true} if values are deeply equal
      */
     private static Function deepEqual() {
         return args -> {

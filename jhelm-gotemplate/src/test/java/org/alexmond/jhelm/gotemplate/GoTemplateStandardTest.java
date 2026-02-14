@@ -17,18 +17,20 @@ class GoTemplateStandardTest {
 
     @Test
     void test() throws IOException, TemplateParseException, TemplateNotFoundException, TemplateExecutionException {
-        String letter = "\n" +
-                "Dear {{.Name}},\n" +
-                "{{if .Attended}}\n" +
-                "It was a pleasure to see you at the wedding.\n" +
-                "{{- else}}\n" +
-                "It is a shame you couldn't make it to the wedding.\n" +
-                "{{- end}}\n" +
-                "{{with .Gift -}}\n" +
-                "Thank you for the lovely {{.}}.\n" +
-                "{{end}}\n" +
-                "Best wishes,\n" +
-                "Josie\n";
+        String letter = """
+
+                Dear {{.Name}},
+                {{if .Attended}}
+                It was a pleasure to see you at the wedding.
+                {{- else}}
+                It is a shame you couldn't make it to the wedding.
+                {{- end}}
+                {{with .Gift -}}
+                Thank you for the lovely {{.}}.
+                {{end}}
+                Best wishes,
+                Josie
+                """;
 
 
         GoTemplateFactory goTemplateFactory = new GoTemplateFactory();
@@ -42,14 +44,16 @@ class GoTemplateStandardTest {
         goTemplate.execute(new Recipient("Aunt Mildred", "bone china tea set", true), writer);
 
         assertEquals(
-                "\n" +
-                        "Dear Aunt Mildred,\n" +
-                        "\n" +
-                        "It was a pleasure to see you at the wedding.\n" +
-                        "Thank you for the lovely bone china tea set.\n" +
-                        "\n" +
-                        "Best wishes,\n" +
-                        "Josie\n",
+                """
+
+                        Dear Aunt Mildred,
+
+                        It was a pleasure to see you at the wedding.
+                        Thank you for the lovely bone china tea set.
+
+                        Best wishes,
+                        Josie
+                        """,
                 writer.toString()
         );
 
@@ -58,14 +62,16 @@ class GoTemplateStandardTest {
         goTemplate.execute(new Recipient("Uncle John", "moleskin pants", false), writer2);
 
         assertEquals(
-                "\n" +
-                        "Dear Uncle John,\n" +
-                        "\n" +
-                        "It is a shame you couldn't make it to the wedding.\n" +
-                        "Thank you for the lovely moleskin pants.\n" +
-                        "\n" +
-                        "Best wishes,\n" +
-                        "Josie\n",
+                """
+
+                        Dear Uncle John,
+
+                        It is a shame you couldn't make it to the wedding.
+                        Thank you for the lovely moleskin pants.
+
+                        Best wishes,
+                        Josie
+                        """,
                 writer2.toString());
 
 
@@ -73,13 +79,15 @@ class GoTemplateStandardTest {
         goTemplate.execute(new Recipient("Cousin Rodney", "", false), writer3);
 
         assertEquals(
-                "\n" +
-                        "Dear Cousin Rodney,\n" +
-                        "\n" +
-                        "It is a shame you couldn't make it to the wedding.\n" +
-                        "\n" +
-                        "Best wishes,\n" +
-                        "Josie\n",
+                """
+
+                        Dear Cousin Rodney,
+
+                        It is a shame you couldn't make it to the wedding.
+
+                        Best wishes,
+                        Josie
+                        """,
                 writer3.toString());
     }
 
@@ -109,12 +117,14 @@ class GoTemplateStandardTest {
         String text = writer.toString();
 
         assertEquals(
-                "Names:\n" +
-                        "- Gamora\n" +
-                        "- Groot\n" +
-                        "- Nebula\n" +
-                        "- Rocket\n" +
-                        "- Star-Lord\n",
+                """
+                        Names:
+                        - Gamora
+                        - Groot
+                        - Nebula
+                        - Rocket
+                        - Star-Lord
+                        """,
                 text
         );
 

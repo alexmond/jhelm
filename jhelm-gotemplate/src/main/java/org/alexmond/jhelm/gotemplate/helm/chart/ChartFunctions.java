@@ -7,7 +7,7 @@ import java.util.Map;
 
 /**
  * Helm chart-specific helper functions
- * Based on: https://helm.sh/docs/chart_template_guide/function_list/
+ * Based on: <a href="https://helm.sh/docs/chart_template_guide/function_list/">https://helm.sh/docs/chart_template_guide/function_list/</a>
  */
 public class ChartFunctions {
 
@@ -31,7 +31,7 @@ public class ChartFunctions {
     /**
      * semverCompare compares semantic versions
      * Syntax: semverCompare ">=1.2.3" "1.3.0"
-     * Returns true if comparison matches
+     * Returns {@code true} if comparison matches
      */
     private static Function semverCompare() {
         return args -> {

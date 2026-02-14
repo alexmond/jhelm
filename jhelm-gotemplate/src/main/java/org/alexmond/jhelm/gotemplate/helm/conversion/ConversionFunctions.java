@@ -12,7 +12,7 @@ import java.util.Map;
 /**
  * Helm conversion functions for YAML/JSON operations
  * Includes Helm 4 new functions: mustToYaml, mustToJson, mustFromJson, mustFromYaml
- * Based on: https://helm.sh/docs/chart_template_guide/function_list/
+ * Based on: <a href="https://helm.sh/docs/chart_template_guide/function_list/">https://helm.sh/docs/chart_template_guide/function_list/</a>
  */
 public class ConversionFunctions {
 

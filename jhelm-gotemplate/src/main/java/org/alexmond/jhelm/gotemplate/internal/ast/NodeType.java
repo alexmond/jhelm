@@ -1,5 +1,8 @@
 package org.alexmond.jhelm.gotemplate.internal.ast;
 
+import lombok.Getter;
+
+@Getter
 public enum NodeType {
 
     TEXT(0),
@@ -31,7 +34,4 @@ public enum NodeType {
         this.code = code;
     }
 
-    public int getCode() {
-        return code;
-    }
 }

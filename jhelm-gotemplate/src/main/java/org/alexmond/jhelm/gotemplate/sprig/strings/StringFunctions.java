@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 /**
  * Sprig String manipulation functions
- * Based on: https://masterminds.github.io/sprig/strings.html
+ * Based on: <a href="https://masterminds.github.io/sprig/strings.html">https://masterminds.github.io/sprig/strings.html</a>
  */
 public class StringFunctions {
 

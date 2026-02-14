@@ -1,5 +1,8 @@
 package org.alexmond.jhelm.gotemplate;
 
+import lombok.Getter;
+
+@Getter
 public class Recipient {
     private final String name;
     private final String gift;
@@ -11,15 +14,4 @@ public class Recipient {
         this.attended = attended;
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public String getGift() {
-        return gift;
-    }
-
-    public boolean isAttended() {
-        return attended;
-    }
 }

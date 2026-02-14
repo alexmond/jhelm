@@ -21,14 +21,11 @@ public class Token {
 
     @Override
     public String toString() {
-        switch (type) {
-            case EOF:
-                return "EOF";
-            case KEYWORD:
-                return '<' + val + '>';
-            case ERROR:
-            default:
-                return val;
-        }
+        return switch (type) {
+            case EOF -> "EOF";
+            case KEYWORD -> '<' + val + '>';
+            case ERROR -> val;
+            default -> val;
+        };
     }
 }

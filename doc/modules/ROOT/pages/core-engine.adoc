@@ -1,0 +1,26 @@
+# Core Engine
+
+The core engine (jhelm-core) handles chart management and the rendering pipeline.
+
+## Key Classes
+
+- `Engine.java` - Main rendering engine that orchestrates template processing
+- `Chart.java` - Represents a Helm chart with metadata and templates
+- `RepoManager.java` - Manages Helm chart repositories
+
+## Rendering Pipeline
+
+The engine handles:
+
+- Named template collection and caching
+- Subchart rendering with recursion prevention
+- Value merging from chart defaults and user overrides
+- Template context management (Release, Chart, Values, Capabilities, etc.)
+
+## Implementation Details
+
+1. **Template Rendering**: The `Engine` class creates a new `GoTemplateFactory` for each render to avoid template accumulation.
+2. **Recursion Protection**: Stack depth tracking prevents infinite template recursion.
+3. **Named Templates**: `define` blocks are collected before rendering begins.
+4. **Value Merging**: Chart values are merged with user-provided values and release info.
+5. **Error Handling**: Custom exceptions for parsing, execution, and not-found scenarios.

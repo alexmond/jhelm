@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.gotemplate.internal;
 
+import lombok.Getter;
 import org.alexmond.jhelm.gotemplate.internal.lang.CharUtils;
 
 import java.util.ArrayList;
@@ -8,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
+@Getter
 public class Lexer {
 
     private static final String DEFAULT_LEFT_DELIM = "{{";
@@ -43,6 +45,7 @@ public class Lexer {
 
     private final String leftComment;
     private final String rightComment;
+    @Getter
     private final List<Token> tokens = new ArrayList<>(8);
     /**
      * Current position of the input
@@ -763,17 +766,8 @@ public class Lexer {
         tokens.add(token);
     }
 
-    public List<Token> getTokens() {
-        return tokens;
-    }
 
-    public String getLeftDelimiter() {
-        return leftDelimiter;
-    }
 
-    public String getRightDelimiter() {
-        return rightDelimiter;
-    }
 
     private interface State {
 

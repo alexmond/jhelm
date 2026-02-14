@@ -28,7 +28,6 @@ public class NetworkFunctions {
     /**
      * Performs DNS lookup and returns the IP address for a hostname.
      *
-     * @param args [0] hostname (string)
      * @return IP address as string, or empty string on error
      */
     private static Function getHostByName() {

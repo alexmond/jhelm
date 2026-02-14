@@ -1,0 +1,29 @@
+# Architecture
+
+This is a multi-module Maven project with the following structure:
+
+## Modules
+
+1. **jhelm-gotemplate** - Go template engine for Java
+    - Java implementation of Go's template language
+    - Based on gotemplate4j (MIT License, Copyright 2021 verils)
+    - Provides lexer, parser, AST nodes, and executor for Go templates
+    - Includes Sprig functions and Helm-specific template functions
+    - Location: `jhelm-gotemplate/`
+
+2. **jhelm-core** - Core Helm logic and models
+    - Chart management and parsing
+    - Repository management
+    - Template rendering engine
+    - Value merging and processing
+    - Location: `jhelm-core/`
+
+3. **jhelm-kube** - Kubernetes integration
+    - Kubernetes client integration
+    - Resource deployment and management
+    - Location: `jhelm-kube/`
+
+4. **jhelm-app** - Application/CLI layer
+    - Command-line interface built with Picocli
+    - User-facing commands and workflows
+    - Location: `jhelm-app/`

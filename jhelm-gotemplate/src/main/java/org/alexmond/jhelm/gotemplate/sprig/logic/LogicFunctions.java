@@ -7,7 +7,7 @@ import java.util.Map;
 
 /**
  * Sprig logic and control flow functions
- * Based on: https://masterminds.github.io/sprig/defaults.html
+ * Based on: <a href="https://masterminds.github.io/sprig/defaults.html">https://masterminds.github.io/sprig/defaults.html</a>
  */
 public class LogicFunctions {
 

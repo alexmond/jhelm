@@ -28,7 +28,6 @@ public class SemverFunctions {
     /**
      * Parses a semantic version string and returns a Map with version components.
      *
-     * @param args [0] version string (e.g., "v1.2.3", "1.2.3-alpha", "2.0.0-beta.1+build.123")
      * @return Map with keys: Major, Minor, Patch, Prerelease, Metadata, Original
      */
     private static Function semver() {
@@ -88,8 +87,7 @@ public class SemverFunctions {
      * - "~1.2.3" - patch-level changes (>=1.2.3 <1.3.0)
      * - "^1.2.3" - minor-level changes (>=1.2.3 <2.0.0)
      *
-     * @param args [0] constraint string, [1] version string
-     * @return true if version satisfies constraint
+     * @return {@code true} if version satisfies constraint
      */
     private static Function semverCompare() {
         return args -> {

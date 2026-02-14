@@ -1,0 +1,15 @@
+# Template Engine
+
+The template engine (jhelm-gotemplate) consists of:
+
+- **Lexer** (`internal/Lexer.java`) - Tokenizes template strings
+- **Parser** (`internal/Parser.java`) - Builds AST from tokens
+- **Executor** (`internal/Executor.java`) - Executes templates against data
+- **AST Nodes** (`internal/ast/*.java`) - Represents template structure
+- **Functions** - Category-based function library (Sprig + Helm)
+
+## Key Classes
+
+- `GoTemplate.java` - Main template wrapper with execution capabilities
+- `GoTemplateFactory.java` - Factory for creating and managing templates
+- `Functions.java` - Function registry and execution

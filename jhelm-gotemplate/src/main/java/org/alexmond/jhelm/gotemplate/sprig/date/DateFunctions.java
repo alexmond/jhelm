@@ -59,8 +59,6 @@ public class DateFunctions {
     /**
      * Formats a date using the given layout.
      * Go date format is converted to Java SimpleDateFormat.
-     *
-     * @param args [0] layout string (Go format), [1] date object
      */
     private static Function date() {
         return args -> {
@@ -83,8 +81,6 @@ public class DateFunctions {
 
     /**
      * Formats a date using the given layout in a specific timezone.
-     *
-     * @param args [0] layout string (Go format), [1] date object, [2] timezone
      */
     private static Function dateInZone() {
         return args -> {
@@ -123,8 +119,6 @@ public class DateFunctions {
 
     /**
      * Formats a date in HTML date format (YYYY-MM-DD) in a specific timezone.
-     *
-     * @param args [0] date object, [1] timezone
      */
     private static Function htmlDateInZone() {
         return args -> {
@@ -144,7 +138,6 @@ public class DateFunctions {
     /**
      * Parses a date string using the given layout.
      *
-     * @param args [0] layout string (Go format), [1] date string
      * @return Date object or null on error
      */
     private static Function toDate() {
@@ -167,7 +160,6 @@ public class DateFunctions {
      * Parses a date string using the given layout.
      * Throws an exception on error.
      *
-     * @param args [0] layout string (Go format), [1] date string
      * @return Date object
      * @throws RuntimeException if parsing fails
      */
@@ -195,8 +187,6 @@ public class DateFunctions {
      * Modifies a date by adding or subtracting duration.
      * <p>
      * Simplified implementation - supports basic duration strings.
-     *
-     * @param args [0] modification string (e.g., "+1h", "-30m"), [1] date object
      */
     private static Function dateModify() {
         return args -> {
@@ -220,7 +210,6 @@ public class DateFunctions {
      * <p>
      * Simplified implementation.
      *
-     * @param args [0] duration object or string
      * @return rounded duration
      */
     private static Function durationRound() {
@@ -249,8 +238,6 @@ public class DateFunctions {
 
     /**
      * Returns the Unix epoch timestamp (seconds since Jan 1, 1970 UTC).
-     *
-     * @param args [0] optional date object (defaults to now)
      */
     private static Function unixEpoch() {
         return args -> {

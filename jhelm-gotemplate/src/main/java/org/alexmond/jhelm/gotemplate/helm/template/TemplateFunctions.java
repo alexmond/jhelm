@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * Helm template-specific functions for template inclusion and evaluation
- * Based on: https://helm.sh/docs/chart_template_guide/function_list/
+ * Based on: <a href="https://helm.sh/docs/chart_template_guide/function_list/">https://helm.sh/docs/chart_template_guide/function_list/</a>
  */
 public class TemplateFunctions {
 

@@ -1,0 +1,112 @@
+= Implementation Roadmap & Future Design
+
+This document outlines the planned improvements, feature priorities, and strategic vision for jhelm.
+
+== Recommended Implementation Roadmap
+
+The roadmap is divided into several phases focusing on compatibility, feature completeness, and architectural modernization.
+
+=== Phase 1: Helm 4 Core Compatibility (2-3 weeks)
+
+1. Add missing template functions (`mustToYaml`, `mustToJson`, etc.) - *✅ COMPLETED*
+2. Category-based function refactoring - *✅ COMPLETED*
+3. Remove duplicate legacy functions - *✅ COMPLETED*
+4. Implement Server-Side Apply in `HelmKubeService`
+5. Enhanced OCI registry support with digest verification
+6. Content-based chart caching
+7. Multi-document values file support
+
+=== Phase 2: Feature Completeness (3-4 weeks)
+
+1. Dependency management system
+2. Hooks support (pre/post install/upgrade)
+3. Missing commands (`get`, `show`, `dependency`)
+4. JSON Schema validation
+5. Improved resource status watching
+
+=== Phase 3: Architecture & Quality (2-3 weeks)
+
+1. Remove Spring Boot from core modules (making them library-first)
+2. Async/reactive support
+3. Metrics and observability
+4. Enhanced error recovery
+5. Better contextual error messages
+
+=== Phase 4: Advanced Features (4-6 weeks)
+
+1. Plugin system architecture
+2. WebAssembly plugin support
+3. Post-renderers
+4. Chart signing/verification
+5. Chart testing framework
+
+=== Phase 5: Polish & Performance (2-3 weeks)
+
+1. Template compilation cache
+2. CLI color output
+3. CPU/memory profiling
+4. Enhanced test coverage
+5. Documentation improvements
+
+== Compatibility Matrix
+
+|===
+| Feature | Helm 3 | Helm 4 | jhelm Current | Priority | Status
+
+| Template Rendering | ✅ | ✅ | ✅ | - | Complete
+| Sprig Functions | ✅ | ✅ | ✅ (100%) | P1 | ✅ Complete
+| *Helm 4 must* Functions* | ❌ | ✅ | ✅ | P1 | ✅ *Complete*
+| Server-Side Apply | ❌ | ✅ | ❌ | P1 | Pending
+| Three-Way Merge | ✅ | ❌ | ✅ | P1 | Complete
+| Plugin System | ✅ | ✅ (new) | ❌ | P2 | Pending
+| OCI Registries | ✅ | ✅ (enhanced) | ⚠️ | P1 | Partial
+| Chart Dependencies | ✅ | ✅ | ❌ | P2 | Pending
+| Hooks | ✅ | ✅ | ❌ | P2 | Pending
+| JSON Schema | ❌ | ✅ | ❌ | P2 | Pending
+| Content Caching | ❌ | ✅ | ❌ | P1 | Pending
+| Structured Logging | ❌ | ✅ | ⚠️ | P1 | Partial
+|===
+
+== Spring Boot Integration Roadmap ⭐
+
+=== Strategic Vision
+
+Transform jhelm into an *enterprise-grade Helm management platform* powered by Spring Boot, offering:
+
+* *Centralized Configuration*: Spring Config Server integration for values management across environments.
+* *REST API*: Full-featured API for programmatic Helm operations.
+* *Web UI*: Modern web interface for chart management and deployments.
+* *Multi-tenancy*: Support for multiple teams, clusters, and environments.
+* *Real-time Operations*: WebSocket-based deployment status and logs.
+* *Enterprise Features*: Security, audit logging, RBAC, SSO integration.
+
+=== Architecture Design
+
+==== New Modules
+
+[cols="1,4"]
+|===
+| Module | Description
+
+| `jhelm-server`
+| *Purpose*: REST API and Web UI server. +
+*Technology*: Spring Boot 4, Spring Web/WebFlux, Spring Security. +
+*Components*: REST Controllers, WebSocket endpoints, Web UI integration, OpenAPI docs, Actuator metrics.
+
+| `jhelm-config`
+| *Purpose*: Configuration management and Spring Config integration. +
+*Technology*: Spring Cloud Config, Spring Profiles. +
+*Components*: `ConfigurationProperties` for Helm values, Profile-based config, Config Server client, Encryption support.
+
+| `jhelm-security`
+| *Purpose*: Authentication, authorization, and audit (Future). +
+*Technology*: Spring Security, OAuth2, JWT. +
+*Components*: RBAC for Helm operations, SSO/LDAP integration, API key management, Audit logging.
+|===
+
+==== Enhanced Existing Modules
+
+* *jhelm-core*: Add `@ConfigurationProperties`, Spring Environment integration, Spring Events for deployment lifecycle, Spring Cache for template caching.
+* *jhelm-kube*: Reactive operations with Spring WebFlux, Spring Retry for resilience, Spring Cloud Kubernetes for discovery, Async deployment support.
+* *jhelm-app*: Read from Spring Config Server, support environment variables via Spring Boot.
+* *jhelm-gotemplate*: Remains lightweight, no Spring dependency (pure Java).

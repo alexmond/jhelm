@@ -123,7 +123,6 @@ public class CryptoFunctions {
      * Simplified implementation - returns basic bcrypt-like format.
      * Production implementation should use proper BCrypt or Apache Commons Codec.
      *
-     * @param args [0] username, [1] password
      * @return htpasswd entry in format "username:$2y$hash"
      */
     private static Function htpasswd() {
@@ -143,7 +142,6 @@ public class CryptoFunctions {
      * Simplified stub implementation.
      * Production implementation should use proper key derivation function (PBKDF2, bcrypt, etc.).
      *
-     * @param args [0] counter, [1] context, [2] master password, [3] user/site
      * @return derived password
      */
     private static Function derivePassword() {
@@ -170,7 +168,6 @@ public class CryptoFunctions {
      * Simplified stub implementation.
      * Production implementation would use Java Cryptography Architecture (JCA).
      *
-     * @param args [0] algorithm type (e.g., "rsa", "ecdsa", "ed25519")
      * @return PEM-encoded private key (placeholder)
      */
     private static Function genPrivateKey() {
@@ -192,7 +189,6 @@ public class CryptoFunctions {
      * Simplified stub implementation.
      * Production implementation would use Bouncy Castle or similar library.
      *
-     * @param args [0] common name, [1] days valid
      * @return Map with "Cert" and "Key" fields containing PEM-encoded certificate and key (placeholders)
      */
     private static Function genCA() {
@@ -200,12 +196,14 @@ public class CryptoFunctions {
             // Simplified implementation - returns a placeholder certificate structure
             // In production, this would use proper cryptography libraries
             Map<String, Object> ca = new HashMap<>();
-            ca.put("Cert", "-----BEGIN CERTIFICATE-----\n" +
-                    "MIIC...CA_PLACEHOLDER...==\n" +
-                    "-----END CERTIFICATE-----");
-            ca.put("Key", "-----BEGIN RSA PRIVATE KEY-----\n" +
-                    "MIIE...CA_KEY_PLACEHOLDER...==\n" +
-                    "-----END RSA PRIVATE KEY-----");
+            ca.put("Cert", """
+                    -----BEGIN CERTIFICATE-----
+                    MIIC...CA_PLACEHOLDER...==
+                    -----END CERTIFICATE-----""");
+            ca.put("Key", """
+                    -----BEGIN RSA PRIVATE KEY-----
+                    MIIE...CA_KEY_PLACEHOLDER...==
+                    -----END RSA PRIVATE KEY-----""");
             return ca;
         };
     }
@@ -216,7 +214,6 @@ public class CryptoFunctions {
      * Simplified stub implementation.
      * Production implementation would use Bouncy Castle or similar library.
      *
-     * @param args [0] common name, [1] IPs list, [2] alternate IPs list, [3] days valid, [4] CA certificate
      * @return Map with "Cert" and "Key" fields containing PEM-encoded certificate and key (placeholders)
      */
     private static Function genSignedCert() {
@@ -225,12 +222,14 @@ public class CryptoFunctions {
             // In production, this would generate a proper signed certificate
             // Args: cn, ips, alternateIPs, daysValid, ca
             Map<String, Object> cert = new HashMap<>();
-            cert.put("Cert", "-----BEGIN CERTIFICATE-----\n" +
-                    "MIIC...SIGNED_PLACEHOLDER...==\n" +
-                    "-----END CERTIFICATE-----");
-            cert.put("Key", "-----BEGIN RSA PRIVATE KEY-----\n" +
-                    "MIIE...SIGNED_KEY_PLACEHOLDER...==\n" +
-                    "-----END RSA PRIVATE KEY-----");
+            cert.put("Cert", """
+                    -----BEGIN CERTIFICATE-----
+                    MIIC...SIGNED_PLACEHOLDER...==
+                    -----END CERTIFICATE-----""");
+            cert.put("Key", """
+                    -----BEGIN RSA PRIVATE KEY-----
+                    MIIE...SIGNED_KEY_PLACEHOLDER...==
+                    -----END RSA PRIVATE KEY-----""");
             return cert;
         };
     }
@@ -241,7 +240,6 @@ public class CryptoFunctions {
      * Simplified stub implementation.
      * Production implementation would use Bouncy Castle or similar library.
      *
-     * @param args [0] common name, [1] IPs list, [2] alternate IPs list, [3] days valid
      * @return Map with "Cert" and "Key" fields containing PEM-encoded certificate and key (placeholders)
      */
     private static Function genSelfSignedCert() {
@@ -249,12 +247,14 @@ public class CryptoFunctions {
             // Simplified implementation - returns a placeholder certificate structure
             // In production, this would generate a proper self-signed certificate
             Map<String, Object> cert = new HashMap<>();
-            cert.put("Cert", "-----BEGIN CERTIFICATE-----\n" +
-                    "MIIC...SELF_SIGNED_PLACEHOLDER...==\n" +
-                    "-----END CERTIFICATE-----");
-            cert.put("Key", "-----BEGIN RSA PRIVATE KEY-----\n" +
-                    "MIIE...SELF_SIGNED_KEY_PLACEHOLDER...==\n" +
-                    "-----END RSA PRIVATE KEY-----");
+            cert.put("Cert", """
+                    -----BEGIN CERTIFICATE-----
+                    MIIC...SELF_SIGNED_PLACEHOLDER...==
+                    -----END CERTIFICATE-----""");
+            cert.put("Key", """
+                    -----BEGIN RSA PRIVATE KEY-----
+                    MIIE...SELF_SIGNED_KEY_PLACEHOLDER...==
+                    -----END RSA PRIVATE KEY-----""");
             return cert;
         };
     }

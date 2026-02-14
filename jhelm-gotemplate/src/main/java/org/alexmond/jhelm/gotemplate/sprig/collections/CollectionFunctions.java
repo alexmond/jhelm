@@ -8,8 +8,8 @@ import java.util.stream.Collectors;
 
 /**
  * Sprig Collection manipulation functions (lists, slices, dicts)
- * Based on: https://masterminds.github.io/sprig/lists.html
- * Based on: https://masterminds.github.io/sprig/dicts.html
+ * Based on: <a href="https://masterminds.github.io/sprig/lists.html">https://masterminds.github.io/sprig/lists.html</a>
+ * Based on: <a href="https://masterminds.github.io/sprig/dicts.html">https://masterminds.github.io/sprig/dicts.html</a>
  */
 public class CollectionFunctions {
 
@@ -98,6 +98,10 @@ public class CollectionFunctions {
             }
             if (obj.getClass().isArray()) {
                 return Array.getLength(obj) > 0 ? Array.get(obj, 0) : null;
+            }
+            if (obj instanceof String) {
+                String s = (String) obj;
+                return s.isEmpty() ? "" : String.valueOf(s.charAt(0));
             }
             return null;
         };
@@ -192,7 +196,7 @@ public class CollectionFunctions {
             if (args.length < 2 || !(args[0] instanceof Collection))
                 return args.length > 0 ? args[0] : Collections.emptyList();
             List<Object> list = new ArrayList<>((Collection<?>) args[0]);
-            for (int i = 1; i < args.length; i++) list.add(args[i]);
+            list.addAll(Arrays.asList(args).subList(1, args.length));
             return list;
         };
     }
@@ -208,8 +212,7 @@ public class CollectionFunctions {
         return args -> {
             if (args.length < 2 || !(args[0] instanceof Collection))
                 return args.length > 0 ? args[0] : Collections.emptyList();
-            List<Object> list = new ArrayList<>();
-            for (int i = 1; i < args.length; i++) list.add(args[i]);
+            List<Object> list = new ArrayList<>(Arrays.asList(args).subList(1, args.length));
             list.addAll((Collection<?>) args[0]);
             return list;
         };

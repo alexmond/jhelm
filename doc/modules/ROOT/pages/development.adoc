@@ -1,0 +1,42 @@
+# Development Guide
+
+## Building the Project
+
+```bash
+./mvnw clean install
+```
+
+## Module Dependencies
+
+```
+jhelm (parent)
+├── jhelm-gotemplate (standalone template engine)
+├── jhelm-core (depends on: jhelm-gotemplate)
+├── jhelm-kube (depends on: jhelm-core)
+└── jhelm-app (depends on: jhelm-core, jhelm-kube)
+```
+
+## Testing
+
+- **Unit Tests**: Each module has comprehensive unit tests.
+- **Integration Tests**: `KpsComparisonTest.java` compares output with native Helm.
+- **Template Tests**: `GoTemplateStandardTest.java`, `TemplateTest.java`.
+
+## Debugging Tips
+
+- Enable detailed logging with `@Slf4j` annotations.
+- Check `test_output.txt` and `jhelm-core/test_output.txt` for test results.
+- Use `GoTemplateStandardTest` to verify template behavior.
+- Compare output with Helm using dry-run tests in `KpsComparisonTest`.
+
+## Common Operations
+
+### Adding a new template function
+
+1. Determine the appropriate category:
+    - **Helm functions**: Use `helm/conversion/`, `helm/template/`, `helm/kubernetes/`, or `helm/chart/`
+    - **Sprig functions**: Use `sprig/strings/`, `sprig/collections/`, `sprig/logic/`, or create new category
+2. Add function to the appropriate category class (e.g., `StringFunctions.java`)
+3. Function will be automatically registered via the coordinator (`HelmFunctions` or `SprigFunctionsRegistry`)
+4. Add tests in corresponding test class (e.g., `Helm4FunctionsTest.java`)
+5. Update `getFunctionCategories()` in the coordinator if adding a new category

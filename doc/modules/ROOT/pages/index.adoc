@@ -1,0 +1,13 @@
+# jhelm - Java Implementation of Helm
+
+jhelm is a Java implementation of the Helm package manager for Kubernetes. It provides native Java libraries and tools to work with Helm charts without requiring the Go-based Helm CLI.
+
+## Technology Stack
+
+- **Java**: 21
+- **Spring Boot**: 4.0.2
+- **Kubernetes Client**: 25.0.0
+- **Picocli**: 4.7.6 (CLI framework)
+- **Jackson YAML**: 2.18.2
+- **Commons Compress**: 1.26.1
+- **Lombok**: For reducing boilerplate code
