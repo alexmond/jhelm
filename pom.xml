@@ -14,24 +14,56 @@
     <packaging>pom</packaging>
     <name>jhelm</name>
     <description>jhelm</description>
+    <url>https://www.alexmond.org/jhelm/current/index.html</url>
 
+
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/alexmond/jhelm/issues</url>
+    </issueManagement>
+
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>Alex Mondshain</name>
+            <email>alex.mondshain@gmail.com</email>
+        </developer>
+    </developers>
+
+    <properties>
+        <kubernetes-client.version>25.0.0</kubernetes-client.version>
+        <picocli.version>4.7.6</picocli.version>
+        <jackson-yaml.version>2.18.2</jackson-yaml.version>
+
+        <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
+        <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
+
+        <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
+        <jacoco.agent.arg>
+            -javaagent:${settings.localRepository}/org/jacoco/org.jacoco.agent/${jacoco-maven-plugin.version}/org.jacoco.agent-${jacoco-maven-plugin.version}-runtime.jar=destfile=target/jacoco.exec
+        </jacoco.agent.arg>
+
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+    </properties>
+    <scm>
+        <connection>scm:git:git@github.com:alexmond/jhelm.git</connection>
+        <developerConnection>scm:git:git@github.com:alexmond/jhelm.git</developerConnection>
+        <tag>HEAD</tag>
+        <url>https://github.com/alexmond/jsupervisor</url>
+    </scm>
     <modules>
         <module>jhelm-gotemplate</module>
         <module>jhelm-core</module>
         <module>jhelm-kube</module>
         <module>jhelm-app</module>
     </modules>
-
-    <properties>
-        <java.version>21</java.version>
-        <kubernetes-client.version>25.0.0</kubernetes-client.version>
-        <picocli.version>4.7.6</picocli.version>
-        <jackson-yaml.version>2.18.2</jackson-yaml.version>
-
-        <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
-
-        <jacoco.agent.arg>-javaagent:${settings.localRepository}/org/jacoco/org.jacoco.agent/${jacoco-maven-plugin.version}/org.jacoco.agent-${jacoco-maven-plugin.version}-runtime.jar=destfile=target/jacoco.exec</jacoco.agent.arg>
-    </properties>
 
     <dependencyManagement>
         <dependencies>
@@ -82,22 +114,89 @@
         <pluginManagement>
             <plugins>
                 <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
+                    <groupId>io.github.git-commit-id</groupId>
+                    <artifactId>git-commit-id-maven-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>revision</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                     <configuration>
-                        <showDeprecation>true</showDeprecation>
-                        <showWarnings>true</showWarnings> <!-- Optional: also show all other warnings -->
-                        <annotationProcessorPaths>
-                            <path>
-                                <groupId>org.projectlombok</groupId>
-                                <artifactId>lombok</artifactId>
-                            </path>
-                        </annotationProcessorPaths>
+                        <verbose>true</verbose>
+                        <dateFormat>yyyy-MM-dd'T'HH:mm:ssZ</dateFormat>
+                        <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                        <generateGitPropertiesFilename>
+                            ${project.build.outputDirectory}/git.properties
+                        </generateGitPropertiesFilename>
+                        <skipPoms>false</skipPoms>
+                        <useNativeGit>true</useNativeGit>
                     </configuration>
                 </plugin>
-            </plugins>
-        </pluginManagement>
-        <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <goals>
+                                <goal>jar-no-fork</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <!-- Generate JavaDoc JAR -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <configuration>
+                        <failOnError>false</failOnError>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <!-- GPG signing -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>${maven-gpg-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>sign-artifacts</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>sign</goal>
+                            </goals>
+                            <configuration>
+                                <!-- Prevent gpg from using pinentry -->
+                                <gpgArguments>
+                                    <arg>--pinentry-mode</arg>
+                                    <arg>loopback</arg>
+                                </gpgArguments>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>${central-publishing-maven-plugin.version}</version>
+                    <extensions>true</extensions>
+                    <configuration>
+                        <publishingServerId>central</publishingServerId>
+                        <autoPublish>true</autoPublish>
+                        <waitUntil>published</waitUntil>
+                    </configuration>
+                </plugin>
+                <!-- Generate JavaDoc JAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -154,6 +253,35 @@
                 </executions>
             </plugin>
         </plugins>
+        </pluginManagement>
     </build>
-
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.github.git-commit-id</groupId>
+                        <artifactId>git-commit-id-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

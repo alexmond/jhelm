@@ -577,7 +577,9 @@ public class Executor {
         } else if (value instanceof Number || value instanceof Boolean) {
             writer.write(String.valueOf(value));
         } else {
-            // Avoid calling toString on complex objects which might trigger Introspector/reflection loops
+            // Avoid calling toString on complex objects (Maps, Collections, etc)
+            // This indicates a template error where a complex object is used in string context
+            // Output a marker to help identify the issue
             writer.write("[object " + value.getClass().getSimpleName() + "]");
         }
     }

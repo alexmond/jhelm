@@ -58,14 +58,34 @@ public class Engine {
             return manifest;
         }
 
-        // Split by YAML document separator
-        String[] docs = manifest.split("\n---\n");
+        // Normalize the manifest first - ensure it doesn't start/end with ---
+        String normalized = manifest.trim();
+
+        // Fix any ---# patterns (separator immediately followed by comment)
+        // This happens when templates use {{- if -}} around separators
+        normalized = normalized.replace("---#", "---\n#");
+
+        // Remove leading --- if present
+        while (normalized.startsWith("---")) {
+            normalized = normalized.substring(3).trim();
+        }
+
+        // Remove trailing --- if present
+        while (normalized.endsWith("---")) {
+            normalized = normalized.substring(0, normalized.length() - 3).trim();
+        }
+
+        // Split by YAML document separator patterns:
+        // 1. \n---\n (standard separator with blank line)
+        // 2. \n--- followed by newline with content (template-generated separator)
+        // Use lookbehind to keep the newline before --- but not the --- itself
+        String[] docs = normalized.split("\\n---(?=\\n)");
         StringBuilder cleaned = new StringBuilder();
 
         for (String doc : docs) {
             String trimmed = doc.trim();
-            // Skip empty documents
-            if (!trimmed.isEmpty()) {
+            // Skip empty documents, standalone separators, and documents that are just comments after a separator
+            if (!trimmed.isEmpty() && !trimmed.equals("---") && !trimmed.startsWith("---")) {
                 if (cleaned.length() > 0) {
                     cleaned.append("\n---\n");
                 }
@@ -224,7 +244,16 @@ public class Engine {
                     template.execute(currentContext, writer);
                     String rendered = writer.toString();
                     if (rendered != null && !rendered.trim().isEmpty()) {
-                        sb.append(rendered).append("\n---\n");
+                        // If template already ends with document separator, don't add another
+                        if (!rendered.trim().endsWith("---")) {
+                            sb.append(rendered);
+                            if (!rendered.endsWith("\n")) {
+                                sb.append("\n");
+                            }
+                            sb.append("---\n");
+                        } else {
+                            sb.append(rendered);
+                        }
                     }
                 } catch (StackOverflowError e) {
                     log.error("StackOverflowError rendering template {}: {}", t.getName(), e.getMessage());
