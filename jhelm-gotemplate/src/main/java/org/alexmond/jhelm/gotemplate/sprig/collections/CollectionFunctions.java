@@ -18,6 +18,7 @@ public class CollectionFunctions {
 
         // List functions
         functions.put("list", list());
+        functions.put("tuple", tuple());
         functions.put("first", first());
         functions.put("mustFirst", mustFirst());
         functions.put("rest", rest());
@@ -82,6 +83,10 @@ public class CollectionFunctions {
     // List functions
     private static Function list() {
         return args -> new ArrayList<>(Arrays.asList(args));
+    }
+
+    private static Function tuple() {
+        return args -> Arrays.asList(args);
     }
 
     private static Function first() {

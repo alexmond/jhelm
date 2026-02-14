@@ -104,7 +104,7 @@ public class SprigFunctionsRegistry {
         ));
 
         categories.put("Collections", java.util.List.of(
-                "list", "first", "mustFirst", "rest", "mustRest",
+                "list", "tuple", "first", "mustFirst", "rest", "mustRest",
                 "last", "mustLast", "initial", "mustInitial",
                 "append", "mustAppend", "prepend", "mustPrepend",
                 "concat", "reverse", "mustReverse",

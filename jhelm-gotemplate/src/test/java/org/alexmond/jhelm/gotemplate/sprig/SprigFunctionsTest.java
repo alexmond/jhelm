@@ -104,6 +104,28 @@ class SprigFunctionsTest {
     }
 
     @Test
+    void testTuple() throws IOException, TemplateException {
+        Template template = new Template("test");
+        template.parse("{{ $t := tuple \"a\" \"b\" \"c\" }}{{ index $t 0 }},{{ index $t 1 }},{{ index $t 2 }}");
+
+        StringWriter writer = new StringWriter();
+        template.execute(writer, new HashMap<>());
+
+        assertEquals("a,b,c", writer.toString());
+    }
+
+    @Test
+    void testTupleWithRange() throws IOException, TemplateException {
+        Template template = new Template("test");
+        template.parse("{{ range tuple \"x\" \"y\" \"z\" }}{{ . }} {{ end }}");
+
+        StringWriter writer = new StringWriter();
+        template.execute(writer, new HashMap<>());
+
+        assertEquals("x y z ", writer.toString());
+    }
+
+    @Test
     void testFirst() throws IOException, TemplateException {
         Template template = new Template("test");
         template.parse("{{ first .items }}");

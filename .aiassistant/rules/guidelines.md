@@ -1,3 +1,7 @@
+---
+apply: always
+---
+
 # Project Coding Guidelines
 
 This document outlines the mandatory coding standards and preferences for the `jhelm` project.
