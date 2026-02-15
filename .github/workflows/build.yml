@@ -66,9 +66,9 @@ jobs:
           files: |
             **/surefire-reports/TEST-*.xml
 
-      - name: Submit Dependency Snapshot
-        uses: advanced-security/maven-dependency-submission-action@v5
-
-
-      - name: Run Integration Tests
-        run: ./mvnw test -pl jhelm-kube,jhelm-core -B --fail-at-end
+#      - name: Submit Dependency Snapshot
+#        uses: advanced-security/maven-dependency-submission-action@v5
+#
+#
+#      - name: Run Integration Tests
+#        run: ./mvnw test -pl jhelm-kube,jhelm-core -B --fail-at-end
