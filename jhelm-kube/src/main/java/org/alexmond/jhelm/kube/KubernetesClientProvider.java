@@ -8,7 +8,8 @@ import io.kubernetes.client.openapi.apis.VersionApi;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.VersionInfo;
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.gotemplate.helm.kubernetes.KubernetesProvider;
+import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
+
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;

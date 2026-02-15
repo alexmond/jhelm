@@ -4,7 +4,8 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.GoTemplateFactory;
-import org.alexmond.jhelm.gotemplate.internal.ast.Node;
+import org.alexmond.jhelm.gotemplate.internal.parse.Node;
+
 
 import java.io.StringWriter;
 import java.util.ArrayList;
