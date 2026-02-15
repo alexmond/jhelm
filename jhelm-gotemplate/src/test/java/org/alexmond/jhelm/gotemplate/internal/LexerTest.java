@@ -1,5 +1,8 @@
 package org.alexmond.jhelm.gotemplate.internal;
 
+import org.alexmond.jhelm.gotemplate.internal.parse.Lexer;
+import org.alexmond.jhelm.gotemplate.internal.parse.Token;
+import org.alexmond.jhelm.gotemplate.internal.parse.TokenType;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

@@ -5,7 +5,6 @@ import org.alexmond.jhelm.core.Chart;
 import org.alexmond.jhelm.core.ChartLoader;
 import org.alexmond.jhelm.core.InstallAction;
 import org.alexmond.jhelm.core.Release;
-import org.alexmond.jhelm.kube.HelmKubeService;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -17,7 +16,6 @@ import java.util.HashMap;
 @Slf4j
 public class InstallCommand implements Runnable {
 
-    private final HelmKubeService helmKubeService;
     private final InstallAction installAction;
     @CommandLine.Parameters(index = "0", description = "release name")
     private String name;
@@ -28,8 +26,7 @@ public class InstallCommand implements Runnable {
     @CommandLine.Option(names = {"--dry-run"}, description = "simulate an install")
     private boolean dryRun;
 
-    public InstallCommand(HelmKubeService helmKubeService, InstallAction installAction) {
-        this.helmKubeService = helmKubeService;
+    public InstallCommand(InstallAction installAction) {
         this.installAction = installAction;
     }
 

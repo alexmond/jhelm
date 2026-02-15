@@ -2,9 +2,9 @@ package org.alexmond.jhelm.gotemplate;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.gotemplate.internal.IOUtils;
-import org.alexmond.jhelm.gotemplate.internal.Parser;
-import org.alexmond.jhelm.gotemplate.internal.ast.Node;
+import org.alexmond.jhelm.gotemplate.internal.util.IOUtils;
+import org.alexmond.jhelm.gotemplate.internal.parse.Parser;
+import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 
 import java.io.IOException;
 import java.io.InputStream;

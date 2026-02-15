@@ -2,7 +2,7 @@ package org.alexmond.jhelm.app;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.Release;
-import org.alexmond.jhelm.kube.HelmKubeService;
+import org.alexmond.jhelm.core.StatusAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -13,20 +13,20 @@ import java.util.Optional;
 @Slf4j
 public class StatusCommand implements Runnable {
 
-    private final HelmKubeService helmKubeService;
+    private final StatusAction statusAction;
     @CommandLine.Parameters(index = "0", description = "release name")
     private String name;
     @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
     private String namespace;
 
-    public StatusCommand(HelmKubeService helmKubeService) {
-        this.helmKubeService = helmKubeService;
+    public StatusCommand(StatusAction statusAction) {
+        this.statusAction = statusAction;
     }
 
     @Override
     public void run() {
         try {
-            Optional<Release> releaseOpt = helmKubeService.getRelease(name, namespace);
+            Optional<Release> releaseOpt = statusAction.status(name, namespace);
             if (releaseOpt.isEmpty()) {
                 log.error("Error: release not found: {}", name);
                 return;

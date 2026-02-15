@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.gotemplate.internal.lang;
 
+import org.alexmond.jhelm.gotemplate.internal.util.CharUtils;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;

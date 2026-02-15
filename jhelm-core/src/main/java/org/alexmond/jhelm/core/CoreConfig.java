@@ -40,4 +40,24 @@ public class CoreConfig {
     public ListAction listAction(KubeService kubeService) {
         return new ListAction(kubeService);
     }
+
+    @Bean
+    public CreateAction createAction() {
+        return new CreateAction();
+    }
+
+    @Bean
+    public TemplateAction templateAction(Engine engine) {
+        return new TemplateAction(engine);
+    }
+
+    @Bean
+    public StatusAction statusAction(KubeService kubeService) {
+        return new StatusAction(kubeService);
+    }
+
+    @Bean
+    public HistoryAction historyAction(KubeService kubeService) {
+        return new HistoryAction(kubeService);
+    }
 }

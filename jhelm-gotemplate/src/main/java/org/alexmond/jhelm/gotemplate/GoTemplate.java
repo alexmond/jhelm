@@ -1,8 +1,8 @@
 package org.alexmond.jhelm.gotemplate;
 
 import lombok.Getter;
-import org.alexmond.jhelm.gotemplate.internal.Executor;
-import org.alexmond.jhelm.gotemplate.internal.ast.Node;
+import org.alexmond.jhelm.gotemplate.internal.exec.Executor;
+import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 
 import java.io.IOException;
 import java.io.Writer;

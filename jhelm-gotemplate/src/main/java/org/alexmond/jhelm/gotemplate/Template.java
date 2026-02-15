@@ -1,12 +1,12 @@
 package org.alexmond.jhelm.gotemplate;
 
 import lombok.Getter;
-import org.alexmond.jhelm.gotemplate.internal.Executor;
-import org.alexmond.jhelm.gotemplate.internal.IOUtils;
-import org.alexmond.jhelm.gotemplate.internal.Parser;
-import org.alexmond.jhelm.gotemplate.internal.ast.ListNode;
-import org.alexmond.jhelm.gotemplate.internal.ast.Node;
-import org.alexmond.jhelm.gotemplate.internal.ast.TextNode;
+import org.alexmond.jhelm.gotemplate.internal.exec.Executor;
+import org.alexmond.jhelm.gotemplate.internal.parse.ListNode;
+import org.alexmond.jhelm.gotemplate.internal.parse.TextNode;
+import org.alexmond.jhelm.gotemplate.internal.util.IOUtils;
+import org.alexmond.jhelm.gotemplate.internal.parse.Parser;
+import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 
 import java.io.*;
 import java.util.Collections;

@@ -1,16 +1,16 @@
 package org.alexmond.jhelm.gotemplate.sprig;
 
 import org.alexmond.jhelm.gotemplate.Function;
-import org.alexmond.jhelm.gotemplate.sprig.collections.CollectionFunctions;
-import org.alexmond.jhelm.gotemplate.sprig.crypto.CryptoFunctions;
-import org.alexmond.jhelm.gotemplate.sprig.date.DateFunctions;
-import org.alexmond.jhelm.gotemplate.sprig.encoding.EncodingFunctions;
-import org.alexmond.jhelm.gotemplate.sprig.logic.LogicFunctions;
-import org.alexmond.jhelm.gotemplate.sprig.math.MathFunctions;
-import org.alexmond.jhelm.gotemplate.sprig.network.NetworkFunctions;
-import org.alexmond.jhelm.gotemplate.sprig.reflection.ReflectionFunctions;
-import org.alexmond.jhelm.gotemplate.sprig.semver.SemverFunctions;
-import org.alexmond.jhelm.gotemplate.sprig.strings.StringFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.CollectionFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.CryptoFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.DateFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.EncodingFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.LogicFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.MathFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.NetworkFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.ReflectionFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.SemverFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.StringFunctions;
 
 import java.util.HashMap;
 import java.util.Map;

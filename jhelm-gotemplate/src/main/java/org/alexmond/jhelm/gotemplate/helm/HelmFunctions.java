@@ -2,11 +2,11 @@ package org.alexmond.jhelm.gotemplate.helm;
 
 import org.alexmond.jhelm.gotemplate.Function;
 import org.alexmond.jhelm.gotemplate.GoTemplateFactory;
-import org.alexmond.jhelm.gotemplate.helm.chart.ChartFunctions;
-import org.alexmond.jhelm.gotemplate.helm.conversion.ConversionFunctions;
-import org.alexmond.jhelm.gotemplate.helm.kubernetes.KubernetesFunctions;
-import org.alexmond.jhelm.gotemplate.helm.kubernetes.KubernetesProvider;
-import org.alexmond.jhelm.gotemplate.helm.template.TemplateFunctions;
+import org.alexmond.jhelm.gotemplate.helm.functions.ChartFunctions;
+import org.alexmond.jhelm.gotemplate.helm.functions.ConversionFunctions;
+import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesFunctions;
+import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
+import org.alexmond.jhelm.gotemplate.sprig.functions.TemplateFunctions;
 
 import java.util.HashMap;
 import java.util.List;

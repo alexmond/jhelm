@@ -2,7 +2,6 @@ package org.alexmond.jhelm.app;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.*;
-import org.alexmond.jhelm.kube.HelmKubeService;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -15,7 +14,7 @@ import java.util.Optional;
 @Slf4j
 public class UpgradeCommand implements Runnable {
 
-    private final HelmKubeService helmKubeService;
+    private final KubeService kubeService;
     private final InstallAction installAction;
     private final UpgradeAction upgradeAction;
     @CommandLine.Parameters(index = "0", description = "release name")
@@ -29,8 +28,8 @@ public class UpgradeCommand implements Runnable {
     @CommandLine.Option(names = {"--dry-run"}, description = "simulate an upgrade")
     private boolean dryRun;
 
-    public UpgradeCommand(HelmKubeService helmKubeService, InstallAction installAction, UpgradeAction upgradeAction) {
-        this.helmKubeService = helmKubeService;
+    public UpgradeCommand(KubeService kubeService, InstallAction installAction, UpgradeAction upgradeAction) {
+        this.kubeService = kubeService;
         this.installAction = installAction;
         this.upgradeAction = upgradeAction;
     }
@@ -38,7 +37,7 @@ public class UpgradeCommand implements Runnable {
     @Override
     public void run() {
         try {
-            Optional<Release> currentReleaseOpt = helmKubeService.getRelease(name, namespace);
+            Optional<Release> currentReleaseOpt = kubeService.getRelease(name, namespace);
             ChartLoader loader = new ChartLoader();
             Chart chart = loader.load(new File(chartPath));
 
@@ -46,12 +45,7 @@ public class UpgradeCommand implements Runnable {
                 if (install) {
                     Release release = installAction.install(chart, name, namespace, new HashMap<>(), 1, dryRun);
                     if (dryRun) {
-                        log.info("NAME: {}", release.getName());
-                        log.info("LAST DEPLOYED: {}", release.getInfo().getLastDeployed());
-                        log.info("NAMESPACE: {}", release.getNamespace());
-                        log.info("STATUS: {}", release.getInfo().getStatus());
-                        log.info("REVISION: {}", release.getVersion());
-                        log.info("\nMANIFEST:\n{}", release.getManifest());
+                        printRelease(release);
                     } else {
                         log.info("Release \"{}\" does not exist. Installing it now.", name);
                     }
@@ -64,17 +58,21 @@ public class UpgradeCommand implements Runnable {
             Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, new HashMap<>(), dryRun);
 
             if (dryRun) {
-                log.info("NAME: {}", upgradedRelease.getName());
-                log.info("LAST DEPLOYED: {}", upgradedRelease.getInfo().getLastDeployed());
-                log.info("NAMESPACE: {}", upgradedRelease.getNamespace());
-                log.info("STATUS: {}", upgradedRelease.getInfo().getStatus());
-                log.info("REVISION: {}", upgradedRelease.getVersion());
-                log.info("\nMANIFEST:\n{}", upgradedRelease.getManifest());
+                printRelease(upgradedRelease);
             } else {
                 log.info("Release \"{}\" has been upgraded. Happy Helming!", name);
             }
         } catch (Exception e) {
             log.error("Error upgrading release: {}", e.getMessage(), e);
         }
+    }
+
+    private void printRelease(Release release) {
+        log.info("NAME: {}", release.getName());
+        log.info("LAST DEPLOYED: {}", release.getInfo().getLastDeployed());
+        log.info("NAMESPACE: {}", release.getNamespace());
+        log.info("STATUS: {}", release.getInfo().getStatus());
+        log.info("REVISION: {}", release.getVersion());
+        log.info("\nMANIFEST:\n{}", release.getManifest());
     }
 }

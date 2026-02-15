@@ -1,6 +1,6 @@
 package org.alexmond.jhelm.gotemplate.internal;
 
-import org.alexmond.jhelm.gotemplate.internal.lang.StringEscapeUtils;
+import org.alexmond.jhelm.gotemplate.internal.util.StringEscapeUtils;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
