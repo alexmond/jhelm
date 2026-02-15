@@ -20,12 +20,24 @@ public class Chart {
     private Map<String, Object> values;
     @Builder.Default
     private List<Chart> dependencies = new ArrayList<>();
+    private String readme;
+    @Builder.Default
+    private List<Crd> crds = new ArrayList<>();
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Template {
+        private String name;
+        private String data;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Crd {
         private String name;
         private String data;
     }
