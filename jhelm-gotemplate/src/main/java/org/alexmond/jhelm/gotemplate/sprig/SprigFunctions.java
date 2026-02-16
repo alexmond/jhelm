@@ -2,6 +2,8 @@ package org.alexmond.jhelm.gotemplate.sprig;
 
 import org.alexmond.jhelm.gotemplate.Function;
 
+import org.alexmond.jhelm.gotemplate.sprig.functions.SprigFunctionsLegacy;
+
 import java.util.Map;
 
 /**

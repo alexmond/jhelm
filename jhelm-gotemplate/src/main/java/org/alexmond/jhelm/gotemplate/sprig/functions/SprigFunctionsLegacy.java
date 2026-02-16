@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.gotemplate.sprig;
+package org.alexmond.jhelm.gotemplate.sprig.functions;
 
 import org.alexmond.jhelm.gotemplate.Function;
 import org.apache.hc.core5.net.URIBuilder;

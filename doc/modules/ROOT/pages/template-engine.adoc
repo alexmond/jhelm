@@ -10,6 +10,5 @@ The template engine (jhelm-gotemplate) consists of:
 
 ## Key Classes
 
-- `GoTemplate.java` - Main template wrapper with execution capabilities
-- `GoTemplateFactory.java` - Factory for creating and managing templates
+- `GoTemplate.java` - Core template engine class for parsing and execution
 - `Functions.java` - Function registry and execution

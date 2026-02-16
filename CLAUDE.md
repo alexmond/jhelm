@@ -71,14 +71,14 @@ jhelm (parent)
 
 ### Template Engine (`jhelm-gotemplate`)
 - Lexer → Parser → AST → Executor pipeline
-- Key classes: `GoTemplate`, `GoTemplateFactory`, `Functions`
+- Key classes: `GoTemplate`, `Functions`
 - Functions organized by category: Sprig (strings, collections, logic, math, encoding, crypto, date, reflection, network, semver) and Helm (conversion, template, kubernetes, chart)
 
 ### Core Engine (`jhelm-core`)
 - `Engine.java` — orchestrates template processing
 - `Chart.java` — represents Helm charts
 - `RepoManager.java` — manages chart repositories
-- Creates new `GoTemplateFactory` per render to avoid template accumulation
+- Creates new `GoTemplate` per render to avoid template accumulation
 - Stack depth tracking prevents infinite template recursion
 
 ### Adding a New Template Function

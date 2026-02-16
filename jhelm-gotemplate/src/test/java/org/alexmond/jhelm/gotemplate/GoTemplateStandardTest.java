@@ -33,12 +33,8 @@ class GoTemplateStandardTest {
                 """;
 
 
-        GoTemplateFactory goTemplateFactory = new GoTemplateFactory();
-        goTemplateFactory.parse("letter", letter);
-
-
-        GoTemplate goTemplate = goTemplateFactory.getTemplate("letter");
-
+        GoTemplate goTemplate = new GoTemplate();
+        goTemplate.parse("letter", letter);
 
         Writer writer = new StringWriter();
         goTemplate.execute(new Recipient("Aunt Mildred", "bone china tea set", true), writer);
@@ -107,10 +103,8 @@ class GoTemplateStandardTest {
         });
 
 
-        GoTemplateFactory goTemplateFactory = new GoTemplateFactory(functions);
-        goTemplateFactory.parse("master", masterTemplate);
-
-        GoTemplate goTemplate = goTemplateFactory.getTemplate("master");
+        GoTemplate goTemplate = new GoTemplate(functions);
+        goTemplate.parse("master", masterTemplate);
 
         Writer writer = new StringWriter();
         goTemplate.execute(guardians, writer);
@@ -129,8 +123,7 @@ class GoTemplateStandardTest {
         );
 
 
-        goTemplateFactory.parse(overlayTemplate);
-        goTemplate = goTemplateFactory.getTemplate("master");
+        goTemplate.parse(overlayTemplate);
 
         writer = new StringWriter();
         goTemplate.execute(guardians, writer);
@@ -141,27 +134,23 @@ class GoTemplateStandardTest {
 
     @Test
     void invoke() throws TemplateParseException, TemplateNotFoundException, IOException, TemplateExecutionException {
-        GoTemplateFactory goTemplateFactory = new GoTemplateFactory();
-        goTemplateFactory.parse("T0.tmpl", "T0 invokes T1: ({{template \"T1\"}})");
-        goTemplateFactory.parse("T1.tmpl", "{{define \"T1\"}}T1 invokes T2: ({{template \"T2\"}}){{end}}");
-        goTemplateFactory.parse("T2.tmpl", "{{define \"T2\"}}This is T2{{end}}");
-
-
-        GoTemplate goTemplate = goTemplateFactory.getTemplate("T0.tmpl");
+        GoTemplate goTemplate = new GoTemplate();
+        goTemplate.parse("T0.tmpl", "T0 invokes T1: ({{template \"T1\"}})");
+        goTemplate.parse("T1.tmpl", "{{define \"T1\"}}T1 invokes T2: ({{template \"T2\"}}){{end}}");
+        goTemplate.parse("T2.tmpl", "{{define \"T2\"}}This is T2{{end}}");
 
         StringWriter writer = new StringWriter();
-        goTemplate.execute(null, writer);
+        goTemplate.execute("T0.tmpl", null, writer);
         assertEquals("T0 invokes T1: (T1 invokes T2: (This is T2))", writer.toString());
     }
 
     @Test
     void testPrintFunction() throws IOException, TemplateParseException, TemplateNotFoundException, TemplateExecutionException {
-        GoTemplateFactory factory = new GoTemplateFactory();
-        factory.parse("test", "{{ print \"hello\" \"-\" \"world\" }}");
+        GoTemplate template = new GoTemplate();
+        template.parse("test", "{{ print \"hello\" \"-\" \"world\" }}");
 
-        GoTemplate template = factory.getTemplate("test");
         StringWriter writer = new StringWriter();
-        template.execute(null, writer);
+        template.execute("test", null, writer);
 
         // print should concatenate without spaces
         assertEquals("hello-world", writer.toString());

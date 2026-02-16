@@ -2,7 +2,7 @@ package org.alexmond.jhelm.gotemplate.sprig.functions;
 
 import org.alexmond.jhelm.gotemplate.Function;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
-import org.alexmond.jhelm.gotemplate.GoTemplateFactory;
+import org.alexmond.jhelm.gotemplate.GoTemplate;
 
 import java.io.StringWriter;
 import java.util.HashMap;
@@ -15,12 +15,12 @@ import java.util.Map;
 public class TemplateFunctions {
 
     /**
-     * Get template functions that require access to the GoTemplateFactory
+     * Get template functions that require access to the GoTemplate
      *
      * @param factory The template factory for template lookups
      * @return Map of function name to Function implementation
      */
-    public static Map<String, Function> getFunctions(GoTemplateFactory factory) {
+    public static Map<String, Function> getFunctions(GoTemplate factory) {
         Map<String, Function> functions = new HashMap<>();
 
         functions.put("include", include(factory));
@@ -37,15 +37,14 @@ public class TemplateFunctions {
      * Syntax: include "templateName" $context
      * Returns empty string on error
      */
-    private static Function include(GoTemplateFactory factory) {
+    private static Function include(GoTemplate factory) {
         return args -> {
             if (args.length < 2) return "";
             String name = String.valueOf(args[0]);
             Object data = args[1];
             try {
-                GoTemplate template = factory.getTemplate(name);
                 StringWriter writer = new StringWriter();
-                template.execute(data, writer);
+                factory.execute(name, data, writer);
                 return writer.toString();
             } catch (Exception e) {
                 // Log warning but return empty string for compatibility
@@ -59,7 +58,7 @@ public class TemplateFunctions {
      * Syntax: mustInclude "templateName" $context
      * Throws exception on error
      */
-    private static Function mustInclude(GoTemplateFactory factory) {
+    private static Function mustInclude(GoTemplate factory) {
         return args -> {
             if (args.length < 2) {
                 throw new RuntimeException("mustInclude: insufficient arguments (requires template name and context)");
@@ -67,9 +66,8 @@ public class TemplateFunctions {
             String name = String.valueOf(args[0]);
             Object data = args[1];
             try {
-                GoTemplate template = factory.getTemplate(name);
                 StringWriter writer = new StringWriter();
-                template.execute(data, writer);
+                factory.execute(name, data, writer);
                 return writer.toString();
             } catch (Exception e) {
                 throw new RuntimeException("mustInclude: failed to execute template '" + name + "': " + e.getMessage(), e);
@@ -82,23 +80,22 @@ public class TemplateFunctions {
      * Syntax: tpl "{{.Values.foo}}" $context
      * Returns empty string on error
      */
-    private static Function tpl(GoTemplateFactory factory) {
+    private static Function tpl(GoTemplate factory) {
         return args -> {
             if (args.length < 2) return "";
             String text = String.valueOf(args[0]);
             Object data = args[1];
             try {
-                // Create a new factory instance inheriting functions and named templates
-                GoTemplateFactory tplFactory = new GoTemplateFactory(factory.getFunctions());
-                tplFactory.getRootNodes().putAll(factory.getRootNodes());
+                // Create a new template instance inheriting functions and named templates
+                GoTemplate tplTemplate = new GoTemplate(factory.getFunctions());
+                tplTemplate.getRootNodes().putAll(factory.getRootNodes());
 
                 // Parse the inline template
-                tplFactory.parse("inline", text);
-                GoTemplate template = tplFactory.getTemplate("inline");
+                tplTemplate.parse("inline", text);
 
                 // Execute and return result
                 StringWriter writer = new StringWriter();
-                template.execute(data, writer);
+                tplTemplate.execute("inline", data, writer);
                 return writer.toString();
             } catch (Exception e) {
                 // Log warning but return empty string for compatibility
@@ -112,7 +109,7 @@ public class TemplateFunctions {
      * Syntax: mustTpl "{{.Values.foo}}" $context
      * Throws exception on error
      */
-    private static Function mustTpl(GoTemplateFactory factory) {
+    private static Function mustTpl(GoTemplate factory) {
         return args -> {
             if (args.length < 2) {
                 throw new RuntimeException("mustTpl: insufficient arguments (requires template string and context)");
@@ -120,17 +117,16 @@ public class TemplateFunctions {
             String text = String.valueOf(args[0]);
             Object data = args[1];
             try {
-                // Create a new factory instance inheriting functions and named templates
-                GoTemplateFactory tplFactory = new GoTemplateFactory(factory.getFunctions());
-                tplFactory.getRootNodes().putAll(factory.getRootNodes());
+                // Create a new template instance inheriting functions and named templates
+                GoTemplate tplTemplate = new GoTemplate(factory.getFunctions());
+                tplTemplate.getRootNodes().putAll(factory.getRootNodes());
 
                 // Parse the inline template
-                tplFactory.parse("inline", text);
-                GoTemplate template = tplFactory.getTemplate("inline");
+                tplTemplate.parse("inline", text);
 
                 // Execute and return result
                 StringWriter writer = new StringWriter();
-                template.execute(data, writer);
+                tplTemplate.execute("inline", data, writer);
                 return writer.toString();
             } catch (Exception e) {
                 throw new RuntimeException("mustTpl: failed to evaluate template: " + e.getMessage(), e);

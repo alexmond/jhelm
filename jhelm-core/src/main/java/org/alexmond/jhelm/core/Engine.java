@@ -3,7 +3,6 @@ package org.alexmond.jhelm.core;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
-import org.alexmond.jhelm.gotemplate.GoTemplateFactory;
 import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 
 
@@ -17,7 +16,7 @@ import java.util.Map;
 public class Engine {
 
     private final Map<String, String> namedTemplates = new HashMap<>();
-    private GoTemplateFactory factory;
+    private GoTemplate factory;
 
     public Engine() {
     }
@@ -35,8 +34,8 @@ public class Engine {
     @SneakyThrows
     public String render(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
         namedTemplates.clear();
-        // Create a new factory for each render to avoid accumulation
-        this.factory = new GoTemplateFactory();
+        // Create a new template for each render to avoid accumulation
+        this.factory = new GoTemplate();
         // Collect all named templates (define blocks) first
         collectNamedTemplates(chart);
 
@@ -233,7 +232,7 @@ public class Engine {
             if (t.getName().endsWith(".yaml")) {
                 try {
                     factory.parse(t.getName(), t.getData());
-                    GoTemplate template = factory.getTemplate(t.getName());
+                    StringWriter writer = new StringWriter();
 
                     // Template name in context should be current template
                     Map<String, Object> templateMap = new HashMap<>((Map<String, Object>) context.get("Template"));
@@ -241,8 +240,7 @@ public class Engine {
                     Map<String, Object> currentContext = new HashMap<>(context);
                     currentContext.put("Template", templateMap);
 
-                    StringWriter writer = new StringWriter();
-                    template.execute(currentContext, writer);
+                    factory.execute(t.getName(), currentContext, writer);
                     String rendered = writer.toString();
                     if (rendered != null && !rendered.trim().isEmpty()) {
                         // If template already ends with document separator, don't add another
@@ -314,9 +312,8 @@ public class Engine {
     private String renderTemplate(Chart.Template template, Map<String, Object> context) {
         try {
             factory.parse(template.getName(), template.getData());
-            GoTemplate goTemplate = factory.getTemplate(template.getName());
             StringWriter writer = new StringWriter();
-            goTemplate.execute(context, writer);
+            factory.execute(template.getName(), context, writer);
             return writer.toString();
         } catch (Exception e) {
             log.error("Template rendering failed for {}. Error: {}", template.getName(), e.getMessage());

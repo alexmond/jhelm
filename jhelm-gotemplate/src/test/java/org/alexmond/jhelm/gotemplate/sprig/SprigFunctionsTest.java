@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.gotemplate.sprig;
 
-import org.alexmond.jhelm.gotemplate.Template;
+import org.alexmond.jhelm.gotemplate.Functions;
+import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.TemplateException;
 import org.junit.jupiter.api.Test;
 
@@ -14,90 +15,76 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SprigFunctionsTest {
 
+    private void execute(String name, String text, Object data, StringWriter writer) throws IOException, TemplateException {
+        GoTemplate template = new GoTemplate();
+        template.parse(name, text);
+        template.execute(name, data, writer);
+    }
+
     @Test
     void testTrunc() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ trunc 5 .text }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("text", "Hello World");
-        template.execute(writer, data);
+        execute("test", "{{ trunc 5 .text }}", data, writer);
 
         assertEquals("Hello", writer.toString());
     }
 
     @Test
     void testJoinWithList() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ join \",\" .items }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("items", Arrays.asList("a", "b", "c"));
-        template.execute(writer, data);
+        execute("test", "{{ join \",\" .items }}", data, writer);
 
         assertEquals("a,b,c", writer.toString());
     }
 
     @Test
     void testRequired() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ required \"value is required\" .value }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("value", "test");
-        template.execute(writer, data);
+        execute("test", "{{ required \"value is required\" .value }}", data, writer);
 
         assertEquals("test", writer.toString());
     }
 
     @Test
     void testRequiredThrowsOnEmpty() {
-        Template template = new Template("test");
         assertThrows(Exception.class, () -> {
-            template.parse("{{ required \"value is required\" .value }}");
             StringWriter writer = new StringWriter();
             Map<String, Object> data = new HashMap<>();
             data.put("value", "");
-            template.execute(writer, data);
+            execute("test", "{{ required \"value is required\" .value }}", data, writer);
         });
     }
 
     @Test
     void testToJson() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ toJson .text }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("text", "hello");
-        template.execute(writer, data);
+        execute("test", "{{ toJson .text }}", data, writer);
 
         assertEquals("\"hello\"", writer.toString());
     }
 
     @Test
     void testMustRegexReplaceAllLiteral() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ mustRegexReplaceAllLiteral \"world\" \"universe\" .text }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("text", "hello world");
-        template.execute(writer, data);
+        execute("test", "{{ mustRegexReplaceAllLiteral \"world\" \"universe\" .text }}", data, writer);
 
         assertEquals("hello universe", writer.toString());
     }
 
     @Test
     void testHtpasswd() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ htpasswd \"user\" \"pass\" }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ htpasswd \"user\" \"pass\" }}", new HashMap<>(), writer);
 
         String result = writer.toString();
         assertTrue(result.startsWith("user:$2y$"));
@@ -105,101 +92,75 @@ class SprigFunctionsTest {
 
     @Test
     void testTuple() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ $t := tuple \"a\" \"b\" \"c\" }}{{ index $t 0 }},{{ index $t 1 }},{{ index $t 2 }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ $t := tuple \"a\" \"b\" \"c\" }}{{ index $t 0 }},{{ index $t 1 }},{{ index $t 2 }}", new HashMap<>(), writer);
 
         assertEquals("a,b,c", writer.toString());
     }
 
     @Test
     void testTupleWithRange() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ range tuple \"x\" \"y\" \"z\" }}{{ . }} {{ end }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ range tuple \"x\" \"y\" \"z\" }}{{ . }} {{ end }}", new HashMap<>(), writer);
 
         assertEquals("x y z ", writer.toString());
     }
 
     @Test
     void testFirst() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ first .items }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("items", Arrays.asList("apple", "banana", "cherry"));
-        template.execute(writer, data);
+        execute("test", "{{ first .items }}", data, writer);
 
         assertEquals("apple", writer.toString());
     }
 
     @Test
     void testFirstWithString() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ first .text }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("text", "hello");
-        template.execute(writer, data);
+        execute("test", "{{ first .text }}", data, writer);
 
         assertEquals("h", writer.toString());
     }
 
     @Test
     void testUniq() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ uniq .items }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("items", Arrays.asList("a", "b", "a", "c", "b"));
-        template.execute(writer, data);
+        execute("test", "{{ uniq .items }}", data, writer);
 
         String result = writer.toString();
-        assertTrue(result.contains("a"));
-        assertTrue(result.contains("b"));
-        assertTrue(result.contains("c"));
+        // Result order might depend on implementation but should contain unique elements
+        assertTrue(result.contains("a") && result.contains("b") && result.contains("c"));
     }
 
     @Test
     void testSortAlpha() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ range sortAlpha .items }}{{ . }} {{ end }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("items", Arrays.asList("cherry", "apple", "banana"));
-        template.execute(writer, data);
+        execute("test", "{{ range sortAlpha .items }}{{ . }} {{ end }}", data, writer);
 
         String result = writer.toString().trim();
-        // Should be sorted: apple banana cherry
         assertEquals("apple banana cherry", result);
     }
 
     @Test
     void testSet() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ $dict := dict }}{{ $_ := set $dict \"key\" \"value\" }}{{ index $dict \"key\" }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ $dict := dict }}{{ $_ := set $dict \"key\" \"value\" }}{{ index $dict \"key\" }}", new HashMap<>(), writer);
 
         assertEquals("value", writer.toString());
     }
 
     @Test
     void testRandAlphaNum() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ randAlphaNum 10 }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ randAlphaNum 10 }}", new HashMap<>(), writer);
 
         String result = writer.toString();
         assertEquals(10, result.length());
@@ -208,11 +169,8 @@ class SprigFunctionsTest {
 
     @Test
     void testRandAlpha() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ randAlpha 8 }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ randAlpha 8 }}", new HashMap<>(), writer);
 
         String result = writer.toString();
         assertEquals(8, result.length());
@@ -221,11 +179,8 @@ class SprigFunctionsTest {
 
     @Test
     void testGenCA() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ $ca := genCA \"test\" 365 }}{{ $ca.Cert }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ $ca := genCA \"foo-ca\" 365 }}{{ $ca.Cert }}", new HashMap<>(), writer);
 
         String result = writer.toString();
         assertTrue(result.contains("BEGIN CERTIFICATE"));
@@ -233,208 +188,150 @@ class SprigFunctionsTest {
 
     @Test
     void testKindIs() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ kindIs \"string\" .value }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("value", "hello");
-        template.execute(writer, data);
+        execute("test", "{{ kindIs \"string\" .value }}", data, writer);
 
         assertEquals("true", writer.toString());
     }
 
     @Test
     void testTypeIs() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ typeIs \"string\" .value }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("value", "hello");
-        template.execute(writer, data);
+        execute("test", "{{ typeIs \"string\" .value }}", data, writer);
 
         assertEquals("true", writer.toString());
     }
 
     @Test
     void testHasKey() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ hasKey .dict \"name\" }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> dict = new HashMap<>();
         dict.put("name", "test");
         data.put("dict", dict);
-        template.execute(writer, data);
+        execute("test", "{{ hasKey .dict \"name\" }}", data, writer);
 
         assertEquals("true", writer.toString());
     }
 
     @Test
     void testGet() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ get .dict \"name\" }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         Map<String, Object> dict = new HashMap<>();
         dict.put("name", "test");
         data.put("dict", dict);
-        template.execute(writer, data);
+        execute("test", "{{ get .dict \"name\" }}", data, writer);
 
         assertEquals("test", writer.toString());
     }
 
     @Test
     void testWithout() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ without .items \"b\" }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("items", Arrays.asList("a", "b", "c"));
-        template.execute(writer, data);
+        execute("test", "{{ without .items \"b\" }}", data, writer);
 
         String result = writer.toString();
-        assertTrue(result.contains("a"));
-        assertTrue(result.contains("c"));
-        assertFalse(result.contains("\"b\""));
+        assertTrue(result.contains("a") && result.contains("c") && !result.contains("\"b\""));
     }
 
     @Test
     void testSplitList() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ splitList \",\" .text }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("text", "a,b,c");
-        template.execute(writer, data);
+        execute("test", "{{ splitList \",\" .text }}", data, writer);
 
         String result = writer.toString();
-        assertTrue(result.contains("a"));
-        assertTrue(result.contains("b"));
-        assertTrue(result.contains("c"));
+        assertTrue(result.contains("a") && result.contains("b") && result.contains("c"));
     }
 
     @Test
     void testUnset() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ $dict := dict \"key1\" \"value1\" \"key2\" \"value2\" }}{{ $_ := unset $dict \"key1\" }}{{ hasKey $dict \"key1\" }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ $dict := dict \"key1\" \"value1\" \"key2\" \"value2\" }}{{ $_ := unset $dict \"key1\" }}{{ hasKey $dict \"key1\" }}", new HashMap<>(), writer);
 
         assertEquals("false", writer.toString());
     }
 
     @Test
     void testSemver() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ $v := semver \"v1.2.3\" }}{{ $v.Major }}.{{ $v.Minor }}.{{ $v.Patch }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ $v := semver \"v1.2.3\" }}{{ $v.Major }}.{{ $v.Minor }}.{{ $v.Patch }}", new HashMap<>(), writer);
 
         assertEquals("1.2.3", writer.toString());
     }
 
     @Test
     void testAdd1() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ add1 5 }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ add1 5 }}", new HashMap<>(), writer);
 
         assertEquals("6", writer.toString());
     }
 
     @Test
     void testRandNumeric() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ $r := randNumeric 10 }}{{ len $r }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ $r := randNumeric 10 }}{{ len $r }}", new HashMap<>(), writer);
 
         assertEquals("10", writer.toString());
     }
 
     @Test
     void testReverse() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ $list := list \"a\" \"b\" \"c\" }}{{ range reverse $list }}{{ . }}{{ end }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ $list := list \"a\" \"b\" \"c\" }}{{ range reverse $list }}{{ . }}{{ end }}", new HashMap<>(), writer);
 
         assertEquals("cba", writer.toString());
     }
 
     @Test
     void testIndent() throws IOException, TemplateException {
-        Template template = new Template("test");
-        // Test with data containing actual newlines
-        template.parse("{{ indent 4 .text }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
-        data.put("text", "line1\nline2");  // Actual newline character in Java string
-        template.execute(writer, data);
+        data.put("text", "line1\nline2");
+        execute("test", "{{ indent 4 .text }}", data, writer);
 
-        String result = writer.toString();
-        assertEquals("    line1\n    line2", result);
+        assertEquals("    line1\n    line2", writer.toString());
     }
 
     @Test
     void testRegexReplaceAll() throws IOException, TemplateException {
-        Template template = new Template("test");
-        // Test Sprig signature: regexReplaceAll pattern text replacement
-        template.parse("{{ regexReplaceAll \"[^a-z]\" \"hello123world\" \"-\" }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ regexReplaceAll \"[^a-z]\" \"hello123world\" \"-\" }}", new HashMap<>(), writer);
 
-        // Should replace all non-lowercase letters with hyphens
         assertEquals("hello---world", writer.toString());
     }
 
     @Test
     void testReplaceNewlines() throws IOException, TemplateException {
-        Template template = new Template("test");
-        // Test with data that has actual newlines
-        template.parse("{{ replace \"\\n\" \",\" .text }}");
-
         StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("text", "line1\nline2\nline3");
-        template.execute(writer, data);
+        execute("test", "{{ replace \"\\n\" \",\" .text }}", data, writer);
 
-        // Should replace actual newlines with commas
         assertEquals("line1,line2,line3", writer.toString());
     }
 
     @Test
     void testGenSignedCert() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ $cert := genSignedCert \"example.com\" nil nil 365 nil }}{{ hasKey $cert \"Cert\" }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ $cert := genSignedCert \"example.com\" nil nil 365 nil }}{{ hasKey $cert \"Cert\" }}", new HashMap<>(), writer);
 
         assertEquals("true", writer.toString());
     }
 
     @Test
     void testRandAscii() throws IOException, TemplateException {
-        Template template = new Template("test");
-        template.parse("{{ $r := randAscii 15 }}{{ len $r }}");
-
         StringWriter writer = new StringWriter();
-        template.execute(writer, new HashMap<>());
+        execute("test", "{{ $r := randAscii 15 }}{{ len $r }}", new HashMap<>(), writer);
 
         assertEquals("15", writer.toString());
     }

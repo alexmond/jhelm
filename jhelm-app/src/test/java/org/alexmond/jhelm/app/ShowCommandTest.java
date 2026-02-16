@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app;
 
 import org.alexmond.jhelm.core.ChartLoader;
+import org.alexmond.jhelm.core.ShowAction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -21,11 +22,15 @@ class ShowCommandTest {
     private Path chartDir;
     private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     private final PrintStream originalOut = System.out;
+    private ShowAction showAction;
 
     @BeforeEach
     void setUp() throws Exception {
         // Redirect System.out to capture command output
         System.setOut(new PrintStream(outputStream));
+
+        ChartLoader chartLoader = new ChartLoader();
+        showAction = new ShowAction(chartLoader);
 
         // Create a test chart
         chartDir = tempDir.resolve("test-chart");
@@ -115,7 +120,7 @@ class ShowCommandTest {
 
     @Test
     void testShowChart() {
-        ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(new ChartLoader());
+        ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
         command.chartPath = chartDir.toString();
 
         command.run();
@@ -131,7 +136,7 @@ class ShowCommandTest {
 
     @Test
     void testShowValues() {
-        ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(new ChartLoader());
+        ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
         command.chartPath = chartDir.toString();
 
         command.run();
@@ -145,7 +150,7 @@ class ShowCommandTest {
 
     @Test
     void testShowReadme() {
-        ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(new ChartLoader());
+        ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
         command.chartPath = chartDir.toString();
 
         command.run();
@@ -159,7 +164,7 @@ class ShowCommandTest {
 
     @Test
     void testShowCrds() {
-        ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(new ChartLoader());
+        ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
         command.chartPath = chartDir.toString();
 
         command.run();
@@ -175,7 +180,7 @@ class ShowCommandTest {
 
     @Test
     void testShowAll() {
-        ShowCommand.AllCommand command = new ShowCommand.AllCommand(new ChartLoader());
+        ShowCommand.AllCommand command = new ShowCommand.AllCommand(showAction);
         command.chartPath = chartDir.toString();
 
         command.run();
@@ -217,7 +222,7 @@ class ShowCommandTest {
         Files.writeString(noReadmeDir.resolve("values.yaml"), "{}");
         Files.createDirectories(noReadmeDir.resolve("templates"));
 
-        ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(new ChartLoader());
+        ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
         command.chartPath = noReadmeDir.toString();
 
         command.run();
@@ -241,7 +246,7 @@ class ShowCommandTest {
         Files.writeString(noCrdsDir.resolve("values.yaml"), "{}");
         Files.createDirectories(noCrdsDir.resolve("templates"));
 
-        ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(new ChartLoader());
+        ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
         command.chartPath = noCrdsDir.toString();
 
         command.run();
@@ -265,7 +270,7 @@ class ShowCommandTest {
         Files.writeString(emptyValuesDir.resolve("values.yaml"), "{}");
         Files.createDirectories(emptyValuesDir.resolve("templates"));
 
-        ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(new ChartLoader());
+        ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
         command.chartPath = emptyValuesDir.toString();
 
         command.run();
@@ -276,7 +281,7 @@ class ShowCommandTest {
 
     @Test
     void testShowCommandWithInvalidPath() {
-        ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(new ChartLoader());
+        ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
         command.chartPath = "/nonexistent/path";
 
         // Should not throw, but should log error

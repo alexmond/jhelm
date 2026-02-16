@@ -11,6 +11,7 @@ import org.alexmond.jhelm.gotemplate.sprig.functions.NetworkFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.ReflectionFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.SemverFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.StringFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.SprigFunctionsLegacy;
 
 import java.util.HashMap;
 import java.util.Map;

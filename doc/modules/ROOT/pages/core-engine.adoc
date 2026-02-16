@@ -19,8 +19,9 @@ The engine handles:
 
 ## Implementation Details
 
-1. **Template Rendering**: The `Engine` class creates a new `GoTemplateFactory` for each render to avoid template accumulation.
-2. **Recursion Protection**: Stack depth tracking prevents infinite template recursion.
-3. **Named Templates**: `define` blocks are collected before rendering begins.
-4. **Value Merging**: Chart values are merged with user-provided values and release info.
-5. **Error Handling**: Custom exceptions for parsing, execution, and not-found scenarios.
+1. **Template Rendering**: The `Engine` class creates a new `GoTemplate` for each render to avoid template accumulation.
+2. **Action Classes**: Logic for Helm operations is encapsulated in Action classes (e.g., `InstallAction`, `UpgradeAction`, `RollbackAction`, `TemplateAction`, `ShowAction`).
+3. **Recursion Protection**: Stack depth tracking prevents infinite template recursion.
+4. **Named Templates**: `define` blocks are collected before rendering begins.
+5. **Value Merging**: Chart values are merged with user-provided values and release info.
+6. **Error Handling**: Custom exceptions for parsing, execution, and not-found scenarios.
