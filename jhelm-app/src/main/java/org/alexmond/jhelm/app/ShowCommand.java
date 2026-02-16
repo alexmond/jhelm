@@ -36,7 +36,7 @@ public class ShowCommand implements Runnable {
         private final ChartLoader chartLoader;
 
         @CommandLine.Parameters(index = "0", description = "chart path")
-        private String chartPath;
+        String chartPath;
 
         @CommandLine.Option(names = {"--version"}, description = "specify chart version")
         private String version;
@@ -67,7 +67,7 @@ public class ShowCommand implements Runnable {
         private final ChartLoader chartLoader;
 
         @CommandLine.Parameters(index = "0", description = "chart path")
-        private String chartPath;
+        String chartPath;
 
         @CommandLine.Option(names = {"--version"}, description = "specify chart version")
         private String version;
@@ -106,7 +106,7 @@ public class ShowCommand implements Runnable {
         private final ChartLoader chartLoader;
 
         @CommandLine.Parameters(index = "0", description = "chart path")
-        private String chartPath;
+        String chartPath;
 
         @CommandLine.Option(names = {"--version"}, description = "specify chart version")
         private String version;
@@ -141,7 +141,7 @@ public class ShowCommand implements Runnable {
         private final ChartLoader chartLoader;
 
         @CommandLine.Parameters(index = "0", description = "chart path")
-        private String chartPath;
+        String chartPath;
 
         @CommandLine.Option(names = {"--version"}, description = "specify chart version")
         private String version;
@@ -180,7 +180,7 @@ public class ShowCommand implements Runnable {
         private final ChartLoader chartLoader;
 
         @CommandLine.Parameters(index = "0", description = "chart path")
-        private String chartPath;
+        String chartPath;
 
         @CommandLine.Option(names = {"--version"}, description = "specify chart version")
         private String version;
@@ -245,6 +245,7 @@ public class ShowCommand implements Runnable {
     private static String toYaml(Object obj) throws Exception {
         YAMLFactory yamlFactory = YAMLFactory.builder()
                 .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+                .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
                 .build();
         ObjectMapper yamlMapper = new ObjectMapper(yamlFactory);
         return yamlMapper.writeValueAsString(obj);
