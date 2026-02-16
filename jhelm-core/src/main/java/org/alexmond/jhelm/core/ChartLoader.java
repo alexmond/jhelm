@@ -53,11 +53,27 @@ public class ChartLoader {
             }
         }
 
+        // Load README
+        String readme = null;
+        File readmeFile = new File(chartDir, "README.md");
+        if (readmeFile.exists()) {
+            readme = Files.readString(readmeFile.toPath());
+        }
+
+        // Load CRDs
+        File crdsDir = new File(chartDir, "crds");
+        List<Chart.Crd> crds = new ArrayList<>();
+        if (crdsDir.exists() && crdsDir.isDirectory()) {
+            loadCrdsRecursive(crdsDir, "", crds);
+        }
+
         return Chart.builder()
                 .metadata(metadata)
                 .values(values)
                 .templates(templates)
                 .dependencies(dependencies)
+                .readme(readme)
+                .crds(crds)
                 .build();
     }
 
@@ -74,6 +90,23 @@ public class ChartLoader {
                         .data(Files.readString(file.toPath()))
                         .build();
                 templates.add(template);
+            }
+        }
+    }
+
+    private void loadCrdsRecursive(File dir, String path, List<Chart.Crd> crds) throws IOException {
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        for (File file : files) {
+            String name = path.isEmpty() ? file.getName() : path + "/" + file.getName();
+            if (file.isDirectory()) {
+                loadCrdsRecursive(file, name, crds);
+            } else if (name.endsWith(".yaml") || name.endsWith(".yml")) {
+                Chart.Crd crd = Chart.Crd.builder()
+                        .name(name)
+                        .data(Files.readString(file.toPath()))
+                        .build();
+                crds.add(crd);
             }
         }
     }
