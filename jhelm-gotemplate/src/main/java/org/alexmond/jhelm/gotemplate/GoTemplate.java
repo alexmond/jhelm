@@ -111,7 +111,10 @@ public class GoTemplate {
     }
 
     /**
-     * Check if a named template exists
+     * Check if a named template exists.
+     *
+     * @param name the template name to check
+     * @return {@code true} if a template with the given name exists, {@code false} otherwise
      */
     public boolean hasTemplate(String name) {
         return rootNodes.containsKey(name);
