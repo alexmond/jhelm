@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.gotemplate.internal.lang;
+package org.alexmond.jhelm.gotemplate.internal.util;
 
 import org.alexmond.jhelm.gotemplate.internal.util.CharUtils;
 import org.junit.jupiter.api.Test;

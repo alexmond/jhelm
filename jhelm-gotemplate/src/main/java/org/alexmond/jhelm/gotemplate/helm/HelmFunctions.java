@@ -1,7 +1,7 @@
 package org.alexmond.jhelm.gotemplate.helm;
 
 import org.alexmond.jhelm.gotemplate.Function;
-import org.alexmond.jhelm.gotemplate.GoTemplateFactory;
+import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.helm.functions.ChartFunctions;
 import org.alexmond.jhelm.gotemplate.helm.functions.ConversionFunctions;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesFunctions;
@@ -24,11 +24,11 @@ public class HelmFunctions {
      * Get all Helm functions from all categories with Kubernetes provider.
      * Use this when Kubernetes API access is available.
      *
-     * @param factory            The GoTemplateFactory instance for template operations
+     * @param factory            The GoTemplate instance for template operations
      * @param kubernetesProvider Provider for Kubernetes API access (can be null)
      * @return Map of function name to Function implementation
      */
-    public static Map<String, Function> getFunctions(GoTemplateFactory factory, KubernetesProvider kubernetesProvider) {
+    public static Map<String, Function> getFunctions(GoTemplate factory, KubernetesProvider kubernetesProvider) {
         Map<String, Function> functions = new HashMap<>();
 
         // Template operations (include, tpl, required)
@@ -50,10 +50,10 @@ public class HelmFunctions {
      * Get all Helm functions from all categories without Kubernetes provider.
      * Kubernetes functions will return stub data.
      *
-     * @param factory The GoTemplateFactory instance for template operations
+     * @param factory The GoTemplate instance for template operations
      * @return Map of function name to Function implementation
      */
-    public static Map<String, Function> getFunctions(GoTemplateFactory factory) {
+    public static Map<String, Function> getFunctions(GoTemplate factory) {
         return getFunctions(factory, null);
     }
 

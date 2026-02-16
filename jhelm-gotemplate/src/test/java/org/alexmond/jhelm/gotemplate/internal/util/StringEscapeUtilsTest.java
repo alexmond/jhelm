@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.gotemplate.internal;
+package org.alexmond.jhelm.gotemplate.internal.util;
 
 import org.alexmond.jhelm.gotemplate.internal.util.StringEscapeUtils;
 import org.junit.jupiter.api.Test;

@@ -60,4 +60,19 @@ public class CoreConfig {
     public HistoryAction historyAction(KubeService kubeService) {
         return new HistoryAction(kubeService);
     }
+
+    @Bean
+    public RollbackAction rollbackAction(KubeService kubeService) {
+        return new RollbackAction(kubeService);
+    }
+
+    @Bean
+    public ShowAction showAction(ChartLoader chartLoader) {
+        return new ShowAction(chartLoader);
+    }
+
+    @Bean
+    public ChartLoader chartLoader() {
+        return new ChartLoader();
+    }
 }

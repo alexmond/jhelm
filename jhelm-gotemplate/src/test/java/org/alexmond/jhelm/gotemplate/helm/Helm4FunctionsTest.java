@@ -1,6 +1,6 @@
 package org.alexmond.jhelm.gotemplate.helm;
 
-import org.alexmond.jhelm.gotemplate.GoTemplateFactory;
+import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.junit.jupiter.api.Test;
 
 import java.io.StringWriter;
@@ -17,15 +17,15 @@ public class Helm4FunctionsTest {
 
     @Test
     public void testMustToYaml() throws Exception {
-        GoTemplateFactory factory = new GoTemplateFactory();
+        GoTemplate template = new GoTemplate();
 
         Map<String, Object> data = new HashMap<>();
         data.put("name", "nginx");
         data.put("replicas", 3);
 
-        factory.parse("test", "{{ .data | mustToYaml }}");
+        template.parse("test", "{{ .data | mustToYaml }}");
         StringWriter writer = new StringWriter();
-        factory.getTemplate("test").execute(Map.of("data", data), writer);
+        template.execute("test", Map.of("data", data), writer);
 
         String result = writer.toString().trim();
         System.out.println("testMustToYaml result: [" + result + "]");
@@ -35,15 +35,15 @@ public class Helm4FunctionsTest {
 
     @Test
     public void testMustToJson() throws Exception {
-        GoTemplateFactory factory = new GoTemplateFactory();
+        GoTemplate template = new GoTemplate();
 
         Map<String, Object> data = new HashMap<>();
         data.put("name", "nginx");
         data.put("replicas", 3);
 
-        factory.parse("test", "{{ .data | mustToJson }}");
+        template.parse("test", "{{ .data | mustToJson }}");
         StringWriter writer = new StringWriter();
-        factory.getTemplate("test").execute(Map.of("data", data), writer);
+        template.execute("test", Map.of("data", data), writer);
 
         String result = writer.toString();
         assertTrue(result.contains("\"name\":\"nginx\"") || result.contains("\"name\": \"nginx\""));
@@ -52,13 +52,13 @@ public class Helm4FunctionsTest {
 
     @Test
     public void testMustFromYaml() throws Exception {
-        GoTemplateFactory factory = new GoTemplateFactory();
+        GoTemplate template = new GoTemplate();
 
         String yaml = "name: nginx\nreplicas: 3";
 
-        factory.parse("test", "{{ .yaml | mustFromYaml | toJson }}");
+        template.parse("test", "{{ .yaml | mustFromYaml | toJson }}");
         StringWriter writer = new StringWriter();
-        factory.getTemplate("test").execute(Map.of("yaml", yaml), writer);
+        template.execute("test", Map.of("yaml", yaml), writer);
 
         String result = writer.toString();
         assertTrue(result.contains("\"name\":\"nginx\"") || result.contains("\"name\": \"nginx\""));
@@ -66,13 +66,13 @@ public class Helm4FunctionsTest {
 
     @Test
     public void testMustFromJson() throws Exception {
-        GoTemplateFactory factory = new GoTemplateFactory();
+        GoTemplate template = new GoTemplate();
 
         String json = "{\"name\":\"nginx\",\"replicas\":3}";
 
-        factory.parse("test", "{{ .json | mustFromJson | toYaml }}");
+        template.parse("test", "{{ .json | mustFromJson | toYaml }}");
         StringWriter writer = new StringWriter();
-        factory.getTemplate("test").execute(Map.of("json", json), writer);
+        template.execute("test", Map.of("json", json), writer);
 
         String result = writer.toString().trim();
         System.out.println("testMustFromJson result: [" + result + "]");
@@ -81,36 +81,36 @@ public class Helm4FunctionsTest {
 
     @Test
     public void testMustToYamlFailure() {
-        GoTemplateFactory factory = new GoTemplateFactory();
+        GoTemplate template = new GoTemplate();
 
         assertThrows(Exception.class, () -> {
-            factory.parse("test", "{{ mustToYaml }}");
+            template.parse("test", "{{ mustToYaml }}");
             StringWriter writer = new StringWriter();
-            factory.getTemplate("test").execute(Map.of(), writer);
+            template.execute("test", Map.of(), writer);
         });
     }
 
     @Test
     public void testMustFromYamlFailure() {
-        GoTemplateFactory factory = new GoTemplateFactory();
+        GoTemplate template = new GoTemplate();
 
         assertThrows(Exception.class, () -> {
-            factory.parse("test", "{{ \"invalid: [yaml\" | mustFromYaml }}");
+            template.parse("test", "{{ \"invalid: [yaml\" | mustFromYaml }}");
             StringWriter writer = new StringWriter();
-            factory.getTemplate("test").execute(Map.of(), writer);
+            template.execute("test", Map.of(), writer);
         });
     }
 
     @Test
     public void testToYamlStillWorks() throws Exception {
-        GoTemplateFactory factory = new GoTemplateFactory();
+        GoTemplate template = new GoTemplate();
 
         Map<String, Object> data = new HashMap<>();
         data.put("name", "nginx");
 
-        factory.parse("test", "{{ .data | toYaml }}");
+        template.parse("test", "{{ .data | toYaml }}");
         StringWriter writer = new StringWriter();
-        factory.getTemplate("test").execute(Map.of("data", data), writer);
+        template.execute("test", Map.of("data", data), writer);
 
         String result = writer.toString().trim();
         System.out.println("testToYamlStillWorks result: [" + result + "]");
@@ -119,14 +119,14 @@ public class Helm4FunctionsTest {
 
     @Test
     public void testToJsonStillWorks() throws Exception {
-        GoTemplateFactory factory = new GoTemplateFactory();
+        GoTemplate template = new GoTemplate();
 
         Map<String, Object> data = new HashMap<>();
         data.put("name", "nginx");
 
-        factory.parse("test", "{{ .data | toJson }}");
+        template.parse("test", "{{ .data | toJson }}");
         StringWriter writer = new StringWriter();
-        factory.getTemplate("test").execute(Map.of("data", data), writer);
+        template.execute("test", Map.of("data", data), writer);
 
         String result = writer.toString();
         assertTrue(result.contains("\"name\""));
@@ -135,8 +135,8 @@ public class Helm4FunctionsTest {
     @Test
     public void testCategoryBasedOrganization() {
         // Test that we can get all Helm functions from the refactored structure
-        GoTemplateFactory factory = new GoTemplateFactory();
-        Map<String, org.alexmond.jhelm.gotemplate.Function> helmFunctions = HelmFunctions.getFunctions(factory);
+        GoTemplate template = new GoTemplate();
+        Map<String, org.alexmond.jhelm.gotemplate.Function> helmFunctions = HelmFunctions.getFunctions(template);
 
         // Verify new Helm 4 functions are present
         assertTrue(helmFunctions.containsKey("mustToYaml"), "mustToYaml function should be available");
