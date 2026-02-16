@@ -47,5 +47,4 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           additional_permissions: |
             actions: read
-          claude_args: |
-            --allowedTools "Bash(./mvnw *)" "Bash(mvn *)" "Bash(git *)" "Bash(gh *)" "Bash(helm *)" "Bash(kubectl *)" "Bash(java *)" "Bash(ls *)" "Bash(mkdir *)" "Bash(cp *)" "Bash(mv *)"
+          claude_args: '--allowedTools "Bash(./mvnw *),Bash(mvn *),Bash(git *),Bash(gh *),Bash(helm *),Bash(kubectl *),Bash(java *),Bash(ls *),Bash(mkdir *),Bash(cp *),Bash(mv *)"'
