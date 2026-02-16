@@ -39,6 +39,7 @@
         <kubernetes-client.version>25.0.0</kubernetes-client.version>
         <picocli.version>4.7.6</picocli.version>
         <jackson-yaml.version>2.18.2</jackson-yaml.version>
+        <semver4j.version>3.1.0</semver4j.version>
 
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
@@ -102,6 +103,11 @@
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
                 <artifactId>jackson-dataformat-yaml</artifactId>
                 <version>${jackson-yaml.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.vdurmont</groupId>
+                <artifactId>semver4j</artifactId>
+                <version>${semver4j.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
