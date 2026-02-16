@@ -18,7 +18,8 @@ import picocli.CommandLine;
                 HistoryCommand.class,
                 StatusCommand.class,
                 RollbackCommand.class,
-                ShowCommand.class
+                ShowCommand.class,
+                DependencyCommand.class
         })
 public class JHelmCommand implements Runnable {
     @Override

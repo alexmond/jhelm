@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -18,4 +20,5 @@ public class ChartMetadata {
     private String apiVersion; // e.g., "v2"
     private String type;       // e.g., "application"
     private String appVersion;
+    private List<Dependency> dependencies;
 }
