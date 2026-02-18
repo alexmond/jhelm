@@ -30,6 +30,7 @@ public class Release {
         private OffsetDateTime deleted;
         private String description;
         private String status; // e.g., "deployed", "uninstalled"
+        private String notes;
     }
 
     @Data
