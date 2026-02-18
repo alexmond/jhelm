@@ -67,6 +67,11 @@ public class CoreConfig {
     }
 
     @Bean
+    public GetAction getAction(KubeService kubeService) {
+        return new GetAction(kubeService);
+    }
+
+    @Bean
     public ShowAction showAction(ChartLoader chartLoader) {
         return new ShowAction(chartLoader);
     }
