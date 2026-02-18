@@ -45,7 +45,10 @@ jobs:
         uses: madrapps/jacoco-report@v1.7.2
         with:
           paths: |
-            ${{ github.workspace }}/target/site/jacoco/jacoco.xml
+            ${{ github.workspace }}/jhelm-core/target/site/jacoco/jacoco.xml,
+            ${{ github.workspace }}/jhelm-kube/target/site/jacoco/jacoco.xml,
+            ${{ github.workspace }}/jhelm-app/target/site/jacoco/jacoco.xml,
+            ${{ github.workspace }}/jhelm-gotemplate/target/site/jacoco/jacoco.xml
           token: ${{ secrets.GITHUB_TOKEN }}
           min-coverage-overall: 40
           min-coverage-changed-files: 60
@@ -55,7 +58,11 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ github.workspace }}/target/site/jacoco/jacoco.xml
+          files: |
+            ${{ github.workspace }}/jhelm-core/target/site/jacoco/jacoco.xml,
+            ${{ github.workspace }}/jhelm-kube/target/site/jacoco/jacoco.xml,
+            ${{ github.workspace }}/jhelm-app/target/site/jacoco/jacoco.xml,
+            ${{ github.workspace }}/jhelm-gotemplate/target/site/jacoco/jacoco.xml
           fail_ci_if_error: true
 
       - name: Upload test results to Codecov
