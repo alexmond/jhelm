@@ -3,10 +3,15 @@ package org.alexmond.jhelm.gotemplate.sprig.functions;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.TemplateException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.*;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -18,364 +23,190 @@ class LogicFunctionsTest {
         template.execute(name, data, writer);
     }
 
-    // Test 'default' function
-
-    @Test
-    void testDefaultWithTruthyValue() throws IOException, TemplateException {
+    private String exec(String template, Map<String, Object> data) throws IOException, TemplateException {
         StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", "actual");
-        execute("test", "{{ default \"fallback\" .value }}", data, writer);
-        assertEquals("actual", writer.toString());
-    }
-
-    @Test
-    void testDefaultWithFalsyValue() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", "");
-        execute("test", "{{ default \"fallback\" .value }}", data, writer);
-        assertEquals("fallback", writer.toString());
-    }
-
-    @Test
-    void testDefaultWithNull() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", null);
-        execute("test", "{{ default \"fallback\" .value }}", data, writer);
-        assertEquals("fallback", writer.toString());
-    }
-
-    @Test
-    void testDefaultWithZero() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", 0);
-        execute("test", "{{ default 42 .value }}", data, writer);
-        assertEquals("42", writer.toString());
-    }
-
-    @Test
-    void testDefaultWithNonZero() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", 10);
-        execute("test", "{{ default 42 .value }}", data, writer);
-        assertEquals("10", writer.toString());
-    }
-
-    @Test
-    void testDefaultWithFalse() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", false);
-        execute("test", "{{ default true .value }}", data, writer);
-        assertEquals("true", writer.toString());
-    }
-
-    @Test
-    void testDefaultWithEmptyList() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", Collections.emptyList());
-        execute("test", "{{ $default := list \"a\" \"b\" }}{{ $result := default $default .value }}{{ len $result }}", data, writer);
-        assertEquals("2", writer.toString());
-    }
-
-    @Test
-    void testDefaultWithNonEmptyList() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", Arrays.asList("x", "y"));
-        execute("test", "{{ $default := list \"a\" \"b\" }}{{ $result := default $default .value }}{{ len $result }}", data, writer);
-        assertEquals("2", writer.toString());
-    }
-
-    @Test
-    void testDefaultWithEmptyMap() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", Collections.emptyMap());
-        execute("test", "{{ $default := dict \"key\" \"val\" }}{{ $result := default $default .value }}{{ len $result }}", data, writer);
-        assertEquals("1", writer.toString());
+        execute("test", template, data, writer);
+        return writer.toString();
     }
 
     // Test 'empty' function
 
-    @Test
-    void testEmptyWithNull() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
+    @ParameterizedTest
+    @MethodSource("emptyTestCases")
+    void testEmpty(Object value, String expected) throws IOException, TemplateException {
         Map<String, Object> data = new HashMap<>();
-        data.put("value", null);
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("true", writer.toString());
+        data.put("value", value);
+        assertEquals(expected, exec("{{ empty .value }}", data));
+    }
+
+    static Stream<Arguments> emptyTestCases() {
+        Map<String, Object> nonEmptyMap = new HashMap<>();
+        nonEmptyMap.put("key", "value");
+        return Stream.of(
+            Arguments.of(null, "true"),
+            Arguments.of("", "true"),
+            Arguments.of("text", "false"),
+            Arguments.of(0, "true"),
+            Arguments.of(5, "false"),
+            Arguments.of(false, "true"),
+            Arguments.of(true, "false"),
+            Arguments.of(Collections.emptyList(), "true"),
+            Arguments.of(Arrays.asList("a", "b"), "false"),
+            Arguments.of(Collections.emptyMap(), "true"),
+            Arguments.of(nonEmptyMap, "false")
+        );
+    }
+
+    // Test 'default' function
+
+    @ParameterizedTest
+    @MethodSource("defaultStringTestCases")
+    void testDefaultWithStrings(Object value, String expected) throws IOException, TemplateException {
+        Map<String, Object> data = new HashMap<>();
+        data.put("value", value);
+        assertEquals(expected, exec("{{ default \"fallback\" .value }}", data));
+    }
+
+    static Stream<Arguments> defaultStringTestCases() {
+        return Stream.of(
+            Arguments.of("actual", "actual"),
+            Arguments.of("", "fallback"),
+            Arguments.of(null, "fallback")
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("defaultNumberTestCases")
+    void testDefaultWithNumbers(Object value, String expected) throws IOException, TemplateException {
+        Map<String, Object> data = new HashMap<>();
+        data.put("value", value);
+        assertEquals(expected, exec("{{ default 42 .value }}", data));
+    }
+
+    static Stream<Arguments> defaultNumberTestCases() {
+        return Stream.of(
+            Arguments.of(0, "42"),
+            Arguments.of(10, "10")
+        );
     }
 
     @Test
-    void testEmptyWithEmptyString() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", "");
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("true", writer.toString());
-    }
-
-    @Test
-    void testEmptyWithNonEmptyString() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", "text");
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("false", writer.toString());
-    }
-
-    @Test
-    void testEmptyWithZero() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", 0);
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("true", writer.toString());
-    }
-
-    @Test
-    void testEmptyWithNonZero() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", 5);
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("false", writer.toString());
-    }
-
-    @Test
-    void testEmptyWithFalse() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
+    void testDefaultWithFalse() throws IOException, TemplateException {
         Map<String, Object> data = new HashMap<>();
         data.put("value", false);
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("true", writer.toString());
+        assertEquals("true", exec("{{ default true .value }}", data));
     }
 
     @Test
-    void testEmptyWithTrue() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("value", true);
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("false", writer.toString());
-    }
-
-    @Test
-    void testEmptyWithEmptyList() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
+    void testDefaultWithEmptyList() throws IOException, TemplateException {
         Map<String, Object> data = new HashMap<>();
         data.put("value", Collections.emptyList());
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("true", writer.toString());
+        assertEquals("2", exec("{{ $default := list \"a\" \"b\" }}{{ $result := default $default .value }}{{ len $result }}", data));
     }
 
     @Test
-    void testEmptyWithNonEmptyList() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
+    void testDefaultWithNonEmptyList() throws IOException, TemplateException {
         Map<String, Object> data = new HashMap<>();
-        data.put("value", Arrays.asList("a", "b"));
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("false", writer.toString());
+        data.put("value", Arrays.asList("x", "y"));
+        assertEquals("2", exec("{{ $default := list \"a\" \"b\" }}{{ $result := default $default .value }}{{ len $result }}", data));
     }
 
     @Test
-    void testEmptyWithEmptyMap() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
+    void testDefaultWithEmptyMap() throws IOException, TemplateException {
         Map<String, Object> data = new HashMap<>();
         data.put("value", Collections.emptyMap());
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("true", writer.toString());
-    }
-
-    @Test
-    void testEmptyWithNonEmptyMap() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        Map<String, Object> map = new HashMap<>();
-        map.put("key", "value");
-        data.put("value", map);
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("false", writer.toString());
+        assertEquals("1", exec("{{ $default := dict \"key\" \"val\" }}{{ $result := default $default .value }}{{ len $result }}", data));
     }
 
     // Test 'coalesce' function
 
     @Test
     void testCoalesceReturnsFirstTruthyValue() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        execute("test", "{{ coalesce \"\" 0 \"first\" \"second\" }}", new HashMap<>(), writer);
-        assertEquals("first", writer.toString());
+        assertEquals("first", exec("{{ coalesce \"\" 0 \"first\" \"second\" }}", new HashMap<>()));
     }
 
     @Test
     void testCoalesceWithAllFalsy() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        execute("test", "{{ coalesce \"\" 0 false }}", new HashMap<>(), writer);
-        assertEquals("", writer.toString());  // null is rendered as empty string
+        assertEquals("", exec("{{ coalesce \"\" 0 false }}", new HashMap<>()));
     }
 
-    @Test
-    void testCoalesceWithNullFirst() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
+    @ParameterizedTest
+    @MethodSource("coalesceTestCases")
+    void testCoalesceWithData(Object a, Object b, String template, String expected) throws IOException, TemplateException {
         Map<String, Object> data = new HashMap<>();
-        data.put("a", null);
-        data.put("b", "value");
-        execute("test", "{{ coalesce .a .b }}", data, writer);
-        assertEquals("value", writer.toString());
+        data.put("a", a);
+        data.put("b", b);
+        assertEquals(expected, exec(template, data));
     }
 
-    @Test
-    void testCoalesceWithNumbers() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("a", 0);
-        data.put("b", 42);
-        execute("test", "{{ coalesce .a .b }}", data, writer);
-        assertEquals("42", writer.toString());
+    static Stream<Arguments> coalesceTestCases() {
+        return Stream.of(
+            Arguments.of(null, "value", "{{ coalesce .a .b }}", "value"),
+            Arguments.of(0, 42, "{{ coalesce .a .b }}", "42")
+        );
     }
 
     @Test
     void testCoalesceWithCollections() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
         data.put("empty", Collections.emptyList());
         data.put("full", Arrays.asList("a", "b"));
-        execute("test", "{{ $result := coalesce .empty .full }}{{ len $result }}", data, writer);
-        assertEquals("2", writer.toString());
+        assertEquals("2", exec("{{ $result := coalesce .empty .full }}{{ len $result }}", data));
     }
 
     // Test 'ternary' function
 
-    @Test
-    void testTernaryWithTrue() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        execute("test", "{{ ternary \"yes\" \"no\" true }}", new HashMap<>(), writer);
-        assertEquals("yes", writer.toString());
-    }
-
-    @Test
-    void testTernaryWithFalse() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        execute("test", "{{ ternary \"yes\" \"no\" false }}", new HashMap<>(), writer);
-        assertEquals("no", writer.toString());
-    }
-
-    @Test
-    void testTernaryWithTruthyString() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
+    @ParameterizedTest
+    @MethodSource("ternaryTestCases")
+    void testTernary(Object condition, String expected) throws IOException, TemplateException {
         Map<String, Object> data = new HashMap<>();
-        data.put("condition", "text");
-        execute("test", "{{ ternary \"yes\" \"no\" .condition }}", data, writer);
-        assertEquals("yes", writer.toString());
+        data.put("condition", condition);
+        assertEquals(expected, exec("{{ ternary \"yes\" \"no\" .condition }}", data));
     }
 
-    @Test
-    void testTernaryWithEmptyString() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("condition", "");
-        execute("test", "{{ ternary \"yes\" \"no\" .condition }}", data, writer);
-        assertEquals("no", writer.toString());
-    }
-
-    @Test
-    void testTernaryWithNonZeroNumber() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("condition", 1);
-        execute("test", "{{ ternary \"yes\" \"no\" .condition }}", data, writer);
-        assertEquals("yes", writer.toString());
-    }
-
-    @Test
-    void testTernaryWithZero() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("condition", 0);
-        execute("test", "{{ ternary \"yes\" \"no\" .condition }}", data, writer);
-        assertEquals("no", writer.toString());
-    }
-
-    @Test
-    void testTernaryWithNull() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("condition", null);
-        execute("test", "{{ ternary \"yes\" \"no\" .condition }}", data, writer);
-        assertEquals("no", writer.toString());
-    }
-
-    @Test
-    void testTernaryWithNonEmptyCollection() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("condition", Arrays.asList("a", "b"));
-        execute("test", "{{ ternary \"yes\" \"no\" .condition }}", data, writer);
-        assertEquals("yes", writer.toString());
-    }
-
-    @Test
-    void testTernaryWithEmptyCollection() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        Map<String, Object> data = new HashMap<>();
-        data.put("condition", Collections.emptyList());
-        execute("test", "{{ ternary \"yes\" \"no\" .condition }}", data, writer);
-        assertEquals("no", writer.toString());
+    static Stream<Arguments> ternaryTestCases() {
+        return Stream.of(
+            Arguments.of(true, "yes"),
+            Arguments.of(false, "no"),
+            Arguments.of("text", "yes"),
+            Arguments.of("", "no"),
+            Arguments.of(1, "yes"),
+            Arguments.of(0, "no"),
+            Arguments.of(null, "no"),
+            Arguments.of(Arrays.asList("a", "b"), "yes"),
+            Arguments.of(Collections.emptyList(), "no")
+        );
     }
 
     // Test 'fail' function
 
-    @Test
-    void testFailThrowsException() {
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        "{{ fail .error }}                    | Custom error message",
+        "{{ fail }}                            | ",
+        "{{ fail \"Something went wrong\" }}   | Something went wrong",
+    })
+    void testFailThrowsException(String template, String errorValue) {
         Map<String, Object> data = new HashMap<>();
         data.put("error", "Custom error message");
-        assertThrows(TemplateException.class, () -> {
-            StringWriter writer = new StringWriter();
-            execute("test", "{{ fail .error }}", data, writer);
-        });
+        assertThrows(TemplateException.class, () -> exec(template, data));
     }
 
-    @Test
-    void testFailWithoutMessage() {
-        assertThrows(TemplateException.class, () -> {
-            StringWriter writer = new StringWriter();
-            execute("test", "{{ fail }}", new HashMap<>(), writer);
-        });
-    }
-
-    @Test
-    void testFailWithLiteralMessage() {
-        assertThrows(TemplateException.class, () -> {
-            StringWriter writer = new StringWriter();
-            execute("test", "{{ fail \"Something went wrong\" }}", new HashMap<>(), writer);
-        });
-    }
-
-    // Test isTruthy with non-standard types
+    // Test with non-standard types
 
     @Test
     void testEmptyWithCustomObject() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
-        data.put("value", new Object());  // Custom object - should be truthy via default case
-        execute("test", "{{ empty .value }}", data, writer);
-        assertEquals("false", writer.toString());  // Custom objects are truthy
+        data.put("value", new Object());
+        assertEquals("false", exec("{{ empty .value }}", data));
     }
 
     @Test
     void testDefaultWithCustomObject() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
         Map<String, Object> data = new HashMap<>();
-        data.put("value", new Object());  // Custom object - should be truthy via default case
-        execute("test", "{{ default \"fallback\" .value }}", data, writer);
-        // Custom object is truthy, so it should be returned (toString() called)
-        assertFalse(writer.toString().isEmpty());
-        assertNotEquals("fallback", writer.toString());
+        data.put("value", new Object());
+        String result = exec("{{ default \"fallback\" .value }}", data);
+        assertFalse(result.isEmpty());
+        assertNotEquals("fallback", result);
     }
 }
