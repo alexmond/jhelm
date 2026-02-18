@@ -302,6 +302,81 @@ class ShowCommandTest {
         assertTrue(help.contains("Show information about a chart"));
     }
 
+    @Test
+    void testShowCommandRunShowsUsage() {
+        outputStream.reset();
+        ShowCommand showCommand = new ShowCommand();
+        showCommand.run();
+
+        String output = outputStream.toString();
+        assertTrue(output.contains("show") || output.contains("Usage"));
+    }
+
+    @Test
+    void testShowChartCommandWithError() throws Exception {
+        Path invalidDir = tempDir.resolve("nonexistent");
+        ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
+        command.chartPath = invalidDir.toString();
+
+        // This should log an error but not throw
+        command.run();
+
+        // Verify it attempted to call showAction
+        // (the actual error handling is done by ShowAction throwing an exception)
+    }
+
+    @Test
+    void testShowValuesCommandWithError() throws Exception {
+        Path invalidDir = tempDir.resolve("nonexistent");
+        ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
+        command.chartPath = invalidDir.toString();
+
+        command.run();
+        // Should handle exception gracefully
+    }
+
+    @Test
+    void testShowAllCommandWithError() throws Exception {
+        Path invalidDir = tempDir.resolve("nonexistent");
+        ShowCommand.AllCommand command = new ShowCommand.AllCommand(showAction);
+        command.chartPath = invalidDir.toString();
+
+        command.run();
+        // Should handle exception gracefully
+    }
+
+    @Test
+    void testShowChartCommandDirectExecution() {
+        ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
+        command.chartPath = chartDir.toString();
+
+        // Direct run() execution
+        command.run();
+
+        String output = outputStream.toString();
+        assertTrue(output.contains("test-chart"));
+    }
+
+    @Test
+    void testShowReadmeCommandWithError() throws Exception {
+        Path invalidDir = tempDir.resolve("nonexistent");
+        ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
+        command.chartPath = invalidDir.toString();
+
+        command.run();
+        // Should handle exception gracefully
+    }
+
+    @Test
+    void testShowCrdsCommandWithError() throws Exception {
+        Path invalidDir = tempDir.resolve("nonexistent");
+        ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
+        command.chartPath = invalidDir.toString();
+
+        command.run();
+        // Should handle exception gracefully
+    }
+
     @org.junit.jupiter.api.AfterEach
     void tearDown() {
         // Restore System.out

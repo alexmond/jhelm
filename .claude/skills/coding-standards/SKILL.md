@@ -37,3 +37,54 @@ user-invocable: false
 - JUnit 5 (`org.junit.jupiter.api`) with `Assertions`
 - `@TempDir` for temporary files
 - Always run tests after code changes
+
+### Parameterized Tests
+Use `@ParameterizedTest` to avoid code duplication and loops in tests. Prefer parameterized tests over:
+- Multiple near-identical `@Test` methods that differ only in input/expected values
+- `for` loops inside test methods that iterate over test cases
+- Copy-pasted test logic with different data
+
+**Common sources:**
+- `@CsvSource` — inline comma-separated values for simple types
+- `@ValueSource` — single-argument tests with strings, ints, etc.
+- `@MethodSource` — complex objects or multi-arg via static factory method returning `Stream<Arguments>`
+- `@EnumSource` — iterate over enum values
+
+**Example — prefer this:**
+```java
+@ParameterizedTest
+@CsvSource({
+    "hello, HELLO",
+    "world, WORLD",
+    "'', ''"
+})
+void testUpperCase(String input, String expected) {
+    assertEquals(expected, input.toUpperCase());
+}
+```
+
+**Over this:**
+```java
+@Test
+void testUpperCase() {
+    assertEquals("HELLO", "hello".toUpperCase());
+    assertEquals("WORLD", "world".toUpperCase());
+    assertEquals("", "".toUpperCase());
+}
+```
+
+**Use `@MethodSource` for complex data:**
+```java
+@ParameterizedTest
+@MethodSource("templateTestCases")
+void testTemplateRendering(String template, Map<String, Object> data, String expected) {
+    // ...
+}
+
+static Stream<Arguments> templateTestCases() {
+    return Stream.of(
+        Arguments.of("{{ .name }}", Map.of("name", "Alice"), "Alice"),
+        Arguments.of("{{ .count }}", Map.of("count", 42), "42")
+    );
+}
+```
