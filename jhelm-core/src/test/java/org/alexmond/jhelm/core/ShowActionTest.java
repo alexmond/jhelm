@@ -3,6 +3,9 @@ package org.alexmond.jhelm.core;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -10,6 +13,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -73,32 +77,24 @@ class ShowActionTest {
         assertTrue(result.contains("image"));
     }
 
-    @Test
-    void testShowValuesEmpty() throws Exception {
+    @ParameterizedTest
+    @MethodSource("emptyValuesTestCases")
+    void testShowValuesEmptyOrNull(Map<String, Object> values) throws Exception {
         Chart chart = Chart.builder()
                 .metadata(ChartMetadata.builder().name("mychart").build())
-                .values(new HashMap<>())
+                .values(values)
                 .build();
 
         when(chartLoader.load(any(File.class))).thenReturn(chart);
 
-        String result = showAction.showValues("/path/to/chart");
-
-        assertEquals("{}", result);
+        assertEquals("{}", showAction.showValues("/path/to/chart"));
     }
 
-    @Test
-    void testShowValuesNull() throws Exception {
-        Chart chart = Chart.builder()
-                .metadata(ChartMetadata.builder().name("mychart").build())
-                .values(null)
-                .build();
-
-        when(chartLoader.load(any(File.class))).thenReturn(chart);
-
-        String result = showAction.showValues("/path/to/chart");
-
-        assertEquals("{}", result);
+    static Stream<Arguments> emptyValuesTestCases() {
+        return Stream.of(
+            Arguments.of(new HashMap<>()),
+            Arguments.of((Map<String, Object>) null)
+        );
     }
 
     @Test
@@ -151,32 +147,24 @@ class ShowActionTest {
         assertTrue(result.contains("---"));
     }
 
-    @Test
-    void testShowCrdsEmpty() throws Exception {
+    @ParameterizedTest
+    @MethodSource("emptyCrdsTestCases")
+    void testShowCrdsEmptyOrNull(List<Chart.Crd> crds) throws Exception {
         Chart chart = Chart.builder()
                 .metadata(ChartMetadata.builder().name("mychart").build())
-                .crds(new ArrayList<>())
+                .crds(crds)
                 .build();
 
         when(chartLoader.load(any(File.class))).thenReturn(chart);
 
-        String result = showAction.showCrds("/path/to/chart");
-
-        assertEquals("", result);
+        assertEquals("", showAction.showCrds("/path/to/chart"));
     }
 
-    @Test
-    void testShowCrdsNull() throws Exception {
-        Chart chart = Chart.builder()
-                .metadata(ChartMetadata.builder().name("mychart").build())
-                .crds(null)
-                .build();
-
-        when(chartLoader.load(any(File.class))).thenReturn(chart);
-
-        String result = showAction.showCrds("/path/to/chart");
-
-        assertEquals("", result);
+    static Stream<Arguments> emptyCrdsTestCases() {
+        return Stream.of(
+            Arguments.of(new ArrayList<>()),
+            Arguments.of((List<Chart.Crd>) null)
+        );
     }
 
     @Test

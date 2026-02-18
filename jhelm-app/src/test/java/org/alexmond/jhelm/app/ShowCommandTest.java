@@ -5,12 +5,16 @@ import org.alexmond.jhelm.core.ShowAction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import picocli.CommandLine;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -312,37 +316,28 @@ class ShowCommandTest {
         assertTrue(output.contains("show") || output.contains("Usage"));
     }
 
-    @Test
-    void testShowChartCommandWithError() throws Exception {
+    @ParameterizedTest
+    @MethodSource("errorCommandNames")
+    void testShowSubcommandWithError(String commandName) {
         Path invalidDir = tempDir.resolve("nonexistent");
-        ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
-        command.chartPath = invalidDir.toString();
-
-        // This should log an error but not throw
-        command.run();
-
-        // Verify it attempted to call showAction
-        // (the actual error handling is done by ShowAction throwing an exception)
+        // All subcommands should handle nonexistent paths gracefully
+        switch (commandName) {
+            case "chart" -> { var cmd = new ShowCommand.ChartCommand(showAction); cmd.chartPath = invalidDir.toString(); cmd.run(); }
+            case "values" -> { var cmd = new ShowCommand.ValuesCommand(showAction); cmd.chartPath = invalidDir.toString(); cmd.run(); }
+            case "all" -> { var cmd = new ShowCommand.AllCommand(showAction); cmd.chartPath = invalidDir.toString(); cmd.run(); }
+            case "readme" -> { var cmd = new ShowCommand.ReadmeCommand(showAction); cmd.chartPath = invalidDir.toString(); cmd.run(); }
+            case "crds" -> { var cmd = new ShowCommand.CrdsCommand(showAction); cmd.chartPath = invalidDir.toString(); cmd.run(); }
+        }
     }
 
-    @Test
-    void testShowValuesCommandWithError() throws Exception {
-        Path invalidDir = tempDir.resolve("nonexistent");
-        ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
-        command.chartPath = invalidDir.toString();
-
-        command.run();
-        // Should handle exception gracefully
-    }
-
-    @Test
-    void testShowAllCommandWithError() throws Exception {
-        Path invalidDir = tempDir.resolve("nonexistent");
-        ShowCommand.AllCommand command = new ShowCommand.AllCommand(showAction);
-        command.chartPath = invalidDir.toString();
-
-        command.run();
-        // Should handle exception gracefully
+    static Stream<Arguments> errorCommandNames() {
+        return Stream.of(
+            Arguments.of("chart"),
+            Arguments.of("values"),
+            Arguments.of("all"),
+            Arguments.of("readme"),
+            Arguments.of("crds")
+        );
     }
 
     @Test
@@ -350,31 +345,10 @@ class ShowCommandTest {
         ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
         command.chartPath = chartDir.toString();
 
-        // Direct run() execution
         command.run();
 
         String output = outputStream.toString();
         assertTrue(output.contains("test-chart"));
-    }
-
-    @Test
-    void testShowReadmeCommandWithError() throws Exception {
-        Path invalidDir = tempDir.resolve("nonexistent");
-        ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
-        command.chartPath = invalidDir.toString();
-
-        command.run();
-        // Should handle exception gracefully
-    }
-
-    @Test
-    void testShowCrdsCommandWithError() throws Exception {
-        Path invalidDir = tempDir.resolve("nonexistent");
-        ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
-        command.chartPath = invalidDir.toString();
-
-        command.run();
-        // Should handle exception gracefully
     }
 
     @org.junit.jupiter.api.AfterEach
