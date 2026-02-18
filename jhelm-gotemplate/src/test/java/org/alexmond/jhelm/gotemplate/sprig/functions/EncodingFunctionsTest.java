@@ -50,10 +50,9 @@ class EncodingFunctionsTest {
 
     @Test
     void testBase32Decode() throws IOException, TemplateException {
-        StringWriter writer = new StringWriter();
-        String encoded = new StringWriter() {{
-            execute("test", "{{ b32enc \"hello\" }}", new HashMap<>(), this);
-        }}.toString();
+        StringWriter encoder = new StringWriter();
+        execute("test", "{{ b32enc \"hello\" }}", new HashMap<>(), encoder);
+        String encoded = encoder.toString();
 
         StringWriter decoder = new StringWriter();
         execute("test", "{{ b32dec \"" + encoded + "\" }}", new HashMap<>(), decoder);

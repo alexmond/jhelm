@@ -1,10 +1,8 @@
 package org.alexmond.jhelm.app;
 
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import picocli.CommandLine;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -53,8 +51,8 @@ class HelmJavaApplicationTests {
         if (application != null) {
             application.run("invalid-command");
             int exitCode = application.getExitCode();
-            // Invalid commands typically return non-zero exit codes
-            assertTrue(exitCode != 0 || exitCode == 0);
+            // Invalid commands return a non-zero exit code
+            assertNotEquals(0, exitCode);
         }
     }
 }
