@@ -1,6 +1,6 @@
 package org.alexmond.jhelm.core;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,7 +16,7 @@ import java.util.Map;
 
 @Slf4j
 public class RegistryManager {
-    private final ObjectMapper jsonMapper = new ObjectMapper();
+    private final JsonMapper jsonMapper = JsonMapper.builder().build();
     private final String configPath;
 
     public RegistryManager() {

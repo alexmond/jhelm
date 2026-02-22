@@ -1,9 +1,10 @@
 package org.alexmond.jhelm.gotemplate.helm.functions;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.core.json.JsonWriteFeature;
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 import org.alexmond.jhelm.gotemplate.Function;
 
 import java.util.HashMap;
@@ -16,23 +17,24 @@ import java.util.Map;
  */
 public class ConversionFunctions {
 
-    private static final ThreadLocal<ObjectMapper> YAML_MAPPER = ThreadLocal.withInitial(() -> {
-        YAMLFactory yamlFactory = YAMLFactory.builder()
-                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-                .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
-                .build();
-        ObjectMapper mapper = new ObjectMapper(yamlFactory);
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        // Sort keys alphabetically for consistent, predictable output
-        mapper.configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
-        return mapper;
-    });
+    private static final ThreadLocal<YAMLMapper> YAML_MAPPER = ThreadLocal.withInitial(() ->
+        YAMLMapper.builder()
+                .disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
+                .enable(YAMLWriteFeature.MINIMIZE_QUOTES)
+                // Sort keys alphabetically for consistent, predictable output
+                .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+                .build()
+    );
 
-    private static final ThreadLocal<ObjectMapper> JSON_MAPPER = ThreadLocal.withInitial(() -> {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        return mapper;
-    });
+    private static final ThreadLocal<JsonMapper> JSON_MAPPER = ThreadLocal.withInitial(() ->
+        JsonMapper.builder().build()
+    );
+
+    private static final ThreadLocal<JsonMapper> RAW_JSON_MAPPER = ThreadLocal.withInitial(() ->
+        JsonMapper.builder()
+                .disable(JsonWriteFeature.ESCAPE_NON_ASCII)
+                .build()
+    );
 
     public static Map<String, Function> getFunctions() {
         Map<String, Function> functions = new HashMap<>();
@@ -254,10 +256,7 @@ public class ConversionFunctions {
         return args -> {
             if (args.length == 0 || args[0] == null) return "null";
             try {
-                ObjectMapper mapper = new ObjectMapper();
-                mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-                mapper.getFactory().disable(com.fasterxml.jackson.core.JsonGenerator.Feature.ESCAPE_NON_ASCII);
-                return mapper.writeValueAsString(args[0]);
+                return RAW_JSON_MAPPER.get().writeValueAsString(args[0]);
             } catch (Exception e) {
                 return "";
             }
@@ -274,10 +273,7 @@ public class ConversionFunctions {
                 throw new RuntimeException("mustToRawJson: no value provided");
             }
             try {
-                ObjectMapper mapper = new ObjectMapper();
-                mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-                mapper.getFactory().disable(com.fasterxml.jackson.core.JsonGenerator.Feature.ESCAPE_NON_ASCII);
-                return mapper.writeValueAsString(args[0]);
+                return RAW_JSON_MAPPER.get().writeValueAsString(args[0]);
             } catch (Exception e) {
                 throw new RuntimeException("mustToRawJson: failed to convert to JSON: " + e.getMessage(), e);
             }

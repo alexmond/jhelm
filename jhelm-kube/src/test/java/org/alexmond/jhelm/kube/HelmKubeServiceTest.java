@@ -1,7 +1,6 @@
 package org.alexmond.jhelm.kube;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.json.JsonMapper;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -31,8 +30,7 @@ class HelmKubeServiceTest {
     private ApiClient apiClient;
 
     private HelmKubeService kubeService;
-    private final ObjectMapper objectMapper = new ObjectMapper()
-            .registerModule(new JavaTimeModule());
+    private final JsonMapper objectMapper = JsonMapper.builder().build();
 
     private MockedConstruction<CoreV1Api> coreV1ApiConstruction;
     private MockedConstruction<CustomObjectsApi> customObjectsApiConstruction;

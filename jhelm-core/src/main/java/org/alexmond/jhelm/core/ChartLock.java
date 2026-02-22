@@ -1,9 +1,9 @@
 package org.alexmond.jhelm.core;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -92,7 +92,7 @@ public class ChartLock {
             return null;
         }
 
-        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+        YAMLMapper yamlMapper = YAMLMapper.builder().build();
         return yamlMapper.readValue(lockFile, ChartLock.class);
     }
 
@@ -105,10 +105,9 @@ public class ChartLock {
     public void toFile(File chartDir) throws IOException {
         File lockFile = new File(chartDir, "Chart.lock");
 
-        YAMLFactory yamlFactory = YAMLFactory.builder()
-                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+        YAMLMapper yamlMapper = YAMLMapper.builder()
+                .disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
                 .build();
-        ObjectMapper yamlMapper = new ObjectMapper(yamlFactory);
 
         // Set generated timestamp if not already set
         if (generated == null) {

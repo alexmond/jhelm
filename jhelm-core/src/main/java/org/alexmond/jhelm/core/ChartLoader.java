@@ -1,7 +1,6 @@
 package org.alexmond.jhelm.core;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -15,7 +14,7 @@ import java.util.Map;
 @Component
 public class ChartLoader {
 
-    private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+    private final YAMLMapper yamlMapper = YAMLMapper.builder().build();
 
     public Chart load(File chartDir) throws IOException {
         if (!chartDir.exists() || !chartDir.isDirectory()) {
