@@ -10,7 +10,7 @@ jhelm is a Java implementation of the Helm package manager for Kubernetes. It pr
 
 ```
 jhelm (parent)
-├── jhelm-gotemplate/  — Go template engine (standalone, no Spring dependency)
+├── jhelm-gotemplate/  — Go template engine
 ├── jhelm-core/        — Helm-specific logic, charts, actions (depends on: jhelm-gotemplate)
 ├── jhelm-kube/        — Kubernetes client integration (depends on: jhelm-core)
 ├── jhelm-app/         — CLI entry point, Spring Boot + Picocli (depends on: jhelm-core, jhelm-kube)
@@ -65,7 +65,6 @@ jhelm (parent)
 ### Dependencies
 - Manage versions in root `pom.xml` `<dependencyManagement>`
 - Define dependency versions as properties in root `pom.xml` `<properties>` (unless managed by Spring Boot parent)
-- Keep `jhelm-gotemplate` free of Spring dependencies
 
 ## Key Architecture
 
