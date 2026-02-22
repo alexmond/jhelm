@@ -1,7 +1,6 @@
 package org.alexmond.jhelm.kube;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.json.JsonMapper;
 import io.kubernetes.client.common.KubernetesObject;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -24,8 +23,7 @@ import java.util.stream.Collectors;
 public class HelmKubeService implements KubeService {
 
     private final ApiClient apiClient;
-    private final ObjectMapper objectMapper = new ObjectMapper()
-            .registerModule(new JavaTimeModule());
+    private final JsonMapper objectMapper = JsonMapper.builder().build();
 
     /**
      * Stores a release as a ConfigMap in Kubernetes.

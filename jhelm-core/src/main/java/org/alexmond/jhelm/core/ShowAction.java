@@ -1,8 +1,7 @@
 package org.alexmond.jhelm.core;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 import lombok.RequiredArgsConstructor;
 
 import java.io.File;
@@ -78,11 +77,10 @@ public class ShowAction {
     }
 
     private String toYaml(Object obj) throws Exception {
-        YAMLFactory yamlFactory = YAMLFactory.builder()
-                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-                .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
+        YAMLMapper yamlMapper = YAMLMapper.builder()
+                .disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
+                .enable(YAMLWriteFeature.MINIMIZE_QUOTES)
                 .build();
-        ObjectMapper yamlMapper = new ObjectMapper(yamlFactory);
         return yamlMapper.writeValueAsString(obj);
     }
 }

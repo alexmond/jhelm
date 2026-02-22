@@ -1,8 +1,8 @@
 package org.alexmond.jhelm.core;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,7 +32,7 @@ class KpsComparisonTest {
     private final ChartLoader chartLoader = new ChartLoader();
     private final Engine engine = new Engine();
     private final InstallAction installAction = new InstallAction(engine, null);
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonMapper objectMapper = JsonMapper.builder().build();
 
     private final java.util.Set<String> addedRepos = new java.util.HashSet<>();
 
@@ -324,7 +324,7 @@ class KpsComparisonTest {
 
     private java.util.List<JsonNode> parseYamlDocuments(String yaml) throws IOException {
         java.util.List<JsonNode> docs = new java.util.ArrayList<>();
-        YAMLMapper yamlMapper = new YAMLMapper();
+        YAMLMapper yamlMapper = YAMLMapper.builder().build();
 
         // Split by YAML document separator "---" with various whitespace patterns
         // Pattern matches "---" at the start of a line, with optional whitespace before/after

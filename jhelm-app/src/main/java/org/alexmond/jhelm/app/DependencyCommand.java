@@ -1,7 +1,6 @@
 package org.alexmond.jhelm.app;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.*;
 import org.alexmond.jhelm.core.ChartLock.LockDependency;
@@ -133,7 +132,7 @@ public class DependencyCommand implements Runnable {
                 throw new Exception("Chart.yaml not found in " + chartDir.getAbsolutePath());
             }
 
-            ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+            YAMLMapper yamlMapper = YAMLMapper.builder().build();
             return yamlMapper.readValue(chartFile, ChartMetadata.class);
         }
     }
@@ -210,7 +209,7 @@ public class DependencyCommand implements Runnable {
                 throw new Exception("Chart.yaml not found in " + chartDir.getAbsolutePath());
             }
 
-            ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+            YAMLMapper yamlMapper = YAMLMapper.builder().build();
             return yamlMapper.readValue(chartFile, ChartMetadata.class);
         }
 
@@ -222,7 +221,7 @@ public class DependencyCommand implements Runnable {
                     return new HashMap<>();
                 }
 
-                ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+                YAMLMapper yamlMapper = YAMLMapper.builder().build();
                 return yamlMapper.readValue(valuesFile, Map.class);
             } catch (Exception e) {
                 log.warn("Failed to load values.yaml: {}", e.getMessage());

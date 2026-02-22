@@ -1,9 +1,9 @@
 package org.alexmond.jhelm.core;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 import lombok.RequiredArgsConstructor;
 
 import java.util.*;
@@ -118,17 +118,17 @@ public class GetAction {
     }
 
     public String toYaml(Object obj) throws Exception {
-        YAMLFactory yamlFactory = YAMLFactory.builder()
-                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-                .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
+        YAMLMapper yamlMapper = YAMLMapper.builder()
+                .disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
+                .enable(YAMLWriteFeature.MINIMIZE_QUOTES)
                 .build();
-        ObjectMapper yamlMapper = new ObjectMapper(yamlFactory);
         return yamlMapper.writeValueAsString(obj);
     }
 
     public String toJson(Object obj) throws Exception {
-        ObjectMapper jsonMapper = new ObjectMapper();
-        jsonMapper.enable(SerializationFeature.INDENT_OUTPUT);
+        JsonMapper jsonMapper = JsonMapper.builder()
+                .enable(SerializationFeature.INDENT_OUTPUT)
+                .build();
         return jsonMapper.writeValueAsString(obj);
     }
 }

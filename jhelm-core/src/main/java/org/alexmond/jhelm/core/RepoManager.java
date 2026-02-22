@@ -1,9 +1,12 @@
 package org.alexmond.jhelm.core;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import org.snakeyaml.engine.v2.api.LoadSettings;
+import tools.jackson.core.StreamReadConstraints;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.yaml.YAMLFactory;
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
@@ -22,8 +25,8 @@ import java.util.ArrayList;
 
 @Slf4j
 public class RepoManager {
-    private final ObjectMapper yamlMapper;
-    private final ObjectMapper jsonMapper = new ObjectMapper();
+    private final YAMLMapper yamlMapper;
+    private final JsonMapper jsonMapper = JsonMapper.builder().build();
     private final String configPath;
     private CloseableHttpClient httpClient;
     @Setter
@@ -32,19 +35,17 @@ public class RepoManager {
     private RegistryManager registryManager;
 
     public RepoManager() {
-        org.yaml.snakeyaml.LoaderOptions loaderOptions = new org.yaml.snakeyaml.LoaderOptions();
-        loaderOptions.setCodePointLimit(50_000_000); // 50MB
+        LoadSettings loadSettings = LoadSettings.builder()
+                .setCodePointLimit(50_000_000)
+                .build();
         YAMLFactory yamlFactory = YAMLFactory.builder()
-                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-                .loaderOptions(loaderOptions)
+                .disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
+                .loadSettings(loadSettings)
+                .streamReadConstraints(StreamReadConstraints.builder()
+                        .maxStringLength(50_000_000)
+                        .build())
                 .build();
-
-        com.fasterxml.jackson.core.StreamReadConstraints constraints = com.fasterxml.jackson.core.StreamReadConstraints.builder()
-                .maxStringLength(50_000_000)
-                .build();
-        yamlFactory.setStreamReadConstraints(constraints);
-
-        this.yamlMapper = new ObjectMapper(yamlFactory);
+        this.yamlMapper = YAMLMapper.builder(yamlFactory).build();
 
         String home = System.getProperty("user.home");
         String os = System.getProperty("os.name").toLowerCase();
