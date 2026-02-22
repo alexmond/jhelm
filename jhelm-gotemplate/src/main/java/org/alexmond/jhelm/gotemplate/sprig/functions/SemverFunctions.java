@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.gotemplate.sprig.functions;
 
+import com.vdurmont.semver4j.Semver;
+import com.vdurmont.semver4j.SemverException;
 import org.alexmond.jhelm.gotemplate.Function;
 
 import java.util.HashMap;
@@ -7,7 +9,7 @@ import java.util.Map;
 
 /**
  * Semantic versioning functions from Sprig library.
- * Includes version parsing and comparison operations.
+ * Uses Semver4j for version parsing and constraint evaluation.
  *
  * @see <a href="https://masterminds.github.io/sprig/semver.html">Sprig Semver Functions</a>
  */
@@ -15,15 +17,10 @@ public class SemverFunctions {
 
     public static Map<String, Function> getFunctions() {
         Map<String, Function> functions = new HashMap<>();
-
-        // Semantic version parsing and comparison
         functions.put("semver", semver());
         functions.put("semverCompare", semverCompare());
-
         return functions;
     }
-
-    // ========== Semantic Version Functions ==========
 
     /**
      * Parses a semantic version string and returns a Map with version components.
@@ -33,230 +30,155 @@ public class SemverFunctions {
     private static Function semver() {
         return args -> {
             if (args.length == 0 || args[0] == null) return null;
-
-            String version = String.valueOf(args[0]);
-            // Remove leading 'v' or 'V' if present
-            if (version.toLowerCase().startsWith("v")) {
-                version = version.substring(1);
-            }
-
-            Map<String, Object> semver = new HashMap<>();
-            semver.put("Original", String.valueOf(args[0]));
-
+            String versionStr = String.valueOf(args[0]);
+            Map<String, Object> result = new HashMap<>();
+            result.put("Original", versionStr);
             try {
-                // Split by '+' to separate build metadata
-                String[] metadataParts = version.split("\\+", 2);
-                String versionCore = metadataParts[0];
-                String metadata = metadataParts.length > 1 ? metadataParts[1] : "";
-
-                // Split by '-' to separate prerelease
-                String[] prereleaseParts = versionCore.split("-", 2);
-                String versionNumbers = prereleaseParts[0];
-                String prerelease = prereleaseParts.length > 1 ? prereleaseParts[1] : "";
-
-                // Parse version numbers
-                String[] parts = versionNumbers.split("\\.");
-                semver.put("Major", parts.length > 0 ? parseLong(parts[0]) : 0L);
-                semver.put("Minor", parts.length > 1 ? parseLong(parts[1]) : 0L);
-                semver.put("Patch", parts.length > 2 ? parseLong(parts[2]) : 0L);
-                semver.put("Prerelease", prerelease);
-                semver.put("Metadata", metadata);
-
-            } catch (Exception e) {
-                // On error, return default values
-                semver.put("Major", 0L);
-                semver.put("Minor", 0L);
-                semver.put("Patch", 0L);
-                semver.put("Prerelease", "");
-                semver.put("Metadata", "");
+                Semver v = new Semver(normalizeVersion(versionStr), Semver.SemverType.LOOSE);
+                result.put("Major", v.getMajor() != null ? v.getMajor().longValue() : 0L);
+                result.put("Minor", v.getMinor() != null ? v.getMinor().longValue() : 0L);
+                result.put("Patch", v.getPatch() != null ? v.getPatch().longValue() : 0L);
+                result.put("Prerelease", v.getSuffixTokens().length > 0
+                        ? String.join(".", v.getSuffixTokens()) : "");
+                result.put("Metadata", v.getBuild() != null ? String.join(".", v.getBuild()) : "");
+            } catch (SemverException e) {
+                result.put("Major", 0L);
+                result.put("Minor", 0L);
+                result.put("Patch", 0L);
+                result.put("Prerelease", "");
+                result.put("Metadata", "");
             }
-
-            return semver;
+            return result;
         };
     }
 
     /**
-     * Compares a version against a constraint.
-     * <p>
-     * Supports operators: =, !=, >, <, >=, <=, ~, ^, ||, -
-     * <p>
-     * Examples:
-     * - "=1.2.3" - exact match
-     * - ">1.2.3" - greater than
-     * - ">=1.2.3 <2.0.0" - range
-     * - "~1.2.3" - patch-level changes (>=1.2.3 <1.3.0)
-     * - "^1.2.3" - minor-level changes (>=1.2.3 <2.0.0)
+     * Compares a version against a constraint string.
+     * Supports operators: =, !=, >, <, >=, <=, ~, ^, ||, and space-separated AND ranges.
      *
-     * @return {@code true} if version satisfies constraint
+     * @return {@code true} if the version satisfies the constraint
      */
     private static Function semverCompare() {
         return args -> {
             if (args.length < 2) return false;
-
             String constraint = String.valueOf(args[0]).trim();
             String versionStr = String.valueOf(args[1]).trim();
-
-            // Parse the version
-            SemanticVersion version = parseVersion(versionStr);
-            if (version == null) return false;
-
-            // Handle OR operator (||)
-            if (constraint.contains("||")) {
-                String[] orParts = constraint.split("\\|\\|");
-                for (String part : orParts) {
-                    if (matchesConstraint(version, part.trim())) {
-                        return true;
-                    }
-                }
+            try {
+                Semver v = new Semver(normalizeVersion(versionStr), Semver.SemverType.LOOSE);
+                return evaluateConstraint(v, constraint);
+            } catch (Exception e) {
                 return false;
             }
-
-            // Handle range (e.g., ">=1.2.3 <2.0.0")
-            if (constraint.contains(" ")) {
-                String[] rangeParts = constraint.split("\\s+");
-                for (String part : rangeParts) {
-                    if (!matchesConstraint(version, part.trim())) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-
-            // Single constraint
-            return matchesConstraint(version, constraint);
         };
     }
 
-    // ========== Helper Classes and Methods ==========
+    /**
+     * Evaluates a constraint expression against a parsed version.
+     * Handles OR (||) and AND (space-separated) compound constraints.
+     */
+    private static boolean evaluateConstraint(Semver version, String constraint) {
+        // OR: split on ||
+        if (constraint.contains("||")) {
+            for (String part : constraint.split("\\|\\|")) {
+                if (evaluateConstraint(version, part.trim())) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        // AND: split on whitespace (e.g. ">=1.0.0 <2.0.0")
+        String[] parts = constraint.trim().split("\\s+");
+        if (parts.length > 1) {
+            for (String part : parts) {
+                if (!evaluateSingleConstraint(version, part.trim())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return evaluateSingleConstraint(version, constraint.trim());
+    }
 
-    private static SemanticVersion parseVersion(String version) {
-        if (version == null || version.isEmpty()) return null;
+    /**
+     * Evaluates a single constraint token (e.g. ">=1.2.3", "~1.2.3", "^1.2.3").
+     */
+    private static boolean evaluateSingleConstraint(Semver version, String constraint) {
+        if (constraint.isEmpty()) return true;
 
-        // Remove leading 'v' or 'V'
-        if (version.toLowerCase().startsWith("v")) {
-            version = version.substring(1);
+        // Tilde: ~1.2.3 → >=1.2.3 <1.3.0
+        if (constraint.startsWith("~")) {
+            String base = constraint.substring(1).trim();
+            Semver baseV = parseLeniently(base);
+            if (baseV == null) return false;
+            Semver upper = new Semver(baseV.getMajor() + "." + (baseV.getMinor() + 1) + ".0",
+                    Semver.SemverType.LOOSE);
+            return version.isGreaterThanOrEqualTo(baseV) && version.isLowerThan(upper);
         }
 
+        // Caret: ^1.2.3 → >=1.2.3 <2.0.0  (^0.2.3 → >=0.2.3 <0.3.0, etc.)
+        if (constraint.startsWith("^")) {
+            String base = constraint.substring(1).trim();
+            Semver baseV = parseLeniently(base);
+            if (baseV == null) return false;
+            long major = baseV.getMajor() != null ? baseV.getMajor() : 0;
+            long minor = baseV.getMinor() != null ? baseV.getMinor() : 0;
+            Semver upper;
+            if (major > 0) {
+                upper = new Semver((major + 1) + ".0.0", Semver.SemverType.LOOSE);
+            } else if (minor > 0) {
+                upper = new Semver("0." + (minor + 1) + ".0", Semver.SemverType.LOOSE);
+            } else {
+                // ^0.0.x → exact match
+                return version.isEquivalentTo(baseV);
+            }
+            return version.isGreaterThanOrEqualTo(baseV) && version.isLowerThan(upper);
+        }
+
+        // Standard operators: >=, <=, !=, >, <, =
+        if (constraint.startsWith(">=")) {
+            Semver c = parseLeniently(constraint.substring(2).trim());
+            return c != null && version.isGreaterThanOrEqualTo(c);
+        }
+        if (constraint.startsWith("<=")) {
+            Semver c = parseLeniently(constraint.substring(2).trim());
+            return c != null && version.isLowerThanOrEqualTo(c);
+        }
+        if (constraint.startsWith("!=")) {
+            Semver c = parseLeniently(constraint.substring(2).trim());
+            return c != null && !version.isEquivalentTo(c);
+        }
+        if (constraint.startsWith(">")) {
+            Semver c = parseLeniently(constraint.substring(1).trim());
+            return c != null && version.isGreaterThan(c);
+        }
+        if (constraint.startsWith("<")) {
+            Semver c = parseLeniently(constraint.substring(1).trim());
+            return c != null && version.isLowerThan(c);
+        }
+        if (constraint.startsWith("=")) {
+            Semver c = parseLeniently(constraint.substring(1).trim());
+            return c != null && version.isEquivalentTo(c);
+        }
+
+        // No operator — exact match
+        Semver c = parseLeniently(constraint);
+        return c != null && version.isEquivalentTo(c);
+    }
+
+    private static Semver parseLeniently(String version) {
         try {
-            // Remove build metadata
-            String versionCore = version.split("\\+")[0];
-
-            // Split prerelease
-            String[] prereleaseParts = versionCore.split("-", 2);
-            String versionNumbers = prereleaseParts[0];
-            String prerelease = prereleaseParts.length > 1 ? prereleaseParts[1] : "";
-
-            // Parse version numbers
-            String[] parts = versionNumbers.split("\\.");
-            long major = parts.length > 0 ? parseLong(parts[0]) : 0;
-            long minor = parts.length > 1 ? parseLong(parts[1]) : 0;
-            long patch = parts.length > 2 ? parseLong(parts[2]) : 0;
-
-            return new SemanticVersion(major, minor, patch, prerelease);
+            return new Semver(normalizeVersion(version), Semver.SemverType.LOOSE);
         } catch (Exception e) {
             return null;
         }
     }
 
-    private static boolean matchesConstraint(SemanticVersion version, String constraint) {
-        constraint = constraint.trim();
-
-        // Tilde operator: ~1.2.3 means >=1.2.3 <1.3.0
-        if (constraint.startsWith("~")) {
-            SemanticVersion base = parseVersion(constraint.substring(1));
-            if (base == null) return false;
-            return version.major == base.major &&
-                    version.minor == base.minor &&
-                    version.patch >= base.patch;
+    /** Strips a leading 'v' or 'V' prefix that Semver4j LOOSE mode doesn't accept. */
+    private static String normalizeVersion(String version) {
+        if (version != null && version.length() > 1
+                && (version.charAt(0) == 'v' || version.charAt(0) == 'V')) {
+            return version.substring(1);
         }
-
-        // Caret operator: ^1.2.3 means >=1.2.3 <2.0.0
-        if (constraint.startsWith("^")) {
-            SemanticVersion base = parseVersion(constraint.substring(1));
-            if (base == null) return false;
-            if (base.major > 0) {
-                return version.major == base.major && version.compareTo(base) >= 0;
-            } else if (base.minor > 0) {
-                return version.major == 0 && version.minor == base.minor && version.compareTo(base) >= 0;
-            } else {
-                return version.compareTo(base) == 0;
-            }
-        }
-
-        // Comparison operators
-        String operator;
-        String versionPart;
-
-        if (constraint.startsWith(">=")) {
-            operator = ">=";
-            versionPart = constraint.substring(2).trim();
-        } else if (constraint.startsWith("<=")) {
-            operator = "<=";
-            versionPart = constraint.substring(2).trim();
-        } else if (constraint.startsWith("!=")) {
-            operator = "!=";
-            versionPart = constraint.substring(2).trim();
-        } else if (constraint.startsWith(">")) {
-            operator = ">";
-            versionPart = constraint.substring(1).trim();
-        } else if (constraint.startsWith("<")) {
-            operator = "<";
-            versionPart = constraint.substring(1).trim();
-        } else if (constraint.startsWith("=")) {
-            operator = "=";
-            versionPart = constraint.substring(1).trim();
-        } else {
-            // No operator, assume exact match
-            operator = "=";
-            versionPart = constraint;
-        }
-
-        SemanticVersion constraintVersion = parseVersion(versionPart);
-        if (constraintVersion == null) return false;
-
-        int comparison = version.compareTo(constraintVersion);
-
-        return switch (operator) {
-            case "=" -> comparison == 0;
-            case "!=" -> comparison != 0;
-            case ">" -> comparison > 0;
-            case "<" -> comparison < 0;
-            case ">=" -> comparison >= 0;
-            case "<=" -> comparison <= 0;
-            default -> false;
-        };
-    }
-
-    private static long parseLong(String s) {
-        try {
-            return Long.parseLong(s);
-        } catch (NumberFormatException e) {
-            return 0L;
-        }
-    }
-
-    private static class SemanticVersion {
-        long major;
-        long minor;
-        long patch;
-        String prerelease;
-
-        SemanticVersion(long major, long minor, long patch, String prerelease) {
-            this.major = major;
-            this.minor = minor;
-            this.patch = patch;
-            this.prerelease = prerelease != null ? prerelease : "";
-        }
-
-        int compareTo(SemanticVersion other) {
-            if (major != other.major) return Long.compare(major, other.major);
-            if (minor != other.minor) return Long.compare(minor, other.minor);
-            if (patch != other.patch) return Long.compare(patch, other.patch);
-
-            // Prerelease comparison: versions with prerelease < versions without
-            if (prerelease.isEmpty() && !other.prerelease.isEmpty()) return 1;
-            if (!prerelease.isEmpty() && other.prerelease.isEmpty()) return -1;
-            return prerelease.compareTo(other.prerelease);
-        }
+        return version;
     }
 }

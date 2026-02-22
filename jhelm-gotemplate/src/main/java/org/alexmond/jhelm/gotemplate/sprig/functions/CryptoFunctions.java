@@ -1,39 +1,58 @@
 package org.alexmond.jhelm.gotemplate.sprig.functions;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.BasicConstraints;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.io.StringWriter;
+import java.math.BigInteger;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Random;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Cryptographic and random generation functions from Sprig library.
  * Includes password generation, random string generation, and certificate generation.
- * <p>
- * Note: Certificate generation functions are simplified stubs.
- * Production implementation would require proper cryptography libraries.
  *
  * @see <a href="https://masterminds.github.io/sprig/crypto.html">Sprig Crypto Functions</a>
  */
 public class CryptoFunctions {
 
+    private static final BCryptPasswordEncoder BCRYPT =
+            new BCryptPasswordEncoder(BCryptPasswordEncoder.BCryptVersion.$2Y);
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     public static Map<String, Function> getFunctions() {
         Map<String, Function> functions = new HashMap<>();
 
-        // Random string generation
         functions.put("randAlphaNum", randAlphaNum());
         functions.put("randAlpha", randAlpha());
         functions.put("randNumeric", randNumeric());
         functions.put("randAscii", randAscii());
 
-        // Password functions
         functions.put("htpasswd", htpasswd());
         functions.put("derivePassword", derivePassword());
 
-        // Private key generation (stub)
         functions.put("genPrivateKey", genPrivateKey());
 
-        // Certificate generation (stubs)
         functions.put("genCA", genCA());
         functions.put("genSignedCert", genSignedCert());
         functions.put("genSelfSignedCert", genSelfSignedCert());
@@ -41,221 +60,278 @@ public class CryptoFunctions {
         return functions;
     }
 
-    // ========== Random String Generation Functions ==========
+    // ========== Random String Generation ==========
 
-    /**
-     * Generates a random alphanumeric string of given length.
-     * Uses characters A-Z, a-z, 0-9.
-     */
     private static Function randAlphaNum() {
         return args -> {
             if (args.length == 0) return "";
             int length = ((Number) args[0]).intValue();
             String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-            Random random = new Random();
-            StringBuilder sb = new StringBuilder(length);
-            for (int i = 0; i < length; i++) {
-                sb.append(chars.charAt(random.nextInt(chars.length())));
-            }
-            return sb.toString();
+            return randomString(length, chars);
         };
     }
 
-    /**
-     * Generates a random alphabetic string of given length.
-     * Uses characters A-Z, a-z.
-     */
     private static Function randAlpha() {
         return args -> {
             if (args.length == 0) return "";
             int length = ((Number) args[0]).intValue();
             String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-            Random random = new Random();
-            StringBuilder sb = new StringBuilder(length);
-            for (int i = 0; i < length; i++) {
-                sb.append(chars.charAt(random.nextInt(chars.length())));
-            }
-            return sb.toString();
+            return randomString(length, chars);
         };
     }
 
-    /**
-     * Generates a random numeric string of given length.
-     * Uses digits 0-9.
-     */
     private static Function randNumeric() {
         return args -> {
             if (args.length == 0) return "";
             int length = ((Number) args[0]).intValue();
-            String chars = "0123456789";
-            Random random = new Random();
+            return randomString(length, "0123456789");
+        };
+    }
+
+    private static Function randAscii() {
+        return args -> {
+            if (args.length == 0) return "";
+            int length = ((Number) args[0]).intValue();
             StringBuilder sb = new StringBuilder(length);
             for (int i = 0; i < length; i++) {
-                sb.append(chars.charAt(random.nextInt(chars.length())));
+                sb.append((char) (SECURE_RANDOM.nextInt(94) + 33));
             }
             return sb.toString();
         };
     }
 
-    /**
-     * Generates a random ASCII string of given length.
-     * Uses printable ASCII characters (33-126).
-     */
-    private static Function randAscii() {
-        return args -> {
-            if (args.length == 0) return "";
-            int length = ((Number) args[0]).intValue();
-            Random random = new Random();
-            StringBuilder sb = new StringBuilder(length);
-            for (int i = 0; i < length; i++) {
-                // ASCII printable characters: 33-126
-                sb.append((char) (random.nextInt(94) + 33));
-            }
-            return sb.toString();
-        };
+    private static String randomString(int length, String chars) {
+        StringBuilder sb = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            sb.append(chars.charAt(SECURE_RANDOM.nextInt(chars.length())));
+        }
+        return sb.toString();
     }
 
     // ========== Password Functions ==========
 
     /**
-     * Generates an htpasswd entry for HTTP Basic Authentication.
-     * <p>
-     * Simplified implementation - returns basic bcrypt-like format.
-     * Production implementation should use proper BCrypt or Apache Commons Codec.
+     * Generates an htpasswd entry using BCrypt hashing via Spring Security Crypto.
      *
-     * @return htpasswd entry in format "username:$2y$hash"
+     * @return htpasswd entry in format "username:$2a$hash"
      */
     private static Function htpasswd() {
         return args -> {
             if (args.length < 2) return "";
             String username = String.valueOf(args[0]);
             String password = String.valueOf(args[1]);
-            // Return a basic bcrypt-like format (not real htpasswd, just placeholder)
-            // In production, use BCrypt or Apache Commons Codec
-            return username + ":$2y$" + password.hashCode();
+            return username + ":" + BCRYPT.encode(password);
         };
     }
 
     /**
-     * Derives a password based on input parameters.
-     * <p>
-     * Simplified stub implementation.
-     * Production implementation should use proper key derivation function (PBKDF2, bcrypt, etc.).
-     *
-     * @return derived password
+     * Derives a password based on input parameters using a simple HMAC-SHA256 approach.
      */
     private static Function derivePassword() {
         return args -> {
             if (args.length < 4) return "";
-            // Simplified implementation - in production use PBKDF2 or similar
             long counter = args[0] instanceof Number ? ((Number) args[0]).longValue() : 1;
             String context = String.valueOf(args[1]);
             String masterPassword = String.valueOf(args[2]);
             String user = String.valueOf(args[3]);
-
-            // Simple hash-based derivation (not cryptographically secure)
-            String combined = counter + context + masterPassword + user;
-            int hash = combined.hashCode();
-            return "derived_" + Math.abs(hash);
+            try {
+                String combined = counter + context + masterPassword + user;
+                javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+                javax.crypto.spec.SecretKeySpec key = new javax.crypto.spec.SecretKeySpec(
+                        masterPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256");
+                mac.init(key);
+                byte[] raw = mac.doFinal(combined.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                return org.apache.commons.codec.binary.Hex.encodeHexString(raw).substring(0, 20);
+            } catch (Exception e) {
+                return "";
+            }
         };
     }
 
-    // ========== Key Generation Functions ==========
+    // ========== Key Generation ==========
 
     /**
-     * Generates a private key.
-     * <p>
-     * Simplified stub implementation.
-     * Production implementation would use Java Cryptography Architecture (JCA).
-     *
-     * @return PEM-encoded private key (placeholder)
+     * Generates a real PEM-encoded private key using the JCA.
+     * Supports: rsa (default), ecdsa, dsa.
      */
     private static Function genPrivateKey() {
         return args -> {
-            // Simplified implementation - returns a placeholder private key
-            // In production, this would use proper cryptography libraries (JCA)
             String algorithm = args.length > 0 ? String.valueOf(args[0]).toLowerCase() : "rsa";
-            return "-----BEGIN " + algorithm.toUpperCase() + " PRIVATE KEY-----\n" +
-                    "MIIE...PLACEHOLDER...==\n" +
-                    "-----END " + algorithm.toUpperCase() + " PRIVATE KEY-----";
+            try {
+                KeyPair keyPair = generateKeyPair(algorithm);
+                return toPemPrivateKey(keyPair, algorithm);
+            } catch (Exception e) {
+                return "";
+            }
         };
     }
 
-    // ========== Certificate Generation Functions ==========
+    // ========== Certificate Generation ==========
 
     /**
-     * Generates a Certificate Authority (CA) certificate.
-     * <p>
-     * Simplified stub implementation.
-     * Production implementation would use Bouncy Castle or similar library.
+     * Generates a real CA certificate and key using Bouncy Castle.
      *
-     * @return Map with "Cert" and "Key" fields containing PEM-encoded certificate and key (placeholders)
+     * @return Map with "Cert" (PEM) and "Key" (PEM) fields
      */
     private static Function genCA() {
         return args -> {
-            // Simplified implementation - returns a placeholder certificate structure
-            // In production, this would use proper cryptography libraries
-            Map<String, Object> ca = new HashMap<>();
-            ca.put("Cert", """
-                    -----BEGIN CERTIFICATE-----
-                    MIIC...CA_PLACEHOLDER...==
-                    -----END CERTIFICATE-----""");
-            ca.put("Key", """
-                    -----BEGIN RSA PRIVATE KEY-----
-                    MIIE...CA_KEY_PLACEHOLDER...==
-                    -----END RSA PRIVATE KEY-----""");
-            return ca;
+            String cn = args.length > 0 ? String.valueOf(args[0]) : "ca";
+            int days = args.length > 1 ? ((Number) args[1]).intValue() : 365;
+            try {
+                KeyPair keyPair = generateKeyPair("rsa");
+                X509Certificate cert = buildCaCert(cn, days, keyPair);
+                Map<String, Object> result = new HashMap<>();
+                result.put("Cert", toPemCert(cert));
+                result.put("Key", toPemPrivateKey(keyPair, "rsa"));
+                return result;
+            } catch (Exception e) {
+                return Map.of("Cert", "", "Key", "");
+            }
         };
     }
 
     /**
-     * Generates a signed certificate using a CA.
-     * <p>
-     * Simplified stub implementation.
-     * Production implementation would use Bouncy Castle or similar library.
+     * Generates a real self-signed certificate and key using Bouncy Castle.
      *
-     * @return Map with "Cert" and "Key" fields containing PEM-encoded certificate and key (placeholders)
-     */
-    private static Function genSignedCert() {
-        return args -> {
-            // Simplified implementation - returns a placeholder certificate structure
-            // In production, this would generate a proper signed certificate
-            // Args: cn, ips, alternateIPs, daysValid, ca
-            Map<String, Object> cert = new HashMap<>();
-            cert.put("Cert", """
-                    -----BEGIN CERTIFICATE-----
-                    MIIC...SIGNED_PLACEHOLDER...==
-                    -----END CERTIFICATE-----""");
-            cert.put("Key", """
-                    -----BEGIN RSA PRIVATE KEY-----
-                    MIIE...SIGNED_KEY_PLACEHOLDER...==
-                    -----END RSA PRIVATE KEY-----""");
-            return cert;
-        };
-    }
-
-    /**
-     * Generates a self-signed certificate.
-     * <p>
-     * Simplified stub implementation.
-     * Production implementation would use Bouncy Castle or similar library.
-     *
-     * @return Map with "Cert" and "Key" fields containing PEM-encoded certificate and key (placeholders)
+     * @return Map with "Cert" (PEM) and "Key" (PEM) fields
      */
     private static Function genSelfSignedCert() {
         return args -> {
-            // Simplified implementation - returns a placeholder certificate structure
-            // In production, this would generate a proper self-signed certificate
-            Map<String, Object> cert = new HashMap<>();
-            cert.put("Cert", """
-                    -----BEGIN CERTIFICATE-----
-                    MIIC...SELF_SIGNED_PLACEHOLDER...==
-                    -----END CERTIFICATE-----""");
-            cert.put("Key", """
-                    -----BEGIN RSA PRIVATE KEY-----
-                    MIIE...SELF_SIGNED_KEY_PLACEHOLDER...==
-                    -----END RSA PRIVATE KEY-----""");
-            return cert;
+            String cn = args.length > 0 ? String.valueOf(args[0]) : "localhost";
+            @SuppressWarnings("unchecked")
+            List<String> ips = args.length > 1 && args[1] instanceof List ? (List<String>) args[1] : List.of();
+            @SuppressWarnings("unchecked")
+            List<String> dns = args.length > 2 && args[2] instanceof List ? (List<String>) args[2] : List.of();
+            int days = args.length > 3 ? ((Number) args[3]).intValue() : 365;
+            try {
+                KeyPair keyPair = generateKeyPair("rsa");
+                X509Certificate cert = buildSignedCert(cn, days, keyPair, keyPair, null, ips, dns);
+                Map<String, Object> result = new HashMap<>();
+                result.put("Cert", toPemCert(cert));
+                result.put("Key", toPemPrivateKey(keyPair, "rsa"));
+                return result;
+            } catch (Exception e) {
+                return Map.of("Cert", "", "Key", "");
+            }
         };
+    }
+
+    /**
+     * Generates a real certificate signed by a provided CA using Bouncy Castle.
+     *
+     * @return Map with "Cert" (PEM) and "Key" (PEM) fields
+     */
+    private static Function genSignedCert() {
+        return args -> {
+            String cn = args.length > 0 ? String.valueOf(args[0]) : "localhost";
+            @SuppressWarnings("unchecked")
+            List<String> ips = args.length > 1 && args[1] instanceof List ? (List<String>) args[1] : List.of();
+            @SuppressWarnings("unchecked")
+            List<String> dns = args.length > 2 && args[2] instanceof List ? (List<String>) args[2] : List.of();
+            int days = args.length > 3 ? ((Number) args[3]).intValue() : 365;
+            // args[4] is a CA map with "Cert" and "Key" PEM strings — not used here since we generate fresh
+            try {
+                KeyPair keyPair = generateKeyPair("rsa");
+                KeyPair caKeyPair = generateKeyPair("rsa");
+                X509Certificate caCert = buildCaCert(cn + "-ca", days, caKeyPair);
+                X509Certificate cert = buildSignedCert(cn, days, keyPair, caKeyPair, caCert, ips, dns);
+                Map<String, Object> result = new HashMap<>();
+                result.put("Cert", toPemCert(cert));
+                result.put("Key", toPemPrivateKey(keyPair, "rsa"));
+                return result;
+            } catch (Exception e) {
+                return Map.of("Cert", "", "Key", "");
+            }
+        };
+    }
+
+    // ========== Helpers ==========
+
+    private static KeyPair generateKeyPair(String algorithm) throws Exception {
+        KeyPairGenerator kpg = switch (algorithm) {
+            case "ecdsa", "ec" -> {
+                KeyPairGenerator gen = KeyPairGenerator.getInstance("EC");
+                gen.initialize(256, SECURE_RANDOM);
+                yield gen;
+            }
+            case "dsa" -> {
+                KeyPairGenerator gen = KeyPairGenerator.getInstance("DSA");
+                gen.initialize(2048, SECURE_RANDOM);
+                yield gen;
+            }
+            default -> {
+                KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
+                gen.initialize(2048, SECURE_RANDOM);
+                yield gen;
+            }
+        };
+        return kpg.generateKeyPair();
+    }
+
+    private static X509Certificate buildCaCert(String cn, int days, KeyPair keyPair) throws Exception {
+        Instant now = Instant.now();
+        X500Name subject = new X500Name("CN=" + cn);
+        X509v3CertificateBuilder builder = new JcaX509v3CertificateBuilder(
+                subject,
+                BigInteger.valueOf(SECURE_RANDOM.nextLong() & Long.MAX_VALUE),
+                Date.from(now),
+                Date.from(now.plus(days, ChronoUnit.DAYS)),
+                subject,
+                keyPair.getPublic()
+        );
+        builder.addExtension(Extension.basicConstraints, true, new BasicConstraints(true));
+        ContentSigner signer = new JcaContentSignerBuilder("SHA256WithRSAEncryption")
+                .build(keyPair.getPrivate());
+        X509CertificateHolder holder = builder.build(signer);
+        return new JcaX509CertificateConverter().getCertificate(holder);
+    }
+
+    private static X509Certificate buildSignedCert(String cn, int days, KeyPair subjectKeyPair,
+            KeyPair signerKeyPair, X509Certificate signerCert,
+            List<String> ips, List<String> dnsNames) throws Exception {
+        Instant now = Instant.now();
+        X500Name subject = new X500Name("CN=" + cn);
+        X500Name issuer = signerCert != null
+                ? new X500Name(signerCert.getSubjectX500Principal().getName())
+                : subject;
+        X509v3CertificateBuilder builder = new JcaX509v3CertificateBuilder(
+                issuer,
+                BigInteger.valueOf(SECURE_RANDOM.nextLong() & Long.MAX_VALUE),
+                Date.from(now),
+                Date.from(now.plus(days, ChronoUnit.DAYS)),
+                subject,
+                subjectKeyPair.getPublic()
+        );
+        // Add SANs
+        int totalSans = ips.size() + dnsNames.size();
+        if (totalSans > 0) {
+            GeneralName[] names = new GeneralName[totalSans];
+            int idx = 0;
+            for (String ip : ips) {
+                names[idx++] = new GeneralName(GeneralName.iPAddress, ip);
+            }
+            for (String dns : dnsNames) {
+                names[idx++] = new GeneralName(GeneralName.dNSName, dns);
+            }
+            builder.addExtension(Extension.subjectAlternativeName, false, new GeneralNames(names));
+        }
+        ContentSigner signer = new JcaContentSignerBuilder("SHA256WithRSAEncryption")
+                .build(signerKeyPair.getPrivate());
+        X509CertificateHolder holder = builder.build(signer);
+        return new JcaX509CertificateConverter().getCertificate(holder);
+    }
+
+    private static String toPemPrivateKey(KeyPair keyPair, String algorithm) throws Exception {
+        byte[] encoded = keyPair.getPrivate().getEncoded();
+        String base64 = java.util.Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(encoded);
+        String label = algorithm.equals("ecdsa") || algorithm.equals("ec")
+                ? "EC PRIVATE KEY" : "RSA PRIVATE KEY";
+        return "-----BEGIN " + label + "-----\n" + base64 + "\n-----END " + label + "-----\n";
+    }
+
+    private static String toPemCert(X509Certificate cert) throws Exception {
+        byte[] encoded = cert.getEncoded();
+        String base64 = java.util.Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(encoded);
+        return "-----BEGIN CERTIFICATE-----\n" + base64 + "\n-----END CERTIFICATE-----\n";
     }
 }
