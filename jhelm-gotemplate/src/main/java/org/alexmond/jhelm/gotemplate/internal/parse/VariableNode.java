@@ -5,18 +5,19 @@ import lombok.Getter;
 @Getter
 public class VariableNode implements Node {
 
-    private final String[] identifiers;
+	private final String[] identifiers;
 
-    public VariableNode(String value) {
-        this.identifiers = value.split("\\.");
-    }
+	public VariableNode(String value) {
+		this.identifiers = value.split("\\.");
+	}
 
-    public String getIdentifier(int index) {
-        return identifiers[index];
-    }
+	public String getIdentifier(int index) {
+		return identifiers[index];
+	}
 
-    @Override
-    public String toString() {
-        return String.join(".", identifiers);
-    }
+	@Override
+	public String toString() {
+		return String.join(".", identifiers);
+	}
+
 }

@@ -7,7 +7,7 @@ user-invocable: false
 ## jhelm Coding Standards
 
 ### Style
-- **Indentation**: 4 spaces
+- **Indentation**: Tabs (enforced by `spring-javaformat-maven-plugin`)
 - **Naming**: Classes `PascalCase`, methods/variables `camelCase`, constants `UPPER_SNAKE_CASE`
 - **Javadoc**: HTML tags for links, `{@code true}`/`{@code false}` for booleans, accurate `@param`/`@return` tags
 
@@ -32,6 +32,19 @@ user-invocable: false
 - Manage versions in root `pom.xml` `<dependencyManagement>`
 - Define dependency versions as properties in root `pom.xml` `<properties>` (unless managed by Spring Boot parent)
 - Keep `jhelm-gotemplate` free of Spring dependencies
+
+### Checkstyle Rules (enforced — violations fail build)
+- **Catch variable**: must be `ex`, not `e` (SpringCatch)
+- **Braces required**: `if/else/for/while` always need `{}` (NeedBraces)
+- **Lambda params**: single-param lambdas need parens: `(r) -> ...` not `r -> ...` (SpringLambda)
+- **Lambda blocks**: `-> { return x; }` → `-> x` when body is single expression (SpringLambda)
+- **Ternary conditions**: wrap in parens: `(a != null) ? x : y` (SpringTernary)
+- **No star imports**: expand `.*` to explicit class imports (AvoidStarImport)
+- **Inner classes last**: inner/nested types must appear after all methods (InnerTypeLast)
+- **Utility classes**: must have `private Constructor() {}` AND be `final` (SpringHideUtilityClassConstructor + FinalClass)
+- **Annotation arrays**: no trailing comma before `})` in `@CsvSource`, etc. (AnnotationUseStyle)
+
+Auto-fix: `./mvnw spring-javaformat:apply` then use the `/checkstyle` skill for remaining violations.
 
 ### Testing
 - JUnit 5 (`org.junit.jupiter.api`) with `Assertions`

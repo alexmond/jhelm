@@ -16,40 +16,47 @@ import java.util.HashMap;
 @Slf4j
 public class InstallCommand implements Runnable {
 
-    private final InstallAction installAction;
-    @CommandLine.Parameters(index = "0", description = "release name")
-    private String name;
-    @CommandLine.Parameters(index = "1", description = "chart path")
-    private String chartPath;
-    @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
-    private String namespace;
-    @CommandLine.Option(names = {"--dry-run"}, description = "simulate an install")
-    private boolean dryRun;
+	private final InstallAction installAction;
 
-    public InstallCommand(InstallAction installAction) {
-        this.installAction = installAction;
-    }
+	@CommandLine.Parameters(index = "0", description = "release name")
+	private String name;
 
-    @Override
-    public void run() {
-        try {
-            ChartLoader loader = new ChartLoader();
-            Chart chart = loader.load(new File(chartPath));
+	@CommandLine.Parameters(index = "1", description = "chart path")
+	private String chartPath;
 
-            Release release = installAction.install(chart, name, namespace, new HashMap<>(), 1, dryRun);
+	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
+	private String namespace;
 
-            if (dryRun) {
-                log.info("NAME: {}", release.getName());
-                log.info("LAST DEPLOYED: {}", release.getInfo().getLastDeployed());
-                log.info("NAMESPACE: {}", release.getNamespace());
-                log.info("STATUS: {}", release.getInfo().getStatus());
-                log.info("REVISION: {}", release.getVersion());
-                log.info("\nMANIFEST:\n{}", release.getManifest());
-            } else {
-                log.info("Release \"{}\" has been installed.", name);
-            }
-        } catch (Exception e) {
-            log.error("Error installing chart: {}", e.getMessage(), e);
-        }
-    }
+	@CommandLine.Option(names = { "--dry-run" }, description = "simulate an install")
+	private boolean dryRun;
+
+	public InstallCommand(InstallAction installAction) {
+		this.installAction = installAction;
+	}
+
+	@Override
+	public void run() {
+		try {
+			ChartLoader loader = new ChartLoader();
+			Chart chart = loader.load(new File(chartPath));
+
+			Release release = installAction.install(chart, name, namespace, new HashMap<>(), 1, dryRun);
+
+			if (dryRun) {
+				log.info("NAME: {}", release.getName());
+				log.info("LAST DEPLOYED: {}", release.getInfo().getLastDeployed());
+				log.info("NAMESPACE: {}", release.getNamespace());
+				log.info("STATUS: {}", release.getInfo().getStatus());
+				log.info("REVISION: {}", release.getVersion());
+				log.info("\nMANIFEST:\n{}", release.getManifest());
+			}
+			else {
+				log.info("Release \"{}\" has been installed.", name);
+			}
+		}
+		catch (Exception ex) {
+			log.error("Error installing chart: {}", ex.getMessage(), ex);
+		}
+	}
+
 }

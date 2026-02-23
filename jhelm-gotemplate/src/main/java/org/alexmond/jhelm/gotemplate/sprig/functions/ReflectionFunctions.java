@@ -1,206 +1,258 @@
 package org.alexmond.jhelm.gotemplate.sprig.functions;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Objects;
+
 import org.alexmond.jhelm.gotemplate.Function;
 
-import java.util.*;
-
 /**
- * Type reflection and introspection functions from Sprig library.
- * Includes type checking, kind checking, and deep equality comparison.
+ * Type reflection and introspection functions from Sprig library. Includes type checking,
+ * kind checking, and deep equality comparison.
  *
- * @see <a href="https://masterminds.github.io/sprig/reflection.html">Sprig Reflection Functions</a>
+ * @see <a href="https://masterminds.github.io/sprig/reflection.html">Sprig Reflection
+ * Functions</a>
  */
-public class ReflectionFunctions {
+public final class ReflectionFunctions {
 
-    public static Map<String, Function> getFunctions() {
-        Map<String, Function> functions = new HashMap<>();
+	private ReflectionFunctions() {
+	}
 
-        // Type information
-        functions.put("typeOf", typeOf());
-        functions.put("kindOf", kindOf());
+	public static Map<String, Function> getFunctions() {
+		Map<String, Function> functions = new HashMap<>();
 
-        // Type checking
-        functions.put("typeIs", typeIs());
-        functions.put("typeIsLike", typeIsLike());
-        functions.put("kindIs", kindIs());
+		// Type information
+		functions.put("typeOf", typeOf());
+		functions.put("kindOf", kindOf());
 
-        // Equality
-        functions.put("deepEqual", deepEqual());
+		// Type checking
+		functions.put("typeIs", typeIs());
+		functions.put("typeIsLike", typeIsLike());
+		functions.put("kindIs", kindIs());
 
-        return functions;
-    }
+		// Equality
+		functions.put("deepEqual", deepEqual());
 
-    // ========== Type Information Functions ==========
+		return functions;
+	}
 
-    /**
-     * Returns the full Java type name of the value.
-     * Returns "nil" for null values.
-     */
-    private static Function typeOf() {
-        return args -> {
-            if (args.length == 0 || args[0] == null) return "nil";
-            return args[0].getClass().getName();
-        };
-    }
+	// ========== Type Information Functions ==========
 
-    /**
-     * Returns the kind (basic type category) of the value.
-     * Kinds: string, number, bool, map, slice, struct, invalid
-     */
-    private static Function kindOf() {
-        return args -> {
-            if (args.length == 0 || args[0] == null) return "invalid";
-            Class<?> c = args[0].getClass();
+	/**
+	 * Returns the full Java type name of the value. Returns "nil" for null values.
+	 */
+	private static Function typeOf() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "nil";
+			}
+			return args[0].getClass().getName();
+		};
+	}
 
-            if (c == String.class) return "string";
-            if (Number.class.isAssignableFrom(c)) return "number";
-            if (Boolean.class.isAssignableFrom(c)) return "bool";
-            if (Map.class.isAssignableFrom(c)) return "map";
-            if (Collection.class.isAssignableFrom(c) || c.isArray()) return "slice";
-            return "struct";
-        };
-    }
+	/**
+	 * Returns the kind (basic type category) of the value. Kinds: string, number, bool,
+	 * map, slice, struct, invalid
+	 */
+	private static Function kindOf() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "invalid";
+			}
+			Class<?> c = args[0].getClass();
 
-    // ========== Type Checking Functions ==========
+			if (c == String.class) {
+				return "string";
+			}
+			if (Number.class.isAssignableFrom(c)) {
+				return "number";
+			}
+			if (Boolean.class.isAssignableFrom(c)) {
+				return "bool";
+			}
+			if (Map.class.isAssignableFrom(c)) {
+				return "map";
+			}
+			if (Collection.class.isAssignableFrom(c) || c.isArray()) {
+				return "slice";
+			}
+			return "struct";
+		};
+	}
 
-    /**
-     * Checks if the value is of a specific type.
-     *
-     * @return {@code true} if value matches the type
-     */
-    private static Function typeIs() {
-        return args -> {
-            if (args.length < 2) return false;
-            String type = String.valueOf(args[0]).toLowerCase();
-            Object val = args[1];
+	// ========== Type Checking Functions ==========
 
-            if (val == null) return "nil".equals(type);
+	/**
+	 * Checks if the value is of a specific type.
+	 * @return {@code true} if value matches the type
+	 */
+	private static Function typeIs() {
+		return (args) -> {
+			if (args.length < 2) {
+				return false;
+			}
+			String type = String.valueOf(args[0]).toLowerCase();
+			Object val = args[1];
 
-            String className = val.getClass().getSimpleName().toLowerCase();
-            String fullName = val.getClass().getName().toLowerCase();
+			if (val == null) {
+				return "nil".equals(type);
+			}
 
-            return className.equals(type) || fullName.contains(type);
-        };
-    }
+			String className = val.getClass().getSimpleName().toLowerCase();
+			String fullName = val.getClass().getName().toLowerCase();
 
-    /**
-     * Checks if the value's type is like a specific type (partial match).
-     *
-     * @return {@code true} if value's type matches the pattern
-     */
-    private static Function typeIsLike() {
-        return args -> {
-            if (args.length < 2) return false;
-            String typePattern = String.valueOf(args[0]).toLowerCase();
-            Object val = args[1];
+			return className.equals(type) || fullName.contains(type);
+		};
+	}
 
-            if (val == null) return "nil".equals(typePattern);
+	/**
+	 * Checks if the value's type is like a specific type (partial match).
+	 * @return {@code true} if value's type matches the pattern
+	 */
+	private static Function typeIsLike() {
+		return (args) -> {
+			if (args.length < 2) {
+				return false;
+			}
+			String typePattern = String.valueOf(args[0]).toLowerCase();
+			Object val = args[1];
 
-            String fullName = val.getClass().getName().toLowerCase();
-            return fullName.contains(typePattern);
-        };
-    }
+			if (val == null) {
+				return "nil".equals(typePattern);
+			}
 
-    /**
-     * Checks if the value's kind matches a specific kind.
-     *
-     * @return {@code true} if value's kind matches
-     */
-    private static Function kindIs() {
-        return args -> {
-            if (args.length < 2) return false;
-            String kind = String.valueOf(args[0]);
-            Object val = args[1];
+			String fullName = val.getClass().getName().toLowerCase();
+			return fullName.contains(typePattern);
+		};
+	}
 
-            if (val == null) return "invalid".equals(kind);
+	/**
+	 * Checks if the value's kind matches a specific kind.
+	 * @return {@code true} if value's kind matches
+	 */
+	private static Function kindIs() {
+		return (args) -> {
+			if (args.length < 2) {
+				return false;
+			}
+			String kind = String.valueOf(args[0]);
+			Object val = args[1];
 
-            Class<?> c = val.getClass();
-            return switch (kind) {
-                case "string" -> c == String.class;
-                case "number", "int", "float", "float64" -> Number.class.isAssignableFrom(c);
-                case "bool" -> Boolean.class.isAssignableFrom(c);
-                case "map" -> Map.class.isAssignableFrom(c);
-                case "slice", "list" -> Collection.class.isAssignableFrom(c) || c.isArray();
-                default -> false;
-            };
-        };
-    }
+			if (val == null) {
+				return "invalid".equals(kind);
+			}
 
-    // ========== Equality Functions ==========
+			Class<?> c = val.getClass();
+			return switch (kind) {
+				case "string" -> c == String.class;
+				case "number", "int", "float", "float64" -> Number.class.isAssignableFrom(c);
+				case "bool" -> Boolean.class.isAssignableFrom(c);
+				case "map" -> Map.class.isAssignableFrom(c);
+				case "slice", "list" -> Collection.class.isAssignableFrom(c) || c.isArray();
+				default -> false;
+			};
+		};
+	}
 
-    /**
-     * Performs deep equality comparison between two values.
-     * Recursively compares Maps, Collections, and arrays.
-     *
-     * @return {@code true} if values are deeply equal
-     */
-    private static Function deepEqual() {
-        return args -> {
-            if (args.length < 2) return false;
-            return deepEquals(args[0], args[1]);
-        };
-    }
+	// ========== Equality Functions ==========
 
-    // ========== Helper Methods ==========
+	/**
+	 * Performs deep equality comparison between two values. Recursively compares Maps,
+	 * Collections, and arrays.
+	 * @return {@code true} if values are deeply equal
+	 */
+	private static Function deepEqual() {
+		return (args) -> {
+			if (args.length < 2) {
+				return false;
+			}
+			return deepEquals(args[0], args[1]);
+		};
+	}
 
-    /**
-     * Recursively compares two objects for deep equality.
-     */
-    private static boolean deepEquals(Object a, Object b) {
-        // Null checks
-        if (a == b) return true;
-        if (a == null || b == null) return false;
+	// ========== Helper Methods ==========
 
-        // Class mismatch
-        if (!a.getClass().equals(b.getClass())) return false;
+	/**
+	 * Recursively compares two objects for deep equality.
+	 */
+	private static boolean deepEquals(Object a, Object b) {
+		// Null checks
+		if (a == b) {
+			return true;
+		}
+		if (a == null || b == null) {
+			return false;
+		}
 
-        // Maps
-        if (a instanceof Map) {
-            Map<?, ?> mapA = (Map<?, ?>) a;
-            Map<?, ?> mapB = (Map<?, ?>) b;
+		// Class mismatch
+		if (!a.getClass().equals(b.getClass())) {
+			return false;
+		}
 
-            if (mapA.size() != mapB.size()) return false;
+		// Maps
+		if (a instanceof Map) {
+			Map<?, ?> mapA = (Map<?, ?>) a;
+			Map<?, ?> mapB = (Map<?, ?>) b;
 
-            for (Map.Entry<?, ?> entry : mapA.entrySet()) {
-                Object key = entry.getKey();
-                if (!mapB.containsKey(key)) return false;
-                if (!deepEquals(entry.getValue(), mapB.get(key))) return false;
-            }
-            return true;
-        }
+			if (mapA.size() != mapB.size()) {
+				return false;
+			}
 
-        // Collections
-        if (a instanceof Collection) {
-            Collection<?> colA = (Collection<?>) a;
-            Collection<?> colB = (Collection<?>) b;
+			for (Map.Entry<?, ?> entry : mapA.entrySet()) {
+				Object key = entry.getKey();
+				if (!mapB.containsKey(key)) {
+					return false;
+				}
+				if (!deepEquals(entry.getValue(), mapB.get(key))) {
+					return false;
+				}
+			}
+			return true;
+		}
 
-            if (colA.size() != colB.size()) return false;
+		// Collections
+		if (a instanceof Collection) {
+			Collection<?> colA = (Collection<?>) a;
+			Collection<?> colB = (Collection<?>) b;
 
-            Iterator<?> iterA = colA.iterator();
-            Iterator<?> iterB = colB.iterator();
+			if (colA.size() != colB.size()) {
+				return false;
+			}
 
-            while (iterA.hasNext() && iterB.hasNext()) {
-                if (!deepEquals(iterA.next(), iterB.next())) return false;
-            }
-            return true;
-        }
+			Iterator<?> iterA = colA.iterator();
+			Iterator<?> iterB = colB.iterator();
 
-        // Arrays
-        if (a.getClass().isArray()) {
-            int lengthA = java.lang.reflect.Array.getLength(a);
-            int lengthB = java.lang.reflect.Array.getLength(b);
+			while (iterA.hasNext() && iterB.hasNext()) {
+				if (!deepEquals(iterA.next(), iterB.next())) {
+					return false;
+				}
+			}
+			return true;
+		}
 
-            if (lengthA != lengthB) return false;
+		// Arrays
+		if (a.getClass().isArray()) {
+			int lengthA = java.lang.reflect.Array.getLength(a);
+			int lengthB = java.lang.reflect.Array.getLength(b);
 
-            for (int i = 0; i < lengthA; i++) {
-                Object elemA = java.lang.reflect.Array.get(a, i);
-                Object elemB = java.lang.reflect.Array.get(b, i);
-                if (!deepEquals(elemA, elemB)) return false;
-            }
-            return true;
-        }
+			if (lengthA != lengthB) {
+				return false;
+			}
 
-        // Primitive types and other objects
-        return Objects.equals(a, b);
-    }
+			for (int i = 0; i < lengthA; i++) {
+				Object elemA = java.lang.reflect.Array.get(a, i);
+				Object elemB = java.lang.reflect.Array.get(b, i);
+				if (!deepEquals(elemA, elemB)) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		// Primitive types and other objects
+		return Objects.equals(a, b);
+	}
+
 }

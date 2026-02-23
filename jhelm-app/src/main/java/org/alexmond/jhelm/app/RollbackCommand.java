@@ -10,25 +10,30 @@ import picocli.CommandLine;
 @Slf4j
 public class RollbackCommand implements Runnable {
 
-    private final RollbackAction rollbackAction;
-    @CommandLine.Parameters(index = "0", description = "release name")
-    private String name;
-    @CommandLine.Parameters(index = "1", description = "revision number")
-    private int revision;
-    @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
-    private String namespace;
+	private final RollbackAction rollbackAction;
 
-    public RollbackCommand(RollbackAction rollbackAction) {
-        this.rollbackAction = rollbackAction;
-    }
+	@CommandLine.Parameters(index = "0", description = "release name")
+	private String name;
 
-    @Override
-    public void run() {
-        try {
-            rollbackAction.rollback(name, namespace, revision);
-            log.info("Rollback was a success! Happy Helming!");
-        } catch (Exception e) {
-            log.error("Error during rollback: {}", e.getMessage());
-        }
-    }
+	@CommandLine.Parameters(index = "1", description = "revision number")
+	private int revision;
+
+	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
+	private String namespace;
+
+	public RollbackCommand(RollbackAction rollbackAction) {
+		this.rollbackAction = rollbackAction;
+	}
+
+	@Override
+	public void run() {
+		try {
+			rollbackAction.rollback(name, namespace, revision);
+			log.info("Rollback was a success! Happy Helming!");
+		}
+		catch (Exception ex) {
+			log.error("Error during rollback: {}", ex.getMessage());
+		}
+	}
+
 }

@@ -10,9 +10,11 @@ import java.io.IOException;
 @Configuration
 public class KubernetesConfig {
 
-    @Bean
-    public ApiClient apiClient() throws IOException {
-        // This will load the configuration from ~/.kube/config or service account if in cluster
-        return Config.defaultClient();
-    }
+	@Bean
+	public ApiClient apiClient() throws IOException {
+		// This will load the configuration from ~/.kube/config or service account if in
+		// cluster
+		return Config.defaultClient();
+	}
+
 }

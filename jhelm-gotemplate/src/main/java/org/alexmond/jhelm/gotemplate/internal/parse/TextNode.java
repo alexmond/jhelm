@@ -5,10 +5,11 @@ import lombok.Data;
 @Data
 public class TextNode implements Node {
 
-    private final String text;
+	private final String text;
 
-    @Override
-    public String toString() {
-        return '"' + text + '"';
-    }
+	@Override
+	public String toString() {
+		return '"' + text + '"';
+	}
+
 }

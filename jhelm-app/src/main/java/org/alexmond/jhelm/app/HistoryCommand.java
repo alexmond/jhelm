@@ -13,28 +13,33 @@ import java.util.List;
 @Slf4j
 public class HistoryCommand implements Runnable {
 
-    private final HistoryAction historyAction;
-    @CommandLine.Parameters(index = "0", description = "release name")
-    private String name;
-    @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
-    private String namespace;
+	private final HistoryAction historyAction;
 
-    public HistoryCommand(HistoryAction historyAction) {
-        this.historyAction = historyAction;
-    }
+	@CommandLine.Parameters(index = "0", description = "release name")
+	private String name;
 
-    @Override
-    public void run() {
-        try {
-            List<Release> history = historyAction.history(name, namespace);
-            System.out.printf("%-10s %-30s %-10s %-20s %-30s\n", "REVISION", "UPDATED", "STATUS", "CHART", "DESCRIPTION");
-            for (Release r : history) {
-                String chartInfo = r.getChart().getMetadata().getName() + "-" + r.getChart().getMetadata().getVersion();
-                System.out.printf("%-10d %-30s %-10s %-20s %-30s\n",
-                        r.getVersion(), r.getInfo().getLastDeployed(), r.getInfo().getStatus(), chartInfo, r.getInfo().getDescription());
-            }
-        } catch (Exception e) {
-            log.error("Error fetching history: {}", e.getMessage());
-        }
-    }
+	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
+	private String namespace;
+
+	public HistoryCommand(HistoryAction historyAction) {
+		this.historyAction = historyAction;
+	}
+
+	@Override
+	public void run() {
+		try {
+			List<Release> history = historyAction.history(name, namespace);
+			System.out.printf("%-10s %-30s %-10s %-20s %-30s\n", "REVISION", "UPDATED", "STATUS", "CHART",
+					"DESCRIPTION");
+			for (Release r : history) {
+				String chartInfo = r.getChart().getMetadata().getName() + "-" + r.getChart().getMetadata().getVersion();
+				System.out.printf("%-10d %-30s %-10s %-20s %-30s\n", r.getVersion(), r.getInfo().getLastDeployed(),
+						r.getInfo().getStatus(), chartInfo, r.getInfo().getDescription());
+			}
+		}
+		catch (Exception ex) {
+			log.error("Error fetching history: {}", ex.getMessage());
+		}
+	}
+
 }

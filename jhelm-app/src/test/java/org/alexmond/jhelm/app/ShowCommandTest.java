@@ -15,345 +15,363 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShowCommandTest {
 
-    @TempDir
-    Path tempDir;
+	@TempDir
+	Path tempDir;
 
-    private Path chartDir;
-    private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    private final PrintStream originalOut = System.out;
-    private ShowAction showAction;
+	private Path chartDir;
 
-    @BeforeEach
-    void setUp() throws Exception {
-        // Redirect System.out to capture command output
-        System.setOut(new PrintStream(outputStream));
+	private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        ChartLoader chartLoader = new ChartLoader();
-        showAction = new ShowAction(chartLoader);
+	private final PrintStream originalOut = System.out;
 
-        // Create a test chart
-        chartDir = tempDir.resolve("test-chart");
-        Files.createDirectories(chartDir);
+	private ShowAction showAction;
 
-        // Create Chart.yaml
-        String chartYaml = """
-                apiVersion: v2
-                name: test-chart
-                version: 1.0.0
-                description: A test chart
-                appVersion: "1.0"
-                type: application
-                """;
-        Files.writeString(chartDir.resolve("Chart.yaml"), chartYaml);
+	@BeforeEach
+	void setUp() throws Exception {
+		// Redirect System.out to capture command output
+		System.setOut(new PrintStream(outputStream));
 
-        // Create README.md
-        String readme = """
-                # Test Chart
+		ChartLoader chartLoader = new ChartLoader();
+		showAction = new ShowAction(chartLoader);
 
-                This is a comprehensive test chart.
+		// Create a test chart
+		chartDir = tempDir.resolve("test-chart");
+		Files.createDirectories(chartDir);
 
-                ## Installation
+		// Create Chart.yaml
+		String chartYaml = """
+				apiVersion: v2
+				name: test-chart
+				version: 1.0.0
+				description: A test chart
+				appVersion: "1.0"
+				type: application
+				""";
+		Files.writeString(chartDir.resolve("Chart.yaml"), chartYaml);
 
-                Use helm install to install this chart.
-                """;
-        Files.writeString(chartDir.resolve("README.md"), readme);
+		// Create README.md
+		String readme = """
+				# Test Chart
 
-        // Create values.yaml
-        String values = """
-                replicaCount: 1
-                image:
-                  repository: nginx
-                  tag: "1.21"
-                  pullPolicy: IfNotPresent
-                service:
-                  type: ClusterIP
-                  port: 80
-                """;
-        Files.writeString(chartDir.resolve("values.yaml"), values);
+				This is a comprehensive test chart.
 
-        // Create templates directory
-        Path templatesDir = chartDir.resolve("templates");
-        Files.createDirectories(templatesDir);
-        Files.writeString(templatesDir.resolve("deployment.yaml"), "apiVersion: apps/v1\nkind: Deployment");
+				## Installation
 
-        // Create crds directory
-        Path crdsDir = chartDir.resolve("crds");
-        Files.createDirectories(crdsDir);
+				Use helm install to install this chart.
+				""";
+		Files.writeString(chartDir.resolve("README.md"), readme);
 
-        String crd1 = """
-                apiVersion: apiextensions.k8s.io/v1
-                kind: CustomResourceDefinition
-                metadata:
-                  name: mycrd.example.com
-                spec:
-                  group: example.com
-                  names:
-                    kind: MyCRD
-                    plural: mycrds
-                  scope: Namespaced
-                  versions:
-                  - name: v1
-                    served: true
-                    storage: true
-                """;
-        Files.writeString(crdsDir.resolve("mycrd.yaml"), crd1);
+		// Create values.yaml
+		String values = """
+				replicaCount: 1
+				image:
+				  repository: nginx
+				  tag: "1.21"
+				  pullPolicy: IfNotPresent
+				service:
+				  type: ClusterIP
+				  port: 80
+				""";
+		Files.writeString(chartDir.resolve("values.yaml"), values);
 
-        String crd2 = """
-                apiVersion: apiextensions.k8s.io/v1
-                kind: CustomResourceDefinition
-                metadata:
-                  name: anothercrd.example.com
-                spec:
-                  group: example.com
-                  names:
-                    kind: AnotherCRD
-                    plural: anothercrds
-                  scope: Cluster
-                  versions:
-                  - name: v1alpha1
-                    served: true
-                    storage: true
-                """;
-        Files.writeString(crdsDir.resolve("anothercrd.yaml"), crd2);
-    }
+		// Create templates directory
+		Path templatesDir = chartDir.resolve("templates");
+		Files.createDirectories(templatesDir);
+		Files.writeString(templatesDir.resolve("deployment.yaml"), "apiVersion: apps/v1\nkind: Deployment");
 
-    @Test
-    void testShowChart() {
-        ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
-        command.chartPath = chartDir.toString();
+		// Create crds directory
+		Path crdsDir = chartDir.resolve("crds");
+		Files.createDirectories(crdsDir);
 
-        command.run();
+		String crd1 = """
+				apiVersion: apiextensions.k8s.io/v1
+				kind: CustomResourceDefinition
+				metadata:
+				  name: mycrd.example.com
+				spec:
+				  group: example.com
+				  names:
+				    kind: MyCRD
+				    plural: mycrds
+				  scope: Namespaced
+				  versions:
+				  - name: v1
+				    served: true
+				    storage: true
+				""";
+		Files.writeString(crdsDir.resolve("mycrd.yaml"), crd1);
 
-        String output = outputStream.toString();
-        assertTrue(output.contains("name: test-chart"), "Output: " + output);
-        assertTrue(output.contains("version:"), "Output: " + output);
-        assertTrue(output.contains("1.0.0"), "Output: " + output);
-        assertTrue(output.contains("description:"), "Output: " + output);
-        assertTrue(output.contains("A test chart"), "Output: " + output);
-        assertTrue(output.contains("type: application"), "Output: " + output);
-    }
+		String crd2 = """
+				apiVersion: apiextensions.k8s.io/v1
+				kind: CustomResourceDefinition
+				metadata:
+				  name: anothercrd.example.com
+				spec:
+				  group: example.com
+				  names:
+				    kind: AnotherCRD
+				    plural: anothercrds
+				  scope: Cluster
+				  versions:
+				  - name: v1alpha1
+				    served: true
+				    storage: true
+				""";
+		Files.writeString(crdsDir.resolve("anothercrd.yaml"), crd2);
+	}
 
-    @Test
-    void testShowValues() {
-        ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
-        command.chartPath = chartDir.toString();
+	@Test
+	void testShowChart() {
+		ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
+		command.chartPath = chartDir.toString();
 
-        command.run();
+		command.run();
 
-        String output = outputStream.toString();
-        assertTrue(output.contains("replicaCount: 1"), "Output: " + output);
-        assertTrue(output.contains("repository: nginx"), "Output: " + output);
-        assertTrue(output.contains("1.21"), "Output: " + output);
-        assertTrue(output.contains("port: 80"), "Output: " + output);
-    }
+		String output = outputStream.toString();
+		assertTrue(output.contains("name: test-chart"), "Output: " + output);
+		assertTrue(output.contains("version:"), "Output: " + output);
+		assertTrue(output.contains("1.0.0"), "Output: " + output);
+		assertTrue(output.contains("description:"), "Output: " + output);
+		assertTrue(output.contains("A test chart"), "Output: " + output);
+		assertTrue(output.contains("type: application"), "Output: " + output);
+	}
 
-    @Test
-    void testShowReadme() {
-        ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
-        command.chartPath = chartDir.toString();
+	@Test
+	void testShowValues() {
+		ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
+		command.chartPath = chartDir.toString();
 
-        command.run();
+		command.run();
 
-        String output = outputStream.toString();
-        assertTrue(output.contains("# Test Chart"));
-        assertTrue(output.contains("comprehensive test chart"));
-        assertTrue(output.contains("## Installation"));
-        assertTrue(output.contains("helm install"));
-    }
+		String output = outputStream.toString();
+		assertTrue(output.contains("replicaCount: 1"), "Output: " + output);
+		assertTrue(output.contains("repository: nginx"), "Output: " + output);
+		assertTrue(output.contains("1.21"), "Output: " + output);
+		assertTrue(output.contains("port: 80"), "Output: " + output);
+	}
 
-    @Test
-    void testShowCrds() {
-        ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
-        command.chartPath = chartDir.toString();
+	@Test
+	void testShowReadme() {
+		ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
+		command.chartPath = chartDir.toString();
 
-        command.run();
+		command.run();
 
-        String output = outputStream.toString();
-        assertTrue(output.contains("kind: CustomResourceDefinition"));
-        assertTrue(output.contains("mycrd.example.com"));
-        assertTrue(output.contains("anothercrd.example.com"));
-        assertTrue(output.contains("MyCRD"));
-        assertTrue(output.contains("AnotherCRD"));
-        assertTrue(output.contains("---")); // Separator between CRDs
-    }
+		String output = outputStream.toString();
+		assertTrue(output.contains("# Test Chart"));
+		assertTrue(output.contains("comprehensive test chart"));
+		assertTrue(output.contains("## Installation"));
+		assertTrue(output.contains("helm install"));
+	}
 
-    @Test
-    void testShowAll() {
-        ShowCommand.AllCommand command = new ShowCommand.AllCommand(showAction);
-        command.chartPath = chartDir.toString();
+	@Test
+	void testShowCrds() {
+		ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
+		command.chartPath = chartDir.toString();
 
-        command.run();
+		command.run();
 
-        String output = outputStream.toString();
+		String output = outputStream.toString();
+		assertTrue(output.contains("kind: CustomResourceDefinition"));
+		assertTrue(output.contains("mycrd.example.com"));
+		assertTrue(output.contains("anothercrd.example.com"));
+		assertTrue(output.contains("MyCRD"));
+		assertTrue(output.contains("AnotherCRD"));
+		assertTrue(output.contains("---")); // Separator between CRDs
+	}
 
-        // Should contain chart metadata
-        assertTrue(output.contains("# Chart.yaml"));
-        assertTrue(output.contains("name: test-chart"));
+	@Test
+	void testShowAll() {
+		ShowCommand.AllCommand command = new ShowCommand.AllCommand(showAction);
+		command.chartPath = chartDir.toString();
 
-        // Should contain values
-        assertTrue(output.contains("# values.yaml"));
-        assertTrue(output.contains("replicaCount: 1"));
+		command.run();
 
-        // Should contain README
-        assertTrue(output.contains("# README.md"));
-        assertTrue(output.contains("Test Chart"));
+		String output = outputStream.toString();
 
-        // Should contain CRDs
-        assertTrue(output.contains("# CRDs"));
-        assertTrue(output.contains("CustomResourceDefinition"));
+		// Should contain chart metadata
+		assertTrue(output.contains("# Chart.yaml"));
+		assertTrue(output.contains("name: test-chart"));
 
-        // Should contain separators
-        assertTrue(output.contains("---"));
-    }
+		// Should contain values
+		assertTrue(output.contains("# values.yaml"));
+		assertTrue(output.contains("replicaCount: 1"));
 
-    @Test
-    void testShowReadmeWhenNotPresent() throws Exception {
-        // Create a chart without README
-        Path noReadmeDir = tempDir.resolve("no-readme-chart");
-        Files.createDirectories(noReadmeDir);
+		// Should contain README
+		assertTrue(output.contains("# README.md"));
+		assertTrue(output.contains("Test Chart"));
 
-        String chartYaml = """
-                apiVersion: v2
-                name: no-readme-chart
-                version: 1.0.0
-                """;
-        Files.writeString(noReadmeDir.resolve("Chart.yaml"), chartYaml);
-        Files.writeString(noReadmeDir.resolve("values.yaml"), "{}");
-        Files.createDirectories(noReadmeDir.resolve("templates"));
+		// Should contain CRDs
+		assertTrue(output.contains("# CRDs"));
+		assertTrue(output.contains("CustomResourceDefinition"));
 
-        ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
-        command.chartPath = noReadmeDir.toString();
+		// Should contain separators
+		assertTrue(output.contains("---"));
+	}
 
-        command.run();
+	@Test
+	void testShowReadmeWhenNotPresent() throws Exception {
+		// Create a chart without README
+		Path noReadmeDir = tempDir.resolve("no-readme-chart");
+		Files.createDirectories(noReadmeDir);
 
-        String output = outputStream.toString();
-        assertTrue(output.contains("No README found in chart"));
-    }
+		String chartYaml = """
+				apiVersion: v2
+				name: no-readme-chart
+				version: 1.0.0
+				""";
+		Files.writeString(noReadmeDir.resolve("Chart.yaml"), chartYaml);
+		Files.writeString(noReadmeDir.resolve("values.yaml"), "{}");
+		Files.createDirectories(noReadmeDir.resolve("templates"));
 
-    @Test
-    void testShowCrdsWhenNotPresent() throws Exception {
-        // Create a chart without CRDs
-        Path noCrdsDir = tempDir.resolve("no-crds-chart");
-        Files.createDirectories(noCrdsDir);
+		ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
+		command.chartPath = noReadmeDir.toString();
 
-        String chartYaml = """
-                apiVersion: v2
-                name: no-crds-chart
-                version: 1.0.0
-                """;
-        Files.writeString(noCrdsDir.resolve("Chart.yaml"), chartYaml);
-        Files.writeString(noCrdsDir.resolve("values.yaml"), "{}");
-        Files.createDirectories(noCrdsDir.resolve("templates"));
+		command.run();
 
-        ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
-        command.chartPath = noCrdsDir.toString();
+		String output = outputStream.toString();
+		assertTrue(output.contains("No README found in chart"));
+	}
 
-        command.run();
+	@Test
+	void testShowCrdsWhenNotPresent() throws Exception {
+		// Create a chart without CRDs
+		Path noCrdsDir = tempDir.resolve("no-crds-chart");
+		Files.createDirectories(noCrdsDir);
 
-        String output = outputStream.toString();
-        assertTrue(output.contains("No CRDs found in chart"));
-    }
+		String chartYaml = """
+				apiVersion: v2
+				name: no-crds-chart
+				version: 1.0.0
+				""";
+		Files.writeString(noCrdsDir.resolve("Chart.yaml"), chartYaml);
+		Files.writeString(noCrdsDir.resolve("values.yaml"), "{}");
+		Files.createDirectories(noCrdsDir.resolve("templates"));
 
-    @Test
-    void testShowValuesWhenEmpty() throws Exception {
-        // Create a chart with empty values
-        Path emptyValuesDir = tempDir.resolve("empty-values-chart");
-        Files.createDirectories(emptyValuesDir);
+		ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
+		command.chartPath = noCrdsDir.toString();
 
-        String chartYaml = """
-                apiVersion: v2
-                name: empty-values-chart
-                version: 1.0.0
-                """;
-        Files.writeString(emptyValuesDir.resolve("Chart.yaml"), chartYaml);
-        Files.writeString(emptyValuesDir.resolve("values.yaml"), "{}");
-        Files.createDirectories(emptyValuesDir.resolve("templates"));
+		command.run();
 
-        ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
-        command.chartPath = emptyValuesDir.toString();
+		String output = outputStream.toString();
+		assertTrue(output.contains("No CRDs found in chart"));
+	}
 
-        command.run();
+	@Test
+	void testShowValuesWhenEmpty() throws Exception {
+		// Create a chart with empty values
+		Path emptyValuesDir = tempDir.resolve("empty-values-chart");
+		Files.createDirectories(emptyValuesDir);
 
-        String output = outputStream.toString();
-        assertTrue(output.contains("{}"));
-    }
+		String chartYaml = """
+				apiVersion: v2
+				name: empty-values-chart
+				version: 1.0.0
+				""";
+		Files.writeString(emptyValuesDir.resolve("Chart.yaml"), chartYaml);
+		Files.writeString(emptyValuesDir.resolve("values.yaml"), "{}");
+		Files.createDirectories(emptyValuesDir.resolve("templates"));
 
-    @Test
-    void testShowCommandWithInvalidPath() {
-        ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
-        command.chartPath = "/nonexistent/path";
+		ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
+		command.chartPath = emptyValuesDir.toString();
 
-        // Should not throw, but should log error
-        command.run();
+		command.run();
 
-        // Verify error was logged (output will be empty since we redirected System.out)
-        // In a real scenario, this would be verified with a logging framework test
-    }
+		String output = outputStream.toString();
+		assertTrue(output.contains("{}"));
+	}
 
-    @Test
-    void testShowCommandHelp() {
-        ShowCommand showCommand = new ShowCommand();
-        CommandLine cmd = new CommandLine(showCommand);
+	@Test
+	void testShowCommandWithInvalidPath() {
+		ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
+		command.chartPath = "/nonexistent/path";
 
-        String help = cmd.getUsageMessage();
+		// Should not throw, but should log error
+		command.run();
 
-        assertTrue(help.contains("show"));
-        assertTrue(help.contains("Show information about a chart"));
-    }
+		// Verify error was logged (output will be empty since we redirected System.out)
+		// In a real scenario, this would be verified with a logging framework test
+	}
 
-    @Test
-    void testShowCommandRunShowsUsage() {
-        outputStream.reset();
-        ShowCommand showCommand = new ShowCommand();
-        showCommand.run();
+	@Test
+	void testShowCommandHelp() {
+		ShowCommand showCommand = new ShowCommand();
+		CommandLine cmd = new CommandLine(showCommand);
 
-        String output = outputStream.toString();
-        assertTrue(output.contains("show") || output.contains("Usage"));
-    }
+		String help = cmd.getUsageMessage();
 
-    @ParameterizedTest
-    @MethodSource("errorCommandNames")
-    void testShowSubcommandWithError(String commandName) {
-        Path invalidDir = tempDir.resolve("nonexistent");
-        // All subcommands should handle nonexistent paths gracefully
-        switch (commandName) {
-            case "chart" -> { var cmd = new ShowCommand.ChartCommand(showAction); cmd.chartPath = invalidDir.toString(); cmd.run(); }
-            case "values" -> { var cmd = new ShowCommand.ValuesCommand(showAction); cmd.chartPath = invalidDir.toString(); cmd.run(); }
-            case "all" -> { var cmd = new ShowCommand.AllCommand(showAction); cmd.chartPath = invalidDir.toString(); cmd.run(); }
-            case "readme" -> { var cmd = new ShowCommand.ReadmeCommand(showAction); cmd.chartPath = invalidDir.toString(); cmd.run(); }
-            case "crds" -> { var cmd = new ShowCommand.CrdsCommand(showAction); cmd.chartPath = invalidDir.toString(); cmd.run(); }
-        }
-    }
+		assertTrue(help.contains("show"));
+		assertTrue(help.contains("Show information about a chart"));
+	}
 
-    static Stream<Arguments> errorCommandNames() {
-        return Stream.of(
-            Arguments.of("chart"),
-            Arguments.of("values"),
-            Arguments.of("all"),
-            Arguments.of("readme"),
-            Arguments.of("crds")
-        );
-    }
+	@Test
+	void testShowCommandRunShowsUsage() {
+		outputStream.reset();
+		ShowCommand showCommand = new ShowCommand();
+		showCommand.run();
 
-    @Test
-    void testShowChartCommandDirectExecution() {
-        ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
-        command.chartPath = chartDir.toString();
+		String output = outputStream.toString();
+		assertTrue(output.contains("show") || output.contains("Usage"));
+	}
 
-        command.run();
+	@ParameterizedTest
+	@MethodSource("errorCommandNames")
+	void testShowSubcommandWithError(String commandName) {
+		Path invalidDir = tempDir.resolve("nonexistent");
+		// All subcommands should handle nonexistent paths gracefully
+		switch (commandName) {
+			case "chart" -> {
+				var cmd = new ShowCommand.ChartCommand(showAction);
+				cmd.chartPath = invalidDir.toString();
+				cmd.run();
+			}
+			case "values" -> {
+				var cmd = new ShowCommand.ValuesCommand(showAction);
+				cmd.chartPath = invalidDir.toString();
+				cmd.run();
+			}
+			case "all" -> {
+				var cmd = new ShowCommand.AllCommand(showAction);
+				cmd.chartPath = invalidDir.toString();
+				cmd.run();
+			}
+			case "readme" -> {
+				var cmd = new ShowCommand.ReadmeCommand(showAction);
+				cmd.chartPath = invalidDir.toString();
+				cmd.run();
+			}
+			case "crds" -> {
+				var cmd = new ShowCommand.CrdsCommand(showAction);
+				cmd.chartPath = invalidDir.toString();
+				cmd.run();
+			}
+		}
+	}
 
-        String output = outputStream.toString();
-        assertTrue(output.contains("test-chart"));
-    }
+	static Stream<Arguments> errorCommandNames() {
+		return Stream.of(Arguments.of("chart"), Arguments.of("values"), Arguments.of("all"), Arguments.of("readme"),
+				Arguments.of("crds"));
+	}
 
-    @org.junit.jupiter.api.AfterEach
-    void tearDown() {
-        // Restore System.out
-        System.setOut(originalOut);
-    }
+	@Test
+	void testShowChartCommandDirectExecution() {
+		ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
+		command.chartPath = chartDir.toString();
+
+		command.run();
+
+		String output = outputStream.toString();
+		assertTrue(output.contains("test-chart"));
+	}
+
+	@org.junit.jupiter.api.AfterEach
+	void tearDown() {
+		// Restore System.out
+		System.setOut(originalOut);
+	}
+
 }

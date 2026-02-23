@@ -1,40 +1,42 @@
 package org.alexmond.jhelm.gotemplate.internal.parse;
 
-import lombok.Getter;
-
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import lombok.Getter;
+
 @Getter
 public class PipeNode implements Node {
 
-    private final String context;
-    private final List<VariableNode> variables = new LinkedList<>();
-    private final List<CommandNode> commands = new LinkedList<>();
+	private final String context;
 
-    public PipeNode(String context) {
-        this.context = context;
-    }
+	private final List<VariableNode> variables = new LinkedList<>();
 
-    public void append(VariableNode variableNode) {
-        variables.add(variableNode);
-    }
+	private final List<CommandNode> commands = new LinkedList<>();
 
-    public int getVariableCount() {
-        return variables.size();
-    }
+	public PipeNode(String context) {
+		this.context = context;
+	}
 
-    public void append(CommandNode commandNode) {
-        commands.add(commandNode);
-    }
+	public void append(VariableNode variableNode) {
+		variables.add(variableNode);
+	}
 
-    @Override
-    public String toString() {
-        String variableString = !variables.isEmpty() ?
-                variables.stream().map(Objects::toString).collect(Collectors.joining(", ")) + " := " :
-                "";
-        return variableString + commands.stream().map(Objects::toString).collect(Collectors.joining(" | "));
-    }
+	public int getVariableCount() {
+		return variables.size();
+	}
+
+	public void append(CommandNode commandNode) {
+		commands.add(commandNode);
+	}
+
+	@Override
+	public String toString() {
+		String variableString = !variables.isEmpty()
+				? variables.stream().map(Objects::toString).collect(Collectors.joining(", ")) + " := " : "";
+		return variableString + commands.stream().map(Objects::toString).collect(Collectors.joining(" | "));
+	}
+
 }

@@ -5,11 +5,12 @@ import lombok.Data;
 @Data
 public class ActionNode implements Node {
 
-    private PipeNode pipeNode;
+	private PipeNode pipeNode;
 
-    @Override
-    public String toString() {
-        String pipe = pipeNode != null ? pipeNode.toString() : "";
-        return "{{" + pipe + "}}";
-    }
+	@Override
+	public String toString() {
+		String pipe = (pipeNode != null) ? pipeNode.toString() : "";
+		return "{{" + pipe + "}}";
+	}
+
 }

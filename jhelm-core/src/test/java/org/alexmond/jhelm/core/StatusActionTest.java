@@ -6,46 +6,44 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 class StatusActionTest {
 
-    @Mock
-    private KubeService kubeService;
+	@Mock
+	private KubeService kubeService;
 
-    private StatusAction statusAction;
+	private StatusAction statusAction;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        statusAction = new StatusAction(kubeService);
-    }
+	@BeforeEach
+	void setUp() {
+		MockitoAnnotations.openMocks(this);
+		statusAction = new StatusAction(kubeService);
+	}
 
-    @Test
-    void testStatusReturnsRelease() throws Exception {
-        Release mockRelease = Release.builder()
-                .name("test-release")
-                .namespace("default")
-                .version(1)
-                .build();
+	@Test
+	void testStatusReturnsRelease() throws Exception {
+		Release mockRelease = Release.builder().name("test-release").namespace("default").version(1).build();
 
-        when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(mockRelease));
+		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(mockRelease));
 
-        Optional<Release> result = statusAction.status("test-release", "default");
+		Optional<Release> result = statusAction.status("test-release", "default");
 
-        assertTrue(result.isPresent());
-        assertEquals("test-release", result.get().getName());
-    }
+		assertTrue(result.isPresent());
+		assertEquals("test-release", result.get().getName());
+	}
 
-    @Test
-    void testStatusReturnsEmpty() throws Exception {
-        when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.empty());
+	@Test
+	void testStatusReturnsEmpty() throws Exception {
+		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.empty());
 
-        Optional<Release> result = statusAction.status("non-existent", "default");
+		Optional<Release> result = statusAction.status("non-existent", "default");
 
-        assertFalse(result.isPresent());
-    }
+		assertFalse(result.isPresent());
+	}
+
 }

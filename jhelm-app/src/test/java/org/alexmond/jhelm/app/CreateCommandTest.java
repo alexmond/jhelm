@@ -17,161 +17,164 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * Integration test that compares jhelm create output with helm create output
- * to ensure 100% compatibility with Helm 4.1.0.
+ * Integration test that compares jhelm create output with helm create output to ensure
+ * 100% compatibility with Helm 4.1.0.
  * <p>
  * Test artifacts are stored in target/test-charts/
  */
 class CreateCommandTest {
 
-    private final String chartName = "test-chart";
-    @TempDir
-    Path tempDir;
-    private Path helmChartPath;
-    private Path jhelmChartPath;
+	private final String chartName = "test-chart";
 
-    @BeforeEach
-    void setUp() throws IOException {
-        // Create output directory in target
-        Path targetDir = Path.of("target/test-charts");
-        Files.createDirectories(targetDir);
+	@TempDir
+	Path tempDir;
 
-        helmChartPath = targetDir.resolve("helm-" + chartName);
-        jhelmChartPath = targetDir.resolve("jhelm-" + chartName);
+	private Path helmChartPath;
 
-        // Clean up any existing test charts
-        if (Files.exists(helmChartPath)) {
-            deleteDirectory(helmChartPath);
-        }
-        if (Files.exists(jhelmChartPath)) {
-            deleteDirectory(jhelmChartPath);
-        }
-    }
+	private Path jhelmChartPath;
 
-    @Test
-    void testCreateChartMatchesHelm() throws Exception {
-        // Skip test if JAR is not built (only run during integration-test phase or after package)
-        Path jarPath = Path.of("target/jhelm-app-0.0.1-SNAPSHOT.jar");
-        if (!Files.exists(jarPath)) {
-            System.out.println("Skipping CreateCommandTest - JAR not found at " + jarPath.toAbsolutePath());
-            return;
-        }
+	@BeforeEach
+	void setUp() throws IOException {
+		// Create output directory in target
+		Path targetDir = Path.of("target/test-charts");
+		Files.createDirectories(targetDir);
 
-        // Generate chart with helm
-        createWithHelm();
+		helmChartPath = targetDir.resolve("helm-" + chartName);
+		jhelmChartPath = targetDir.resolve("jhelm-" + chartName);
 
-        // Generate chart with jhelm
-        createWithJHelm();
+		// Clean up any existing test charts
+		if (Files.exists(helmChartPath)) {
+			deleteDirectory(helmChartPath);
+		}
+		if (Files.exists(jhelmChartPath)) {
+			deleteDirectory(jhelmChartPath);
+		}
+	}
 
-        // Compare directory structures
-        List<String> helmFiles = getFileList(helmChartPath);
-        List<String> jhelmFiles = getFileList(jhelmChartPath);
+	@Test
+	void testCreateChartMatchesHelm() throws Exception {
+		// Skip test if JAR is not built (only run during integration-test phase or after
+		// package)
+		Path jarPath = Path.of("target/jhelm-app-0.0.1-SNAPSHOT.jar");
+		if (!Files.exists(jarPath)) {
+			System.out.println("Skipping CreateCommandTest - JAR not found at " + jarPath.toAbsolutePath());
+			return;
+		}
 
-        assertEquals(helmFiles.size(), jhelmFiles.size(),
-                "Number of files should match. Helm: " + helmFiles + ", JHelm: " + jhelmFiles);
+		// Generate chart with helm
+		createWithHelm();
 
-        // Sort for comparison
-        helmFiles.sort(String::compareTo);
-        jhelmFiles.sort(String::compareTo);
+		// Generate chart with jhelm
+		createWithJHelm();
 
-        // Compare file lists
-        for (int i = 0; i < helmFiles.size(); i++) {
-            assertEquals(helmFiles.get(i), jhelmFiles.get(i),
-                    "File structure should match at index " + i);
-        }
+		// Compare directory structures
+		List<String> helmFiles = getFileList(helmChartPath);
+		List<String> jhelmFiles = getFileList(jhelmChartPath);
 
-        // Compare file contents
-        List<String> differences = new ArrayList<>();
-        for (String relPath : helmFiles) {
-            Path helmFile = helmChartPath.resolve(relPath);
-            Path jhelmFile = jhelmChartPath.resolve(relPath);
+		assertEquals(helmFiles.size(), jhelmFiles.size(),
+				"Number of files should match. Helm: " + helmFiles + ", JHelm: " + jhelmFiles);
 
-            String helmContent = Files.readString(helmFile);
-            String jhelmContent = Files.readString(jhelmFile);
+		// Sort for comparison
+		helmFiles.sort(String::compareTo);
+		jhelmFiles.sort(String::compareTo);
 
-            if (!helmContent.equals(jhelmContent)) {
-                differences.add(String.format("File %s differs:\nHelm:\n%s\n\nJHelm:\n%s\n",
-                        relPath, helmContent, jhelmContent));
-            }
-        }
+		// Compare file lists
+		for (int i = 0; i < helmFiles.size(); i++) {
+			assertEquals(helmFiles.get(i), jhelmFiles.get(i), "File structure should match at index " + i);
+		}
 
-        if (!differences.isEmpty()) {
-            fail("Found differences in files:\n" + String.join("\n---\n", differences));
-        }
-    }
+		// Compare file contents
+		List<String> differences = new ArrayList<>();
+		for (String relPath : helmFiles) {
+			Path helmFile = helmChartPath.resolve(relPath);
+			Path jhelmFile = jhelmChartPath.resolve(relPath);
 
-    private void createWithHelm() throws IOException, InterruptedException {
-        // Create temporary directory for helm to run in
-        Path helmWorkDir = helmChartPath.getParent().resolve("helm-work");
-        Files.createDirectories(helmWorkDir);
+			String helmContent = Files.readString(helmFile);
+			String jhelmContent = Files.readString(jhelmFile);
 
-        ProcessBuilder pb = new ProcessBuilder("helm", "create", chartName);
-        pb.directory(helmWorkDir.toFile());
-        pb.redirectErrorStream(true);
+			if (!helmContent.equals(jhelmContent)) {
+				differences.add(String.format("File %s differs:\nHelm:\n%s\n\nJHelm:\n%s\n", relPath, helmContent,
+						jhelmContent));
+			}
+		}
 
-        Process process = pb.start();
-        String output = new BufferedReader(new InputStreamReader(process.getInputStream()))
-                .lines().collect(Collectors.joining("\n"));
+		if (!differences.isEmpty()) {
+			fail("Found differences in files:\n" + String.join("\n---\n", differences));
+		}
+	}
 
-        int exitCode = process.waitFor();
-        if (exitCode != 0) {
-            fail("helm create failed with exit code " + exitCode + ": " + output);
-        }
+	private void createWithHelm() throws IOException, InterruptedException {
+		// Create temporary directory for helm to run in
+		Path helmWorkDir = helmChartPath.getParent().resolve("helm-work");
+		Files.createDirectories(helmWorkDir);
 
-        // Move the created chart to expected location
-        Files.move(helmWorkDir.resolve(chartName), helmChartPath);
-        deleteDirectory(helmWorkDir);
-    }
+		ProcessBuilder pb = new ProcessBuilder("helm", "create", chartName);
+		pb.directory(helmWorkDir.toFile());
+		pb.redirectErrorStream(true);
 
-    private void createWithJHelm() throws IOException, InterruptedException {
-        // Create temporary directory for jhelm to run in
-        Path jhelmWorkDir = jhelmChartPath.getParent().resolve("jhelm-work");
-        Files.createDirectories(jhelmWorkDir);
+		Process process = pb.start();
+		String output = new BufferedReader(new InputStreamReader(process.getInputStream())).lines()
+			.collect(Collectors.joining("\n"));
 
-        // Run jhelm via java -jar
-        Path jarPath = Path.of("target/jhelm-app-0.0.1-SNAPSHOT.jar");
+		int exitCode = process.waitFor();
+		if (exitCode != 0) {
+			fail("helm create failed with exit code " + exitCode + ": " + output);
+		}
 
-        ProcessBuilder pb = new ProcessBuilder(
-                "java", "-jar", jarPath.toAbsolutePath().toString(),
-                "create", chartName
-        );
-        pb.directory(jhelmWorkDir.toFile());
-        pb.redirectErrorStream(true);
+		// Move the created chart to expected location
+		Files.move(helmWorkDir.resolve(chartName), helmChartPath);
+		deleteDirectory(helmWorkDir);
+	}
 
-        Process process = pb.start();
-        String output = new BufferedReader(new InputStreamReader(process.getInputStream()))
-                .lines().collect(Collectors.joining("\n"));
+	private void createWithJHelm() throws IOException, InterruptedException {
+		// Create temporary directory for jhelm to run in
+		Path jhelmWorkDir = jhelmChartPath.getParent().resolve("jhelm-work");
+		Files.createDirectories(jhelmWorkDir);
 
-        int exitCode = process.waitFor();
-        if (exitCode != 0) {
-            fail("jhelm create failed with exit code " + exitCode + ": " + output);
-        }
+		// Run jhelm via java -jar
+		Path jarPath = Path.of("target/jhelm-app-0.0.1-SNAPSHOT.jar");
 
-        // Move the created chart to expected location
-        Files.move(jhelmWorkDir.resolve(chartName), jhelmChartPath);
-        deleteDirectory(jhelmWorkDir);
-    }
+		ProcessBuilder pb = new ProcessBuilder("java", "-jar", jarPath.toAbsolutePath().toString(), "create",
+				chartName);
+		pb.directory(jhelmWorkDir.toFile());
+		pb.redirectErrorStream(true);
 
-    private List<String> getFileList(Path rootPath) throws IOException {
-        try (var walk = Files.walk(rootPath)) {
-            return walk.filter(Files::isRegularFile)
-                    .map(path -> rootPath.relativize(path).toString())
-                    .collect(Collectors.toList());
-        }
-    }
+		Process process = pb.start();
+		String output = new BufferedReader(new InputStreamReader(process.getInputStream())).lines()
+			.collect(Collectors.joining("\n"));
 
-    private void deleteDirectory(Path path) throws IOException {
-        if (Files.exists(path)) {
-            try (var walk = Files.walk(path)) {
-                walk.sorted((a, b) -> -a.compareTo(b)) // Reverse order for deletion
-                        .forEach(p -> {
-                            try {
-                                Files.delete(p);
-                            } catch (IOException e) {
-                                // Ignore
-                            }
-                        });
-            }
-        }
-    }
+		int exitCode = process.waitFor();
+		if (exitCode != 0) {
+			fail("jhelm create failed with exit code " + exitCode + ": " + output);
+		}
+
+		// Move the created chart to expected location
+		Files.move(jhelmWorkDir.resolve(chartName), jhelmChartPath);
+		deleteDirectory(jhelmWorkDir);
+	}
+
+	private List<String> getFileList(Path rootPath) throws IOException {
+		try (var walk = Files.walk(rootPath)) {
+			return walk.filter(Files::isRegularFile)
+				.map((path) -> rootPath.relativize(path).toString())
+				.collect(Collectors.toList());
+		}
+	}
+
+	private void deleteDirectory(Path path) throws IOException {
+		if (Files.exists(path)) {
+			try (var walk = Files.walk(path)) {
+				walk.sorted((a, b) -> -a.compareTo(b)) // Reverse order for deletion
+					.forEach((p) -> {
+						try {
+							Files.delete(p);
+						}
+						catch (IOException ex) {
+							// Ignore
+						}
+					});
+			}
+		}
+	}
+
 }

@@ -1,47 +1,54 @@
 package org.alexmond.jhelm.gotemplate.sprig.functions;
 
-import org.alexmond.jhelm.gotemplate.Function;
-
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.alexmond.jhelm.gotemplate.Function;
+
 /**
- * Network-related functions from Sprig library.
- * Includes DNS lookup and network utility functions.
+ * Network-related functions from Sprig library. Includes DNS lookup and network utility
+ * functions.
  *
- * @see <a href="https://masterminds.github.io/sprig/network.html">Sprig Network Functions</a>
+ * @see <a href="https://masterminds.github.io/sprig/network.html">Sprig Network
+ * Functions</a>
  */
-public class NetworkFunctions {
+public final class NetworkFunctions {
 
-    public static Map<String, Function> getFunctions() {
-        Map<String, Function> functions = new HashMap<>();
+	private NetworkFunctions() {
+	}
 
-        // DNS lookup
-        functions.put("getHostByName", getHostByName());
+	public static Map<String, Function> getFunctions() {
+		Map<String, Function> functions = new HashMap<>();
 
-        return functions;
-    }
+		// DNS lookup
+		functions.put("getHostByName", getHostByName());
 
-    // ========== DNS Functions ==========
+		return functions;
+	}
 
-    /**
-     * Performs DNS lookup and returns the IP address for a hostname.
-     *
-     * @return IP address as string, or empty string on error
-     */
-    private static Function getHostByName() {
-        return args -> {
-            if (args.length == 0 || args[0] == null) return "";
+	// ========== DNS Functions ==========
 
-            String hostname = String.valueOf(args[0]);
-            try {
-                InetAddress address = InetAddress.getByName(hostname);
-                return address.getHostAddress();
-            } catch (Exception e) {
-                // Return empty string on DNS resolution failure
-                return "";
-            }
-        };
-    }
+	/**
+	 * Performs DNS lookup and returns the IP address for a hostname.
+	 * @return IP address as string, or empty string on error
+	 */
+	private static Function getHostByName() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+
+			String hostname = String.valueOf(args[0]);
+			try {
+				InetAddress address = InetAddress.getByName(hostname);
+				return address.getHostAddress();
+			}
+			catch (Exception ex) {
+				// Return empty string on DNS resolution failure
+				return "";
+			}
+		};
+	}
+
 }

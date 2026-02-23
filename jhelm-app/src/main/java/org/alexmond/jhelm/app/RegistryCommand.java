@@ -9,68 +9,73 @@ import java.io.IOException;
 
 @Component
 @CommandLine.Command(name = "registry", description = "login to or logout from a registry",
-        subcommands = {
-                RegistryCommand.LoginCommand.class,
-                RegistryCommand.LogoutCommand.class
-        })
+		subcommands = { RegistryCommand.LoginCommand.class, RegistryCommand.LogoutCommand.class })
 @Slf4j
 public class RegistryCommand implements Runnable {
-    @Override
-    public void run() {
-        CommandLine.usage(this, System.out);
-    }
 
-    @Component
-    @CommandLine.Command(name = "login", description = "login to a registry")
-    @Slf4j
-    public static class LoginCommand implements Runnable {
-        private final RegistryManager registryManager;
+	@Override
+	public void run() {
+		CommandLine.usage(this, System.out);
+	}
 
-        @CommandLine.Parameters(index = "0", description = "registry server")
-        private String server;
+	@Component
+	@CommandLine.Command(name = "login", description = "login to a registry")
+	@Slf4j
+	public static class LoginCommand implements Runnable {
 
-        @CommandLine.Option(names = {"-u", "--username"}, description = "registry username", required = true)
-        private String username;
+		private final RegistryManager registryManager;
 
-        @CommandLine.Option(names = {"-p", "--password"}, description = "registry password", required = true)
-        private String password;
+		@CommandLine.Parameters(index = "0", description = "registry server")
+		private String server;
 
-        public LoginCommand(RegistryManager registryManager) {
-            this.registryManager = registryManager;
-        }
+		@CommandLine.Option(names = { "-u", "--username" }, description = "registry username", required = true)
+		private String username;
 
-        @Override
-        public void run() {
-            try {
-                registryManager.login(server, username, password);
-                log.info("Login Succeeded");
-            } catch (IOException e) {
-                log.error("Error logging in: {}", e.getMessage());
-            }
-        }
-    }
+		@CommandLine.Option(names = { "-p", "--password" }, description = "registry password", required = true)
+		private String password;
 
-    @Component
-    @CommandLine.Command(name = "logout", description = "logout from a registry")
-    @Slf4j
-    public static class LogoutCommand implements Runnable {
-        private final RegistryManager registryManager;
+		public LoginCommand(RegistryManager registryManager) {
+			this.registryManager = registryManager;
+		}
 
-        @CommandLine.Parameters(index = "0", description = "registry server")
-        private String server;
+		@Override
+		public void run() {
+			try {
+				registryManager.login(server, username, password);
+				log.info("Login Succeeded");
+			}
+			catch (IOException ex) {
+				log.error("Error logging in: {}", ex.getMessage());
+			}
+		}
 
-        public LogoutCommand(RegistryManager registryManager) {
-            this.registryManager = registryManager;
-        }
+	}
 
-        @Override
-        public void run() {
-            try {
-                registryManager.logout(server);
-                log.info("Logout Succeeded");
-            } catch (IOException e) {
-                log.error("Error logging out: {}", e.getMessage());
-            }
-        }
-    }
+	@Component
+	@CommandLine.Command(name = "logout", description = "logout from a registry")
+	@Slf4j
+	public static class LogoutCommand implements Runnable {
+
+		private final RegistryManager registryManager;
+
+		@CommandLine.Parameters(index = "0", description = "registry server")
+		private String server;
+
+		public LogoutCommand(RegistryManager registryManager) {
+			this.registryManager = registryManager;
+		}
+
+		@Override
+		public void run() {
+			try {
+				registryManager.logout(server);
+				log.info("Logout Succeeded");
+			}
+			catch (IOException ex) {
+				log.error("Error logging out: {}", ex.getMessage());
+			}
+		}
+
+	}
+
 }

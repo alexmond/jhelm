@@ -17,280 +17,274 @@ import java.util.Map;
  * <p>
  * This service handles:
  * <ul>
- *   <li>Version constraint matching using semver</li>
- *   <li>Conditional dependency evaluation</li>
- *   <li>Dependency tag filtering</li>
- *   <li>Chart.lock generation</li>
+ * <li>Version constraint matching using semver</li>
+ * <li>Conditional dependency evaluation</li>
+ * <li>Dependency tag filtering</li>
+ * <li>Chart.lock generation</li>
  * </ul>
  */
 @Slf4j
 public class DependencyResolver {
-    private final RepoManager repoManager;
 
-    public DependencyResolver(RepoManager repoManager) {
-        this.repoManager = repoManager;
-    }
+	private final RepoManager repoManager;
 
-    /**
-     * Resolves all dependencies from Chart.yaml and returns a ChartLock with exact versions.
-     *
-     * @param metadata the chart metadata containing dependencies
-     * @param values the chart values for evaluating conditions
-     * @param enabledTags list of enabled tags for tag-based filtering
-     * @return a ChartLock with resolved exact versions
-     * @throws IOException if dependency resolution fails
-     */
-    public ChartLock resolveDependencies(ChartMetadata metadata, Map<String, Object> values, List<String> enabledTags) throws IOException {
-        if (metadata.getDependencies() == null || metadata.getDependencies().isEmpty()) {
-            String digest = generateDigest(new ArrayList<>());
-            return ChartLock.builder()
-                    .dependencies(new ArrayList<>())
-                    .digest(digest)
-                    .build();
-        }
+	public DependencyResolver(RepoManager repoManager) {
+		this.repoManager = repoManager;
+	}
 
-        List<LockDependency> lockDependencies = new ArrayList<>();
+	/**
+	 * Resolves all dependencies from Chart.yaml and returns a ChartLock with exact
+	 * versions.
+	 * @param metadata the chart metadata containing dependencies
+	 * @param values the chart values for evaluating conditions
+	 * @param enabledTags list of enabled tags for tag-based filtering
+	 * @return a ChartLock with resolved exact versions
+	 * @throws IOException if dependency resolution fails
+	 */
+	public ChartLock resolveDependencies(ChartMetadata metadata, Map<String, Object> values, List<String> enabledTags)
+			throws IOException {
+		if (metadata.getDependencies() == null || metadata.getDependencies().isEmpty()) {
+			String digest = generateDigest(new ArrayList<>());
+			return ChartLock.builder().dependencies(new ArrayList<>()).digest(digest).build();
+		}
 
-        for (Dependency dep : metadata.getDependencies()) {
-            // Check if dependency should be included based on conditions and tags
-            if (!shouldIncludeDependency(dep, values, enabledTags)) {
-                log.info("Skipping dependency {} due to condition/tag evaluation", dep.getName());
-                continue;
-            }
+		List<LockDependency> lockDependencies = new ArrayList<>();
 
-            // Resolve the dependency version
-            LockDependency lockDep = resolveDependency(dep);
-            lockDependencies.add(lockDep);
-        }
+		for (Dependency dep : metadata.getDependencies()) {
+			// Check if dependency should be included based on conditions and tags
+			if (!shouldIncludeDependency(dep, values, enabledTags)) {
+				log.info("Skipping dependency {} due to condition/tag evaluation", dep.getName());
+				continue;
+			}
 
-        // Generate digest
-        String digest = generateDigest(lockDependencies);
+			// Resolve the dependency version
+			LockDependency lockDep = resolveDependency(dep);
+			lockDependencies.add(lockDep);
+		}
 
-        return ChartLock.builder()
-                .dependencies(lockDependencies)
-                .digest(digest)
-                .build();
-    }
+		// Generate digest
+		String digest = generateDigest(lockDependencies);
 
-    /**
-     * Resolves a single dependency to an exact version.
-     *
-     * @param dependency the dependency to resolve
-     * @return a LockDependency with the resolved exact version
-     * @throws IOException if the dependency cannot be resolved
-     */
-    private LockDependency resolveDependency(Dependency dependency) throws IOException {
-        String repoName = dependency.getRepository();
-        String chartName = dependency.getName();
-        String versionConstraint = dependency.getVersion();
+		return ChartLock.builder().dependencies(lockDependencies).digest(digest).build();
+	}
 
-        // Handle repository aliases (strip @ prefix)
-        if (repoName != null && repoName.startsWith("@")) {
-            repoName = repoName.substring(1);
-        }
+	/**
+	 * Resolves a single dependency to an exact version.
+	 * @param dependency the dependency to resolve
+	 * @return a LockDependency with the resolved exact version
+	 * @throws IOException if the dependency cannot be resolved
+	 */
+	private LockDependency resolveDependency(Dependency dependency) throws IOException {
+		String repoName = dependency.getRepository();
+		String chartName = dependency.getName();
+		String versionConstraint = dependency.getVersion();
 
-        // Handle OCI and file:// repositories
-        if (repoName != null && (repoName.startsWith("oci://") || repoName.startsWith("file://"))) {
-            // For OCI and file repos, we trust the version as-is since we can't query for versions
-            return LockDependency.builder()
-                    .name(chartName)
-                    .version(versionConstraint)
-                    .repository(repoName)
-                    .build();
-        }
+		// Handle repository aliases (strip @ prefix)
+		if (repoName != null && repoName.startsWith("@")) {
+			repoName = repoName.substring(1);
+		}
 
-        // Get available versions from the repository
-        List<RepoManager.ChartVersion> availableVersions = repoManager.getChartVersions(repoName, chartName);
+		// Handle OCI and file:// repositories
+		if (repoName != null && (repoName.startsWith("oci://") || repoName.startsWith("file://"))) {
+			// For OCI and file repos, we trust the version as-is since we can't query for
+			// versions
+			return LockDependency.builder().name(chartName).version(versionConstraint).repository(repoName).build();
+		}
 
-        if (availableVersions.isEmpty()) {
-            throw new IOException("No versions found for " + chartName + " in repository " + repoName);
-        }
+		// Get available versions from the repository
+		List<RepoManager.ChartVersion> availableVersions = repoManager.getChartVersions(repoName, chartName);
 
-        // Find the best matching version
-        String resolvedVersion = findBestMatchingVersion(versionConstraint, availableVersions);
+		if (availableVersions.isEmpty()) {
+			throw new IOException("No versions found for " + chartName + " in repository " + repoName);
+		}
 
-        if (resolvedVersion == null) {
-            throw new IOException("No version of " + chartName + " satisfies constraint: " + versionConstraint);
-        }
+		// Find the best matching version
+		String resolvedVersion = findBestMatchingVersion(versionConstraint, availableVersions);
 
-        log.info("Resolved dependency {}: {} -> {}", chartName, versionConstraint, resolvedVersion);
+		if (resolvedVersion == null) {
+			throw new IOException("No version of " + chartName + " satisfies constraint: " + versionConstraint);
+		}
 
-        return LockDependency.builder()
-                .name(chartName)
-                .version(resolvedVersion)
-                .repository(dependency.getRepository())
-                .build();
-    }
+		log.info("Resolved dependency {}: {} -> {}", chartName, versionConstraint, resolvedVersion);
 
-    /**
-     * Finds the best matching version from available versions based on the constraint.
-     *
-     * @param constraint the version constraint (e.g., "^1.2.3", "~1.2.0", ">=1.0.0 <2.0.0")
-     * @param availableVersions list of available versions
-     * @return the best matching version, or {@code null} if none match
-     */
-    private String findBestMatchingVersion(String constraint, List<RepoManager.ChartVersion> availableVersions) {
-        try {
-            Requirement requirement = Requirement.buildNPM(constraint);
+		return LockDependency.builder()
+			.name(chartName)
+			.version(resolvedVersion)
+			.repository(dependency.getRepository())
+			.build();
+	}
 
-            // Find all matching versions
-            List<Semver> matchingVersions = new ArrayList<>();
-            for (RepoManager.ChartVersion cv : availableVersions) {
-                try {
-                    Semver semver = new Semver(cv.getChartVersion(), Semver.SemverType.NPM);
-                    if (requirement.isSatisfiedBy(semver)) {
-                        matchingVersions.add(semver);
-                    }
-                } catch (Exception e) {
-                    log.debug("Skipping non-semver version: {}", cv.getChartVersion());
-                }
-            }
+	/**
+	 * Finds the best matching version from available versions based on the constraint.
+	 * @param constraint the version constraint (e.g., "^1.2.3", "~1.2.0", ">=1.0.0
+	 * <2.0.0")
+	 * @param availableVersions list of available versions
+	 * @return the best matching version, or {@code null} if none match
+	 */
+	private String findBestMatchingVersion(String constraint, List<RepoManager.ChartVersion> availableVersions) {
+		try {
+			Requirement requirement = Requirement.buildNPM(constraint);
 
-            // Return the highest matching version
-            if (!matchingVersions.isEmpty()) {
-                matchingVersions.sort(Semver::compareTo);
-                return matchingVersions.get(matchingVersions.size() - 1).getValue();
-            }
-        } catch (Exception e) {
-            log.warn("Failed to parse version constraint '{}': {}. Trying exact match.", constraint, e.getMessage());
+			// Find all matching versions
+			List<Semver> matchingVersions = new ArrayList<>();
+			for (RepoManager.ChartVersion cv : availableVersions) {
+				try {
+					Semver semver = new Semver(cv.getChartVersion(), Semver.SemverType.NPM);
+					if (requirement.isSatisfiedBy(semver)) {
+						matchingVersions.add(semver);
+					}
+				}
+				catch (Exception ex) {
+					log.debug("Skipping non-semver version: {}", cv.getChartVersion());
+				}
+			}
 
-            // Fallback: try exact match
-            for (RepoManager.ChartVersion cv : availableVersions) {
-                if (cv.getChartVersion().equals(constraint)) {
-                    return cv.getChartVersion();
-                }
-            }
-        }
+			// Return the highest matching version
+			if (!matchingVersions.isEmpty()) {
+				matchingVersions.sort(Semver::compareTo);
+				return matchingVersions.get(matchingVersions.size() - 1).getValue();
+			}
+		}
+		catch (Exception ex) {
+			log.warn("Failed to parse version constraint '{}': {}. Trying exact match.", constraint, ex.getMessage());
 
-        return null;
-    }
+			// Fallback: try exact match
+			for (RepoManager.ChartVersion cv : availableVersions) {
+				if (cv.getChartVersion().equals(constraint)) {
+					return cv.getChartVersion();
+				}
+			}
+		}
 
-    /**
-     * Checks if a dependency should be included based on its condition and tags.
-     *
-     * @param dependency the dependency to check
-     * @param values the chart values for condition evaluation
-     * @param enabledTags list of enabled tags
-     * @return {@code true} if the dependency should be included
-     */
-    private boolean shouldIncludeDependency(Dependency dependency, Map<String, Object> values, List<String> enabledTags) {
-        // Check condition
-        if (dependency.getCondition() != null && !dependency.getCondition().isEmpty()) {
-            boolean conditionMet = evaluateCondition(dependency.getCondition(), values);
-            if (!conditionMet) {
-                return false;
-            }
-        }
+		return null;
+	}
 
-        // Check tags
-        if (dependency.getTags() != null && !dependency.getTags().isEmpty() && enabledTags != null) {
-            boolean tagMatched = false;
-            for (String tag : dependency.getTags()) {
-                if (enabledTags.contains(tag)) {
-                    tagMatched = true;
-                    break;
-                }
-            }
-            if (!tagMatched) {
-                return false;
-            }
-        }
+	/**
+	 * Checks if a dependency should be included based on its condition and tags.
+	 * @param dependency the dependency to check
+	 * @param values the chart values for condition evaluation
+	 * @param enabledTags list of enabled tags
+	 * @return {@code true} if the dependency should be included
+	 */
+	private boolean shouldIncludeDependency(Dependency dependency, Map<String, Object> values,
+			List<String> enabledTags) {
+		// Check condition
+		if (dependency.getCondition() != null && !dependency.getCondition().isEmpty()) {
+			boolean conditionMet = evaluateCondition(dependency.getCondition(), values);
+			if (!conditionMet) {
+				return false;
+			}
+		}
 
-        return true;
-    }
+		// Check tags
+		if (dependency.getTags() != null && !dependency.getTags().isEmpty() && enabledTags != null) {
+			boolean tagMatched = false;
+			for (String tag : dependency.getTags()) {
+				if (enabledTags.contains(tag)) {
+					tagMatched = true;
+					break;
+				}
+			}
+			if (!tagMatched) {
+				return false;
+			}
+		}
 
-    /**
-     * Evaluates a condition expression against chart values.
-     * <p>
-     * Example: "postgresql.enabled" returns {@code true} if values.postgresql.enabled == true
-     *
-     * @param condition the condition expression (dot-separated path)
-     * @param values the chart values map
-     * @return {@code true} if the condition evaluates to true
-     */
-    private boolean evaluateCondition(String condition, Map<String, Object> values) {
-        if (values == null || values.isEmpty()) {
-            return false;
-        }
+		return true;
+	}
 
-        String[] parts = condition.split("\\.");
-        Object current = values;
+	/**
+	 * Evaluates a condition expression against chart values.
+	 * <p>
+	 * Example: "postgresql.enabled" returns {@code true} if values.postgresql.enabled ==
+	 * true
+	 * @param condition the condition expression (dot-separated path)
+	 * @param values the chart values map
+	 * @return {@code true} if the condition evaluates to true
+	 */
+	private boolean evaluateCondition(String condition, Map<String, Object> values) {
+		if (values == null || values.isEmpty()) {
+			return false;
+		}
 
-        for (String part : parts) {
-            if (!(current instanceof Map)) {
-                return false;
-            }
-            current = ((Map<?, ?>) current).get(part);
-            if (current == null) {
-                return false;
-            }
-        }
+		String[] parts = condition.split("\\.");
+		Object current = values;
 
-        // Convert to boolean
-        if (current instanceof Boolean) {
-            return (Boolean) current;
-        }
-        if (current instanceof String) {
-            return Boolean.parseBoolean((String) current);
-        }
+		for (String part : parts) {
+			if (!(current instanceof Map)) {
+				return false;
+			}
+			current = ((Map<?, ?>) current).get(part);
+			if (current == null) {
+				return false;
+			}
+		}
 
-        return false;
-    }
+		// Convert to boolean
+		if (current instanceof Boolean) {
+			return (Boolean) current;
+		}
+		if (current instanceof String) {
+			return Boolean.parseBoolean((String) current);
+		}
 
-    /**
-     * Generates a SHA256 digest of the dependencies for integrity checking.
-     *
-     * @param dependencies the list of lock dependencies
-     * @return the SHA256 digest as a hex string
-     */
-    private String generateDigest(List<LockDependency> dependencies) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+		return false;
+	}
 
-            for (LockDependency dep : dependencies) {
-                digest.update((dep.getName() + dep.getVersion() + dep.getRepository()).getBytes());
-            }
+	/**
+	 * Generates a SHA256 digest of the dependencies for integrity checking.
+	 * @param dependencies the list of lock dependencies
+	 * @return the SHA256 digest as a hex string
+	 */
+	private String generateDigest(List<LockDependency> dependencies) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
-            byte[] hash = digest.digest();
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) {
-                    hexString.append('0');
-                }
-                hexString.append(hex);
-            }
+			for (LockDependency dep : dependencies) {
+				digest.update((dep.getName() + dep.getVersion() + dep.getRepository()).getBytes());
+			}
 
-            return "sha256:" + hexString;
-        } catch (Exception e) {
-            log.warn("Failed to generate digest: {}", e.getMessage());
-            return "";
-        }
-    }
+			byte[] hash = digest.digest();
+			StringBuilder hexString = new StringBuilder();
+			for (byte b : hash) {
+				String hex = Integer.toHexString(0xff & b);
+				if (hex.length() == 1) {
+					hexString.append('0');
+				}
+				hexString.append(hex);
+			}
 
-    /**
-     * Downloads and extracts dependencies to the charts/ directory.
-     *
-     * @param chartDir the chart directory
-     * @param lockDependencies the locked dependencies to download
-     * @throws IOException if download or extraction fails
-     */
-    public void downloadDependencies(File chartDir, List<LockDependency> lockDependencies) throws IOException {
-        File chartsDir = new File(chartDir, "charts");
-        chartsDir.mkdirs();
+			return "sha256:" + hexString;
+		}
+		catch (Exception ex) {
+			log.warn("Failed to generate digest: {}", ex.getMessage());
+			return "";
+		}
+	}
 
-        for (LockDependency dep : lockDependencies) {
-            log.info("Downloading dependency {}-{} from {}", dep.getName(), dep.getVersion(), dep.getRepository());
+	/**
+	 * Downloads and extracts dependencies to the charts/ directory.
+	 * @param chartDir the chart directory
+	 * @param lockDependencies the locked dependencies to download
+	 * @throws IOException if download or extraction fails
+	 */
+	public void downloadDependencies(File chartDir, List<LockDependency> lockDependencies) throws IOException {
+		File chartsDir = new File(chartDir, "charts");
+		chartsDir.mkdirs();
 
-            String repoName = dep.getRepository();
+		for (LockDependency dep : lockDependencies) {
+			log.info("Downloading dependency {}-{} from {}", dep.getName(), dep.getVersion(), dep.getRepository());
 
-            // Handle repository aliases
-            if (repoName != null && repoName.startsWith("@")) {
-                repoName = repoName.substring(1);
-            }
+			String repoName = dep.getRepository();
 
-            // Download the chart
-            repoManager.pull(dep.getName(), repoName, dep.getVersion(), chartsDir.getAbsolutePath());
-        }
-    }
+			// Handle repository aliases
+			if (repoName != null && repoName.startsWith("@")) {
+				repoName = repoName.substring(1);
+			}
+
+			// Download the chart
+			repoManager.pull(dep.getName(), repoName, dep.getVersion(), chartsDir.getAbsolutePath());
+		}
+	}
+
 }

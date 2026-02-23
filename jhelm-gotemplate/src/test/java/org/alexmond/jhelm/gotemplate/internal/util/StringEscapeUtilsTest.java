@@ -1,18 +1,18 @@
 package org.alexmond.jhelm.gotemplate.internal.util;
 
-import org.alexmond.jhelm.gotemplate.internal.util.StringEscapeUtils;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class StringEscapeUtilsTest {
 
-    @Test
-    void unescape() {
-        String unescaped = StringEscapeUtils.unescape("\\n");
-        assertEquals("\n", unescaped);
+	@Test
+	void unescape() {
+		String unescaped = StringEscapeUtils.unescape("\\n");
+		assertEquals("\n", unescaped);
 
-        unescaped = StringEscapeUtils.unescape("Name:");
-        assertEquals("Name:", unescaped);
-    }
+		unescaped = StringEscapeUtils.unescape("Name:");
+		assertEquals("Name:", unescaped);
+	}
+
 }

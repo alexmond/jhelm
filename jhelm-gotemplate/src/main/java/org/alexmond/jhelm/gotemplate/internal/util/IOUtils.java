@@ -5,21 +5,21 @@ import java.io.Reader;
 
 public final class IOUtils {
 
-    private static final int EOF = -1;
+	private static final int EOF = -1;
 
+	private IOUtils() {
+	}
 
-    private IOUtils() {
-    }
+	public static String read(Reader reader) throws IOException {
+		StringBuilder sb = new StringBuilder();
 
-    public static String read(Reader reader) throws IOException {
-        StringBuilder sb = new StringBuilder();
+		char[] buffer = new char[8192];
+		int n;
+		while (EOF != (n = reader.read(buffer))) {
+			sb.append(buffer, 0, n);
+		}
 
-        char[] buffer = new char[8192];
-        int n;
-        while (EOF != (n = reader.read(buffer))) {
-            sb.append(buffer, 0, n);
-        }
+		return sb.toString();
+	}
 
-        return sb.toString();
-    }
 }

@@ -5,14 +5,15 @@ import lombok.Getter;
 @Getter
 public class BoolNode implements Node {
 
-    private final boolean value;
+	private final boolean value;
 
-    public BoolNode(String text) {
-        this.value = Boolean.parseBoolean(text);
-    }
+	public BoolNode(String text) {
+		this.value = Boolean.parseBoolean(text);
+	}
 
-    @Override
-    public String toString() {
-        return String.valueOf(value);
-    }
+	@Override
+	public String toString() {
+		return String.valueOf(value);
+	}
+
 }

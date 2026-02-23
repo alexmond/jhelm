@@ -22,522 +22,554 @@ import java.nio.file.Files;
 import java.security.cert.X509Certificate;
 import java.util.Map;
 import java.util.Scanner;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @Slf4j
 class KpsComparisonTest {
 
-    private final RepoManager repoManager = createRepoManager();
-    private final ChartLoader chartLoader = new ChartLoader();
-    private final Engine engine = new Engine();
-    private final InstallAction installAction = new InstallAction(engine, null);
-    private final JsonMapper objectMapper = JsonMapper.builder().build();
-
-    private final java.util.Set<String> addedRepos = new java.util.HashSet<>();
-
-    private RepoManager createRepoManager() {
-        RepoManager rm = new RepoManager();
-        rm.setInsecureSkipTlsVerify(true);
-        return rm;
-    }
-
-    @Test
-    void testSearchAndCompare() throws Exception {
-        String query = "bitnami/nginx";
-        String repo = "bitnami";
-        String chart = "nginx";
-        String repoUrl = "https://charts.bitnami.com/bitnami";
-
-        addHelmRepo(repo, repoUrl);
-        var versions = repoManager.getChartVersions(repo, chart);
-        assertFalse(versions.isEmpty());
-
-        // Helm search
-        String helmOutput = runHelmSearchRepo(query);
-        if (helmOutput != null) {
-            log.info("Helm search output for {}:\n{}", query, helmOutput);
-            // Verify our latest version matches Helm's latest version (first line of output)
-            String latestJHelm = versions.getFirst().getChartVersion();
-            assertTrue(helmOutput.contains(latestJHelm), "Helm output should contain jhelm latest version " + latestJHelm);
-        }
-    }
-
-    private String runHelmSearchRepo(String query) {
-        System.out.println("[DEBUG_LOG] Running helm search repo for " + query);
-        try {
-            ProcessBuilder pb = new ProcessBuilder("helm", "search", "repo", query);
-            Process process = pb.start();
-
-            String output;
-            try (InputStream is = process.getInputStream();
-                 Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A")) {
-                output = s.hasNext() ? s.next() : "";
-            }
-
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                return null;
-            }
-            return output;
-        } catch (Exception e) {
-            log.error("Failed to run helm search", e);
-            return null;
-        }
-    }
-
-    @Test
-    void testSimpleRendering() throws Exception {
-        Chart chart = Chart.builder()
-                .metadata(ChartMetadata.builder().name("simple").build())
-                .values(Map.of("enabled", true, "name", "world"))
-                .templates(new java.util.ArrayList<>(java.util.List.of(
-                        Chart.Template.builder()
-                                .name("hello.yaml")
-                                .data("hello {{ .Values.name }} {{ if .Values.enabled }}enabled{{ end }}")
-                                .build()
-                )))
-                .build();
-
-        Release release = installAction.install(chart, "simple", "default", Map.of(), 1, false);
-        log.info("Simple manifest: [{}]", release.getManifest().trim());
-        assertTrue(release.getManifest().contains("hello world enabled"));
-    }
-
-    @Test
-    void testPullAndCompare() throws Exception {
-        // This test demonstrates using the jhelm API to "pull" (simulated by using local sample-charts directory)
-        // Since we don't have a real Helm repo set up in CI, we use the local directory as our "repo"
-        File repoDir = new File("sample-charts");
-        if (!repoDir.exists()) repoDir = new File("../sample-charts");
-
-        File nginxDir = new File(repoDir, "nginx");
-        if (nginxDir.exists()) {
-            compareChart("nginx", "pulled-nginx", "bitnami", "https://charts.bitnami.com/bitnami");
-        }
-    }
-
-    @ParameterizedTest
-    @CsvFileSource(resources = "/single.csv")
-    void compareSingleChart(String chartName, String repoId, String repoUrl) throws IOException {
-        compareChart(chartName, "release-" + chartName, repoId, repoUrl);
-    }
-
-    @ParameterizedTest
-    @CsvFileSource(resources = "/charts.csv")
-    void compareAllTopCharts(String chartName, String repoId, String repoUrl) throws IOException {
-        compareChart(chartName, "release-" + chartName, repoId, repoUrl);
-    }
-
-    private void compareChart(String chartName, String releaseName, String repoId, String repoUrl) throws IOException {
-        // No charts skipped anymore
-
-        File chartDir = findChartDir(chartName);
-
-        if (chartDir == null) {
-            log.info("Chart {} not found locally, fetching from repository {}...", chartName, repoUrl);
-            try {
-                addHelmRepo(repoId, repoUrl);
-                fetchFromHelmRepo(chartName);
-                chartDir = findChartDir(chartName);
-            } catch (Exception e) {
-                log.error("Failed to fetch chart {} from repository: {}", chartName, e.getMessage());
-                fail("Failed to fetch chart " + chartName + " from repository: " + e.getMessage());
-            }
-        }
-
-        if (chartDir == null) {
-            fail("Skipping chart " + chartName + " - directory not found and could not be fetched");
-        }
-
-        // Sanitize release name to be valid for Helm (alphanumeric and hyphens only, no slashes)
-        String sanitizedReleaseName = releaseName.replaceAll("[^a-z0-9-]", "-").replaceAll("-+", "-");
-        if (sanitizedReleaseName.startsWith("-")) {
-            sanitizedReleaseName = "r" + sanitizedReleaseName;
-        }
-        if (sanitizedReleaseName.endsWith("-")) {
-            sanitizedReleaseName = sanitizedReleaseName.substring(0, sanitizedReleaseName.length() - 1);
-        }
-
-        log.info("Using sanitized release name: {} (from {})", sanitizedReleaseName, releaseName);
-
-        String sanitizedName = chartName.replace("/", "_");
-
-        // STEP 1: Run Helm template FIRST and save output
-        log.info("{} - Running Helm template first...", chartName);
-        String helmManifest = runHelmInstallDryRun(chartDir, sanitizedReleaseName, "default");
-
-        if (helmManifest == null) {
-            // Helm failed - log error and do NOT continue to Java rendering
-            log.error("{} - Helm template failed, skipping Java rendering", chartName);
-            fail(chartName + " - Helm template command failed - see logs for details");
-        }
-
-        // Save Helm output to target/helm-output/
-        File helmOutputDir = new File("target/helm-output");
-        helmOutputDir.mkdirs();
-        File helmOutputFile = new File(helmOutputDir, sanitizedName + ".yaml");
-        Files.writeString(helmOutputFile.toPath(), helmManifest);
-        log.info("{} - Saved Helm output to {}", chartName, helmOutputFile.getPath());
-
-        // STEP 2: Load chart and run Java rendering (only if Helm succeeded)
-        Chart chart = chartLoader.load(chartDir);
-        assertNotNull(chart);
-
-        try {
-            log.info("{} - Running JHelm rendering...", chartName);
-            // JHelm dry-run
-            Release release = installAction.install(chart, sanitizedReleaseName, "default", Map.of(), 1, true);
-            assertNotNull(release);
-
-            String jhelmManifest = release.getManifest();
-            log.info("{} - JHelm manifest length: {}", chartName, jhelmManifest.length());
-
-            File actualFile = new File("target/test-output/actual_" + sanitizedName + ".yaml");
-            actualFile.getParentFile().mkdirs();
-            Files.writeString(actualFile.toPath(), jhelmManifest);
-
-            File expectedFile = new File("target/test-output/expected_" + sanitizedName + ".yaml");
-            Files.writeString(expectedFile.toPath(), helmManifest);
-
-            // Compare manifests
-            compareManifests(chartName, jhelmManifest, helmManifest);
-
-        } catch (Exception e) {
-            log.error("{} - JHelm rendering failed", chartName, e);
-            fail(chartName + " - JHelm rendering failed: " + e.getMessage());
-        }
-    }
-
-    private String runHelmInstallDryRun(File chartDir, String releaseName, String namespace) {
-        System.out.println("[DEBUG_LOG] Running helm install dry-run for " + releaseName + " using chart " + chartDir.getAbsolutePath());
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    "helm", "template", releaseName, chartDir.getAbsolutePath(),
-                    "--namespace", namespace
-            );
-            Process process = pb.start();
-
-            String output;
-            try (InputStream is = process.getInputStream();
-                 Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A")) {
-                output = s.hasNext() ? s.next() : "";
-            }
-
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
-                try (InputStream es = process.getErrorStream();
-                     Scanner s = new Scanner(es, StandardCharsets.UTF_8).useDelimiter("\\A")) {
-                    String error = s.hasNext() ? s.next() : "";
-                    System.err.println("[DEBUG_LOG] Helm failed with exit code " + exitCode + ": " + error);
-                    log.error("Helm failed with exit code {}: {}", exitCode, error);
-                }
-                return null;
-            }
-
-            // helm template outputs the manifest directly (no MANIFEST: prefix)
-            // Just return the output, but skip any leading/trailing whitespace
-            if (output == null || output.trim().isEmpty()) {
-                System.err.println("[DEBUG_LOG] Helm template returned empty output");
-                return null;
-            }
-
-            System.out.println("[DEBUG_LOG] Successfully captured helm manifest for " + releaseName + " (" + output.length() + " bytes)");
-            return output.trim();
-        } catch (Exception e) {
-            System.err.println("[DEBUG_LOG] Failed to run helm: " + e.getMessage());
-            log.error("Failed to run helm", e);
-            return null;
-        }
-    }
-
-    private void compareManifests(String chartName, String jhelm, String helm) {
-        System.out.println("[DEBUG_LOG] Comparing manifests for " + chartName);
-
-        try {
-            // Parse both manifests into YAML documents
-            java.util.List<JsonNode> jhelmDocs = parseYamlDocuments(jhelm);
-            java.util.List<JsonNode> helmDocs = parseYamlDocuments(helm);
-
-            log.info("{} - JHelm documents: {}, Helm documents: {}", chartName, jhelmDocs.size(), helmDocs.size());
-
-            if (jhelmDocs.size() != helmDocs.size()) {
-                log.warn("{} - Document count mismatch: JHelm={}, Helm={}", chartName, jhelmDocs.size(), helmDocs.size());
-            }
-
-            // Create a map of documents by kind and name for order-independent comparison
-            var jhelmMap = buildResourceMap(jhelmDocs);
-            var helmMap = buildResourceMap(helmDocs);
-
-            // Check for missing resources
-            var missingInJhelm = new java.util.HashSet<>(helmMap.keySet());
-            missingInJhelm.removeAll(jhelmMap.keySet());
-
-            var missingInHelm = new java.util.HashSet<>(jhelmMap.keySet());
-            missingInHelm.removeAll(helmMap.keySet());
-
-            if (!missingInJhelm.isEmpty()) {
-                log.error("{} - Resources missing in JHelm: {}", chartName, missingInJhelm);
-                fail(chartName + " - Resources missing in JHelm: " + missingInJhelm);
-            }
-
-            if (!missingInHelm.isEmpty()) {
-                log.warn("{} - Extra resources in JHelm: {}", chartName, missingInHelm);
-            }
-
-            // Compare each resource
-            int differences = 0;
-            for (String key : helmMap.keySet()) {
-                if (!jhelmMap.containsKey(key)) continue;
-
-                JsonNode helmDoc = helmMap.get(key);
-                JsonNode jhelmDoc = jhelmMap.get(key);
-
-                if (!helmDoc.equals(jhelmDoc)) {
-                    differences++;
-                    log.warn("{} - Resource {} differs", chartName, key);
-                    log.debug("{} - Helm: {}", key, helmDoc.toPrettyString());
-                    log.debug("{} - JHelm: {}", key, jhelmDoc.toPrettyString());
-                }
-            }
-
-            if (differences == 0) {
-                System.out.println("[DEBUG_LOG] " + chartName + " - All resources match!");
-                log.info("{} - All resources match Helm output!", chartName);
-            } else {
-                System.out.println("[DEBUG_LOG] " + chartName + " - Found " + differences + " resource differences");
-                log.warn("{} - Found {} resource differences", chartName, differences);
-            }
-
-        } catch (Exception e) {
-            log.error("{} - Failed to parse and compare manifests", chartName, e);
-            // Fallback to simple string comparison
-            String jhelmClean = cleanManifest(jhelm);
-            String helmClean = cleanManifest(helm);
-
-            if (!jhelmClean.equals(helmClean)) {
-                log.warn("{} - Manifests differ (fallback comparison)", chartName);
-                log.info("{} - JHelm Length: {}, Helm Length: {}", chartName, jhelmClean.length(), helmClean.length());
-            }
-        }
-    }
-
-    private java.util.List<JsonNode> parseYamlDocuments(String yaml) throws IOException {
-        java.util.List<JsonNode> docs = new java.util.ArrayList<>();
-        YAMLMapper yamlMapper = YAMLMapper.builder().build();
-
-        // Split by YAML document separator "---" with various whitespace patterns
-        // Pattern matches "---" at the start of a line, with optional whitespace before/after
-        String[] parts = yaml.split("\\r?\\n---\\r?\\n");
-
-        for (int i = 0; i < parts.length; i++) {
-            String doc = parts[i].trim();
-
-            // Skip empty documents
-            if (doc.isEmpty()) continue;
-
-            // Skip comment-only documents
-            if (doc.startsWith("#") && !doc.contains("\n")) continue;
-
-            try {
-                JsonNode node = yamlMapper.readTree(doc);
-                if (node != null && !node.isNull() && !node.isEmpty()) {
-                    docs.add(node);
-                } else {
-                    log.warn("Skipping null/empty YAML node at position {}", i);
-                }
-            } catch (Exception e) {
-                log.warn("Skipping unparseable YAML fragment at position {}: {}. Doc preview: {}",
-                    i, e.getMessage(), doc.substring(0, Math.min(100, doc.length())));
-            }
-        }
-
-        return docs;
-    }
-
-    private java.util.Map<String, JsonNode> buildResourceMap(java.util.List<JsonNode> docs) {
-        java.util.Map<String, JsonNode> map = new java.util.HashMap<>();
-
-        for (JsonNode doc : docs) {
-            String kind = doc.has("kind") ? doc.get("kind").asText() : "Unknown";
-            String name = "unnamed";
-
-            if (doc.has("metadata") && doc.get("metadata").has("name")) {
-                name = doc.get("metadata").get("name").asText();
-            }
-
-            String key = kind + "/" + name;
-            map.put(key, doc);
-        }
-
-        return map;
-    }
-
-    private String cleanManifest(String m) {
-        StringBuilder sb = new StringBuilder();
-        for (String line : m.split("\n")) {
-            String trimmed = line.trim();
-            if (trimmed.isEmpty() || trimmed.startsWith("#")) continue;
-            sb.append(trimmed).append("\n");
-        }
-        return sb.toString().trim();
-    }
-
-    private File findChartDir(String chartFullName) {
-        String chartName = chartFullName.contains("/") ? chartFullName.substring(chartFullName.lastIndexOf("/") + 1) : chartFullName;
-        String[] paths = {
-                "target/temp-charts/" + chartName,
-                "target/temp-charts/" + chartFullName,
-                "sample-charts/" + chartName,
-                "../sample-charts/" + chartName,
-                "target/test-charts/" + chartName,
-                "target/test-charts/bitnami/" + chartName, // common subfolder in bitnami tgz
-                chartName, // legacy check
-                "../" + chartName
-        };
-        for (String p : paths) {
-            File f = new File(p);
-            if (f.exists() && f.isDirectory() && new File(f, "Chart.yaml").exists()) {
-                return f;
-            }
-        }
-        return null;
-    }
-
-    private void addHelmRepo(String repoId, String repoUrl) throws IOException {
-        if (addedRepos.contains(repoId)) {
-            log.debug("Repo {} already added in this session, skipping", repoId);
-            return;
-        }
-        log.info("Adding repo {} at {} via RepoManager", repoId, repoUrl);
-        repoManager.addRepo(repoId, repoUrl);
-        try {
-            repoManager.updateRepo(repoId);
-        } catch (IOException e) {
-            log.warn("Repo update failed for {}: {}", repoId, e.getMessage());
-        }
-
-        // Also add to helm CLI to ensure tests that depend on helm CLI (like testSearchAndCompare) work
-        try {
-            log.info("Adding repo {} at {} to Helm CLI", repoId, repoUrl);
-            new ProcessBuilder("helm", "repo", "add", repoId, repoUrl).start().waitFor();
-            new ProcessBuilder("helm", "repo", "update", repoId).start().waitFor();
-        } catch (Exception e) {
-            log.warn("Failed to add repo to Helm CLI: {}", e.getMessage());
-        }
-
-        addedRepos.add(repoId);
-    }
-
-    private void fetchFromHelmRepo(String chartName) throws IOException {
-        log.info("Fetching chart {} via RepoManager...", chartName);
-        File tempDir = new File("target/temp-charts");
-        tempDir.mkdirs();
-
-        // chartName may be in the form <repoId>/<chartName>
-        String repoId = null;
-        String shortName = chartName;
-        if (chartName.contains("/")) {
-            int i = chartName.indexOf('/');
-            repoId = chartName.substring(0, i);
-            shortName = chartName.substring(i + 1);
-        }
-
-        // Use latest version from index
-        try {
-            java.util.List<RepoManager.ChartVersion> versions = repoManager.getChartVersions(repoId, shortName);
-            if (versions.isEmpty()) {
-                throw new IOException("No versions found for chart '" + shortName + "' in repo '" + repoId + "'");
-            }
-            String version = versions.getFirst().getChartVersion();
-            repoManager.pull(chartName, repoId, version, tempDir.getAbsolutePath());
-        } catch (IOException e) {
-            log.error("Failed to pull chart {}: {}", chartName, e.getMessage());
-            throw e;
-        }
-    }
-
-    private void fetchFromArtifactHub(String chartFullName) throws Exception {
-        String repoNamePrefix = null;
-        String chartNameOnly = chartFullName;
-        if (chartFullName.contains("/")) {
-            int slashIndex = chartFullName.indexOf("/");
-            repoNamePrefix = chartFullName.substring(0, slashIndex);
-            chartNameOnly = chartFullName.substring(slashIndex + 1);
-        }
-
-        // 1. Search for package
-        String searchUrl = "https://artifacthub.io/api/v1/packages/search?ts_query_web=" + chartNameOnly + "&kind=0";
-        JsonNode searchResult = callApi(searchUrl);
-        JsonNode pkg = null;
-        if (searchResult.has("packages") && searchResult.get("packages").isArray()) {
-            for (JsonNode p : searchResult.get("packages")) {
-                String pName = p.get("name").asText();
-                String pRepo = p.get("repository").get("name").asText();
-
-                if (pName.equals(chartNameOnly)) {
-                    if (repoNamePrefix == null || pRepo.equals(repoNamePrefix)) {
-                        pkg = p;
-                        break;
-                    }
-                }
-            }
-            if (pkg == null && repoNamePrefix == null && !searchResult.get("packages").isEmpty()) {
-                pkg = searchResult.get("packages").get(0);
-            }
-        }
-
-        if (pkg == null) {
-            throw new Exception("Package not found in Artifact Hub: " + chartFullName);
-        }
-
-        String repoName = pkg.get("repository").get("name").asText();
-        String pkgName = pkg.get("name").asText();
-        String version = pkg.get("version").asText();
-
-        // 2. Get package details
-        String detailUrl = "https://artifacthub.io/api/v1/packages/helm/" + repoName + "/" + pkgName + "/" + version;
-        JsonNode details = callApi(detailUrl);
-        String contentUrl = details.get("content_url").asText();
-
-        // 3. Download and untar
-        File testChartsDir = new File("target/test-charts");
-        testChartsDir.mkdirs();
-        String fileName = pkgName + ".tgz";
-        repoManager.pullFromUrl(contentUrl, testChartsDir.getAbsolutePath(), fileName);
-        repoManager.untar(new File(testChartsDir, fileName), testChartsDir);
-    }
-
-    private JsonNode callApi(String urlString) throws IOException {
-        URL url = new URL(urlString);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        if (conn instanceof HttpsURLConnection httpsConn) {
-            setupInsecureSsl(httpsConn);
-        }
-        conn.setRequestProperty("User-Agent", "jhelm-test");
-        try (var in = conn.getInputStream()) {
-            return objectMapper.readTree(in);
-        }
-    }
-
-    private void setupInsecureSsl(HttpsURLConnection conn) {
-        try {
-            SSLContext sc = SSLContext.getInstance("SSL");
-            sc.init(null, new TrustManager[]{new X509TrustManager() {
-                public X509Certificate[] getAcceptedIssuers() {
-                    return null;
-                }
-
-                public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                }
-
-                public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                }
-            }}, new java.security.SecureRandom());
-            conn.setSSLSocketFactory(sc.getSocketFactory());
-            conn.setHostnameVerifier((hostname, session) -> true);
-        } catch (Exception e) {
-            log.error("Failed to setup insecure SSL in test", e);
-        }
-    }
+	private final RepoManager repoManager = createRepoManager();
+
+	private final ChartLoader chartLoader = new ChartLoader();
+
+	private final Engine engine = new Engine();
+
+	private final InstallAction installAction = new InstallAction(engine, null);
+
+	private final JsonMapper objectMapper = JsonMapper.builder().build();
+
+	private final java.util.Set<String> addedRepos = new java.util.HashSet<>();
+
+	private RepoManager createRepoManager() {
+		RepoManager rm = new RepoManager();
+		rm.setInsecureSkipTlsVerify(true);
+		return rm;
+	}
+
+	@Test
+	void testSearchAndCompare() throws Exception {
+		String query = "bitnami/nginx";
+		String repo = "bitnami";
+		String chart = "nginx";
+		String repoUrl = "https://charts.bitnami.com/bitnami";
+
+		addHelmRepo(repo, repoUrl);
+		var versions = repoManager.getChartVersions(repo, chart);
+		assertFalse(versions.isEmpty());
+
+		// Helm search
+		String helmOutput = runHelmSearchRepo(query);
+		if (helmOutput != null) {
+			log.info("Helm search output for {}:\n{}", query, helmOutput);
+			// Verify our latest version matches Helm's latest version (first line of
+			// output)
+			String latestJHelm = versions.getFirst().getChartVersion();
+			assertTrue(helmOutput.contains(latestJHelm),
+					"Helm output should contain jhelm latest version " + latestJHelm);
+		}
+	}
+
+	private String runHelmSearchRepo(String query) {
+		System.out.println("[DEBUG_LOG] Running helm search repo for " + query);
+		try {
+			ProcessBuilder pb = new ProcessBuilder("helm", "search", "repo", query);
+			Process process = pb.start();
+
+			String output;
+			try (InputStream is = process.getInputStream();
+					Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A")) {
+				output = s.hasNext() ? s.next() : "";
+			}
+
+			int exitCode = process.waitFor();
+			if (exitCode != 0) {
+				return null;
+			}
+			return output;
+		}
+		catch (Exception ex) {
+			log.error("Failed to run helm search", ex);
+			return null;
+		}
+	}
+
+	@Test
+	void testSimpleRendering() throws Exception {
+		Chart chart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("simple").build())
+			.values(Map.of("enabled", true, "name", "world"))
+			.templates(new java.util.ArrayList<>(java.util.List.of(Chart.Template.builder()
+				.name("hello.yaml")
+				.data("hello {{ .Values.name }} {{ if .Values.enabled }}enabled{{ end }}")
+				.build())))
+			.build();
+
+		Release release = installAction.install(chart, "simple", "default", Map.of(), 1, false);
+		log.info("Simple manifest: [{}]", release.getManifest().trim());
+		assertTrue(release.getManifest().contains("hello world enabled"));
+	}
+
+	@Test
+	void testPullAndCompare() throws Exception {
+		// This test demonstrates using the jhelm API to "pull" (simulated by using local
+		// sample-charts directory)
+		// Since we don't have a real Helm repo set up in CI, we use the local directory
+		// as our "repo"
+		File repoDir = new File("sample-charts");
+		if (!repoDir.exists()) {
+			repoDir = new File("../sample-charts");
+		}
+
+		File nginxDir = new File(repoDir, "nginx");
+		if (nginxDir.exists()) {
+			compareChart("nginx", "pulled-nginx", "bitnami", "https://charts.bitnami.com/bitnami");
+		}
+	}
+
+	@ParameterizedTest
+	@CsvFileSource(resources = "/single.csv")
+	void compareSingleChart(String chartName, String repoId, String repoUrl) throws IOException {
+		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+	}
+
+	@ParameterizedTest
+	@CsvFileSource(resources = "/charts.csv")
+	void compareAllTopCharts(String chartName, String repoId, String repoUrl) throws IOException {
+		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+	}
+
+	private void compareChart(String chartName, String releaseName, String repoId, String repoUrl) throws IOException {
+		// No charts skipped anymore
+
+		File chartDir = findChartDir(chartName);
+
+		if (chartDir == null) {
+			log.info("Chart {} not found locally, fetching from repository {}...", chartName, repoUrl);
+			try {
+				addHelmRepo(repoId, repoUrl);
+				fetchFromHelmRepo(chartName);
+				chartDir = findChartDir(chartName);
+			}
+			catch (Exception ex) {
+				log.error("Failed to fetch chart {} from repository: {}", chartName, ex.getMessage());
+				fail("Failed to fetch chart " + chartName + " from repository: " + ex.getMessage());
+			}
+		}
+
+		if (chartDir == null) {
+			fail("Skipping chart " + chartName + " - directory not found and could not be fetched");
+		}
+
+		// Sanitize release name to be valid for Helm (alphanumeric and hyphens only, no
+		// slashes)
+		String sanitizedReleaseName = releaseName.replaceAll("[^a-z0-9-]", "-").replaceAll("-+", "-");
+		if (sanitizedReleaseName.startsWith("-")) {
+			sanitizedReleaseName = "r" + sanitizedReleaseName;
+		}
+		if (sanitizedReleaseName.endsWith("-")) {
+			sanitizedReleaseName = sanitizedReleaseName.substring(0, sanitizedReleaseName.length() - 1);
+		}
+
+		log.info("Using sanitized release name: {} (from {})", sanitizedReleaseName, releaseName);
+
+		String sanitizedName = chartName.replace("/", "_");
+
+		// STEP 1: Run Helm template FIRST and save output
+		log.info("{} - Running Helm template first...", chartName);
+		String helmManifest = runHelmInstallDryRun(chartDir, sanitizedReleaseName, "default");
+
+		if (helmManifest == null) {
+			// Helm failed - log error and do NOT continue to Java rendering
+			log.error("{} - Helm template failed, skipping Java rendering", chartName);
+			fail(chartName + " - Helm template command failed - see logs for details");
+		}
+
+		// Save Helm output to target/helm-output/
+		File helmOutputDir = new File("target/helm-output");
+		helmOutputDir.mkdirs();
+		File helmOutputFile = new File(helmOutputDir, sanitizedName + ".yaml");
+		Files.writeString(helmOutputFile.toPath(), helmManifest);
+		log.info("{} - Saved Helm output to {}", chartName, helmOutputFile.getPath());
+
+		// STEP 2: Load chart and run Java rendering (only if Helm succeeded)
+		Chart chart = chartLoader.load(chartDir);
+		assertNotNull(chart);
+
+		try {
+			log.info("{} - Running JHelm rendering...", chartName);
+			// JHelm dry-run
+			Release release = installAction.install(chart, sanitizedReleaseName, "default", Map.of(), 1, true);
+			assertNotNull(release);
+
+			String jhelmManifest = release.getManifest();
+			log.info("{} - JHelm manifest length: {}", chartName, jhelmManifest.length());
+
+			File actualFile = new File("target/test-output/actual_" + sanitizedName + ".yaml");
+			actualFile.getParentFile().mkdirs();
+			Files.writeString(actualFile.toPath(), jhelmManifest);
+
+			File expectedFile = new File("target/test-output/expected_" + sanitizedName + ".yaml");
+			Files.writeString(expectedFile.toPath(), helmManifest);
+
+			// Compare manifests
+			compareManifests(chartName, jhelmManifest, helmManifest);
+
+		}
+		catch (Exception ex) {
+			log.error("{} - JHelm rendering failed", chartName, ex);
+			fail(chartName + " - JHelm rendering failed: " + ex.getMessage());
+		}
+	}
+
+	private String runHelmInstallDryRun(File chartDir, String releaseName, String namespace) {
+		System.out.println("[DEBUG_LOG] Running helm install dry-run for " + releaseName + " using chart "
+				+ chartDir.getAbsolutePath());
+		try {
+			ProcessBuilder pb = new ProcessBuilder("helm", "template", releaseName, chartDir.getAbsolutePath(),
+					"--namespace", namespace);
+			Process process = pb.start();
+
+			String output;
+			try (InputStream is = process.getInputStream();
+					Scanner s = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A")) {
+				output = s.hasNext() ? s.next() : "";
+			}
+
+			int exitCode = process.waitFor();
+			if (exitCode != 0) {
+				try (InputStream es = process.getErrorStream();
+						Scanner s = new Scanner(es, StandardCharsets.UTF_8).useDelimiter("\\A")) {
+					String error = s.hasNext() ? s.next() : "";
+					System.err.println("[DEBUG_LOG] Helm failed with exit code " + exitCode + ": " + error);
+					log.error("Helm failed with exit code {}: {}", exitCode, error);
+				}
+				return null;
+			}
+
+			// helm template outputs the manifest directly (no MANIFEST: prefix)
+			// Just return the output, but skip any leading/trailing whitespace
+			if (output == null || output.trim().isEmpty()) {
+				System.err.println("[DEBUG_LOG] Helm template returned empty output");
+				return null;
+			}
+
+			System.out.println("[DEBUG_LOG] Successfully captured helm manifest for " + releaseName + " ("
+					+ output.length() + " bytes)");
+			return output.trim();
+		}
+		catch (Exception ex) {
+			System.err.println("[DEBUG_LOG] Failed to run helm: " + ex.getMessage());
+			log.error("Failed to run helm", ex);
+			return null;
+		}
+	}
+
+	private void compareManifests(String chartName, String jhelm, String helm) {
+		System.out.println("[DEBUG_LOG] Comparing manifests for " + chartName);
+
+		try {
+			// Parse both manifests into YAML documents
+			java.util.List<JsonNode> jhelmDocs = parseYamlDocuments(jhelm);
+			java.util.List<JsonNode> helmDocs = parseYamlDocuments(helm);
+
+			log.info("{} - JHelm documents: {}, Helm documents: {}", chartName, jhelmDocs.size(), helmDocs.size());
+
+			if (jhelmDocs.size() != helmDocs.size()) {
+				log.warn("{} - Document count mismatch: JHelm={}, Helm={}", chartName, jhelmDocs.size(),
+						helmDocs.size());
+			}
+
+			// Create a map of documents by kind and name for order-independent comparison
+			var jhelmMap = buildResourceMap(jhelmDocs);
+			var helmMap = buildResourceMap(helmDocs);
+
+			// Check for missing resources
+			var missingInJhelm = new java.util.HashSet<>(helmMap.keySet());
+			missingInJhelm.removeAll(jhelmMap.keySet());
+
+			var missingInHelm = new java.util.HashSet<>(jhelmMap.keySet());
+			missingInHelm.removeAll(helmMap.keySet());
+
+			if (!missingInJhelm.isEmpty()) {
+				log.error("{} - Resources missing in JHelm: {}", chartName, missingInJhelm);
+				fail(chartName + " - Resources missing in JHelm: " + missingInJhelm);
+			}
+
+			if (!missingInHelm.isEmpty()) {
+				log.warn("{} - Extra resources in JHelm: {}", chartName, missingInHelm);
+			}
+
+			// Compare each resource
+			int differences = 0;
+			for (String key : helmMap.keySet()) {
+				if (!jhelmMap.containsKey(key)) {
+					continue;
+				}
+
+				JsonNode helmDoc = helmMap.get(key);
+				JsonNode jhelmDoc = jhelmMap.get(key);
+
+				if (!helmDoc.equals(jhelmDoc)) {
+					differences++;
+					log.warn("{} - Resource {} differs", chartName, key);
+					log.debug("{} - Helm: {}", key, helmDoc.toPrettyString());
+					log.debug("{} - JHelm: {}", key, jhelmDoc.toPrettyString());
+				}
+			}
+
+			if (differences == 0) {
+				System.out.println("[DEBUG_LOG] " + chartName + " - All resources match!");
+				log.info("{} - All resources match Helm output!", chartName);
+			}
+			else {
+				System.out.println("[DEBUG_LOG] " + chartName + " - Found " + differences + " resource differences");
+				log.warn("{} - Found {} resource differences", chartName, differences);
+			}
+
+		}
+		catch (Exception ex) {
+			log.error("{} - Failed to parse and compare manifests", chartName, ex);
+			// Fallback to simple string comparison
+			String jhelmClean = cleanManifest(jhelm);
+			String helmClean = cleanManifest(helm);
+
+			if (!jhelmClean.equals(helmClean)) {
+				log.warn("{} - Manifests differ (fallback comparison)", chartName);
+				log.info("{} - JHelm Length: {}, Helm Length: {}", chartName, jhelmClean.length(), helmClean.length());
+			}
+		}
+	}
+
+	private java.util.List<JsonNode> parseYamlDocuments(String yaml) throws IOException {
+		java.util.List<JsonNode> docs = new java.util.ArrayList<>();
+		YAMLMapper yamlMapper = YAMLMapper.builder().build();
+
+		// Split by YAML document separator "---" with various whitespace patterns
+		// Pattern matches "---" at the start of a line, with optional whitespace
+		// before/after
+		String[] parts = yaml.split("\\r?\\n---\\r?\\n");
+
+		for (int i = 0; i < parts.length; i++) {
+			String doc = parts[i].trim();
+
+			// Skip empty documents
+			if (doc.isEmpty()) {
+				continue;
+			}
+
+			// Skip comment-only documents
+			if (doc.startsWith("#") && !doc.contains("\n")) {
+				continue;
+			}
+
+			try {
+				JsonNode node = yamlMapper.readTree(doc);
+				if (node != null && !node.isNull() && !node.isEmpty()) {
+					docs.add(node);
+				}
+				else {
+					log.warn("Skipping null/empty YAML node at position {}", i);
+				}
+			}
+			catch (Exception ex) {
+				log.warn("Skipping unparseable YAML fragment at position {}: {}. Doc preview: {}", i, ex.getMessage(),
+						doc.substring(0, Math.min(100, doc.length())));
+			}
+		}
+
+		return docs;
+	}
+
+	private java.util.Map<String, JsonNode> buildResourceMap(java.util.List<JsonNode> docs) {
+		java.util.Map<String, JsonNode> map = new java.util.HashMap<>();
+
+		for (JsonNode doc : docs) {
+			String kind = doc.has("kind") ? doc.get("kind").asText() : "Unknown";
+			String name = "unnamed";
+
+			if (doc.has("metadata") && doc.get("metadata").has("name")) {
+				name = doc.get("metadata").get("name").asText();
+			}
+
+			String key = kind + "/" + name;
+			map.put(key, doc);
+		}
+
+		return map;
+	}
+
+	private String cleanManifest(String m) {
+		StringBuilder sb = new StringBuilder();
+		for (String line : m.split("\n")) {
+			String trimmed = line.trim();
+			if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+				continue;
+			}
+			sb.append(trimmed).append("\n");
+		}
+		return sb.toString().trim();
+	}
+
+	private File findChartDir(String chartFullName) {
+		String chartName = chartFullName.contains("/") ? chartFullName.substring(chartFullName.lastIndexOf("/") + 1)
+				: chartFullName;
+		String[] paths = { "target/temp-charts/" + chartName, "target/temp-charts/" + chartFullName,
+				"sample-charts/" + chartName, "../sample-charts/" + chartName, "target/test-charts/" + chartName,
+				"target/test-charts/bitnami/" + chartName, // common subfolder in bitnami
+															// tgz
+				chartName, // legacy check
+				"../" + chartName };
+		for (String p : paths) {
+			File f = new File(p);
+			if (f.exists() && f.isDirectory() && new File(f, "Chart.yaml").exists()) {
+				return f;
+			}
+		}
+		return null;
+	}
+
+	private void addHelmRepo(String repoId, String repoUrl) throws IOException {
+		if (addedRepos.contains(repoId)) {
+			log.debug("Repo {} already added in this session, skipping", repoId);
+			return;
+		}
+		log.info("Adding repo {} at {} via RepoManager", repoId, repoUrl);
+		repoManager.addRepo(repoId, repoUrl);
+		try {
+			repoManager.updateRepo(repoId);
+		}
+		catch (IOException ex) {
+			log.warn("Repo update failed for {}: {}", repoId, ex.getMessage());
+		}
+
+		// Also add to helm CLI to ensure tests that depend on helm CLI (like
+		// testSearchAndCompare) work
+		try {
+			log.info("Adding repo {} at {} to Helm CLI", repoId, repoUrl);
+			new ProcessBuilder("helm", "repo", "add", repoId, repoUrl).start().waitFor();
+			new ProcessBuilder("helm", "repo", "update", repoId).start().waitFor();
+		}
+		catch (Exception ex) {
+			log.warn("Failed to add repo to Helm CLI: {}", ex.getMessage());
+		}
+
+		addedRepos.add(repoId);
+	}
+
+	private void fetchFromHelmRepo(String chartName) throws IOException {
+		log.info("Fetching chart {} via RepoManager...", chartName);
+		File tempDir = new File("target/temp-charts");
+		tempDir.mkdirs();
+
+		// chartName may be in the form <repoId>/<chartName>
+		String repoId = null;
+		String shortName = chartName;
+		if (chartName.contains("/")) {
+			int i = chartName.indexOf('/');
+			repoId = chartName.substring(0, i);
+			shortName = chartName.substring(i + 1);
+		}
+
+		// Use latest version from index
+		try {
+			java.util.List<RepoManager.ChartVersion> versions = repoManager.getChartVersions(repoId, shortName);
+			if (versions.isEmpty()) {
+				throw new IOException("No versions found for chart '" + shortName + "' in repo '" + repoId + "'");
+			}
+			String version = versions.getFirst().getChartVersion();
+			repoManager.pull(chartName, repoId, version, tempDir.getAbsolutePath());
+		}
+		catch (IOException ex) {
+			log.error("Failed to pull chart {}: {}", chartName, ex.getMessage());
+			throw ex;
+		}
+	}
+
+	private void fetchFromArtifactHub(String chartFullName) throws Exception {
+		String repoNamePrefix = null;
+		String chartNameOnly = chartFullName;
+		if (chartFullName.contains("/")) {
+			int slashIndex = chartFullName.indexOf("/");
+			repoNamePrefix = chartFullName.substring(0, slashIndex);
+			chartNameOnly = chartFullName.substring(slashIndex + 1);
+		}
+
+		// 1. Search for package
+		String searchUrl = "https://artifacthub.io/api/v1/packages/search?ts_query_web=" + chartNameOnly + "&kind=0";
+		JsonNode searchResult = callApi(searchUrl);
+		JsonNode pkg = null;
+		if (searchResult.has("packages") && searchResult.get("packages").isArray()) {
+			for (JsonNode p : searchResult.get("packages")) {
+				String pName = p.get("name").asText();
+				String pRepo = p.get("repository").get("name").asText();
+
+				if (pName.equals(chartNameOnly)) {
+					if (repoNamePrefix == null || pRepo.equals(repoNamePrefix)) {
+						pkg = p;
+						break;
+					}
+				}
+			}
+			if (pkg == null && repoNamePrefix == null && !searchResult.get("packages").isEmpty()) {
+				pkg = searchResult.get("packages").get(0);
+			}
+		}
+
+		if (pkg == null) {
+			throw new Exception("Package not found in Artifact Hub: " + chartFullName);
+		}
+
+		String repoName = pkg.get("repository").get("name").asText();
+		String pkgName = pkg.get("name").asText();
+		String version = pkg.get("version").asText();
+
+		// 2. Get package details
+		String detailUrl = "https://artifacthub.io/api/v1/packages/helm/" + repoName + "/" + pkgName + "/" + version;
+		JsonNode details = callApi(detailUrl);
+		String contentUrl = details.get("content_url").asText();
+
+		// 3. Download and untar
+		File testChartsDir = new File("target/test-charts");
+		testChartsDir.mkdirs();
+		String fileName = pkgName + ".tgz";
+		repoManager.pullFromUrl(contentUrl, testChartsDir.getAbsolutePath(), fileName);
+		repoManager.untar(new File(testChartsDir, fileName), testChartsDir);
+	}
+
+	private JsonNode callApi(String urlString) throws IOException {
+		URL url = new URL(urlString);
+		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+		if (conn instanceof HttpsURLConnection httpsConn) {
+			setupInsecureSsl(httpsConn);
+		}
+		conn.setRequestProperty("User-Agent", "jhelm-test");
+		try (var in = conn.getInputStream()) {
+			return objectMapper.readTree(in);
+		}
+	}
+
+	private void setupInsecureSsl(HttpsURLConnection conn) {
+		try {
+			SSLContext sc = SSLContext.getInstance("SSL");
+			sc.init(null, new TrustManager[] { new X509TrustManager() {
+				public X509Certificate[] getAcceptedIssuers() {
+					return null;
+				}
+
+				public void checkClientTrusted(X509Certificate[] certs, String authType) {
+				}
+
+				public void checkServerTrusted(X509Certificate[] certs, String authType) {
+				}
+			} }, new java.security.SecureRandom());
+			conn.setSSLSocketFactory(sc.getSocketFactory());
+			conn.setHostnameVerifier((hostname, session) -> true);
+		}
+		catch (Exception ex) {
+			log.error("Failed to setup insecure SSL in test", ex);
+		}
+	}
+
 }

@@ -1,53 +1,56 @@
 package org.alexmond.jhelm.core;
 
-import lombok.RequiredArgsConstructor;
-
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.RequiredArgsConstructor;
+
 @RequiredArgsConstructor
 public class UpgradeAction {
 
-    private final Engine engine;
-    private final KubeService kubeService;
+	private final Engine engine;
 
-    public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues, boolean dryRun) throws Exception {
-        Map<String, Object> values = new HashMap<>(newChart.getValues());
-        if (overrideValues != null) {
-            values.putAll(overrideValues);
-        }
+	private final KubeService kubeService;
 
-        Release.ReleaseInfo info = Release.ReleaseInfo.builder()
-                .firstDeployed(currentRelease.getInfo().getFirstDeployed())
-                .lastDeployed(OffsetDateTime.now())
-                .status(dryRun ? "pending-upgrade" : "deployed")
-                .description(dryRun ? "Dry run complete" : "Upgrade complete")
-                .build();
+	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues, boolean dryRun)
+			throws Exception {
+		Map<String, Object> values = new HashMap<>(newChart.getValues());
+		if (overrideValues != null) {
+			values.putAll(overrideValues);
+		}
 
-        Release newRelease = Release.builder()
-                .name(currentRelease.getName())
-                .namespace(currentRelease.getNamespace())
-                .version(currentRelease.getVersion() + 1)
-                .chart(newChart)
-                .info(info)
-                .build();
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(currentRelease.getInfo().getFirstDeployed())
+			.lastDeployed(OffsetDateTime.now())
+			.status(dryRun ? "pending-upgrade" : "deployed")
+			.description(dryRun ? "Dry run complete" : "Upgrade complete")
+			.build();
 
-        Map<String, Object> releaseData = new HashMap<>();
-        releaseData.put("Name", newRelease.getName());
-        releaseData.put("Namespace", newRelease.getNamespace());
-        releaseData.put("Service", "Helm");
-        releaseData.put("IsInstall", false);
-        releaseData.put("IsUpgrade", true);
+		Release newRelease = Release.builder()
+			.name(currentRelease.getName())
+			.namespace(currentRelease.getNamespace())
+			.version(currentRelease.getVersion() + 1)
+			.chart(newChart)
+			.info(info)
+			.build();
 
-        String manifest = engine.render(newChart, values, releaseData);
-        newRelease.setManifest(manifest);
+		Map<String, Object> releaseData = new HashMap<>();
+		releaseData.put("Name", newRelease.getName());
+		releaseData.put("Namespace", newRelease.getNamespace());
+		releaseData.put("Service", "Helm");
+		releaseData.put("IsInstall", false);
+		releaseData.put("IsUpgrade", true);
 
-        if (kubeService != null && !dryRun) {
-            kubeService.apply(newRelease.getNamespace(), manifest);
-            kubeService.storeRelease(newRelease);
-        }
+		String manifest = engine.render(newChart, values, releaseData);
+		newRelease.setManifest(manifest);
 
-        return newRelease;
-    }
+		if (kubeService != null && !dryRun) {
+			kubeService.apply(newRelease.getNamespace(), manifest);
+			kubeService.storeRelease(newRelease);
+		}
+
+		return newRelease;
+	}
+
 }
