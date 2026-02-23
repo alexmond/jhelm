@@ -13,34 +13,38 @@ import java.util.Optional;
 @Slf4j
 public class StatusCommand implements Runnable {
 
-    private final StatusAction statusAction;
-    @CommandLine.Parameters(index = "0", description = "release name")
-    private String name;
-    @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
-    private String namespace;
+	private final StatusAction statusAction;
 
-    public StatusCommand(StatusAction statusAction) {
-        this.statusAction = statusAction;
-    }
+	@CommandLine.Parameters(index = "0", description = "release name")
+	private String name;
 
-    @Override
-    public void run() {
-        try {
-            Optional<Release> releaseOpt = statusAction.status(name, namespace);
-            if (releaseOpt.isEmpty()) {
-                log.error("Error: release not found: {}", name);
-                return;
-            }
+	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
+	private String namespace;
 
-            Release r = releaseOpt.get();
-            log.info("NAME: {}", r.getName());
-            log.info("LAST DEPLOYED: {}", r.getInfo().getLastDeployed());
-            log.info("NAMESPACE: {}", r.getNamespace());
-            log.info("STATUS: {}", r.getInfo().getStatus());
-            log.info("REVISION: {}", r.getVersion());
-            log.info("\nMANIFEST:\n{}", r.getManifest());
-        } catch (Exception e) {
-            log.error("Error fetching status: {}", e.getMessage());
-        }
-    }
+	public StatusCommand(StatusAction statusAction) {
+		this.statusAction = statusAction;
+	}
+
+	@Override
+	public void run() {
+		try {
+			Optional<Release> releaseOpt = statusAction.status(name, namespace);
+			if (releaseOpt.isEmpty()) {
+				log.error("Error: release not found: {}", name);
+				return;
+			}
+
+			Release r = releaseOpt.get();
+			log.info("NAME: {}", r.getName());
+			log.info("LAST DEPLOYED: {}", r.getInfo().getLastDeployed());
+			log.info("NAMESPACE: {}", r.getNamespace());
+			log.info("STATUS: {}", r.getInfo().getStatus());
+			log.info("REVISION: {}", r.getVersion());
+			log.info("\nMANIFEST:\n{}", r.getManifest());
+		}
+		catch (Exception ex) {
+			log.error("Error fetching status: {}", ex.getMessage());
+		}
+	}
+
 }

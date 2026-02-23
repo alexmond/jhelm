@@ -16,71 +16,78 @@ import java.util.Map;
 
 @Slf4j
 public class RegistryManager {
-    private final JsonMapper jsonMapper = JsonMapper.builder().build();
-    private final String configPath;
 
-    public RegistryManager() {
-        String home = System.getProperty("user.home");
-        String os = System.getProperty("os.name").toLowerCase();
-        if (os.contains("mac")) {
-            this.configPath = Paths.get(home, "Library/Preferences/helm/registry/config.json").toString();
-        } else if (os.contains("win")) {
-            this.configPath = Paths.get(System.getenv("APPDATA"), "helm/registry/config.json").toString();
-        } else {
-            this.configPath = Paths.get(home, ".config/helm/registry/config.json").toString();
-        }
-    }
+	private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
-    public void login(String registry, String username, String password) throws IOException {
-        Config config = loadConfig();
-        String auth = Base64.getEncoder().encodeToString((username + ":" + password).getBytes());
-        Config.Auth authObj = Config.Auth.builder()
-                .auth(auth)
-                .build();
-        config.getAuths().put(registry, authObj);
-        saveConfig(config);
-    }
+	private final String configPath;
 
-    public void logout(String registry) throws IOException {
-        Config config = loadConfig();
-        config.getAuths().remove(registry);
-        saveConfig(config);
-    }
+	public RegistryManager() {
+		String home = System.getProperty("user.home");
+		String os = System.getProperty("os.name").toLowerCase();
+		if (os.contains("mac")) {
+			this.configPath = Paths.get(home, "Library/Preferences/helm/registry/config.json").toString();
+		}
+		else if (os.contains("win")) {
+			this.configPath = Paths.get(System.getenv("APPDATA"), "helm/registry/config.json").toString();
+		}
+		else {
+			this.configPath = Paths.get(home, ".config/helm/registry/config.json").toString();
+		}
+	}
 
-    public Config loadConfig() throws IOException {
-        File file = new File(configPath);
-        if (!file.exists()) {
-            return Config.builder().build();
-        }
-        return jsonMapper.readValue(file, Config.class);
-    }
+	public void login(String registry, String username, String password) throws IOException {
+		Config config = loadConfig();
+		String auth = Base64.getEncoder().encodeToString((username + ":" + password).getBytes());
+		Config.Auth authObj = Config.Auth.builder().auth(auth).build();
+		config.getAuths().put(registry, authObj);
+		saveConfig(config);
+	}
 
-    public String getAuth(String registry) throws IOException {
-        Config config = loadConfig();
-        Config.Auth auth = config.getAuths().get(registry);
-        return auth != null ? auth.getAuth() : null;
-    }
+	public void logout(String registry) throws IOException {
+		Config config = loadConfig();
+		config.getAuths().remove(registry);
+		saveConfig(config);
+	}
 
-    private void saveConfig(Config config) throws IOException {
-        File file = new File(configPath);
-        file.getParentFile().mkdirs();
-        jsonMapper.writeValue(file, config);
-    }
+	public Config loadConfig() throws IOException {
+		File file = new File(configPath);
+		if (!file.exists()) {
+			return Config.builder().build();
+		}
+		return jsonMapper.readValue(file, Config.class);
+	}
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Config {
-        @Builder.Default
-        private Map<String, Auth> auths = new HashMap<>();
+	public String getAuth(String registry) throws IOException {
+		Config config = loadConfig();
+		Config.Auth auth = config.getAuths().get(registry);
+		return (auth != null) ? auth.getAuth() : null;
+	}
 
-        @Data
-        @Builder
-        @NoArgsConstructor
-        @AllArgsConstructor
-        public static class Auth {
-            private String auth;
-        }
-    }
+	private void saveConfig(Config config) throws IOException {
+		File file = new File(configPath);
+		file.getParentFile().mkdirs();
+		jsonMapper.writeValue(file, config);
+	}
+
+	@Data
+	@Builder
+	@NoArgsConstructor
+	@AllArgsConstructor
+	public static class Config {
+
+		@Builder.Default
+		private Map<String, Auth> auths = new HashMap<>();
+
+		@Data
+		@Builder
+		@NoArgsConstructor
+		@AllArgsConstructor
+		public static class Auth {
+
+			private String auth;
+
+		}
+
+	}
+
 }

@@ -2,172 +2,172 @@ package org.alexmond.jhelm.gotemplate.internal.parse;
 
 public enum TokenType {
 
-    /**
-     * equals ('=') introducing an assignment
-     */
-    ASSIGN,
+	/**
+	 * equals ('=') introducing an assignment
+	 */
+	ASSIGN,
 
-    /**
-     * block keyword
-     */
-    BLOCK,
+	/**
+	 * block keyword
+	 */
+	BLOCK,
 
-    /**
-     * boolean constant
-     */
-    BOOL,
+	/**
+	 * boolean constant
+	 */
+	BOOL,
 
-    /**
-     * printable ASCII character; grab bag for comma etc.
-     */
-    CHAR,
+	/**
+	 * printable ASCII character; grab bag for comma etc.
+	 */
+	CHAR,
 
-    /**
-     * character constant
-     */
-    CHAR_CONSTANT,
+	/**
+	 * character constant
+	 */
+	CHAR_CONSTANT,
 
-    /**
-     * comment text
-     */
-    COMMENT,
+	/**
+	 * comment text
+	 */
+	COMMENT,
 
-    /**
-     * complex constant (1+2i); imaginary is just a number
-     */
-    COMPLEX,
+	/**
+	 * complex constant (1+2i); imaginary is just a number
+	 */
+	COMPLEX,
 
-    /**
-     * colon-equals (':=') introducing a declaration
-     */
-    DECLARE,
+	/**
+	 * colon-equals (':=') introducing a declaration
+	 */
+	DECLARE,
 
-    /**
-     * define keyword
-     */
-    DEFINE,
+	/**
+	 * define keyword
+	 */
+	DEFINE,
 
-    /**
-     * the cursor, spelled '.'
-     */
-    DOT,
+	/**
+	 * the cursor, spelled '.'
+	 */
+	DOT,
 
-    /**
-     * else keyword
-     */
-    ELSE,
+	/**
+	 * else keyword
+	 */
+	ELSE,
 
-    /**
-     * end keyword
-     */
-    END,
+	/**
+	 * end keyword
+	 */
+	END,
 
-    /**
-     * end of file
-     */
-    EOF,
+	/**
+	 * end of file
+	 */
+	EOF,
 
-    /**
-     * error occurred; value is text of error
-     */
-    ERROR,
+	/**
+	 * error occurred; value is text of error
+	 */
+	ERROR,
 
-    /**
-     * alphanumeric identifier starting with '.'
-     */
-    FIELD,
+	/**
+	 * alphanumeric identifier starting with '.'
+	 */
+	FIELD,
 
-    /**
-     * alphanumeric identifier not starting with '.'
-     */
-    IDENTIFIER,
+	/**
+	 * alphanumeric identifier not starting with '.'
+	 */
+	IDENTIFIER,
 
-    /**
-     * if keyword
-     */
-    IF,
+	/**
+	 * if keyword
+	 */
+	IF,
 
-    /**
-     * used only to delimit the keywords
-     */
-    KEYWORD,
+	/**
+	 * used only to delimit the keywords
+	 */
+	KEYWORD,
 
-    /**
-     * left action delimiter
-     */
-    LEFT_DELIM,
+	/**
+	 * left action delimiter
+	 */
+	LEFT_DELIM,
 
-    /**
-     * '(' inside action
-     */
-    LEFT_PAREN,
+	/**
+	 * '(' inside action
+	 */
+	LEFT_PAREN,
 
-    /**
-     * the untyped nil constant, easiest to treat as a keyword
-     */
-    NIL,
+	/**
+	 * the untyped nil constant, easiest to treat as a keyword
+	 */
+	NIL,
 
-    /**
-     * simple number, including imaginary
-     */
-    NUMBER,
+	/**
+	 * simple number, including imaginary
+	 */
+	NUMBER,
 
-    /**
-     * pipe symbol
-     */
-    PIPE,
+	/**
+	 * pipe symbol
+	 */
+	PIPE,
 
-    /**
-     * range keyword
-     */
-    RANGE,
+	/**
+	 * range keyword
+	 */
+	RANGE,
 
-    /**
-     * raw quoted string (includes quotes)
-     */
-    RAW_STRING,
+	/**
+	 * raw quoted string (includes quotes)
+	 */
+	RAW_STRING,
 
-    /**
-     * right action delimiter
-     */
-    RIGHT_DELIM,
+	/**
+	 * right action delimiter
+	 */
+	RIGHT_DELIM,
 
-    /**
-     * ')' inside action
-     */
-    RIGHT_PAREN,
+	/**
+	 * ')' inside action
+	 */
+	RIGHT_PAREN,
 
-    /**
-     * run of spaces separating arguments
-     */
-    SPACE,
+	/**
+	 * run of spaces separating arguments
+	 */
+	SPACE,
 
-    /**
-     * quoted string (includes quotes)
-     */
-    STRING,
+	/**
+	 * quoted string (includes quotes)
+	 */
+	STRING,
 
-    /**
-     * template keyword
-     */
-    TEMPLATE,
+	/**
+	 * template keyword
+	 */
+	TEMPLATE,
 
-    /**
-     * plain text
-     */
-    TEXT,
+	/**
+	 * plain text
+	 */
+	TEXT,
 
-    /**
-     * variable starting with '$', such as '$' or  '$1' or '$hello'
-     */
-    VARIABLE,
+	/**
+	 * variable starting with '$', such as '$' or '$1' or '$hello'
+	 */
+	VARIABLE,
 
-    /**
-     * with keyword
-     */
-    WITH;
+	/**
+	 * with keyword
+	 */
+	WITH;
 
-    TokenType() {
-    }
+	TokenType() {
+	}
 
 }

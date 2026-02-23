@@ -6,104 +6,111 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
-
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Collections;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Tests for DependencyResolver.
  */
 class DependencyResolverTest {
-    private RepoManager repoManager;
-    private DependencyResolver resolver;
 
-    @TempDir
-    File tempDir;
+	private RepoManager repoManager;
 
-    @BeforeEach
-    void setUp() {
-        repoManager = new RepoManager();
-        resolver = new DependencyResolver(repoManager);
-    }
+	private DependencyResolver resolver;
 
-    @Test
-    void testResolveDependenciesWithNoDependencies() throws IOException {
-        ChartMetadata metadata = ChartMetadata.builder()
-                .name("test-chart")
-                .version("1.0.0")
-                .dependencies(Collections.emptyList())
-                .build();
+	@TempDir
+	File tempDir;
 
-        ChartLock lock = resolver.resolveDependencies(metadata, new HashMap<>(), null);
+	@BeforeEach
+	void setUp() {
+		repoManager = new RepoManager();
+		resolver = new DependencyResolver(repoManager);
+	}
 
-        assertNotNull(lock);
-        assertTrue(lock.getDependencies().isEmpty());
-    }
+	@Test
+	void testResolveDependenciesWithNoDependencies() throws IOException {
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(Collections.emptyList())
+			.build();
 
-    @Test
-    void testConditionEvaluation() throws IOException {
-        // Create metadata with conditional dependency
-        Dependency dep = Dependency.builder()
-                .name("postgresql")
-                .version("12.1.0")
-                .repository("https://charts.bitnami.com/bitnami")
-                .condition("postgresql.enabled")
-                .build();
+		ChartLock lock = resolver.resolveDependencies(metadata, new HashMap<>(), null);
 
-        ChartMetadata metadata = ChartMetadata.builder()
-                .name("test-chart")
-                .version("1.0.0")
-                .dependencies(List.of(dep))
-                .build();
+		assertNotNull(lock);
+		assertTrue(lock.getDependencies().isEmpty());
+	}
 
-        // Test with condition = false
-        Map<String, Object> values = new HashMap<>();
-        Map<String, Object> postgresqlConfig = new HashMap<>();
-        postgresqlConfig.put("enabled", false);
-        values.put("postgresql", postgresqlConfig);
+	@Test
+	void testConditionEvaluation() throws IOException {
+		// Create metadata with conditional dependency
+		Dependency dep = Dependency.builder()
+			.name("postgresql")
+			.version("12.1.0")
+			.repository("https://charts.bitnami.com/bitnami")
+			.condition("postgresql.enabled")
+			.build();
 
-        ChartLock lock = resolver.resolveDependencies(metadata, values, null);
-        assertTrue(lock.getDependencies().isEmpty(), "Dependency should be excluded when condition is false");
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(List.of(dep))
+			.build();
 
-        // Test with condition = true (would need actual repo to download)
-        postgresqlConfig.put("enabled", true);
-        // This would fail without actual repo, so we just verify the condition logic works
-    }
+		// Test with condition = false
+		Map<String, Object> values = new HashMap<>();
+		Map<String, Object> postgresqlConfig = new HashMap<>();
+		postgresqlConfig.put("enabled", false);
+		values.put("postgresql", postgresqlConfig);
 
-    @Test
-    void testTagFiltering() throws IOException {
-        Dependency dep = Dependency.builder()
-                .name("redis")
-                .version("17.0.0")
-                .repository("@bitnami")  // Use repository alias to avoid actual download
-                .tags(List.of("database", "cache"))
-                .build();
+		ChartLock lock = resolver.resolveDependencies(metadata, values, null);
+		assertTrue(lock.getDependencies().isEmpty(), "Dependency should be excluded when condition is false");
 
-        ChartMetadata metadata = ChartMetadata.builder()
-                .name("test-chart")
-                .version("1.0.0")
-                .dependencies(List.of(dep))
-                .build();
+		// Test with condition = true (would need actual repo to download)
+		postgresqlConfig.put("enabled", true);
+		// This would fail without actual repo, so we just verify the condition logic
+		// works
+	}
 
-        // Test with no matching tags - dependency should be excluded
-        ChartLock lock = resolver.resolveDependencies(metadata, new HashMap<>(), List.of("frontend"));
-        assertTrue(lock.getDependencies().isEmpty(), "Dependency should be excluded when no tags match");
-    }
+	@Test
+	void testTagFiltering() throws IOException {
+		Dependency dep = Dependency.builder()
+			.name("redis")
+			.version("17.0.0")
+			.repository("@bitnami") // Use repository alias to avoid actual download
+			.tags(List.of("database", "cache"))
+			.build();
 
-    @Test
-    void testDigestGeneration() throws IOException {
-        ChartMetadata metadata = ChartMetadata.builder()
-                .name("test-chart")
-                .version("1.0.0")
-                .dependencies(Collections.emptyList())
-                .build();
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(List.of(dep))
+			.build();
 
-        ChartLock lock = resolver.resolveDependencies(metadata, new HashMap<>(), null);
+		// Test with no matching tags - dependency should be excluded
+		ChartLock lock = resolver.resolveDependencies(metadata, new HashMap<>(), List.of("frontend"));
+		assertTrue(lock.getDependencies().isEmpty(), "Dependency should be excluded when no tags match");
+	}
 
-        assertNotNull(lock);
-        // With empty dependencies, digest should still be generated
-        assertNotNull(lock.getDigest(), "Digest should be generated even for empty dependencies");
-        assertTrue(lock.getDigest().isEmpty() || lock.getDigest().startsWith("sha256:"),
-                "Digest should be empty or start with 'sha256:'");
-    }
+	@Test
+	void testDigestGeneration() throws IOException {
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(Collections.emptyList())
+			.build();
+
+		ChartLock lock = resolver.resolveDependencies(metadata, new HashMap<>(), null);
+
+		assertNotNull(lock);
+		// With empty dependencies, digest should still be generated
+		assertNotNull(lock.getDigest(), "Digest should be generated even for empty dependencies");
+		assertTrue(lock.getDigest().isEmpty() || lock.getDigest().startsWith("sha256:"),
+				"Digest should be empty or start with 'sha256:'");
+	}
+
 }

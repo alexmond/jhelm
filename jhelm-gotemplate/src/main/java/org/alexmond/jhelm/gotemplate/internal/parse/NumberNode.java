@@ -8,40 +8,44 @@ import org.alexmond.jhelm.gotemplate.internal.util.Complex;
 @Setter
 public class NumberNode implements Node {
 
-    private final String text;
+	private final String text;
 
-    private boolean isInt;
-    private long intValue;
+	private boolean isInt;
 
-    private boolean isFloat;
-    private double floatValue;
+	private long intValue;
 
-    private boolean isComplex;
-    private Complex complexValue;
+	private boolean isFloat;
 
-    public NumberNode(String text) {
-        this.text = text;
-    }
+	private double floatValue;
 
-    // Preserve original setter names used by Parser
-    public void setIsInt(boolean isInt) {
-        this.isInt = isInt;
-    }
+	private boolean isComplex;
 
-    public void setIsFloat(boolean isFloat) {
-        this.isFloat = isFloat;
-    }
+	private Complex complexValue;
 
-    public void setIsComplex(boolean isComplex) {
-        this.isComplex = isComplex;
-    }
+	public NumberNode(String text) {
+		this.text = text;
+	}
 
-    @Override
-    public String toString() {
-        return text;
-    }
+	// Preserve original setter names used by Parser
+	public void setIsInt(boolean isInt) {
+		this.isInt = isInt;
+	}
 
-    public void setComplex(Complex complex) {
-        this.complexValue = complex;
-    }
+	public void setIsFloat(boolean isFloat) {
+		this.isFloat = isFloat;
+	}
+
+	public void setIsComplex(boolean isComplex) {
+		this.isComplex = isComplex;
+	}
+
+	@Override
+	public String toString() {
+		return text;
+	}
+
+	public void setComplex(Complex complex) {
+		this.complexValue = complex;
+	}
+
 }

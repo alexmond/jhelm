@@ -8,63 +8,68 @@ import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Paths;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.any;
 
 class CreateCommandUnitTest {
 
-    @Mock
-    private CreateAction createAction;
+	@Mock
+	private CreateAction createAction;
 
-    private CreateCommand createCommand;
-    private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    private final PrintStream originalOut = System.out;
+	private CreateCommand createCommand;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        createCommand = new CreateCommand(createAction);
-        System.setOut(new PrintStream(outputStream));
-    }
+	private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-    @Test
-    void testCreateCommandSuccess() throws Exception {
-        doNothing().when(createAction).create(any());
+	private final PrintStream originalOut = System.out;
 
-        CommandLine cmd = new CommandLine(createCommand);
-        int exitCode = cmd.execute("mychart");
+	@BeforeEach
+	void setUp() {
+		MockitoAnnotations.openMocks(this);
+		createCommand = new CreateCommand(createAction);
+		System.setOut(new PrintStream(outputStream));
+	}
 
-        assertEquals(0, exitCode);
-        verify(createAction).create(Paths.get("mychart"));
-        assertTrue(outputStream.toString().contains("Creating mychart"));
-    }
+	@Test
+	void testCreateCommandSuccess() throws Exception {
+		doNothing().when(createAction).create(any());
 
-    @Test
-    void testCreateCommandWithStarter() throws Exception {
-        doNothing().when(createAction).create(any());
+		CommandLine cmd = new CommandLine(createCommand);
+		int exitCode = cmd.execute("mychart");
 
-        CommandLine cmd = new CommandLine(createCommand);
-        int exitCode = cmd.execute("--starter", "my-starter", "mychart-with-starter");
+		assertEquals(0, exitCode);
+		verify(createAction).create(Paths.get("mychart"));
+		assertTrue(outputStream.toString().contains("Creating mychart"));
+	}
 
-        assertEquals(0, exitCode);
-        verify(createAction).create(Paths.get("mychart-with-starter"));
-        assertTrue(outputStream.toString().contains("Creating mychart-with-starter"));
-    }
+	@Test
+	void testCreateCommandWithStarter() throws Exception {
+		doNothing().when(createAction).create(any());
 
-    @Test
-    void testCreateCommandConstructor() {
-        assertNotNull(createCommand);
-        CreateCommand cmd = new CreateCommand(createAction);
-        assertNotNull(cmd);
-    }
+		CommandLine cmd = new CommandLine(createCommand);
+		int exitCode = cmd.execute("--starter", "my-starter", "mychart-with-starter");
 
-    @org.junit.jupiter.api.AfterEach
-    void tearDown() {
-        System.setOut(originalOut);
-    }
+		assertEquals(0, exitCode);
+		verify(createAction).create(Paths.get("mychart-with-starter"));
+		assertTrue(outputStream.toString().contains("Creating mychart-with-starter"));
+	}
+
+	@Test
+	void testCreateCommandConstructor() {
+		assertNotNull(createCommand);
+		CreateCommand cmd = new CreateCommand(createAction);
+		assertNotNull(cmd);
+	}
+
+	@org.junit.jupiter.api.AfterEach
+	void tearDown() {
+		System.setOut(originalOut);
+	}
+
 }

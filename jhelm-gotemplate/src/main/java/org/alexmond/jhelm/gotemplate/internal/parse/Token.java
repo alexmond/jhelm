@@ -9,23 +9,28 @@ import lombok.experimental.Accessors;
 @Accessors(fluent = true)
 public class Token {
 
-    private final TokenType type;
-    private final String val;
-    private final int pos;
-    private final int line;
-    private final int column;
+	private final TokenType type;
 
-    public String value() {
-        return val;
-    }
+	private final String val;
 
-    @Override
-    public String toString() {
-        return switch (type) {
-            case EOF -> "EOF";
-            case KEYWORD -> '<' + val + '>';
-            case ERROR -> val;
-            default -> val;
-        };
-    }
+	private final int pos;
+
+	private final int line;
+
+	private final int column;
+
+	public String value() {
+		return val;
+	}
+
+	@Override
+	public String toString() {
+		return switch (type) {
+			case EOF -> "EOF";
+			case KEYWORD -> '<' + val + '>';
+			case ERROR -> val;
+			default -> val;
+		};
+	}
+
 }

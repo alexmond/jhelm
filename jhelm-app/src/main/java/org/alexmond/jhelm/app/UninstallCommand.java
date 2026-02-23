@@ -10,23 +10,27 @@ import picocli.CommandLine;
 @Slf4j
 public class UninstallCommand implements Runnable {
 
-    private final UninstallAction uninstallAction;
-    @CommandLine.Parameters(index = "0", description = "release name")
-    private String name;
-    @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
-    private String namespace;
+	private final UninstallAction uninstallAction;
 
-    public UninstallCommand(UninstallAction uninstallAction) {
-        this.uninstallAction = uninstallAction;
-    }
+	@CommandLine.Parameters(index = "0", description = "release name")
+	private String name;
 
-    @Override
-    public void run() {
-        try {
-            uninstallAction.uninstall(name, namespace);
-            log.info("release \"{}\" uninstalled", name);
-        } catch (Exception e) {
-            log.error("Error uninstalling release: {}", e.getMessage());
-        }
-    }
+	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
+	private String namespace;
+
+	public UninstallCommand(UninstallAction uninstallAction) {
+		this.uninstallAction = uninstallAction;
+	}
+
+	@Override
+	public void run() {
+		try {
+			uninstallAction.uninstall(name, namespace);
+			log.info("release \"{}\" uninstalled", name);
+		}
+		catch (Exception ex) {
+			log.error("Error uninstalling release: {}", ex.getMessage());
+		}
+	}
+
 }

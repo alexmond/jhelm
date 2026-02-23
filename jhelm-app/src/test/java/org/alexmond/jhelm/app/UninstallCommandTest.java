@@ -13,38 +13,39 @@ import static org.mockito.Mockito.doThrow;
 
 class UninstallCommandTest {
 
-    @Mock
-    private UninstallAction uninstallAction;
+	@Mock
+	private UninstallAction uninstallAction;
 
-    private UninstallCommand uninstallCommand;
+	private UninstallCommand uninstallCommand;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        uninstallCommand = new UninstallCommand(uninstallAction);
-    }
+	@BeforeEach
+	void setUp() {
+		MockitoAnnotations.openMocks(this);
+		uninstallCommand = new UninstallCommand(uninstallAction);
+	}
 
-    @Test
-    void testUninstallCommandSuccess() throws Exception {
-        doNothing().when(uninstallAction).uninstall(anyString(), anyString());
+	@Test
+	void testUninstallCommandSuccess() throws Exception {
+		doNothing().when(uninstallAction).uninstall(anyString(), anyString());
 
-        CommandLine cmd = new CommandLine(uninstallCommand);
-        cmd.execute("my-release", "-n", "default");
-    }
+		CommandLine cmd = new CommandLine(uninstallCommand);
+		cmd.execute("my-release", "-n", "default");
+	}
 
-    @Test
-    void testUninstallCommandDefaultNamespace() throws Exception {
-        doNothing().when(uninstallAction).uninstall(anyString(), anyString());
+	@Test
+	void testUninstallCommandDefaultNamespace() throws Exception {
+		doNothing().when(uninstallAction).uninstall(anyString(), anyString());
 
-        CommandLine cmd = new CommandLine(uninstallCommand);
-        cmd.execute("my-release");
-    }
+		CommandLine cmd = new CommandLine(uninstallCommand);
+		cmd.execute("my-release");
+	}
 
-    @Test
-    void testUninstallCommandWithError() throws Exception {
-        doThrow(new RuntimeException("Test error")).when(uninstallAction).uninstall(anyString(), anyString());
+	@Test
+	void testUninstallCommandWithError() throws Exception {
+		doThrow(new RuntimeException("Test error")).when(uninstallAction).uninstall(anyString(), anyString());
 
-        CommandLine cmd = new CommandLine(uninstallCommand);
-        cmd.execute("my-release");
-    }
+		CommandLine cmd = new CommandLine(uninstallCommand);
+		cmd.execute("my-release");
+	}
+
 }

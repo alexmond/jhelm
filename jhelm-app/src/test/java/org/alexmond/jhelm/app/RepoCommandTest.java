@@ -13,197 +13,203 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.anyString;
 
 class RepoCommandTest {
 
-    @Mock
-    private RepoManager repoManager;
+	@Mock
+	private RepoManager repoManager;
 
-    private RepoCommand.AddCommand addCommand;
-    private RepoCommand.ListCommand listCommand;
-    private RepoCommand.RemoveCommand removeCommand;
+	private RepoCommand.AddCommand addCommand;
 
-    private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    private final PrintStream originalOut = System.out;
+	private RepoCommand.ListCommand listCommand;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        addCommand = new RepoCommand.AddCommand(repoManager);
-        listCommand = new RepoCommand.ListCommand(repoManager);
-        removeCommand = new RepoCommand.RemoveCommand(repoManager);
-        System.setOut(new PrintStream(outputStream));
-    }
+	private RepoCommand.RemoveCommand removeCommand;
 
-    @org.junit.jupiter.api.AfterEach
-    void tearDown() {
-        System.setOut(originalOut);
-    }
+	private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-    @Test
-    void testAddCommandSuccess() throws IOException {
-        doNothing().when(repoManager).addRepo(anyString(), anyString());
+	private final PrintStream originalOut = System.out;
 
-        CommandLine cmd = new CommandLine(addCommand);
-        cmd.execute("bitnami", "https://charts.bitnami.com/bitnami");
-    }
+	@BeforeEach
+	void setUp() {
+		MockitoAnnotations.openMocks(this);
+		addCommand = new RepoCommand.AddCommand(repoManager);
+		listCommand = new RepoCommand.ListCommand(repoManager);
+		removeCommand = new RepoCommand.RemoveCommand(repoManager);
+		System.setOut(new PrintStream(outputStream));
+	}
 
-    @Test
-    void testAddCommandWithError() throws IOException {
-        doThrow(new IOException("Test error")).when(repoManager).addRepo(anyString(), anyString());
+	@org.junit.jupiter.api.AfterEach
+	void tearDown() {
+		System.setOut(originalOut);
+	}
 
-        CommandLine cmd = new CommandLine(addCommand);
-        cmd.execute("bitnami", "https://charts.bitnami.com/bitnami");
-    }
+	@Test
+	void testAddCommandSuccess() throws IOException {
+		doNothing().when(repoManager).addRepo(anyString(), anyString());
 
-    @Test
-    void testListCommandSuccess() throws IOException {
-        RepositoryConfig config = new RepositoryConfig();
-        RepositoryConfig.Repository repo1 = new RepositoryConfig.Repository();
-        repo1.setName("bitnami");
-        repo1.setUrl("https://charts.bitnami.com/bitnami");
+		CommandLine cmd = new CommandLine(addCommand);
+		cmd.execute("bitnami", "https://charts.bitnami.com/bitnami");
+	}
 
-        RepositoryConfig.Repository repo2 = new RepositoryConfig.Repository();
-        repo2.setName("stable");
-        repo2.setUrl("https://charts.helm.sh/stable");
+	@Test
+	void testAddCommandWithError() throws IOException {
+		doThrow(new IOException("Test error")).when(repoManager).addRepo(anyString(), anyString());
 
-        config.setRepositories(Arrays.asList(repo1, repo2));
+		CommandLine cmd = new CommandLine(addCommand);
+		cmd.execute("bitnami", "https://charts.bitnami.com/bitnami");
+	}
 
-        when(repoManager.loadConfig()).thenReturn(config);
+	@Test
+	void testListCommandSuccess() throws IOException {
+		RepositoryConfig config = new RepositoryConfig();
+		RepositoryConfig.Repository repo1 = new RepositoryConfig.Repository();
+		repo1.setName("bitnami");
+		repo1.setUrl("https://charts.bitnami.com/bitnami");
 
-        CommandLine cmd = new CommandLine(listCommand);
-        cmd.execute();
+		RepositoryConfig.Repository repo2 = new RepositoryConfig.Repository();
+		repo2.setName("stable");
+		repo2.setUrl("https://charts.helm.sh/stable");
 
-        String output = outputStream.toString();
-        assertTrue(output.contains("NAME"));
-        assertTrue(output.contains("URL"));
-        assertTrue(output.contains("bitnami"));
-        assertTrue(output.contains("stable"));
-    }
+		config.setRepositories(Arrays.asList(repo1, repo2));
 
-    @Test
-    void testListCommandWithEmptyRepos() throws IOException {
-        RepositoryConfig config = new RepositoryConfig();
-        config.setRepositories(new ArrayList<>());
+		when(repoManager.loadConfig()).thenReturn(config);
 
-        when(repoManager.loadConfig()).thenReturn(config);
+		CommandLine cmd = new CommandLine(listCommand);
+		cmd.execute();
 
-        CommandLine cmd = new CommandLine(listCommand);
-        cmd.execute();
+		String output = outputStream.toString();
+		assertTrue(output.contains("NAME"));
+		assertTrue(output.contains("URL"));
+		assertTrue(output.contains("bitnami"));
+		assertTrue(output.contains("stable"));
+	}
 
-        String output = outputStream.toString();
-        assertTrue(output.contains("NAME"));
-    }
+	@Test
+	void testListCommandWithEmptyRepos() throws IOException {
+		RepositoryConfig config = new RepositoryConfig();
+		config.setRepositories(new ArrayList<>());
 
-    @Test
-    void testListCommandWithError() throws IOException {
-        when(repoManager.loadConfig()).thenThrow(new IOException("Test error"));
+		when(repoManager.loadConfig()).thenReturn(config);
 
-        CommandLine cmd = new CommandLine(listCommand);
-        cmd.execute();
-    }
+		CommandLine cmd = new CommandLine(listCommand);
+		cmd.execute();
 
-    @Test
-    void testRemoveCommandSuccess() throws IOException {
-        doNothing().when(repoManager).removeRepo(anyString());
+		String output = outputStream.toString();
+		assertTrue(output.contains("NAME"));
+	}
 
-        CommandLine cmd = new CommandLine(removeCommand);
-        cmd.execute("bitnami");
-    }
+	@Test
+	void testListCommandWithError() throws IOException {
+		when(repoManager.loadConfig()).thenThrow(new IOException("Test error"));
 
-    @Test
-    void testRemoveCommandWithError() throws IOException {
-        doThrow(new IOException("Test error")).when(repoManager).removeRepo(anyString());
+		CommandLine cmd = new CommandLine(listCommand);
+		cmd.execute();
+	}
 
-        CommandLine cmd = new CommandLine(removeCommand);
-        cmd.execute("bitnami");
-    }
+	@Test
+	void testRemoveCommandSuccess() throws IOException {
+		doNothing().when(repoManager).removeRepo(anyString());
 
-    @Test
-    void testRepoCommandShowsUsage() {
-        RepoCommand repoCommand = new RepoCommand();
-        CommandLine cmd = new CommandLine(repoCommand);
-        cmd.execute();
-    }
+		CommandLine cmd = new CommandLine(removeCommand);
+		cmd.execute("bitnami");
+	}
 
-    @Test
-    void testRepoSearchCommand() {
-        RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
-        CommandLine cmd = new CommandLine(searchCommand);
-        try {
-            cmd.execute("bitnami/nginx");
-        } catch (Exception e) {
-            // Expected - no repos configured
-        }
-    }
+	@Test
+	void testRemoveCommandWithError() throws IOException {
+		doThrow(new IOException("Test error")).when(repoManager).removeRepo(anyString());
 
-    @Test
-    void testRepoSearchCommandWithKeyword() {
-        RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
-        CommandLine cmd = new CommandLine(searchCommand);
-        try {
-            cmd.execute("database");
-        } catch (Exception e) {
-            // Expected - no repos configured
-        }
-    }
+		CommandLine cmd = new CommandLine(removeCommand);
+		cmd.execute("bitnami");
+	}
 
-    @Test
-    void testRepoSearchCommandWithVersionsFlag() throws Exception {
-        RepoManager.ChartVersion result1 = new RepoManager.ChartVersion("bitnami/nginx", "1.0.0", "1.21.0", "Nginx web server");
-        RepoManager.ChartVersion result2 = new RepoManager.ChartVersion("bitnami/nginx", "0.9.0", "1.20.0", "Nginx web server");
+	@Test
+	void testRepoCommandShowsUsage() {
+		RepoCommand repoCommand = new RepoCommand();
+		CommandLine cmd = new CommandLine(repoCommand);
+		cmd.execute();
+	}
 
-        when(repoManager.getChartVersions(anyString(), anyString()))
-                .thenReturn(Arrays.asList(result1, result2));
+	@Test
+	void testRepoSearchCommand() {
+		RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
+		CommandLine cmd = new CommandLine(searchCommand);
+		try {
+			cmd.execute("bitnami/nginx");
+		}
+		catch (Exception ex) {
+			// Expected - no repos configured
+		}
+	}
 
-        RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
-        CommandLine cmd = new CommandLine(searchCommand);
-        int exitCode = cmd.execute("bitnami/nginx", "--versions");
+	@Test
+	void testRepoSearchCommandWithKeyword() {
+		RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
+		CommandLine cmd = new CommandLine(searchCommand);
+		try {
+			cmd.execute("database");
+		}
+		catch (Exception ex) {
+			// Expected - no repos configured
+		}
+	}
 
-        // Verify the command executed (covers the --versions branch)
-        verify(repoManager).getChartVersions("bitnami", "nginx");
-    }
+	@Test
+	void testRepoSearchCommandWithVersionsFlag() throws Exception {
+		RepoManager.ChartVersion result1 = new RepoManager.ChartVersion("bitnami/nginx", "1.0.0", "1.21.0",
+				"Nginx web server");
+		RepoManager.ChartVersion result2 = new RepoManager.ChartVersion("bitnami/nginx", "0.9.0", "1.20.0",
+				"Nginx web server");
 
-    @Test
-    void testRepoSearchCommandWithoutVersionsFlag() throws Exception {
-        RepoManager.ChartVersion result = new RepoManager.ChartVersion("bitnami/nginx", "1.0.0", "1.21.0", "Nginx web server");
+		when(repoManager.getChartVersions(anyString(), anyString())).thenReturn(Arrays.asList(result1, result2));
 
-        when(repoManager.getChartVersions(anyString(), anyString()))
-                .thenReturn(Arrays.asList(result));
+		RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
+		CommandLine cmd = new CommandLine(searchCommand);
+		int exitCode = cmd.execute("bitnami/nginx", "--versions");
 
-        RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
-        CommandLine cmd = new CommandLine(searchCommand);
-        int exitCode = cmd.execute("bitnami/nginx");
+		// Verify the command executed (covers the --versions branch)
+		verify(repoManager).getChartVersions("bitnami", "nginx");
+	}
 
-        // Verify the command executed (covers the default branch)
-        verify(repoManager).getChartVersions("bitnami", "nginx");
-    }
+	@Test
+	void testRepoSearchCommandWithoutVersionsFlag() throws Exception {
+		RepoManager.ChartVersion result = new RepoManager.ChartVersion("bitnami/nginx", "1.0.0", "1.21.0",
+				"Nginx web server");
 
-    @Test
-    void testRepoSearchCommandInvalidQuery() {
-        RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
-        CommandLine cmd = new CommandLine(searchCommand);
-        cmd.execute("invalid-query-no-slash");
+		when(repoManager.getChartVersions(anyString(), anyString())).thenReturn(Arrays.asList(result));
 
-        // Should log error about format
-    }
+		RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
+		CommandLine cmd = new CommandLine(searchCommand);
+		int exitCode = cmd.execute("bitnami/nginx");
 
-    @Test
-    void testRepoSearchCommandNoResults() throws Exception {
-        when(repoManager.getChartVersions(anyString(), anyString()))
-                .thenReturn(new ArrayList<>());
+		// Verify the command executed (covers the default branch)
+		verify(repoManager).getChartVersions("bitnami", "nginx");
+	}
 
-        RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
-        CommandLine cmd = new CommandLine(searchCommand);
-        cmd.execute("bitnami/nonexistent");
+	@Test
+	void testRepoSearchCommandInvalidQuery() {
+		RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
+		CommandLine cmd = new CommandLine(searchCommand);
+		cmd.execute("invalid-query-no-slash");
 
-        // Should log "No results found"
-    }
+		// Should log error about format
+	}
+
+	@Test
+	void testRepoSearchCommandNoResults() throws Exception {
+		when(repoManager.getChartVersions(anyString(), anyString())).thenReturn(new ArrayList<>());
+
+		RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
+		CommandLine cmd = new CommandLine(searchCommand);
+		cmd.execute("bitnami/nonexistent");
+
+		// Should log "No results found"
+	}
+
 }

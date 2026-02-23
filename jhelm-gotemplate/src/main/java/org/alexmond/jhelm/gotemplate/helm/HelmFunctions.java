@@ -1,5 +1,9 @@
 package org.alexmond.jhelm.gotemplate.helm;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.alexmond.jhelm.gotemplate.Function;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.helm.functions.ChartFunctions;
@@ -8,83 +12,71 @@ import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesFunctions;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
 import org.alexmond.jhelm.gotemplate.sprig.functions.TemplateFunctions;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
- * Coordinator class for all Helm-specific template functions.
- * Organizes functions by category: template, conversion, kubernetes, and chart operations.
+ * Coordinator class for all Helm-specific template functions. Organizes functions by
+ * category: template, conversion, kubernetes, and chart operations.
  *
- * @see <a href="https://helm.sh/docs/chart_template_guide/function_list/">Helm Template Functions</a>
+ * @see <a href="https://helm.sh/docs/chart_template_guide/function_list/">Helm Template
+ * Functions</a>
  */
-public class HelmFunctions {
+public final class HelmFunctions {
 
-    /**
-     * Get all Helm functions from all categories with Kubernetes provider.
-     * Use this when Kubernetes API access is available.
-     *
-     * @param factory            The GoTemplate instance for template operations
-     * @param kubernetesProvider Provider for Kubernetes API access (can be null)
-     * @return Map of function name to Function implementation
-     */
-    public static Map<String, Function> getFunctions(GoTemplate factory, KubernetesProvider kubernetesProvider) {
-        Map<String, Function> functions = new HashMap<>();
+	private HelmFunctions() {
+	}
 
-        // Template operations (include, tpl, required)
-        functions.putAll(TemplateFunctions.getFunctions(factory));
+	/**
+	 * Get all Helm functions from all categories with Kubernetes provider. Use this when
+	 * Kubernetes API access is available.
+	 * @param factory The GoTemplate instance for template operations
+	 * @param kubernetesProvider Provider for Kubernetes API access (can be null)
+	 * @return Map of function name to Function implementation
+	 */
+	public static Map<String, Function> getFunctions(GoTemplate factory, KubernetesProvider kubernetesProvider) {
+		Map<String, Function> functions = new HashMap<>();
 
-        // YAML/JSON conversion (toYaml, toJson, fromYaml, fromJson, and must* variants)
-        functions.putAll(ConversionFunctions.getFunctions());
+		// Template operations (include, tpl, required)
+		functions.putAll(TemplateFunctions.getFunctions(factory));
 
-        // Kubernetes operations (lookup, kubeVersion) - with provider
-        functions.putAll(KubernetesFunctions.getFunctions(kubernetesProvider));
+		// YAML/JSON conversion (toYaml, toJson, fromYaml, fromJson, and must* variants)
+		functions.putAll(ConversionFunctions.getFunctions());
 
-        // Chart operations (semverCompare, certificate generation)
-        functions.putAll(ChartFunctions.getFunctions());
+		// Kubernetes operations (lookup, kubeVersion) - with provider
+		functions.putAll(KubernetesFunctions.getFunctions(kubernetesProvider));
 
-        return functions;
-    }
+		// Chart operations (semverCompare, certificate generation)
+		functions.putAll(ChartFunctions.getFunctions());
 
-    /**
-     * Get all Helm functions from all categories without Kubernetes provider.
-     * Kubernetes functions will return stub data.
-     *
-     * @param factory The GoTemplate instance for template operations
-     * @return Map of function name to Function implementation
-     */
-    public static Map<String, Function> getFunctions(GoTemplate factory) {
-        return getFunctions(factory, null);
-    }
+		return functions;
+	}
 
-    /**
-     * Get function categories for documentation and introspection.
-     *
-     * @return Map of category name to list of function names
-     */
-    public static Map<String, List<String>> getFunctionCategories() {
-        Map<String, List<String>> categories = new HashMap<>();
+	/**
+	 * Get all Helm functions from all categories without Kubernetes provider. Kubernetes
+	 * functions will return stub data.
+	 * @param factory The GoTemplate instance for template operations
+	 * @return Map of function name to Function implementation
+	 */
+	public static Map<String, Function> getFunctions(GoTemplate factory) {
+		return getFunctions(factory, null);
+	}
 
-        categories.put("Template", List.of(
-                "include", "mustInclude", "tpl", "mustTpl", "required"
-        ));
+	/**
+	 * Get function categories for documentation and introspection.
+	 * @return Map of category name to list of function names
+	 */
+	public static Map<String, List<String>> getFunctionCategories() {
+		Map<String, List<String>> categories = new HashMap<>();
 
-        categories.put("Conversion", List.of(
-                "toYaml", "toJson", "fromYaml", "fromJson", "fromYamlArray",
-                "toToml", "fromToml",
-                "mustToYaml", "mustToJson", "mustFromYaml", "mustFromJson",
-                "mustToToml", "mustFromToml"
-        ));
+		categories.put("Template", List.of("include", "mustInclude", "tpl", "mustTpl", "required"));
 
-        categories.put("Kubernetes", List.of(
-                "lookup", "kubeVersion"
-        ));
+		categories.put("Conversion", List.of("toYaml", "toJson", "fromYaml", "fromJson", "fromYamlArray", "toToml",
+				"fromToml", "mustToYaml", "mustToJson", "mustFromYaml", "mustFromJson", "mustToToml", "mustFromToml"));
 
-        categories.put("Chart", List.of(
-                "semverCompare", "semver",
-                "genPrivateKey", "genCA", "genSignedCert", "genSelfSignedCert"
-        ));
+		categories.put("Kubernetes", List.of("lookup", "kubeVersion"));
 
-        return categories;
-    }
+		categories.put("Chart",
+				List.of("semverCompare", "semver", "genPrivateKey", "genCA", "genSignedCert", "genSelfSignedCert"));
+
+		return categories;
+	}
+
 }

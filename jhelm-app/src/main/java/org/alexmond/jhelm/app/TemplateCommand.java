@@ -10,23 +10,27 @@ import picocli.CommandLine;
 @Slf4j
 public class TemplateCommand implements Runnable {
 
-    private final TemplateAction templateAction;
-    @CommandLine.Parameters(index = "0", description = "release name")
-    private String name;
-    @CommandLine.Parameters(index = "1", description = "chart path")
-    private String chartPath;
+	private final TemplateAction templateAction;
 
-    public TemplateCommand(TemplateAction templateAction) {
-        this.templateAction = templateAction;
-    }
+	@CommandLine.Parameters(index = "0", description = "release name")
+	private String name;
 
-    @Override
-    public void run() {
-        try {
-            String manifest = templateAction.render(chartPath, name, "default");
-            log.info("\n{}", manifest);
-        } catch (Exception e) {
-            log.error("Error rendering template: {}", e.getMessage());
-        }
-    }
+	@CommandLine.Parameters(index = "1", description = "chart path")
+	private String chartPath;
+
+	public TemplateCommand(TemplateAction templateAction) {
+		this.templateAction = templateAction;
+	}
+
+	@Override
+	public void run() {
+		try {
+			String manifest = templateAction.render(chartPath, name, "default");
+			log.info("\n{}", manifest);
+		}
+		catch (Exception ex) {
+			log.error("Error rendering template: {}", ex.getMessage());
+		}
+	}
+
 }

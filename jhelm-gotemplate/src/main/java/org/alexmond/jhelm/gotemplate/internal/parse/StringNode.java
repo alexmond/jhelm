@@ -6,16 +6,18 @@ import org.alexmond.jhelm.gotemplate.internal.util.StringUtils;
 @Getter
 public class StringNode implements Node {
 
-    private final String origin;
-    private final String text;
+	private final String origin;
 
-    public StringNode(String origin) {
-        this.origin = origin;
-        this.text = StringUtils.unquote(origin);
-    }
+	private final String text;
 
-    @Override
-    public String toString() {
-        return origin;
-    }
+	public StringNode(String origin) {
+		this.origin = origin;
+		this.text = StringUtils.unquote(origin);
+	}
+
+	@Override
+	public String toString() {
+		return origin;
+	}
+
 }

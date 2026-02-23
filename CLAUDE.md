@@ -41,7 +41,8 @@ jhelm (parent)
 ## Coding Standards
 
 ### Style
-- **Indentation**: 4 spaces
+- **Indentation**: Tabs (enforced by `spring-javaformat-maven-plugin`)
+- **Formatter**: `spring-javaformat` runs on every `validate` phase — run `./mvnw spring-javaformat:apply` to auto-format
 - **Naming**: Classes `PascalCase`, methods/variables `camelCase`, constants `UPPER_SNAKE_CASE`
 - **Javadoc**: Use HTML tags for links, `{@code true}`/`{@code false}` for booleans, accurate `@param`/`@return` tags
 
@@ -93,3 +94,47 @@ jhelm (parent)
 - Use `@TempDir` for temporary files in tests
 - Integration tests comparing with Helm output use `target/` for temp artifacts
 - Key test classes: `GoTemplateStandardTest`, `TemplateTest`, `KpsComparisonTest`, `Helm4FunctionsTest`
+
+## Checkstyle
+
+**Plugin**: `maven-checkstyle-plugin` 3.6.0 with `spring-javaformat-checkstyle` 0.0.43. Violations **fail the build** at `validate` phase.
+
+### Checking violations
+
+```bash
+# Check all modules
+./mvnw validate 2>&1 | grep -E "violations|ERROR.*\.java"
+
+# Check specific module
+./mvnw validate -pl jhelm-core 2>&1 | grep "^\[ERROR\]"
+```
+
+### Fixing violations
+
+1. **Auto-format first** (fixes indentation, spacing):
+   ```bash
+   ./mvnw spring-javaformat:apply
+   ```
+
+2. **Run the fix script** (handles SpringCatch, NeedBraces, SpringLambda, SpringTernary, star imports):
+   ```bash
+   # Script is embedded in /.claude/skills/checkstyle/skill.md
+   python3 /tmp/fix_violations.py
+   ```
+
+3. **Manual fixes** for: `InnerTypeLast` (move inner classes after all methods), `SpringHideUtilityClassConstructor` (add private constructor + `final`), `NestedIfDepth` (extract method or suppress), `AnnotationUseStyle` (remove trailing `,` in annotation arrays)
+
+4. **Re-validate**:
+   ```bash
+   ./mvnw spring-javaformat:apply && ./mvnw validate
+   ```
+
+### Suppressions
+
+`checkstyle-suppressions.xml` at project root. Currently suppresses:
+- `SpringHeader`, `SpringTestFileName`, `JavadocPackage`, all `Javadoc*`/`SpringJavadoc` — project conventions differ
+- `RegexpSinglelineJava` — JUnit 5 assertions used instead of AssertJ
+- `SpringImportOrder` — handled by `spring-javaformat:apply`
+- `RequireThis` — not enforced
+- `SpringMethodVisibility` for `KpsComparisonTest.java` — TrustManager interface requires public
+- `NestedIfDepth` for `RepoManager.java` — intentional deep YAML parsing

@@ -15,55 +15,57 @@ import static org.mockito.Mockito.doThrow;
 
 class RegistryCommandTest {
 
-    @Mock
-    private RegistryManager registryManager;
+	@Mock
+	private RegistryManager registryManager;
 
-    private RegistryCommand.LoginCommand loginCommand;
-    private RegistryCommand.LogoutCommand logoutCommand;
+	private RegistryCommand.LoginCommand loginCommand;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        loginCommand = new RegistryCommand.LoginCommand(registryManager);
-        logoutCommand = new RegistryCommand.LogoutCommand(registryManager);
-    }
+	private RegistryCommand.LogoutCommand logoutCommand;
 
-    @Test
-    void testLoginCommandSuccess() throws IOException {
-        doNothing().when(registryManager).login(anyString(), anyString(), anyString());
+	@BeforeEach
+	void setUp() {
+		MockitoAnnotations.openMocks(this);
+		loginCommand = new RegistryCommand.LoginCommand(registryManager);
+		logoutCommand = new RegistryCommand.LogoutCommand(registryManager);
+	}
 
-        CommandLine cmd = new CommandLine(loginCommand);
-        cmd.execute("registry.example.com", "-u", "user", "-p", "pass");
-    }
+	@Test
+	void testLoginCommandSuccess() throws IOException {
+		doNothing().when(registryManager).login(anyString(), anyString(), anyString());
 
-    @Test
-    void testLoginCommandWithError() throws IOException {
-        doThrow(new IOException("Test error")).when(registryManager).login(anyString(), anyString(), anyString());
+		CommandLine cmd = new CommandLine(loginCommand);
+		cmd.execute("registry.example.com", "-u", "user", "-p", "pass");
+	}
 
-        CommandLine cmd = new CommandLine(loginCommand);
-        cmd.execute("registry.example.com", "-u", "user", "-p", "pass");
-    }
+	@Test
+	void testLoginCommandWithError() throws IOException {
+		doThrow(new IOException("Test error")).when(registryManager).login(anyString(), anyString(), anyString());
 
-    @Test
-    void testLogoutCommandSuccess() throws IOException {
-        doNothing().when(registryManager).logout(anyString());
+		CommandLine cmd = new CommandLine(loginCommand);
+		cmd.execute("registry.example.com", "-u", "user", "-p", "pass");
+	}
 
-        CommandLine cmd = new CommandLine(logoutCommand);
-        cmd.execute("registry.example.com");
-    }
+	@Test
+	void testLogoutCommandSuccess() throws IOException {
+		doNothing().when(registryManager).logout(anyString());
 
-    @Test
-    void testLogoutCommandWithError() throws IOException {
-        doThrow(new IOException("Test error")).when(registryManager).logout(anyString());
+		CommandLine cmd = new CommandLine(logoutCommand);
+		cmd.execute("registry.example.com");
+	}
 
-        CommandLine cmd = new CommandLine(logoutCommand);
-        cmd.execute("registry.example.com");
-    }
+	@Test
+	void testLogoutCommandWithError() throws IOException {
+		doThrow(new IOException("Test error")).when(registryManager).logout(anyString());
 
-    @Test
-    void testRegistryCommandShowsUsage() {
-        RegistryCommand registryCommand = new RegistryCommand();
-        CommandLine cmd = new CommandLine(registryCommand);
-        cmd.execute();
-    }
+		CommandLine cmd = new CommandLine(logoutCommand);
+		cmd.execute("registry.example.com");
+	}
+
+	@Test
+	void testRegistryCommandShowsUsage() {
+		RegistryCommand registryCommand = new RegistryCommand();
+		CommandLine cmd = new CommandLine(registryCommand);
+		cmd.execute();
+	}
+
 }

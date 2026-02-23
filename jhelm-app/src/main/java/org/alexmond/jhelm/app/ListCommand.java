@@ -13,26 +13,29 @@ import java.util.List;
 @Slf4j
 public class ListCommand implements Runnable {
 
-    private final ListAction listAction;
-    @CommandLine.Option(names = {"-n", "--namespace"}, defaultValue = "default", description = "namespace")
-    private String namespace;
+	private final ListAction listAction;
 
-    public ListCommand(ListAction listAction) {
-        this.listAction = listAction;
-    }
+	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
+	private String namespace;
 
-    @Override
-    public void run() {
-        try {
-            List<Release> releases = listAction.list(namespace);
-            System.out.printf("%-20s %-10s %-10s %-30s\n", "NAME", "REVISION", "STATUS", "CHART");
-            for (Release r : releases) {
-                String chartInfo = r.getChart().getMetadata().getName() + "-" + r.getChart().getMetadata().getVersion();
-                System.out.printf("%-20s %-10d %-10s %-30s\n",
-                        r.getName(), r.getVersion(), r.getInfo().getStatus(), chartInfo);
-            }
-        } catch (Exception e) {
-            log.error("Error listing releases: {}", e.getMessage());
-        }
-    }
+	public ListCommand(ListAction listAction) {
+		this.listAction = listAction;
+	}
+
+	@Override
+	public void run() {
+		try {
+			List<Release> releases = listAction.list(namespace);
+			System.out.printf("%-20s %-10s %-10s %-30s\n", "NAME", "REVISION", "STATUS", "CHART");
+			for (Release r : releases) {
+				String chartInfo = r.getChart().getMetadata().getName() + "-" + r.getChart().getMetadata().getVersion();
+				System.out.printf("%-20s %-10d %-10s %-30s\n", r.getName(), r.getVersion(), r.getInfo().getStatus(),
+						chartInfo);
+			}
+		}
+		catch (Exception ex) {
+			log.error("Error listing releases: {}", ex.getMessage());
+		}
+	}
+
 }

@@ -12,32 +12,32 @@ import static org.mockito.Mockito.when;
 
 class TemplateCommandTest {
 
-    @Mock
-    private TemplateAction templateAction;
+	@Mock
+	private TemplateAction templateAction;
 
-    private TemplateCommand templateCommand;
+	private TemplateCommand templateCommand;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        templateCommand = new TemplateCommand(templateAction);
-    }
+	@BeforeEach
+	void setUp() {
+		MockitoAnnotations.openMocks(this);
+		templateCommand = new TemplateCommand(templateAction);
+	}
 
-    @Test
-    void testTemplateCommandSuccess() throws Exception {
-        when(templateAction.render(anyString(), anyString(), anyString()))
-                .thenReturn("---\nkind: Service\n");
+	@Test
+	void testTemplateCommandSuccess() throws Exception {
+		when(templateAction.render(anyString(), anyString(), anyString())).thenReturn("---\nkind: Service\n");
 
-        CommandLine cmd = new CommandLine(templateCommand);
-        cmd.execute("my-release", "/path/to/chart");
-    }
+		CommandLine cmd = new CommandLine(templateCommand);
+		cmd.execute("my-release", "/path/to/chart");
+	}
 
-    @Test
-    void testTemplateCommandWithError() throws Exception {
-        when(templateAction.render(anyString(), anyString(), anyString()))
-                .thenThrow(new RuntimeException("Test error"));
+	@Test
+	void testTemplateCommandWithError() throws Exception {
+		when(templateAction.render(anyString(), anyString(), anyString()))
+			.thenThrow(new RuntimeException("Test error"));
 
-        CommandLine cmd = new CommandLine(templateCommand);
-        cmd.execute("my-release", "/path/to/chart");
-    }
+		CommandLine cmd = new CommandLine(templateCommand);
+		cmd.execute("my-release", "/path/to/chart");
+	}
+
 }

@@ -8,8 +8,9 @@ import static org.mockito.Mockito.mock;
 @Configuration
 public class MockKubeConfig {
 
-    @Bean
-    public KubeService kubeService() {
-        return mock(KubeService.class);
-    }
+	@Bean
+	public KubeService kubeService() {
+		return mock(KubeService.class);
+	}
+
 }

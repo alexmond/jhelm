@@ -14,38 +14,39 @@ import static org.mockito.Mockito.doThrow;
 
 class RollbackCommandTest {
 
-    @Mock
-    private RollbackAction rollbackAction;
+	@Mock
+	private RollbackAction rollbackAction;
 
-    private RollbackCommand rollbackCommand;
+	private RollbackCommand rollbackCommand;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        rollbackCommand = new RollbackCommand(rollbackAction);
-    }
+	@BeforeEach
+	void setUp() {
+		MockitoAnnotations.openMocks(this);
+		rollbackCommand = new RollbackCommand(rollbackAction);
+	}
 
-    @Test
-    void testRollbackCommandSuccess() throws Exception {
-        doNothing().when(rollbackAction).rollback(anyString(), anyString(), anyInt());
+	@Test
+	void testRollbackCommandSuccess() throws Exception {
+		doNothing().when(rollbackAction).rollback(anyString(), anyString(), anyInt());
 
-        CommandLine cmd = new CommandLine(rollbackCommand);
-        cmd.execute("my-release", "1", "-n", "default");
-    }
+		CommandLine cmd = new CommandLine(rollbackCommand);
+		cmd.execute("my-release", "1", "-n", "default");
+	}
 
-    @Test
-    void testRollbackCommandDefaultNamespace() throws Exception {
-        doNothing().when(rollbackAction).rollback(anyString(), anyString(), anyInt());
+	@Test
+	void testRollbackCommandDefaultNamespace() throws Exception {
+		doNothing().when(rollbackAction).rollback(anyString(), anyString(), anyInt());
 
-        CommandLine cmd = new CommandLine(rollbackCommand);
-        cmd.execute("my-release", "2");
-    }
+		CommandLine cmd = new CommandLine(rollbackCommand);
+		cmd.execute("my-release", "2");
+	}
 
-    @Test
-    void testRollbackCommandWithError() throws Exception {
-        doThrow(new RuntimeException("Test error")).when(rollbackAction).rollback(anyString(), anyString(), anyInt());
+	@Test
+	void testRollbackCommandWithError() throws Exception {
+		doThrow(new RuntimeException("Test error")).when(rollbackAction).rollback(anyString(), anyString(), anyInt());
 
-        CommandLine cmd = new CommandLine(rollbackCommand);
-        cmd.execute("my-release", "1");
-    }
+		CommandLine cmd = new CommandLine(rollbackCommand);
+		cmd.execute("my-release", "1");
+	}
+
 }

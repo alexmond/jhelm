@@ -5,34 +5,34 @@ import lombok.Getter;
 @Getter
 public class Complex {
 
-    private final double real;
-    private final double imaginary;
+	private final double real;
 
-    public Complex(double real, double imaginary) {
-        this.real = real;
-        this.imaginary = imaginary;
-    }
+	private final double imaginary;
 
-    public static Complex parseComplex(String text) throws NumberFormatException {
-        String trim = text.trim();
-        int len = trim.length();
-        if (trim.charAt(len - 1) != 'i') {
-            throw new NumberFormatException("invalid complex number");
-        }
+	public Complex(double real, double imaginary) {
+		this.real = real;
+		this.imaginary = imaginary;
+	}
 
-        int operatorPos = trim.indexOf('+');
-        if (operatorPos != -1) {
-            String realOperand = trim.substring(0, operatorPos);
-            String imaginaryOperand = trim.substring(operatorPos + 1, len - 1);
+	public static Complex parseComplex(String text) throws NumberFormatException {
+		String trim = text.trim();
+		int len = trim.length();
+		if (trim.charAt(len - 1) != 'i') {
+			throw new NumberFormatException("invalid complex number");
+		}
 
-            double real = Double.parseDouble(realOperand);
-            double imaginary = Double.parseDouble(imaginaryOperand);
-            return new Complex(real, imaginary);
-        }
+		int operatorPos = trim.indexOf('+');
+		if (operatorPos != -1) {
+			String realOperand = trim.substring(0, operatorPos);
+			String imaginaryOperand = trim.substring(operatorPos + 1, len - 1);
 
+			double real = Double.parseDouble(realOperand);
+			double imaginary = Double.parseDouble(imaginaryOperand);
+			return new Complex(real, imaginary);
+		}
 
-        double imaginary = Double.parseDouble(trim.substring(0, len - 1));
-        return new Complex(0, imaginary);
-    }
+		double imaginary = Double.parseDouble(trim.substring(0, len - 1));
+		return new Complex(0, imaginary);
+	}
 
 }
