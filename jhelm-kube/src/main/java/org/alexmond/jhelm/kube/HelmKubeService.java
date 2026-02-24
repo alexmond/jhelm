@@ -4,13 +4,14 @@ import tools.jackson.databind.json.JsonMapper;
 import io.kubernetes.client.common.KubernetesObject;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.custom.V1Patch;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1ConfigMapList;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1PodList;
-import io.kubernetes.client.openapi.models.V1Secret;
+import io.kubernetes.client.util.PatchUtils;
 import io.kubernetes.client.util.Yaml;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -207,118 +208,21 @@ public class HelmKubeService implements KubeService {
 
 		log.info("Applying {} ({}/{}) {} in namespace {}", kind, group, version, name, namespace);
 
-		if (group.isEmpty() && version.equals("v1")) {
-			applyCoreResource(namespace, kind, name, obj);
-			return;
-		}
-
-		// We use CustomObjectsApi for generic resource handling
+		V1Patch patch = new V1Patch(Yaml.dump(obj));
 		CustomObjectsApi api = new CustomObjectsApi(apiClient);
 
-		try {
+		PatchUtils.patch(Object.class, () -> {
 			if (namespace != null && !namespace.isEmpty()) {
-				api.getNamespacedCustomObject(group, version, namespace, plural, name);
-				api.replaceNamespacedCustomObject(group, version, namespace, plural, name, obj);
+				return api.patchNamespacedCustomObject(group, version, namespace, plural, name, patch)
+					.fieldManager("helm")
+					.force(true)
+					.buildCall(null);
 			}
-			else {
-				api.getClusterCustomObject(group, version, plural, name).execute();
-				api.replaceClusterCustomObject(group, version, plural, name, obj).execute();
-			}
-		}
-		catch (Exception ex) {
-			if (ex instanceof ApiException ae && ae.getCode() == 404) {
-				try {
-					if (namespace != null && !namespace.isEmpty()) {
-						api.createNamespacedCustomObject(group, version, namespace, plural, obj);
-					}
-					else {
-						api.createClusterCustomObject(group, version, plural, obj).execute();
-					}
-				}
-				catch (Exception ce) {
-					log.error("Create failed for {}: {}", kind,
-							(ce instanceof ApiException cae) ? cae.getResponseBody() : ce.getMessage());
-					throw ce;
-				}
-			}
-			else {
-				log.error("Apply failed for {}: {}", kind,
-						(ex instanceof ApiException ae2) ? ae2.getResponseBody() : ex.getMessage());
-				throw ex;
-			}
-		}
-	}
-
-	private void applyCoreResource(String namespace, String kind, String name, KubernetesObject obj)
-			throws ApiException {
-		CoreV1Api api = new CoreV1Api(apiClient);
-		String yaml = Yaml.dump(obj);
-
-		switch (kind) {
-			case "ConfigMap" -> {
-				V1ConfigMap cm = Yaml.loadAs(yaml, V1ConfigMap.class);
-				try {
-					api.readNamespacedConfigMap(name, namespace).execute();
-					api.replaceNamespacedConfigMap(name, namespace, cm).execute();
-				}
-				catch (Exception ex) {
-					if (ex instanceof ApiException ae && ae.getCode() == 404) {
-						api.createNamespacedConfigMap(namespace, cm).execute();
-					}
-					else {
-						throw ex;
-					}
-				}
-			}
-			case "Service" -> {
-				io.kubernetes.client.openapi.models.V1Service svc = Yaml.loadAs(yaml,
-						io.kubernetes.client.openapi.models.V1Service.class);
-				try {
-					api.readNamespacedService(name, namespace).execute();
-					api.replaceNamespacedService(name, namespace, svc).execute();
-				}
-				catch (Exception ex) {
-					if (ex instanceof ApiException ae && ae.getCode() == 404) {
-						api.createNamespacedService(namespace, svc).execute();
-					}
-					else {
-						throw ex;
-					}
-				}
-			}
-			case "Secret" -> {
-				V1Secret secret = Yaml.loadAs(yaml, V1Secret.class);
-				try {
-					api.readNamespacedSecret(name, namespace).execute();
-					api.replaceNamespacedSecret(name, namespace, secret).execute();
-				}
-				catch (Exception ex) {
-					if (ex instanceof ApiException ae && ae.getCode() == 404) {
-						api.createNamespacedSecret(namespace, secret).execute();
-					}
-					else {
-						throw ex;
-					}
-				}
-			}
-			default -> {
-				// Fallback to CustomObjectsApi if not explicitly handled
-				CustomObjectsApi coa = new CustomObjectsApi(apiClient);
-				String plural = inferPlural(kind);
-				try {
-					coa.getNamespacedCustomObject("", "v1", namespace, plural, name).execute();
-					coa.replaceNamespacedCustomObject("", "v1", namespace, plural, name, obj).execute();
-				}
-				catch (Exception ex) {
-					if (ex instanceof ApiException ae && ae.getCode() == 404) {
-						coa.createNamespacedCustomObject("", "v1", namespace, plural, obj).execute();
-					}
-					else {
-						throw ex;
-					}
-				}
-			}
-		}
+			return api.patchClusterCustomObject(group, version, plural, name, patch)
+				.fieldManager("helm")
+				.force(true)
+				.buildCall(null);
+		}, V1Patch.PATCH_FORMAT_APPLY_YAML, apiClient);
 	}
 
 	/**
