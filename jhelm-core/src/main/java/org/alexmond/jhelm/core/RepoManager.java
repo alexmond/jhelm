@@ -26,6 +26,9 @@ import java.io.BufferedInputStream;
 import java.io.FileOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 
@@ -169,6 +172,43 @@ public class RepoManager {
 
 	private File getIndexCacheFile(String repoName) {
 		return new File(getCacheDir(), repoName + "-index.yaml");
+	}
+
+	File getChartCacheDir() {
+		File dir = new File(getCacheDir(), "charts");
+		dir.mkdirs();
+		return dir;
+	}
+
+	File getChartCacheFile(String digest) {
+		String hex = digest.startsWith("sha256:") ? digest.substring(7) : digest;
+		return new File(getChartCacheDir(), hex + ".tgz");
+	}
+
+	String computeFileSha256(File file) throws IOException {
+		try {
+			MessageDigest md = MessageDigest.getInstance("SHA-256");
+			try (InputStream in = new BufferedInputStream(new FileInputStream(file))) {
+				byte[] buf = new byte[8192];
+				int n;
+				while ((n = in.read(buf)) != -1) {
+					md.update(buf, 0, n);
+				}
+			}
+			byte[] hash = md.digest();
+			StringBuilder sb = new StringBuilder();
+			for (byte b : hash) {
+				String hex = Integer.toHexString(0xff & b);
+				if (hex.length() == 1) {
+					sb.append('0');
+				}
+				sb.append(hex);
+			}
+			return sb.toString();
+		}
+		catch (NoSuchAlgorithmException ex) {
+			throw new IOException("SHA-256 not available", ex);
+		}
 	}
 
 	public void updateRepo(String name) throws IOException {
@@ -347,6 +387,7 @@ public class RepoManager {
 
 		// Try to find the actual URL from the index.yaml if available
 		String chartUrl = null;
+		String chartDigest = null;
 		File indexFile = getIndexCacheFile(finalRepoName);
 		if (indexFile.exists()) {
 			try (InputStream in = new FileInputStream(indexFile)) {
@@ -361,6 +402,7 @@ public class RepoManager {
 								java.util.List<?> urls = (java.util.List<?>) m.get("urls");
 								if (urls != null && !urls.isEmpty()) {
 									chartUrl = asString(urls.get(0));
+									chartDigest = asString(m.get("digest"));
 									break;
 								}
 							}
@@ -383,7 +425,29 @@ public class RepoManager {
 			chartUrl = base + chartUrl;
 		}
 
-		pullFromUrl(chartUrl, destDir, finalChartName + "-" + version + ".tgz");
+		if (chartDigest != null) {
+			File cached = getChartCacheFile(chartDigest);
+			if (cached.exists()) {
+				log.info("Using cached chart (digest: {})", chartDigest);
+				File destFile = new File(destDir, finalChartName + "-" + version + ".tgz");
+				Files.copy(cached.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+				untar(destFile, new File(destDir));
+				return;
+			}
+		}
+
+		String tgzFileName = finalChartName + "-" + version + ".tgz";
+		pullFromUrl(chartUrl, destDir, tgzFileName);
+
+		// Store in content cache after download
+		File downloaded = new File(destDir, tgzFileName);
+		if (downloaded.exists()) {
+			String actualDigest = computeFileSha256(downloaded);
+			File cacheTarget = getChartCacheFile(actualDigest);
+			if (!cacheTarget.exists()) {
+				Files.copy(downloaded.toPath(), cacheTarget.toPath());
+			}
+		}
 	}
 
 	public void pullFromUrl(String chartUrl, String destDir, String fileName) throws IOException {
@@ -473,9 +537,27 @@ public class RepoManager {
 			throw new IOException("No chart layer found in OCI manifest for " + ociUrl);
 		}
 
-		// 4. Download Layer (blob)
+		// 4. Download Layer (blob) — check content cache first
+		File cached = getChartCacheFile(digest);
+		if (cached.exists()) {
+			log.info("Using cached OCI chart (digest: {})", digest);
+			File destFile = new File(destDir, fileName);
+			Files.copy(cached.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+			untar(destFile, new File(destDir));
+			return;
+		}
+
 		String blobUrl = "https://" + registry + "/v2/" + path + "/blobs/" + digest;
 		downloadBlob(blobUrl, token, destDir, fileName);
+
+		// Store in content cache after download
+		File downloaded = new File(destDir, fileName);
+		if (downloaded.exists()) {
+			File cacheTarget = getChartCacheFile(digest);
+			if (!cacheTarget.exists()) {
+				Files.copy(downloaded.toPath(), cacheTarget.toPath());
+			}
+		}
 
 		// 5. Untar it automatically to match helm behavior
 		File tgzFile = new File(destDir, fileName);
