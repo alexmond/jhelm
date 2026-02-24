@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.kube;
 
 import tools.jackson.databind.json.JsonMapper;
+import io.kubernetes.client.custom.V1Patch;
 import io.kubernetes.client.openapi.ApiClient;
 import java.util.Base64;
 import io.kubernetes.client.openapi.ApiException;
@@ -11,8 +12,7 @@ import io.kubernetes.client.openapi.models.V1ConfigMapList;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
-import io.kubernetes.client.openapi.models.V1Secret;
-import io.kubernetes.client.openapi.models.V1Service;
+import io.kubernetes.client.util.PatchUtils;
 import org.alexmond.jhelm.core.Release;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +22,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 
 import java.time.OffsetDateTime;
@@ -39,9 +40,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mockConstruction;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mockStatic;
 
 class HelmKubeServiceTest {
 
@@ -56,9 +55,15 @@ class HelmKubeServiceTest {
 
 	private MockedConstruction<CustomObjectsApi> customObjectsApiConstruction;
 
+	private MockedStatic<PatchUtils> patchUtilsMock;
+
 	private CoreV1Api mockCoreV1Api;
 
 	private CustomObjectsApi mockCustomObjectsApi;
+
+	private CustomObjectsApi.APIpatchNamespacedCustomObjectRequest mockPatchRequest;
+
+	private CustomObjectsApi.APIpatchClusterCustomObjectRequest mockClusterPatchRequest;
 
 	@BeforeEach
 	void setUp() {
@@ -73,6 +78,9 @@ class HelmKubeServiceTest {
 		}
 		if (customObjectsApiConstruction != null) {
 			customObjectsApiConstruction.close();
+		}
+		if (patchUtilsMock != null) {
+			patchUtilsMock.close();
 		}
 	}
 
@@ -109,6 +117,32 @@ class HelmKubeServiceTest {
 		when(listReq.labelSelector(anyString())).thenReturn(listReq);
 		when(listReq.execute()).thenReturn(list);
 		when(mock.listNamespacedConfigMap(anyString())).thenReturn(listReq);
+	}
+
+	private void setupSsaMock() {
+		customObjectsApiConstruction = mockConstruction(CustomObjectsApi.class, (mock, ctx) -> {
+			mockCustomObjectsApi = mock;
+
+			mockPatchRequest = mock(CustomObjectsApi.APIpatchNamespacedCustomObjectRequest.class);
+			when(mockPatchRequest.fieldManager(anyString())).thenReturn(mockPatchRequest);
+			when(mockPatchRequest.force(any(Boolean.class))).thenReturn(mockPatchRequest);
+			when(mockPatchRequest.buildCall(any())).thenReturn(null);
+			when(mock.patchNamespacedCustomObject(any(), any(), any(), any(), any(), any()))
+				.thenReturn(mockPatchRequest);
+
+			mockClusterPatchRequest = mock(CustomObjectsApi.APIpatchClusterCustomObjectRequest.class);
+			when(mockClusterPatchRequest.fieldManager(anyString())).thenReturn(mockClusterPatchRequest);
+			when(mockClusterPatchRequest.force(any(Boolean.class))).thenReturn(mockClusterPatchRequest);
+			when(mockClusterPatchRequest.buildCall(any())).thenReturn(null);
+			when(mock.patchClusterCustomObject(any(), any(), any(), any(), any())).thenReturn(mockClusterPatchRequest);
+		});
+
+		patchUtilsMock = mockStatic(PatchUtils.class);
+		patchUtilsMock.when(() -> PatchUtils.patch(any(), any(), anyString(), any())).thenAnswer((invocation) -> {
+			PatchUtils.PatchCallFunc func = invocation.getArgument(1);
+			func.getCall();
+			return null;
+		});
 	}
 
 	// --- storeRelease ---
@@ -321,10 +355,31 @@ class HelmKubeServiceTest {
 		assertEquals(List.of("pod-1", "pod-2"), kubeService.listPods("default"));
 	}
 
-	// --- apply ---
+	// --- apply (Server-Side Apply) ---
 
 	@Test
-	void testApplyConfigMapCreatesNew() throws Exception {
+	void testApplyNamespacedResourceUsesSSA() throws Exception {
+		String yaml = """
+				apiVersion: apps/v1
+				kind: Deployment
+				metadata:
+				  name: my-deploy
+				  namespace: default
+				spec:
+				  replicas: 1
+				""";
+
+		setupSsaMock();
+		kubeService.apply("default", yaml);
+
+		verify(mockCustomObjectsApi).patchNamespacedCustomObject(eq("apps"), eq("v1"), eq("default"), eq("deployments"),
+				eq("my-deploy"), any(V1Patch.class));
+		verify(mockPatchRequest).fieldManager("helm");
+		verify(mockPatchRequest).force(true);
+	}
+
+	@Test
+	void testApplyCoreV1ResourceUsesSSA() throws Exception {
 		String yaml = """
 				apiVersion: v1
 				kind: ConfigMap
@@ -335,254 +390,59 @@ class HelmKubeServiceTest {
 				  key: value
 				""";
 
-		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
-			mockCoreV1Api = mock;
-			// readNamespacedConfigMap throws 404 -> create
-			var readReq = mock(CoreV1Api.APIreadNamespacedConfigMapRequest.class);
-			when(readReq.execute()).thenThrow(new ApiException(404, "Not found"));
-			when(mock.readNamespacedConfigMap(eq("my-config"), eq("default"))).thenReturn(readReq);
-
-			var createReq = mock(CoreV1Api.APIcreateNamespacedConfigMapRequest.class);
-			when(createReq.execute()).thenReturn(new V1ConfigMap());
-			when(mock.createNamespacedConfigMap(eq("default"), any(V1ConfigMap.class))).thenReturn(createReq);
-		});
-
+		setupSsaMock();
 		kubeService.apply("default", yaml);
-		verify(mockCoreV1Api).createNamespacedConfigMap(eq("default"), any(V1ConfigMap.class));
+
+		verify(mockCustomObjectsApi).patchNamespacedCustomObject(eq(""), eq("v1"), eq("default"), eq("configmaps"),
+				eq("my-config"), any(V1Patch.class));
+		verify(mockPatchRequest).fieldManager("helm");
+		verify(mockPatchRequest).force(true);
 	}
 
 	@Test
-	void testApplyConfigMapReplacesExisting() throws Exception {
+	void testApplyClusterScopedResourceUsesSSA() throws Exception {
 		String yaml = """
 				apiVersion: v1
-				kind: ConfigMap
+				kind: Namespace
 				metadata:
-				  name: my-config
-				  namespace: default
-				data:
-				  key: value
+				  name: my-ns
 				""";
 
-		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
-			mockCoreV1Api = mock;
-			var readReq = mock(CoreV1Api.APIreadNamespacedConfigMapRequest.class);
-			when(readReq.execute()).thenReturn(new V1ConfigMap());
-			when(mock.readNamespacedConfigMap(eq("my-config"), eq("default"))).thenReturn(readReq);
+		setupSsaMock();
+		kubeService.apply("", yaml);
 
-			var replaceReq = mock(CoreV1Api.APIreplaceNamespacedConfigMapRequest.class);
-			when(replaceReq.execute()).thenReturn(new V1ConfigMap());
-			when(mock.replaceNamespacedConfigMap(eq("my-config"), eq("default"), any(V1ConfigMap.class)))
-				.thenReturn(replaceReq);
-		});
-
-		kubeService.apply("default", yaml);
-		verify(mockCoreV1Api).replaceNamespacedConfigMap(eq("my-config"), eq("default"), any(V1ConfigMap.class));
+		verify(mockCustomObjectsApi).patchClusterCustomObject(eq(""), eq("v1"), eq("namespaces"), eq("my-ns"),
+				any(V1Patch.class));
+		verify(mockClusterPatchRequest).fieldManager("helm");
+		verify(mockClusterPatchRequest).force(true);
 	}
 
 	@Test
-	void testApplyServiceCreatesNew() throws Exception {
+	void testApplyThrowsOnApiException() {
 		String yaml = """
-				apiVersion: v1
-				kind: Service
+				apiVersion: apps/v1
+				kind: Deployment
 				metadata:
-				  name: my-svc
-				  namespace: default
-				spec:
-				  ports:
-				  - port: 80
-				""";
-
-		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
-			mockCoreV1Api = mock;
-			var readReq = mock(CoreV1Api.APIreadNamespacedServiceRequest.class);
-			when(readReq.execute()).thenThrow(new ApiException(404, "Not found"));
-			when(mock.readNamespacedService(eq("my-svc"), eq("default"))).thenReturn(readReq);
-
-			var createReq = mock(CoreV1Api.APIcreateNamespacedServiceRequest.class);
-			when(createReq.execute()).thenReturn(new V1Service());
-			when(mock.createNamespacedService(eq("default"), any(V1Service.class))).thenReturn(createReq);
-		});
-
-		kubeService.apply("default", yaml);
-		verify(mockCoreV1Api).createNamespacedService(eq("default"), any(V1Service.class));
-	}
-
-	@Test
-	void testApplySecretCreatesNew() throws Exception {
-		String yaml = """
-				apiVersion: v1
-				kind: Secret
-				metadata:
-				  name: my-secret
-				  namespace: default
-				type: Opaque
-				data:
-				  password: cGFzc3dvcmQ=
-				""";
-
-		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
-			mockCoreV1Api = mock;
-			var readReq = mock(CoreV1Api.APIreadNamespacedSecretRequest.class);
-			when(readReq.execute()).thenThrow(new ApiException(404, "Not found"));
-			when(mock.readNamespacedSecret(eq("my-secret"), eq("default"))).thenReturn(readReq);
-
-			var createReq = mock(CoreV1Api.APIcreateNamespacedSecretRequest.class);
-			when(createReq.execute()).thenReturn(new V1Secret());
-			when(mock.createNamespacedSecret(eq("default"), any(V1Secret.class))).thenReturn(createReq);
-		});
-
-		kubeService.apply("default", yaml);
-		verify(mockCoreV1Api).createNamespacedSecret(eq("default"), any(V1Secret.class));
-	}
-
-	@Test
-	void testApplyServiceReplacesExisting() throws Exception {
-		String yaml = """
-				apiVersion: v1
-				kind: Service
-				metadata:
-				  name: my-svc
-				  namespace: default
-				spec:
-				  ports:
-				  - port: 80
-				""";
-
-		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
-			mockCoreV1Api = mock;
-			var readReq = mock(CoreV1Api.APIreadNamespacedServiceRequest.class);
-			when(readReq.execute()).thenReturn(new V1Service());
-			when(mock.readNamespacedService(eq("my-svc"), eq("default"))).thenReturn(readReq);
-
-			var replaceReq = mock(CoreV1Api.APIreplaceNamespacedServiceRequest.class);
-			when(replaceReq.execute()).thenReturn(new V1Service());
-			when(mock.replaceNamespacedService(eq("my-svc"), eq("default"), any(V1Service.class)))
-				.thenReturn(replaceReq);
-		});
-
-		kubeService.apply("default", yaml);
-		verify(mockCoreV1Api).replaceNamespacedService(eq("my-svc"), eq("default"), any(V1Service.class));
-	}
-
-	@Test
-	void testApplySecretReplacesExisting() throws Exception {
-		String yaml = """
-				apiVersion: v1
-				kind: Secret
-				metadata:
-				  name: my-secret
-				  namespace: default
-				type: Opaque
-				data:
-				  password: cGFzc3dvcmQ=
-				""";
-
-		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
-			mockCoreV1Api = mock;
-			var readReq = mock(CoreV1Api.APIreadNamespacedSecretRequest.class);
-			when(readReq.execute()).thenReturn(new V1Secret());
-			when(mock.readNamespacedSecret(eq("my-secret"), eq("default"))).thenReturn(readReq);
-
-			var replaceReq = mock(CoreV1Api.APIreplaceNamespacedSecretRequest.class);
-			when(replaceReq.execute()).thenReturn(new V1Secret());
-			when(mock.replaceNamespacedSecret(eq("my-secret"), eq("default"), any(V1Secret.class)))
-				.thenReturn(replaceReq);
-		});
-
-		kubeService.apply("default", yaml);
-		verify(mockCoreV1Api).replaceNamespacedSecret(eq("my-secret"), eq("default"), any(V1Secret.class));
-	}
-
-	@Test
-	void testApplyServiceThrowsOnNon404Error() {
-		String yaml = """
-				apiVersion: v1
-				kind: Service
-				metadata:
-				  name: my-svc
-				  namespace: default
-				spec:
-				  ports:
-				  - port: 80
-				""";
-
-		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
-			var readReq = mock(CoreV1Api.APIreadNamespacedServiceRequest.class);
-			when(readReq.execute()).thenThrow(new ApiException(500, "Server error"));
-			when(mock.readNamespacedService(eq("my-svc"), eq("default"))).thenReturn(readReq);
-		});
-
-		assertThrows(Exception.class, () -> kubeService.apply("default", yaml));
-	}
-
-	@Test
-	void testApplySecretThrowsOnNon404Error() {
-		String yaml = """
-				apiVersion: v1
-				kind: Secret
-				metadata:
-				  name: my-secret
-				  namespace: default
-				type: Opaque
-				data:
-				  password: cGFzc3dvcmQ=
-				""";
-
-		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
-			var readReq = mock(CoreV1Api.APIreadNamespacedSecretRequest.class);
-			when(readReq.execute()).thenThrow(new ApiException(500, "Server error"));
-			when(mock.readNamespacedSecret(eq("my-secret"), eq("default"))).thenReturn(readReq);
-		});
-
-		assertThrows(Exception.class, () -> kubeService.apply("default", yaml));
-	}
-
-	@Test
-	void testApplyConfigMapThrowsOnNon404Error() {
-		String yaml = """
-				apiVersion: v1
-				kind: ConfigMap
-				metadata:
-				  name: my-config
-				  namespace: default
-				data:
-				  key: value
-				""";
-
-		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
-			var readReq = mock(CoreV1Api.APIreadNamespacedConfigMapRequest.class);
-			when(readReq.execute()).thenThrow(new ApiException(500, "Server error"));
-			when(mock.readNamespacedConfigMap(eq("my-config"), eq("default"))).thenReturn(readReq);
-		});
-
-		assertThrows(Exception.class, () -> kubeService.apply("default", yaml));
-	}
-
-	@Test
-	void testApplyUnknownCoreResourceFallsBackToCustomObjects() throws Exception {
-		String yaml = """
-				apiVersion: v1
-				kind: Endpoints
-				metadata:
-				  name: my-endpoints
+				  name: my-deploy
 				  namespace: default
 				""";
 
-		coreV1ApiConstruction = mockConstruction(CoreV1Api.class);
 		customObjectsApiConstruction = mockConstruction(CustomObjectsApi.class, (mock, ctx) -> {
-			mockCustomObjectsApi = mock;
-			var getReq = mock(CustomObjectsApi.APIgetNamespacedCustomObjectRequest.class);
-			when(getReq.execute()).thenThrow(new ApiException(404, "Not found"));
-			when(mock.getNamespacedCustomObject(eq(""), eq("v1"), eq("default"), eq("endpointss"), eq("my-endpoints")))
-				.thenReturn(getReq);
-
-			var createReq = mock(CustomObjectsApi.APIcreateNamespacedCustomObjectRequest.class);
-			when(createReq.execute()).thenReturn(new Object());
-			when(mock.createNamespacedCustomObject(eq(""), eq("v1"), eq("default"), eq("endpointss"), any()))
-				.thenReturn(createReq);
+			var patchReq = mock(CustomObjectsApi.APIpatchNamespacedCustomObjectRequest.class);
+			when(patchReq.fieldManager(anyString())).thenReturn(patchReq);
+			when(patchReq.force(any(Boolean.class))).thenReturn(patchReq);
+			when(patchReq.buildCall(any())).thenThrow(new ApiException(500, "Server error"));
+			when(mock.patchNamespacedCustomObject(any(), any(), any(), any(), any(), any())).thenReturn(patchReq);
 		});
 
-		kubeService.apply("default", yaml);
+		patchUtilsMock = mockStatic(PatchUtils.class);
+		patchUtilsMock.when(() -> PatchUtils.patch(any(), any(), anyString(), any())).thenAnswer((invocation) -> {
+			PatchUtils.PatchCallFunc func = invocation.getArgument(1);
+			func.getCall();
+			return null;
+		});
+
+		assertThrows(Exception.class, () -> kubeService.apply("default", yaml));
 	}
 
 	// --- delete ---
