@@ -251,45 +251,7 @@ public class Engine {
 		StringBuilder sb = new StringBuilder();
 
 		// Render current chart templates
-		for (Chart.Template t : chart.getTemplates()) {
-			if (t.getName().endsWith(".yaml")) {
-				try {
-					factory.parse(t.getName(), t.getData());
-					StringWriter writer = new StringWriter();
-
-					// Template name in context should be current template
-					Map<String, Object> templateMap = new HashMap<>((Map<String, Object>) context.get("Template"));
-					templateMap.put("Name", chart.getMetadata().getName() + "/templates/" + t.getName());
-					Map<String, Object> currentContext = new HashMap<>(context);
-					currentContext.put("Template", templateMap);
-
-					factory.execute(t.getName(), currentContext, writer);
-					String rendered = writer.toString();
-					if (rendered != null && !rendered.trim().isEmpty()) {
-						// If template already ends with document separator, don't add
-						// another
-						if (!rendered.trim().endsWith("---")) {
-							sb.append(rendered);
-							if (!rendered.endsWith("\n")) {
-								sb.append("\n");
-							}
-							sb.append("---\n");
-						}
-						else {
-							sb.append(rendered);
-						}
-					}
-				}
-				catch (StackOverflowError ex) {
-					log.error("StackOverflowError rendering template {}: {}", t.getName(), ex.getMessage());
-					// Skip this template but don't fail the whole chart if possible
-				}
-				catch (Exception ex) {
-					log.error("Failed to render template {}: {}", t.getName(), ex.getMessage());
-					throw new RuntimeException("Failed to render template " + t.getName(), ex);
-				}
-			}
-		}
+		renderChartTemplates(chart, context, sb);
 
 		// Render subcharts
 		for (Chart subchart : chart.getDependencies()) {
@@ -318,6 +280,45 @@ public class Engine {
 		}
 
 		return sb.toString();
+	}
+
+	private void renderChartTemplates(Chart chart, Map<String, Object> context, StringBuilder sb) {
+		for (Chart.Template t : chart.getTemplates()) {
+			if (!t.getName().endsWith(".yaml")) {
+				continue;
+			}
+			try {
+				factory.parse(t.getName(), t.getData());
+				StringWriter writer = new StringWriter();
+
+				Map<String, Object> templateMap = new HashMap<>((Map<String, Object>) context.get("Template"));
+				templateMap.put("Name", chart.getMetadata().getName() + "/templates/" + t.getName());
+				Map<String, Object> currentContext = new HashMap<>(context);
+				currentContext.put("Template", templateMap);
+
+				factory.execute(t.getName(), currentContext, writer);
+				String rendered = writer.toString();
+				if (rendered != null && !rendered.trim().isEmpty()) {
+					if (!rendered.trim().endsWith("---")) {
+						sb.append(rendered);
+						if (!rendered.endsWith("\n")) {
+							sb.append("\n");
+						}
+						sb.append("---\n");
+					}
+					else {
+						sb.append(rendered);
+					}
+				}
+			}
+			catch (StackOverflowError ex) {
+				log.error("StackOverflowError rendering template {}: {}", t.getName(), ex.getMessage());
+			}
+			catch (Exception ex) {
+				log.error("Failed to render template {}: {}", t.getName(), ex.getMessage());
+				throw new RuntimeException("Failed to render template " + t.getName(), ex);
+			}
+		}
 	}
 
 	private Map<String, Object> mergeValues(Map<String, Object> defaults, Map<String, Object> overrides) {

@@ -33,4 +33,16 @@
 
     <!-- RepoManager has deeply nested YAML parsing logic that is intentional -->
     <suppress checks="NestedIfDepth" files="RepoManager\.java"/>
+
+    <!-- Lexer and Parser are state machines — long methods are an inherent property of the pattern -->
+    <suppress checks="MethodLength" files="Parser\.java"/>
+    <suppress checks="MethodLength" files="Lexer\.java"/>
+
+    <!-- HelmChartTemplates methods return static YAML text blocks, not logic — size limits don't apply -->
+    <suppress checks="MethodLength" files="HelmChartTemplates\.java"/>
+    <suppress checks="FileLength" files="HelmChartTemplates\.java"/>
+
+    <!-- Test files are exempt from size limits: test methods are short but files accumulate many of them -->
+    <suppress checks="MethodLength" files=".*Test\.java"/>
+    <suppress checks="FileLength" files=".*Test\.java"/>
 </suppressions>

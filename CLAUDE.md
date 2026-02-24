@@ -129,6 +129,15 @@ jhelm (parent)
    ./mvnw spring-javaformat:apply && ./mvnw validate
    ```
 
+### Size limits
+
+Configured in `checkstyle.xml` (project root):
+
+| Scope | Consider refactoring | Build fails |
+|---|---|---|
+| File | > 500 lines | > 1000 lines |
+| Method | > 50 lines | > 80 lines |
+
 ### Suppressions
 
 `checkstyle-suppressions.xml` at project root. Currently suppresses:
@@ -138,3 +147,6 @@ jhelm (parent)
 - `RequireThis` — not enforced
 - `SpringMethodVisibility` for `KpsComparisonTest.java` — TrustManager interface requires public
 - `NestedIfDepth` for `RepoManager.java` — intentional deep YAML parsing
+- `MethodLength` for `Lexer.java`, `Parser.java` — state machines; pattern requires long dispatch methods
+- `MethodLength`+`FileLength` for `HelmChartTemplates.java` — static YAML text blocks, not logic
+- `MethodLength`+`FileLength` for `*Test.java` — test files exempt from size limits

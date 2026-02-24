@@ -385,45 +385,10 @@ public class RepoManager {
 			.findFirst()
 			.orElseThrow(() -> new IOException("Repository not found: " + searchRepoName));
 
-		// Try to find the actual URL from the index.yaml if available
-		String chartUrl = null;
-		String chartDigest = null;
-		File indexFile = getIndexCacheFile(finalRepoName);
-		if (indexFile.exists()) {
-			try (InputStream in = new FileInputStream(indexFile)) {
-				java.util.Map<?, ?> root = yamlMapper.readValue(in, java.util.Map.class);
-				java.util.Map<?, ?> entries = (java.util.Map<?, ?>) root.get("entries");
-				if (entries != null) {
-					java.util.List<?> versions = (java.util.List<?>) entries.get(finalChartName);
-					if (versions != null) {
-						for (Object o : versions) {
-							java.util.Map<?, ?> m = (java.util.Map<?, ?>) o;
-							if (version.equals(asString(m.get("version")))) {
-								java.util.List<?> urls = (java.util.List<?>) m.get("urls");
-								if (urls != null && !urls.isEmpty()) {
-									chartUrl = asString(urls.get(0));
-									chartDigest = asString(m.get("digest"));
-									break;
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
-		if (chartUrl == null) {
-			// Fallback to convention
-			chartUrl = repo.getUrl() + "/" + finalChartName + "-" + version + ".tgz";
-		}
-		else if (!chartUrl.contains("://")) {
-			// Handle relative URLs
-			String base = repo.getUrl();
-			if (!base.endsWith("/")) {
-				base += "/";
-			}
-			chartUrl = base + chartUrl;
-		}
+		String[] indexEntry = lookupChartInIndex(getIndexCacheFile(finalRepoName), finalChartName, version);
+		String chartUrl = resolveChartUrl((indexEntry != null) ? indexEntry[0] : null, repo.getUrl(), finalChartName,
+				version);
+		String chartDigest = (indexEntry != null) ? indexEntry[1] : null;
 
 		if (chartDigest != null) {
 			File cached = getChartCacheFile(chartDigest);
@@ -448,6 +413,44 @@ public class RepoManager {
 				Files.copy(downloaded.toPath(), cacheTarget.toPath());
 			}
 		}
+	}
+
+	private String[] lookupChartInIndex(File indexFile, String chartName, String version) throws IOException {
+		if (!indexFile.exists()) {
+			return null;
+		}
+		try (InputStream in = new FileInputStream(indexFile)) {
+			java.util.Map<?, ?> root = yamlMapper.readValue(in, java.util.Map.class);
+			java.util.Map<?, ?> entries = (java.util.Map<?, ?>) root.get("entries");
+			if (entries == null) {
+				return null;
+			}
+			java.util.List<?> versions = (java.util.List<?>) entries.get(chartName);
+			if (versions == null) {
+				return null;
+			}
+			for (Object o : versions) {
+				java.util.Map<?, ?> m = (java.util.Map<?, ?>) o;
+				if (version.equals(asString(m.get("version")))) {
+					java.util.List<?> urls = (java.util.List<?>) m.get("urls");
+					if (urls != null && !urls.isEmpty()) {
+						return new String[] { asString(urls.get(0)), asString(m.get("digest")) };
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	private String resolveChartUrl(String indexUrl, String repoUrl, String chartName, String version) {
+		if (indexUrl == null) {
+			return repoUrl + "/" + chartName + "-" + version + ".tgz";
+		}
+		if (!indexUrl.contains("://")) {
+			String base = repoUrl.endsWith("/") ? repoUrl : repoUrl + "/";
+			return base + indexUrl;
+		}
+		return indexUrl;
 	}
 
 	public void pullFromUrl(String chartUrl, String destDir, String fileName) throws IOException {
@@ -484,29 +487,14 @@ public class RepoManager {
 
 	public void pullOci(String ociUrl, String destDir, String fileName) throws IOException {
 		log.info("Pulling OCI chart from {} to {}", ociUrl, destDir);
-		// oci://registry/repo/chart:version or oci://registry/repo/chart (tag defaults to
-		// latest)
-		String raw = ociUrl.substring(6);
-		int firstSlash = raw.indexOf('/');
-		if (firstSlash == -1) {
-			throw new IOException("Invalid OCI URL: " + ociUrl);
-		}
-		String registry = raw.substring(0, firstSlash);
-		String path = raw.substring(firstSlash + 1);
-		String tag = "latest";
-		if (path.contains(":")) {
-			int colon = path.lastIndexOf(':');
-			tag = path.substring(colon + 1);
-			path = path.substring(0, colon);
-		}
+		String[] ociParts = parseOciUrl(ociUrl);
+		String registry = ociParts[0];
+		String path = ociParts[1];
+		String tag = ociParts[2];
 
 		// 1. Get Token
-		String token = null;
-		String auth = null;
-		if (registryManager != null) {
-			auth = registryManager.getAuth(registry);
-		}
-		token = fetchOciToken(registry, path, auth);
+		String auth = (registryManager != null) ? registryManager.getAuth(registry) : null;
+		String token = fetchOciToken(registry, path, auth);
 
 		// 2. Get Manifest
 		String manifestUrl = "https://" + registry + "/v2/" + path + "/manifests/" + tag;
@@ -562,6 +550,23 @@ public class RepoManager {
 		// 5. Untar it automatically to match helm behavior
 		File tgzFile = new File(destDir, fileName);
 		untar(tgzFile, new File(destDir));
+	}
+
+	private String[] parseOciUrl(String ociUrl) throws IOException {
+		String raw = ociUrl.substring(6);
+		int firstSlash = raw.indexOf('/');
+		if (firstSlash == -1) {
+			throw new IOException("Invalid OCI URL: " + ociUrl);
+		}
+		String registry = raw.substring(0, firstSlash);
+		String path = raw.substring(firstSlash + 1);
+		String tag = "latest";
+		if (path.contains(":")) {
+			int colon = path.lastIndexOf(':');
+			tag = path.substring(colon + 1);
+			path = path.substring(0, colon);
+		}
+		return new String[] { registry, path, tag };
 	}
 
 	private String fetchOciToken(String registry, String path, String auth) throws IOException {
