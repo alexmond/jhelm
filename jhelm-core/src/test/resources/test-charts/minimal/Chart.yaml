@@ -1,0 +1,4 @@
+apiVersion: v2
+name: minimal
+description: Minimal test chart
+version: 1.0.0

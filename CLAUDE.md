@@ -94,6 +94,9 @@ jhelm (parent)
 - Use `@TempDir` for temporary files in tests
 - Integration tests comparing with Helm output use `target/` for temp artifacts
 - Key test classes: `GoTemplateStandardTest`, `TemplateTest`, `KpsComparisonTest`, `Helm4FunctionsTest`
+- **Prefer real test data** (chart YAML, Go template strings, `@TempDir` files) over Mockito mocks
+- Test charts live in `src/test/resources/test-charts/<name>/` — use them for Engine/template tests
+- Mockito is acceptable only for HTTP (`CloseableHttpClient`) and Kubernetes (`KubeService`) where a live server is unavailable
 
 ## Checkstyle
 

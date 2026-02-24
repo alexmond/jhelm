@@ -436,28 +436,46 @@ class RepoManagerTest {
 	@Test
 	void testUntar() throws Exception {
 		byte[] tgz = createMinimalTgz();
-		File tgzFile = tempDir.resolve("test-1.0.0.tgz").toFile();
+		File tgzFile = tempDir.resolve("minimal-1.0.0.tgz").toFile();
 		Files.write(tgzFile.toPath(), tgz);
 		File destDir = tempDir.resolve("out").toFile();
 		destDir.mkdirs();
 		new RepoManager().untar(tgzFile, destDir);
-		assertTrue(new File(destDir, "test/Chart.yaml").exists());
+		assertTrue(new File(destDir, "minimal/Chart.yaml").exists());
 	}
 
 	// ── Test helpers ─────────────────────────────────────────────────────────
 
-	private static byte[] createMinimalTgz() throws IOException {
+	/**
+	 * Builds a minimal chart .tgz from the real test resource at
+	 * src/test/resources/test-charts/minimal/.
+	 */
+	private static byte[] createMinimalTgz() throws Exception {
+		java.net.URL resource = RepoManagerTest.class.getResource("/test-charts/minimal");
+		File chartDir = new File(resource.toURI());
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		try (GzipCompressorOutputStream gzos = new GzipCompressorOutputStream(baos);
 				TarArchiveOutputStream taos = new TarArchiveOutputStream(gzos)) {
-			byte[] content = "name: test\nversion: 1.0.0\n".getBytes(StandardCharsets.UTF_8);
-			TarArchiveEntry entry = new TarArchiveEntry("test/Chart.yaml");
-			entry.setSize(content.length);
-			taos.putArchiveEntry(entry);
-			taos.write(content);
-			taos.closeArchiveEntry();
+			addDirToTar(taos, chartDir, "minimal");
 		}
 		return baos.toByteArray();
+	}
+
+	private static void addDirToTar(TarArchiveOutputStream taos, File dir, String base) throws IOException {
+		for (File file : dir.listFiles()) {
+			String entryName = base + "/" + file.getName();
+			if (file.isDirectory()) {
+				addDirToTar(taos, file, entryName);
+			}
+			else {
+				byte[] content = Files.readAllBytes(file.toPath());
+				TarArchiveEntry entry = new TarArchiveEntry(entryName);
+				entry.setSize(content.length);
+				taos.putArchiveEntry(entry);
+				taos.write(content);
+				taos.closeArchiveEntry();
+			}
+		}
 	}
 
 	private static String sha256Hex(byte[] bytes) throws Exception {

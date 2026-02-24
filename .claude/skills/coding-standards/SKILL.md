@@ -69,6 +69,32 @@ Auto-fix: `./mvnw spring-javaformat:apply` then use the `/checkstyle` skill for 
 - `@TempDir` for temporary files
 - Always run tests after code changes
 
+### Test Data: Prefer Real over Mocks
+
+**Prefer real test data over mocks.** Mocks are slow to maintain, hide intent, and test the wrong thing when the real thing is easy to use.
+
+| Scenario | Preferred approach |
+|---|---|
+| Template rendering | Inline Go template strings or files in `src/test/resources/test-charts/` |
+| YAML parsing | Inline YAML text blocks or files in test resources |
+| Chart loading/untarring | Minimal chart dir in `src/test/resources/test-charts/`, or small programmatic `.tgz` |
+| File system operations | `@TempDir` with real files |
+| HTTP calls (updateRepo, pullFromUrl, OCI) | Mockito mock on `CloseableHttpClient` — acceptable, network is unavoidable |
+| Kubernetes API calls | Mockito mock on `KubeService` — acceptable |
+
+**When Mockito IS appropriate:**
+- HTTP client (`CloseableHttpClient`) — network I/O has no real alternative
+- Kubernetes client (`KubeService`) — requires a live cluster
+- External services with no local substitute
+
+**Creating minimal test charts** — place in `src/test/resources/test-charts/<name>/`:
+```
+Chart.yaml   (name, version, apiVersion)
+values.yaml  (minimal defaults)
+templates/   (one simple template)
+```
+Use `new TarArchiveOutputStream(new GzipCompressorOutputStream(...))` in a helper method when a `.tgz` is needed in-memory.
+
 ### Parameterized Tests
 Use `@ParameterizedTest` to avoid code duplication and loops in tests. Prefer parameterized tests over:
 - Multiple near-identical `@Test` methods that differ only in input/expected values
