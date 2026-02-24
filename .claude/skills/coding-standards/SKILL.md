@@ -33,6 +33,24 @@ user-invocable: false
 - Define dependency versions as properties in root `pom.xml` `<properties>` (unless managed by Spring Boot parent)
 - Keep `jhelm-gotemplate` free of Spring dependencies
 
+### Size Guidelines
+
+Two thresholds apply — **consider** and **enforce**:
+
+| Scope | Consider refactoring | Checkstyle enforces (build fails) |
+|---|---|---|
+| **File** | > 500 lines | > 1000 lines |
+| **Method** | > 50 lines | > 80 lines |
+
+**Consider (500 lines / 50 lines):** A warning signal. Before adding more code to a large file or method, ask whether it should be split. Extract helpers, separate concerns, or move related methods to a dedicated class.
+
+**Enforce (1000 lines / 80 lines):** Hard limit. The build fails at `validate` phase. Refactoring is required — no exceptions except the suppressions below.
+
+**Current suppressions** (`checkstyle-suppressions.xml`):
+- `Lexer.java`, `Parser.java` — state machines; long methods are inherent to the pattern
+- `HelmChartTemplates.java` — methods return static YAML text blocks, not logic
+- `*Test.java` — test files are exempt from both size limits
+
 ### Checkstyle Rules (enforced — violations fail build)
 - **Catch variable**: must be `ex`, not `e` (SpringCatch)
 - **Braces required**: `if/else/for/while` always need `{}` (NeedBraces)
