@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -386,11 +387,11 @@ class KpsComparisonTest {
 		java.util.Map<String, JsonNode> map = new java.util.HashMap<>();
 
 		for (JsonNode doc : docs) {
-			String kind = doc.has("kind") ? doc.get("kind").asText() : "Unknown";
+			String kind = doc.has("kind") ? doc.get("kind").asString() : "Unknown";
 			String name = "unnamed";
 
 			if (doc.has("metadata") && doc.get("metadata").has("name")) {
-				name = doc.get("metadata").get("name").asText();
+				name = doc.get("metadata").get("name").asString();
 			}
 
 			String key = kind + "/" + name;
@@ -502,8 +503,8 @@ class KpsComparisonTest {
 		JsonNode pkg = null;
 		if (searchResult.has("packages") && searchResult.get("packages").isArray()) {
 			for (JsonNode p : searchResult.get("packages")) {
-				String pName = p.get("name").asText();
-				String pRepo = p.get("repository").get("name").asText();
+				String pName = p.get("name").asString();
+				String pRepo = p.get("repository").get("name").asString();
 
 				if (pName.equals(chartNameOnly)) {
 					if (repoNamePrefix == null || pRepo.equals(repoNamePrefix)) {
@@ -521,14 +522,14 @@ class KpsComparisonTest {
 			throw new Exception("Package not found in Artifact Hub: " + chartFullName);
 		}
 
-		String repoName = pkg.get("repository").get("name").asText();
-		String pkgName = pkg.get("name").asText();
-		String version = pkg.get("version").asText();
+		String repoName = pkg.get("repository").get("name").asString();
+		String pkgName = pkg.get("name").asString();
+		String version = pkg.get("version").asString();
 
 		// 2. Get package details
 		String detailUrl = "https://artifacthub.io/api/v1/packages/helm/" + repoName + "/" + pkgName + "/" + version;
 		JsonNode details = callApi(detailUrl);
-		String contentUrl = details.get("content_url").asText();
+		String contentUrl = details.get("content_url").asString();
 
 		// 3. Download and untar
 		File testChartsDir = new File("target/test-charts");
@@ -539,7 +540,7 @@ class KpsComparisonTest {
 	}
 
 	private JsonNode callApi(String urlString) throws IOException {
-		URL url = new URL(urlString);
+		URL url = URI.create(urlString).toURL();
 		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 		if (conn instanceof HttpsURLConnection httpsConn) {
 			setupInsecureSsl(httpsConn);

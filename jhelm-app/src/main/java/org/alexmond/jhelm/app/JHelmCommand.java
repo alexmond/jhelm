@@ -9,7 +9,7 @@ import picocli.CommandLine;
 		subcommands = { CreateCommand.class, RepoCommand.class, RegistryCommand.class, TemplateCommand.class,
 				InstallCommand.class, UpgradeCommand.class, UninstallCommand.class, ListCommand.class,
 				HistoryCommand.class, StatusCommand.class, RollbackCommand.class, ShowCommand.class, GetCommand.class,
-				DependencyCommand.class })
+				DependencyCommand.class, PullCommand.class, PushCommand.class })
 public class JHelmCommand implements Runnable {
 
 	@Override
