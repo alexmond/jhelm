@@ -56,6 +56,10 @@ public class RepoManager {
 	private RegistryManager registryManager;
 
 	public RepoManager() {
+		this(resolveDefaultConfigPath());
+	}
+
+	RepoManager(String configPath) {
 		LoadSettings loadSettings = LoadSettings.builder().setCodePointLimit(50_000_000).build();
 		YAMLFactory yamlFactory = YAMLFactory.builder()
 			.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
@@ -63,20 +67,24 @@ public class RepoManager {
 			.streamReadConstraints(StreamReadConstraints.builder().maxStringLength(50_000_000).build())
 			.build();
 		this.yamlMapper = YAMLMapper.builder(yamlFactory).build();
+		this.configPath = configPath;
+		initHttpClient();
+	}
 
+	void setHttpClientForTest(CloseableHttpClient client) {
+		this.httpClient = client;
+	}
+
+	private static String resolveDefaultConfigPath() {
 		String home = System.getProperty("user.home");
 		String os = System.getProperty("os.name").toLowerCase();
 		if (os.contains("mac")) {
-			this.configPath = Paths.get(home, "Library/Preferences/helm/repositories.yaml").toString();
+			return Paths.get(home, "Library/Preferences/helm/repositories.yaml").toString();
 		}
-		else if (os.contains("win")) {
-			this.configPath = Paths.get(System.getenv("APPDATA"), "helm/repositories.yaml").toString();
+		if (os.contains("win")) {
+			return Paths.get(System.getenv("APPDATA"), "helm/repositories.yaml").toString();
 		}
-		else {
-			this.configPath = Paths.get(home, ".config/helm/repositories.yaml").toString();
-		}
-
-		initHttpClient();
+		return Paths.get(home, ".config/helm/repositories.yaml").toString();
 	}
 
 	private void initHttpClient() {
@@ -254,7 +262,7 @@ public class RepoManager {
 			return true;
 		}
 		if (manifest.has("mediaType")) {
-			String mt = manifest.get("mediaType").asText();
+			String mt = manifest.get("mediaType").asString();
 			return mt.contains("index") || mt.contains("manifest.list");
 		}
 		return false;
@@ -268,22 +276,22 @@ public class RepoManager {
 		// Prefer entries without a platform restriction (platform-agnostic charts)
 		for (JsonNode m : manifests) {
 			if (!m.has("platform")) {
-				return m.get("digest").asText();
+				return m.get("digest").asString();
 			}
 		}
 		// Prefer linux/amd64
 		for (JsonNode m : manifests) {
 			if (m.has("platform")) {
 				JsonNode platform = m.get("platform");
-				String os = platform.has("os") ? platform.get("os").asText() : "";
-				String arch = platform.has("architecture") ? platform.get("architecture").asText() : "";
+				String os = platform.has("os") ? platform.get("os").asString() : "";
+				String arch = platform.has("architecture") ? platform.get("architecture").asString() : "";
 				if ("linux".equals(os) && "amd64".equals(arch)) {
-					return m.get("digest").asText();
+					return m.get("digest").asString();
 				}
 			}
 		}
 		// Fallback: first entry
-		return manifests.get(0).get("digest").asText();
+		return manifests.get(0).get("digest").asString();
 	}
 
 	public void updateRepo(String name) throws IOException {
@@ -490,7 +498,7 @@ public class RepoManager {
 		}
 	}
 
-	private String[] lookupChartInIndex(File indexFile, String chartName, String version) throws IOException {
+	String[] lookupChartInIndex(File indexFile, String chartName, String version) throws IOException {
 		if (!indexFile.exists()) {
 			return null;
 		}
@@ -517,7 +525,7 @@ public class RepoManager {
 		return null;
 	}
 
-	private String resolveChartUrl(String indexUrl, String repoUrl, String chartName, String version) {
+	String resolveChartUrl(String indexUrl, String repoUrl, String chartName, String version) {
 		if (indexUrl == null) {
 			return repoUrl + "/" + chartName + "-" + version + ".tgz";
 		}
@@ -598,10 +606,10 @@ public class RepoManager {
 		String digest = null;
 		if (manifest.has("layers")) {
 			for (JsonNode layer : manifest.get("layers")) {
-				String mediaType = layer.get("mediaType").asText();
+				String mediaType = layer.get("mediaType").asString();
 				if ("application/vnd.cncf.helm.chart.content.v1.tar+gzip".equals(mediaType)
 						|| "application/vnd.oci.image.layer.v1.tar+gzip".equals(mediaType)) {
-					digest = layer.get("digest").asText();
+					digest = layer.get("digest").asString();
 					break;
 				}
 			}
@@ -639,7 +647,7 @@ public class RepoManager {
 		untar(tgzFile, new File(destDir));
 	}
 
-	private String[] parseOciUrl(String ociUrl) throws IOException {
+	String[] parseOciUrl(String ociUrl) throws IOException {
 		String raw = ociUrl.substring(6);
 		int firstSlash = raw.indexOf('/');
 		if (firstSlash == -1) {
@@ -684,7 +692,7 @@ public class RepoManager {
 				if (entity != null) {
 					try (InputStream in = entity.getContent()) {
 						JsonNode node = jsonMapper.readTree(in);
-						return node.has("token") ? node.get("token").asText() : node.get("access_token").asText();
+						return node.has("token") ? node.get("token").asString() : node.get("access_token").asString();
 					}
 				}
 				return null;
@@ -831,9 +839,9 @@ public class RepoManager {
 					try (InputStream in = entity.getContent()) {
 						JsonNode node = jsonMapper.readTree(in);
 						if (node.has("token")) {
-							return node.get("token").asText();
+							return node.get("token").asString();
 						}
-						return node.has("access_token") ? node.get("access_token").asText() : null;
+						return node.has("access_token") ? node.get("access_token").asString() : null;
 					}
 				}
 				return null;
