@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.core.config;
+package org.alexmond.jhelm.core;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +13,6 @@ import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.RegistryManager;
 import org.alexmond.jhelm.core.service.RepoManager;
-import org.alexmond.jhelm.core.CoreConfig;
 
 @SpringBootTest
 @ContextConfiguration(classes = { MockKubeConfig.class, CoreConfig.class })

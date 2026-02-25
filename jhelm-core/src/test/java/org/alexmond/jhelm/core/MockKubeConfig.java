@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.core.config;
+package org.alexmond.jhelm.core;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
