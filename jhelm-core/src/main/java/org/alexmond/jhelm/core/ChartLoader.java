@@ -28,11 +28,11 @@ public class ChartLoader {
 		}
 		ChartMetadata metadata = yamlMapper.readValue(metadataFile, ChartMetadata.class);
 
-		// Load values.yaml
+		// Load values.yaml (supports multi-document files separated by ---)
 		File valuesFile = new File(chartDir, "values.yaml");
 		Map<String, Object> values = new HashMap<>();
 		if (valuesFile.exists()) {
-			values = yamlMapper.readValue(valuesFile, Map.class);
+			values = ValuesLoader.load(valuesFile);
 		}
 
 		// Load templates

@@ -7,6 +7,7 @@ import org.alexmond.jhelm.core.ChartLock;
 import org.alexmond.jhelm.core.Dependency;
 import org.alexmond.jhelm.core.DependencyResolver;
 import org.alexmond.jhelm.core.RepoManager;
+import org.alexmond.jhelm.core.ValuesLoader;
 import org.alexmond.jhelm.core.ChartLock.LockDependency;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -219,16 +220,13 @@ public class DependencyCommand implements Runnable {
 			return yamlMapper.readValue(chartFile, ChartMetadata.class);
 		}
 
-		@SuppressWarnings("unchecked")
 		private Map<String, Object> loadValues(File chartDir) {
 			try {
 				File valuesFile = new File(chartDir, "values.yaml");
 				if (!valuesFile.exists()) {
 					return new HashMap<>();
 				}
-
-				YAMLMapper yamlMapper = YAMLMapper.builder().build();
-				return yamlMapper.readValue(valuesFile, Map.class);
+				return ValuesLoader.load(valuesFile);
 			}
 			catch (Exception ex) {
 				log.warn("Failed to load values.yaml: {}", ex.getMessage());
