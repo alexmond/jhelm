@@ -161,6 +161,10 @@ public class DependencyCommand implements Runnable {
 		@CommandLine.Option(names = { "--skip-refresh" }, description = "Skip refreshing the local repository cache")
 		boolean skipRefresh;
 
+		@CommandLine.Option(names = { "--with-tags" },
+				description = "Enable dependency tags to include (comma-separated)")
+		java.util.List<String> withTags = new java.util.ArrayList<>();
+
 		public UpdateCommand(RepoManager repoManager) {
 			this.repoManager = repoManager;
 		}
@@ -193,7 +197,8 @@ public class DependencyCommand implements Runnable {
 
 				// Resolve dependencies
 				DependencyResolver resolver = new DependencyResolver(repoManager);
-				ChartLock chartLock = resolver.resolveDependencies(metadata, values, null);
+				ChartLock chartLock = resolver.resolveDependencies(metadata, values,
+						withTags.isEmpty() ? null : withTags);
 
 				// Download dependencies
 				System.out.println("Updating dependencies from Chart.yaml...");

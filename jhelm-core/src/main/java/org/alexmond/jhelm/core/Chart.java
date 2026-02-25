@@ -17,6 +17,13 @@ public class Chart {
 
 	private ChartMetadata metadata;
 
+	/**
+	 * Alias used to address this chart in parent values and templates. When a dependency
+	 * declares an {@code alias}, the chart directory is named after the alias and parent
+	 * values are looked up under that key instead of {@code metadata.name}.
+	 */
+	private String alias;
+
 	@Builder.Default
 	private List<Template> templates = new ArrayList<>();
 
