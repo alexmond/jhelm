@@ -9,11 +9,11 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>org.alexmond</groupId>
-    <artifactId>jhelm</artifactId>
+    <artifactId>jhelm-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>jhelm</name>
-    <description>jhelm</description>
+    <name>jhelm-parent</name>
+    <description>jhelm parent POM</description>
     <url>https://www.alexmond.org/jhelm/current/index.html</url>
 
 
@@ -92,7 +92,7 @@
             </dependency>
             <dependency>
                 <groupId>org.alexmond</groupId>
-                <artifactId>jhelm-app</artifactId>
+                <artifactId>jhelm</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

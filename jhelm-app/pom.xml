@@ -4,11 +4,11 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.alexmond</groupId>
-        <artifactId>jhelm</artifactId>
+        <artifactId>jhelm-parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
-    <artifactId>jhelm-app</artifactId>
-    <name>jhelm-app</name>
+    <artifactId>jhelm</artifactId>
+    <name>jhelm</name>
     <description>Spring Boot application for Helm Java</description>
 
     <dependencies>
