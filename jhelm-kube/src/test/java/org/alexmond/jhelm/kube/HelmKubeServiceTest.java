@@ -5,15 +5,20 @@ import io.kubernetes.client.custom.V1Patch;
 import io.kubernetes.client.openapi.ApiClient;
 import java.util.Base64;
 import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1ConfigMapList;
+import io.kubernetes.client.openapi.models.V1Deployment;
+import io.kubernetes.client.openapi.models.V1DeploymentSpec;
+import io.kubernetes.client.openapi.models.V1DeploymentStatus;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.util.PatchUtils;
 import org.alexmond.jhelm.core.Release;
+import org.alexmond.jhelm.core.ResourceStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,11 +33,12 @@ import org.mockito.MockitoAnnotations;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -50,6 +56,8 @@ class HelmKubeServiceTest {
 	private HelmKubeService kubeService;
 
 	private final JsonMapper objectMapper = JsonMapper.builder().build();
+
+	private MockedConstruction<AppsV1Api> appsV1ApiConstruction;
 
 	private MockedConstruction<CoreV1Api> coreV1ApiConstruction;
 
@@ -73,6 +81,9 @@ class HelmKubeServiceTest {
 
 	@AfterEach
 	void tearDown() {
+		if (appsV1ApiConstruction != null) {
+			appsV1ApiConstruction.close();
+		}
 		if (coreV1ApiConstruction != null) {
 			coreV1ApiConstruction.close();
 		}
@@ -621,6 +632,140 @@ class HelmKubeServiceTest {
 		});
 
 		assertThrows(RuntimeException.class, () -> kubeService.installConfigMap("default", yaml));
+	}
+
+	// --- getResourceStatuses ---
+
+	@Test
+	void testGetResourceStatusesServiceReturnsReady() throws Exception {
+		String manifest = """
+				apiVersion: v1
+				kind: Service
+				metadata:
+				  name: my-svc
+				  namespace: default
+				""";
+
+		List<ResourceStatus> statuses = kubeService.getResourceStatuses("default", manifest);
+
+		assertEquals(1, statuses.size());
+		assertEquals("Service", statuses.get(0).getKind());
+		assertEquals("my-svc", statuses.get(0).getName());
+		assertTrue(statuses.get(0).isReady());
+	}
+
+	@Test
+	void testGetResourceStatusesDeploymentReady() throws Exception {
+		String manifest = """
+				apiVersion: apps/v1
+				kind: Deployment
+				metadata:
+				  name: my-deploy
+				  namespace: default
+				""";
+
+		appsV1ApiConstruction = mockConstruction(AppsV1Api.class, (mock, ctx) -> {
+			V1Deployment dep = new V1Deployment().spec(new V1DeploymentSpec().replicas(2))
+				.status(new V1DeploymentStatus().readyReplicas(2).updatedReplicas(2));
+			var readReq = mock(AppsV1Api.APIreadNamespacedDeploymentRequest.class);
+			when(readReq.execute()).thenReturn(dep);
+			when(mock.readNamespacedDeployment(eq("my-deploy"), eq("default"))).thenReturn(readReq);
+		});
+
+		List<ResourceStatus> statuses = kubeService.getResourceStatuses("default", manifest);
+
+		assertEquals(1, statuses.size());
+		assertEquals("Deployment", statuses.get(0).getKind());
+		assertTrue(statuses.get(0).isReady());
+	}
+
+	@Test
+	void testGetResourceStatusesDeploymentNotReady() throws Exception {
+		String manifest = """
+				apiVersion: apps/v1
+				kind: Deployment
+				metadata:
+				  name: my-deploy
+				  namespace: default
+				""";
+
+		appsV1ApiConstruction = mockConstruction(AppsV1Api.class, (mock, ctx) -> {
+			V1Deployment dep = new V1Deployment().spec(new V1DeploymentSpec().replicas(3))
+				.status(new V1DeploymentStatus().readyReplicas(1).updatedReplicas(2));
+			var readReq = mock(AppsV1Api.APIreadNamespacedDeploymentRequest.class);
+			when(readReq.execute()).thenReturn(dep);
+			when(mock.readNamespacedDeployment(eq("my-deploy"), eq("default"))).thenReturn(readReq);
+		});
+
+		List<ResourceStatus> statuses = kubeService.getResourceStatuses("default", manifest);
+
+		assertEquals(1, statuses.size());
+		assertFalse(statuses.get(0).isReady());
+		assertEquals("1/3 replicas ready", statuses.get(0).getMessage());
+	}
+
+	@Test
+	void testGetResourceStatusesApiExceptionReturnsFalse() throws Exception {
+		String manifest = """
+				apiVersion: apps/v1
+				kind: Deployment
+				metadata:
+				  name: bad-deploy
+				  namespace: default
+				""";
+
+		appsV1ApiConstruction = mockConstruction(AppsV1Api.class, (mock, ctx) -> {
+			var readReq = mock(AppsV1Api.APIreadNamespacedDeploymentRequest.class);
+			when(readReq.execute()).thenThrow(new ApiException(404, "Not Found"));
+			when(mock.readNamespacedDeployment(eq("bad-deploy"), eq("default"))).thenReturn(readReq);
+		});
+
+		List<ResourceStatus> statuses = kubeService.getResourceStatuses("default", manifest);
+
+		assertEquals(1, statuses.size());
+		assertFalse(statuses.get(0).isReady());
+	}
+
+	@Test
+	void testGetResourceStatusesEmptyManifestReturnsEmpty() throws Exception {
+		List<ResourceStatus> statuses = kubeService.getResourceStatuses("default", "");
+		assertTrue(statuses.isEmpty());
+	}
+
+	// --- waitForReady ---
+
+	@Test
+	void testWaitForReadyWithImmediatelyReadyResources() {
+		String manifest = """
+				apiVersion: v1
+				kind: Service
+				metadata:
+				  name: my-svc
+				  namespace: default
+				""";
+
+		assertDoesNotThrow(() -> kubeService.waitForReady("default", manifest, 60));
+	}
+
+	@Test
+	void testWaitForReadyTimeoutThrowsException() {
+		String manifest = """
+				apiVersion: apps/v1
+				kind: Deployment
+				metadata:
+				  name: my-deploy
+				  namespace: default
+				""";
+
+		appsV1ApiConstruction = mockConstruction(AppsV1Api.class, (mock, ctx) -> {
+			V1Deployment dep = new V1Deployment().spec(new V1DeploymentSpec().replicas(3))
+				.status(new V1DeploymentStatus().readyReplicas(0).updatedReplicas(0));
+			var readReq = mock(AppsV1Api.APIreadNamespacedDeploymentRequest.class);
+			when(readReq.execute()).thenReturn(dep);
+			when(mock.readNamespacedDeployment(anyString(), anyString())).thenReturn(readReq);
+		});
+
+		assertThrows(Exception.class, () -> kubeService.waitForReady("default", manifest, 0));
 	}
 
 	// --- inferPlural ---

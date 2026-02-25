@@ -3,6 +3,7 @@ package org.alexmond.jhelm.app;
 import org.alexmond.jhelm.core.Chart;
 import org.alexmond.jhelm.core.ChartMetadata;
 import org.alexmond.jhelm.core.Release;
+import org.alexmond.jhelm.core.ResourceStatus;
 import org.alexmond.jhelm.core.StatusAction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,7 +12,9 @@ import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -51,6 +54,42 @@ class StatusCommandTest {
 
 		CommandLine cmd = new CommandLine(statusCommand);
 		cmd.execute("my-release");
+	}
+
+	@Test
+	void testStatusCommandWithShowResources() throws Exception {
+		Release release = createMockRelease();
+		when(statusAction.status(anyString(), anyString())).thenReturn(Optional.of(release));
+
+		List<ResourceStatus> statuses = List.of(
+				ResourceStatus.builder()
+					.kind("Deployment")
+					.name("my-deploy")
+					.namespace("default")
+					.ready(true)
+					.message("3/3 replicas ready")
+					.build(),
+				ResourceStatus.builder()
+					.kind("Service")
+					.name("my-svc")
+					.namespace("default")
+					.ready(false)
+					.message("pending")
+					.build());
+		when(statusAction.getResourceStatuses(any(Release.class))).thenReturn(statuses);
+
+		CommandLine cmd = new CommandLine(statusCommand);
+		cmd.execute("my-release", "--show-resources");
+	}
+
+	@Test
+	void testStatusCommandWithShowResourcesEmpty() throws Exception {
+		Release release = createMockRelease();
+		when(statusAction.status(anyString(), anyString())).thenReturn(Optional.of(release));
+		when(statusAction.getResourceStatuses(any(Release.class))).thenReturn(List.of());
+
+		CommandLine cmd = new CommandLine(statusCommand);
+		cmd.execute("my-release", "--show-resources");
 	}
 
 	private Release createMockRelease() {

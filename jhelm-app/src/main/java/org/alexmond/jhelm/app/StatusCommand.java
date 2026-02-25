@@ -2,10 +2,12 @@ package org.alexmond.jhelm.app;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.Release;
+import org.alexmond.jhelm.core.ResourceStatus;
 import org.alexmond.jhelm.core.StatusAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -20,6 +22,9 @@ public class StatusCommand implements Runnable {
 
 	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
+
+	@CommandLine.Option(names = { "--show-resources" }, description = "show resource readiness status")
+	private boolean showResources;
 
 	public StatusCommand(StatusAction statusAction) {
 		this.statusAction = statusAction;
@@ -40,6 +45,21 @@ public class StatusCommand implements Runnable {
 			log.info("NAMESPACE: {}", r.getNamespace());
 			log.info("STATUS: {}", r.getInfo().getStatus());
 			log.info("REVISION: {}", r.getVersion());
+
+			if (showResources) {
+				List<ResourceStatus> statuses = statusAction.getResourceStatuses(r);
+				if (statuses.isEmpty()) {
+					log.info("\nRESOURCES:\n  (none)");
+				}
+				else {
+					log.info("\nRESOURCES:");
+					for (ResourceStatus rs : statuses) {
+						String readyMark = rs.isReady() ? "✓" : "✗";
+						log.info("  {} {}/{}: {}", readyMark, rs.getKind(), rs.getName(), rs.getMessage());
+					}
+				}
+			}
+
 			log.info("\nMANIFEST:\n{}", r.getManifest());
 		}
 		catch (Exception ex) {

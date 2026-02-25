@@ -4,11 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.Chart;
 import org.alexmond.jhelm.core.ChartLoader;
 import org.alexmond.jhelm.core.InstallAction;
+import org.alexmond.jhelm.core.KubeService;
 import org.alexmond.jhelm.core.Release;
+import org.alexmond.jhelm.core.ValuesOverrides;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
-
-import org.alexmond.jhelm.core.ValuesOverrides;
 import picocli.CommandLine.Option;
 
 import java.io.File;
@@ -22,6 +22,8 @@ import java.util.Map;
 public class InstallCommand implements Runnable {
 
 	private final InstallAction installAction;
+
+	private final KubeService kubeService;
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
@@ -41,8 +43,15 @@ public class InstallCommand implements Runnable {
 	@Option(names = { "--set" }, description = "set values on the command line (key=value, dot notation supported)")
 	private List<String> setValues = new ArrayList<>();
 
-	public InstallCommand(InstallAction installAction) {
+	@Option(names = { "--wait" }, description = "wait until all resources are ready")
+	private boolean wait;
+
+	@Option(names = { "--timeout" }, defaultValue = "300", description = "timeout in seconds for --wait (default 300)")
+	private int timeout;
+
+	public InstallCommand(InstallAction installAction, KubeService kubeService) {
 		this.installAction = installAction;
+		this.kubeService = kubeService;
 	}
 
 	@Override
@@ -64,6 +73,9 @@ public class InstallCommand implements Runnable {
 			}
 			else {
 				log.info("Release \"{}\" has been installed.", name);
+				if (wait) {
+					kubeService.waitForReady(namespace, release.getManifest(), timeout);
+				}
 			}
 		}
 		catch (Exception ex) {
