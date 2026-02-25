@@ -76,17 +76,26 @@ After saving the main learning, check whether any inline scripts generated durin
 
 3. If saving is warranted, choose the destination:
    - Script belongs to an existing skill → embed it in that skill's `skill.md` under a named section.
-   - General utility with no existing skill → save to `memory/scripts.md` (create if absent) under a descriptive heading.
+   - General utility with no existing skill → save as `.claude/scripts/<name>.py` (or `.sh`) in the repository.
    - Complex enough to deserve its own skill → note it in `MEMORY.md` as a candidate for a new skill.
 
-4. In `memory/scripts.md`, use this format:
-   ```markdown
-   ## <Script Name>
-   **Purpose:** one-line description
-   **Run:** `python3 /tmp/<name>.py` (after writing from memory) OR inline command
+4. Save the script file to `.claude/scripts/<descriptive-name>.<ext>` with a comment header:
    ```python
+   # Purpose: <one-line description>
+   # Run: python3 .claude/scripts/<name>.py [args]
    <script content>
    ```
+
+5. Add a one-line reference in `MEMORY.md` under a `## Scripts` section (create if absent):
+   ```
+   - `.claude/scripts/<name>.py` — <purpose>
    ```
 
-**Goal:** if a script was generated inline this session and fits the criteria above, it should be saved so future sessions can read it from memory rather than regenerate it — saving hundreds of tokens per invocation.
+6. Commit the new script directly to `main` (skill-only rule applies to `.claude/` changes):
+   ```bash
+   git add .claude/scripts/<name>.<ext>
+   git commit -m "Add reusable <name> script"
+   git push
+   ```
+
+**Goal:** scripts live in the repo, are version-controlled, and can be run directly with a known path — no regeneration, no memory file bloat.
