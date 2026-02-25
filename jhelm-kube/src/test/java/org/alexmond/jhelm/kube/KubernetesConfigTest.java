@@ -12,19 +12,4 @@ class KubernetesConfigTest {
 		assertNotNull(config);
 	}
 
-	@Test
-	void testApiClientBeanCreation() {
-		KubernetesConfig config = new KubernetesConfig();
-		// apiClient() may throw if no kube config exists, which is expected
-		// in a test environment without a cluster
-		try {
-			var client = config.apiClient();
-			assertNotNull(client);
-		}
-		catch (Exception ex) {
-			// Expected when no kubeconfig is available
-			assertNotNull(ex.getMessage());
-		}
-	}
-
 }

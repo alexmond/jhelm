@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import picocli.CommandLine;
 import picocli.CommandLine.IFactory;
 
-@SpringBootApplication(scanBasePackages = "org.alexmond.jhelm")
+@SpringBootApplication
 public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator {
 
 	private final IFactory factory;

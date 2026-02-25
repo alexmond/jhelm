@@ -30,6 +30,8 @@ public class UpgradeCommand implements Runnable {
 
 	private final UpgradeAction upgradeAction;
 
+	private final ChartLoader chartLoader;
+
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
 
@@ -57,18 +59,19 @@ public class UpgradeCommand implements Runnable {
 	@Option(names = { "--timeout" }, defaultValue = "300", description = "timeout in seconds for --wait (default 300)")
 	private int timeout;
 
-	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UpgradeAction upgradeAction) {
+	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UpgradeAction upgradeAction,
+			ChartLoader chartLoader) {
 		this.kubeService = kubeService;
 		this.installAction = installAction;
 		this.upgradeAction = upgradeAction;
+		this.chartLoader = chartLoader;
 	}
 
 	@Override
 	public void run() {
 		try {
 			Optional<Release> currentReleaseOpt = kubeService.getRelease(name, namespace);
-			ChartLoader loader = new ChartLoader();
-			Chart chart = loader.load(new File(chartPath));
+			Chart chart = chartLoader.load(new File(chartPath));
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues);
 
 			if (currentReleaseOpt.isEmpty()) {

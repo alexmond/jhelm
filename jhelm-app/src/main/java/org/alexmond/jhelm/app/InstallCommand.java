@@ -25,6 +25,8 @@ public class InstallCommand implements Runnable {
 
 	private final KubeService kubeService;
 
+	private final ChartLoader chartLoader;
+
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
 
@@ -49,16 +51,16 @@ public class InstallCommand implements Runnable {
 	@Option(names = { "--timeout" }, defaultValue = "300", description = "timeout in seconds for --wait (default 300)")
 	private int timeout;
 
-	public InstallCommand(InstallAction installAction, KubeService kubeService) {
+	public InstallCommand(InstallAction installAction, KubeService kubeService, ChartLoader chartLoader) {
 		this.installAction = installAction;
 		this.kubeService = kubeService;
+		this.chartLoader = chartLoader;
 	}
 
 	@Override
 	public void run() {
 		try {
-			ChartLoader loader = new ChartLoader();
-			Chart chart = loader.load(new File(chartPath));
+			Chart chart = chartLoader.load(new File(chartPath));
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues);
 
 			Release release = installAction.install(chart, name, namespace, overrides, 1, dryRun);

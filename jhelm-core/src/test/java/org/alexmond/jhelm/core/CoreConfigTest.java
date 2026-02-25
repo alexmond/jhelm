@@ -9,7 +9,7 @@ import org.springframework.test.context.ContextConfiguration;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
-@ContextConfiguration(classes = { CoreConfig.class, MockKubeConfig.class })
+@ContextConfiguration(classes = { MockKubeConfig.class, CoreConfig.class })
 class CoreConfigTest {
 
 	@Autowired

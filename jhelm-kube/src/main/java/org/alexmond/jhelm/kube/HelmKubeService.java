@@ -24,8 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.KubeService;
 import org.alexmond.jhelm.core.Release;
 import org.alexmond.jhelm.core.ResourceStatus;
-import org.springframework.stereotype.Service;
-
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -35,7 +33,6 @@ import java.util.Objects;
 import java.util.Comparator;
 import java.util.stream.Collectors;
 
-@Service
 @RequiredArgsConstructor
 @Slf4j
 public class HelmKubeService implements KubeService {

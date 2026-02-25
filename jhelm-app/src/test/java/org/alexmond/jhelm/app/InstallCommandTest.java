@@ -1,10 +1,13 @@
 package org.alexmond.jhelm.app;
 
 import org.alexmond.jhelm.core.Chart;
+import org.alexmond.jhelm.core.ChartLoader;
 import org.alexmond.jhelm.core.ChartMetadata;
 import org.alexmond.jhelm.core.KubeService;
 import org.alexmond.jhelm.core.Release;
 import org.alexmond.jhelm.core.InstallAction;
+
+import java.util.HashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -32,15 +35,23 @@ class InstallCommandTest {
 	@Mock
 	private KubeService kubeService;
 
+	@Mock
+	private ChartLoader chartLoader;
+
 	private InstallCommand installCommand;
 
 	@TempDir
 	Path tempDir;
 
 	@BeforeEach
-	void setUp() {
+	void setUp() throws Exception {
 		MockitoAnnotations.openMocks(this);
-		installCommand = new InstallCommand(installAction, kubeService);
+		Chart defaultChart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("test-chart").version("1.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		when(chartLoader.load(any(File.class))).thenReturn(defaultChart);
+		installCommand = new InstallCommand(installAction, kubeService, chartLoader);
 	}
 
 	@Test
