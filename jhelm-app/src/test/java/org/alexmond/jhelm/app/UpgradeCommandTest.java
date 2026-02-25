@@ -124,7 +124,7 @@ class UpgradeCommandTest {
 	}
 
 	@Test
-	void testUpgradeCommandWithTimeout() throws Exception {
+	void testUpgradeCommandWithWait() throws Exception {
 		File chartDir = createMockChart();
 		Release existingRelease = createMockRelease("my-release", 1);
 		Release upgradedRelease = createMockRelease("my-release", 2);
@@ -134,7 +134,9 @@ class UpgradeCommandTest {
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
-		cmd.execute("my-release", chartDir.getAbsolutePath(), "--timeout", "5m");
+		cmd.execute("my-release", chartDir.getAbsolutePath(), "--wait", "--timeout", "120");
+
+		verify(kubeService).waitForReady(eq("default"), anyString(), eq(120));
 	}
 
 	@Test

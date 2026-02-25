@@ -5,20 +5,28 @@ import io.kubernetes.client.common.KubernetesObject;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.custom.V1Patch;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.BatchV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1ConfigMapList;
+import io.kubernetes.client.openapi.models.V1Deployment;
+import io.kubernetes.client.openapi.models.V1Job;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
+import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.util.PatchUtils;
 import io.kubernetes.client.util.Yaml;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.KubeService;
 import org.alexmond.jhelm.core.Release;
+import org.alexmond.jhelm.core.ResourceStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -267,6 +275,158 @@ public class HelmKubeService implements KubeService {
 			if (!(ex instanceof ApiException ae && ae.getCode() == 404)) {
 				throw ex;
 			}
+		}
+	}
+
+	/**
+	 * Returns the readiness status for each resource in the rendered manifest.
+	 */
+	@Override
+	public List<ResourceStatus> getResourceStatuses(String namespace, String manifest) throws Exception {
+		List<ResourceStatus> statuses = new ArrayList<>();
+		Iterable<Object> objects = Yaml.loadAll(manifest);
+		for (Object obj : objects) {
+			if (obj instanceof KubernetesObject k8sObj) {
+				statuses.add(checkResourceStatus(namespace, k8sObj));
+			}
+		}
+		return statuses;
+	}
+
+	private ResourceStatus checkResourceStatus(String namespace, KubernetesObject obj) {
+		String kind = obj.getKind();
+		String name = obj.getMetadata().getName();
+		try {
+			return switch (kind) {
+				case "Deployment" -> checkDeployment(namespace, name);
+				case "StatefulSet" -> checkStatefulSet(namespace, name);
+				case "Job" -> checkJob(namespace, name);
+				case "Pod" -> checkPod(namespace, name);
+				default -> ResourceStatus.builder()
+					.kind(kind)
+					.name(name)
+					.namespace(namespace)
+					.ready(true)
+					.message("ready")
+					.build();
+			};
+		}
+		catch (Exception ex) {
+			return ResourceStatus.builder()
+				.kind(kind)
+				.name(name)
+				.namespace(namespace)
+				.ready(false)
+				.message(ex.getMessage())
+				.build();
+		}
+	}
+
+	private ResourceStatus checkDeployment(String namespace, String name) throws ApiException {
+		AppsV1Api api = new AppsV1Api(apiClient);
+		V1Deployment dep = api.readNamespacedDeployment(name, namespace).execute();
+		int desired = (dep.getSpec().getReplicas() != null) ? dep.getSpec().getReplicas() : 1;
+		int ready = (dep.getStatus().getReadyReplicas() != null) ? dep.getStatus().getReadyReplicas() : 0;
+		int updated = (dep.getStatus().getUpdatedReplicas() != null) ? dep.getStatus().getUpdatedReplicas() : 0;
+		boolean isReady = (ready >= desired) && (updated >= desired);
+		String message = isReady ? "ready" : String.format("%d/%d replicas ready", ready, desired);
+		return ResourceStatus.builder()
+			.kind("Deployment")
+			.name(name)
+			.namespace(namespace)
+			.ready(isReady)
+			.message(message)
+			.build();
+	}
+
+	private ResourceStatus checkStatefulSet(String namespace, String name) throws ApiException {
+		AppsV1Api api = new AppsV1Api(apiClient);
+		V1StatefulSet sts = api.readNamespacedStatefulSet(name, namespace).execute();
+		int desired = (sts.getSpec().getReplicas() != null) ? sts.getSpec().getReplicas() : 1;
+		int ready = (sts.getStatus().getReadyReplicas() != null) ? sts.getStatus().getReadyReplicas() : 0;
+		boolean isReady = ready >= desired;
+		String message = isReady ? "ready" : String.format("%d/%d replicas ready", ready, desired);
+		return ResourceStatus.builder()
+			.kind("StatefulSet")
+			.name(name)
+			.namespace(namespace)
+			.ready(isReady)
+			.message(message)
+			.build();
+	}
+
+	private ResourceStatus checkJob(String namespace, String name) throws ApiException {
+		BatchV1Api api = new BatchV1Api(apiClient);
+		V1Job job = api.readNamespacedJob(name, namespace).execute();
+		int completions = (job.getSpec().getCompletions() != null) ? job.getSpec().getCompletions() : 1;
+		int succeeded = (job.getStatus().getSucceeded() != null) ? job.getStatus().getSucceeded() : 0;
+		int failed = (job.getStatus().getFailed() != null) ? job.getStatus().getFailed() : 0;
+		boolean isReady = succeeded >= completions;
+		String message = isReady ? "complete"
+				: (failed > 0) ? String.format("failed=%d, succeeded=%d/%d", failed, succeeded, completions)
+						: String.format("succeeded=%d/%d", succeeded, completions);
+		return ResourceStatus.builder()
+			.kind("Job")
+			.name(name)
+			.namespace(namespace)
+			.ready(isReady)
+			.message(message)
+			.build();
+	}
+
+	private ResourceStatus checkPod(String namespace, String name) throws ApiException {
+		CoreV1Api api = new CoreV1Api(apiClient);
+		V1Pod pod = api.readNamespacedPod(name, namespace).execute();
+		boolean isReady = "Running".equals(pod.getStatus().getPhase()) && pod.getStatus().getConditions() != null
+				&& pod.getStatus()
+					.getConditions()
+					.stream()
+					.filter((c) -> "Ready".equals(c.getType()))
+					.anyMatch((c) -> "True".equals(c.getStatus()));
+		String message = isReady ? "ready" : pod.getStatus().getPhase();
+		return ResourceStatus.builder()
+			.kind("Pod")
+			.name(name)
+			.namespace(namespace)
+			.ready(isReady)
+			.message(message)
+			.build();
+	}
+
+	/**
+	 * Polls until all resources in the manifest are ready or the timeout elapses.
+	 */
+	@Override
+	public void waitForReady(String namespace, String manifest, int timeoutSeconds) throws Exception {
+		long deadline = System.currentTimeMillis() + (long) timeoutSeconds * 1000;
+		int pollIntervalMs = 5000;
+
+		while (true) {
+			List<ResourceStatus> statuses = getResourceStatuses(namespace, manifest);
+			boolean allReady = statuses.stream().allMatch(ResourceStatus::isReady);
+			if (allReady) {
+				return;
+			}
+
+			long remaining = deadline - System.currentTimeMillis();
+			if (remaining <= 0) {
+				break;
+			}
+
+			statuses.stream()
+				.filter((s) -> !s.isReady())
+				.forEach((s) -> log.info("Waiting for {}/{}: {}", s.getKind(), s.getName(), s.getMessage()));
+
+			Thread.sleep(Math.min(pollIntervalMs, remaining));
+		}
+
+		List<ResourceStatus> finalStatuses = getResourceStatuses(namespace, manifest);
+		List<ResourceStatus> notReady = finalStatuses.stream().filter((s) -> !s.isReady()).toList();
+		if (!notReady.isEmpty()) {
+			String msg = notReady.stream()
+				.map((s) -> s.getKind() + "/" + s.getName() + ": " + s.getMessage())
+				.collect(Collectors.joining(", "));
+			throw new Exception("Timeout waiting for resources to be ready: " + msg);
 		}
 	}
 

@@ -51,6 +51,12 @@ public class UpgradeCommand implements Runnable {
 	@Option(names = { "--set" }, description = "set values on the command line (key=value, dot notation supported)")
 	private List<String> setValues = new ArrayList<>();
 
+	@Option(names = { "--wait" }, description = "wait until all resources are ready")
+	private boolean wait;
+
+	@Option(names = { "--timeout" }, defaultValue = "300", description = "timeout in seconds for --wait (default 300)")
+	private int timeout;
+
 	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UpgradeAction upgradeAction) {
 		this.kubeService = kubeService;
 		this.installAction = installAction;
@@ -73,6 +79,9 @@ public class UpgradeCommand implements Runnable {
 					}
 					else {
 						log.info("Release \"{}\" does not exist. Installing it now.", name);
+						if (wait) {
+							kubeService.waitForReady(namespace, release.getManifest(), timeout);
+						}
 					}
 				}
 				else {
@@ -88,6 +97,9 @@ public class UpgradeCommand implements Runnable {
 			}
 			else {
 				log.info("Release \"{}\" has been upgraded. Happy Helming!", name);
+				if (wait) {
+					kubeService.waitForReady(namespace, upgradedRelease.getManifest(), timeout);
+				}
 			}
 		}
 		catch (Exception ex) {

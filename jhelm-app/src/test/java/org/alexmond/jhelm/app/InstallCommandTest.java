@@ -2,6 +2,7 @@ package org.alexmond.jhelm.app;
 
 import org.alexmond.jhelm.core.Chart;
 import org.alexmond.jhelm.core.ChartMetadata;
+import org.alexmond.jhelm.core.KubeService;
 import org.alexmond.jhelm.core.Release;
 import org.alexmond.jhelm.core.InstallAction;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,12 +20,17 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class InstallCommandTest {
 
 	@Mock
 	private InstallAction installAction;
+
+	@Mock
+	private KubeService kubeService;
 
 	private InstallCommand installCommand;
 
@@ -34,7 +40,7 @@ class InstallCommandTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		installCommand = new InstallCommand(installAction);
+		installCommand = new InstallCommand(installAction, kubeService);
 	}
 
 	@Test
@@ -70,6 +76,35 @@ class InstallCommandTest {
 
 		CommandLine cmd = new CommandLine(installCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath());
+	}
+
+	@Test
+	void testInstallCommandWithWait() throws Exception {
+		File chartDir = createMockChart();
+		Release release = createMockRelease("my-release", 1);
+
+		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean()))
+			.thenReturn(release);
+
+		CommandLine cmd = new CommandLine(installCommand);
+		cmd.execute("my-release", chartDir.getAbsolutePath(), "--wait", "--timeout", "120");
+
+		verify(kubeService).waitForReady(eq("default"), anyString(), eq(120));
+	}
+
+	@Test
+	void testInstallCommandWithWaitDoesNotCallOnDryRun() throws Exception {
+		File chartDir = createMockChart();
+		Release release = createMockRelease("my-release", 1);
+
+		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean()))
+			.thenReturn(release);
+
+		CommandLine cmd = new CommandLine(installCommand);
+		cmd.execute("my-release", chartDir.getAbsolutePath(), "--wait", "--dry-run");
+
+		// waitForReady should NOT be called when --dry-run is active
+		verify(kubeService, org.mockito.Mockito.never()).waitForReady(anyString(), anyString(), anyInt());
 	}
 
 	private File createMockChart() throws Exception {
