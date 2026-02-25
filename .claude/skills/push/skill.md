@@ -35,6 +35,33 @@ Capture the new issue number from the output (e.g. `#59`).
 
 ---
 
+### Step 1.5: Shortcut — skill-only changes go directly to main
+
+If the **only** changed files are under `.claude/skills/` (skill updates, no source code changes):
+
+```bash
+git diff --stat
+```
+
+If all changed files are `.claude/skills/**` files:
+1. Skip Steps 2–6 (no branch, no PR)
+2. Commit directly on `main`:
+   ```bash
+   git add .claude/skills/<changed-file>
+   git commit -m "$(cat <<'EOF'
+   <imperative summary under 72 chars>
+
+   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+   EOF
+   )"
+   git push
+   ```
+3. Report the commit SHA and stop. No CI wait needed for skill-only commits.
+
+Otherwise continue with the full workflow below.
+
+---
+
 ### Step 2: Ensure we're on main and up to date
 ```bash
 git checkout main && git pull
