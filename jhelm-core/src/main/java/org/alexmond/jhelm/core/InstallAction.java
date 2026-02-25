@@ -2,6 +2,7 @@ package org.alexmond.jhelm.core;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
@@ -48,8 +49,13 @@ public class InstallAction {
 		release.setManifest(manifest);
 
 		if (kubeService != null && !dryRun) {
-			kubeService.apply(namespace, manifest);
+			List<HelmHook> hooks = HookParser.parseHooks(manifest);
+			String regularManifest = HookParser.stripHooks(manifest);
+			HookExecutor hookExecutor = new HookExecutor(kubeService);
+			hookExecutor.run(namespace, hooks, "pre-install", 300);
+			kubeService.apply(namespace, regularManifest);
 			kubeService.storeRelease(release);
+			hookExecutor.run(namespace, hooks, "post-install", 300);
 		}
 
 		return release;

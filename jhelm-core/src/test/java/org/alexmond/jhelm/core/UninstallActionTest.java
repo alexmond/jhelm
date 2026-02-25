@@ -5,9 +5,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.List;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
@@ -38,6 +40,45 @@ class UninstallActionTest {
 		uninstallAction.uninstall("myapp", "default");
 
 		verify(kubeService).delete("default", "---\nkind: Service\n");
+		verify(kubeService).deleteReleaseHistory("myapp", "default");
+	}
+
+	@Test
+	void testUninstallRunsHooksAndStripsManifest() throws Exception {
+		String hookYaml = """
+				apiVersion: batch/v1
+				kind: Job
+				metadata:
+				  name: myapp-pre-delete
+				  namespace: default
+				  annotations:
+				    helm.sh/hook: pre-delete
+				    helm.sh/hook-delete-policy: before-hook-creation
+				spec:
+				  template:
+				    spec:
+				      restartPolicy: Never
+				""";
+		String regularYaml = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: myapp-cfg\n";
+		String fullManifest = "---\n" + hookYaml + regularYaml;
+
+		Release release = Release.builder().name("myapp").namespace("default").manifest(fullManifest).build();
+
+		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(release));
+		doNothing().when(kubeService).delete(anyString(), anyString());
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).waitForReady(anyString(), anyString(), anyInt());
+		doNothing().when(kubeService).deleteReleaseHistory(anyString(), anyString());
+
+		uninstallAction.uninstall("myapp", "default");
+
+		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
+		String strippedManifest = HookParser.stripHooks(fullManifest);
+
+		// Pre-delete hook: delete (before-hook-creation) + apply + waitForReady
+		verify(kubeService).apply("default", hooks.get(0).getYaml());
+		// Regular resource deletion uses stripped manifest
+		verify(kubeService).delete("default", strippedManifest);
 		verify(kubeService).deleteReleaseHistory("myapp", "default");
 	}
 
