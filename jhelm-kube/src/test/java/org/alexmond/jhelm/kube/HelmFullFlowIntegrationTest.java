@@ -1,14 +1,14 @@
 package org.alexmond.jhelm.kube;
 
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.core.Chart;
-import org.alexmond.jhelm.core.ChartMetadata;
-import org.alexmond.jhelm.core.ChartLoader;
-import org.alexmond.jhelm.core.Release;
-import org.alexmond.jhelm.core.InstallAction;
-import org.alexmond.jhelm.core.UpgradeAction;
-import org.alexmond.jhelm.core.UninstallAction;
-import org.alexmond.jhelm.core.CoreConfig;
+import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.model.ChartMetadata;
+import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.config.CoreConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

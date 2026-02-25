@@ -1,7 +1,7 @@
 package org.alexmond.jhelm.app;
 
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.core.RegistryManager;
+import org.alexmond.jhelm.core.service.RegistryManager;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 

@@ -1,9 +1,9 @@
 package org.alexmond.jhelm.app;
 
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.core.Release;
-import org.alexmond.jhelm.core.ResourceStatus;
-import org.alexmond.jhelm.core.StatusAction;
+import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ResourceStatus;
+import org.alexmond.jhelm.core.action.StatusAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 

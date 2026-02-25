@@ -1,12 +1,12 @@
 package org.alexmond.jhelm.app;
 
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.core.Chart;
-import org.alexmond.jhelm.core.ChartLoader;
-import org.alexmond.jhelm.core.InstallAction;
-import org.alexmond.jhelm.core.KubeService;
-import org.alexmond.jhelm.core.Release;
-import org.alexmond.jhelm.core.ValuesOverrides;
+import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.util.ValuesOverrides;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;

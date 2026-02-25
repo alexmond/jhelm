@@ -7,6 +7,11 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.Engine;
 
 /**
  * Test variable scoping and template processing with a dedicated test chart. This test

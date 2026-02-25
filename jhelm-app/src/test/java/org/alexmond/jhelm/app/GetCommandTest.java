@@ -1,9 +1,9 @@
 package org.alexmond.jhelm.app;
 
-import org.alexmond.jhelm.core.Chart;
-import org.alexmond.jhelm.core.ChartMetadata;
-import org.alexmond.jhelm.core.Release;
-import org.alexmond.jhelm.core.GetAction;
+import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.model.ChartMetadata;
+import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.action.GetAction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -1,7 +1,7 @@
 package org.alexmond.jhelm.kube;
 
 import io.kubernetes.client.openapi.ApiClient;
-import org.alexmond.jhelm.core.KubeService;
+import org.alexmond.jhelm.core.service.KubeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;

@@ -27,6 +27,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.fail;
+import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.model.ChartMetadata;
+import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.Engine;
+import org.alexmond.jhelm.core.service.RepoManager;
 
 @Slf4j
 class KpsComparisonTest {

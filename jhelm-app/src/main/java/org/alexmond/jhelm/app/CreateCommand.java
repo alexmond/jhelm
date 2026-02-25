@@ -1,7 +1,7 @@
 package org.alexmond.jhelm.app;
 
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.core.CreateAction;
+import org.alexmond.jhelm.core.action.CreateAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
