@@ -1,7 +1,7 @@
 package org.alexmond.jhelm.app;
 
-import org.alexmond.jhelm.core.RepoManager;
-import org.alexmond.jhelm.core.RepositoryConfig;
+import org.alexmond.jhelm.core.service.RepoManager;
+import org.alexmond.jhelm.core.model.RepositoryConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;

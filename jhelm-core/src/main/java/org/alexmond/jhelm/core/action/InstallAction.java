@@ -1,0 +1,71 @@
+package org.alexmond.jhelm.core.action;
+
+import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import lombok.RequiredArgsConstructor;
+import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.model.HelmHook;
+import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.service.Engine;
+import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.util.HookExecutor;
+import org.alexmond.jhelm.core.util.HookParser;
+
+@RequiredArgsConstructor
+public class InstallAction {
+
+	private final Engine engine;
+
+	private final KubeService kubeService;
+
+	public Release install(Chart chart, String releaseName, String namespace, Map<String, Object> overrideValues,
+			int version, boolean dryRun) throws Exception {
+		Map<String, Object> values = new HashMap<>(chart.getValues());
+		if (overrideValues != null) {
+			values.putAll(overrideValues);
+		}
+
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now())
+			.lastDeployed(OffsetDateTime.now())
+			.status(dryRun ? "pending-install" : "deployed")
+			.description(dryRun ? "Dry run complete" : "Install complete")
+			.build();
+
+		Release release = Release.builder()
+			.name(releaseName)
+			.namespace(namespace)
+			.version(version)
+			.chart(chart)
+			.info(info)
+			.build();
+
+		Map<String, Object> releaseData = new HashMap<>();
+		releaseData.put("Name", releaseName);
+		releaseData.put("Namespace", namespace);
+		releaseData.put("Service", "Helm");
+		releaseData.put("IsInstall", true);
+		releaseData.put("IsUpgrade", false);
+		releaseData.put("Revision", release.getVersion());
+
+		String manifest = engine.render(chart, values, releaseData);
+
+		release.setManifest(manifest);
+
+		if (kubeService != null && !dryRun) {
+			List<HelmHook> hooks = HookParser.parseHooks(manifest);
+			String regularManifest = HookParser.stripHooks(manifest);
+			HookExecutor hookExecutor = new HookExecutor(kubeService);
+			hookExecutor.run(namespace, hooks, "pre-install", 300);
+			kubeService.apply(namespace, regularManifest);
+			kubeService.storeRelease(release);
+			hookExecutor.run(namespace, hooks, "post-install", 300);
+		}
+
+		return release;
+	}
+
+}

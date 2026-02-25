@@ -1,7 +1,7 @@
 package org.alexmond.jhelm.app;
 
-import org.alexmond.jhelm.core.ChartLoader;
-import org.alexmond.jhelm.core.ShowAction;
+import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.action.ShowAction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

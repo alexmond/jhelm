@@ -7,6 +7,12 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ContextConfiguration;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.TemplateAction;
+import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.Engine;
+import org.alexmond.jhelm.core.service.RegistryManager;
+import org.alexmond.jhelm.core.service.RepoManager;
 
 @SpringBootTest
 @ContextConfiguration(classes = { MockKubeConfig.class, CoreConfig.class })

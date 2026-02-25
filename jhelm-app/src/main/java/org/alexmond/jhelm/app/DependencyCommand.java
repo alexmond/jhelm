@@ -2,13 +2,13 @@ package org.alexmond.jhelm.app;
 
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.core.ChartMetadata;
-import org.alexmond.jhelm.core.ChartLock;
-import org.alexmond.jhelm.core.Dependency;
-import org.alexmond.jhelm.core.DependencyResolver;
-import org.alexmond.jhelm.core.RepoManager;
-import org.alexmond.jhelm.core.ValuesLoader;
-import org.alexmond.jhelm.core.ChartLock.LockDependency;
+import org.alexmond.jhelm.core.model.ChartMetadata;
+import org.alexmond.jhelm.core.model.ChartLock;
+import org.alexmond.jhelm.core.model.Dependency;
+import org.alexmond.jhelm.core.service.DependencyResolver;
+import org.alexmond.jhelm.core.service.RepoManager;
+import org.alexmond.jhelm.core.util.ValuesLoader;
+import org.alexmond.jhelm.core.model.ChartLock.LockDependency;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 

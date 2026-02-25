@@ -1,8 +1,8 @@
 package org.alexmond.jhelm.app;
 
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.core.RepoManager;
-import org.alexmond.jhelm.core.RepositoryConfig;
+import org.alexmond.jhelm.core.service.RepoManager;
+import org.alexmond.jhelm.core.model.RepositoryConfig;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 

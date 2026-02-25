@@ -1,8 +1,8 @@
 package org.alexmond.jhelm.app;
 
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.core.TemplateAction;
-import org.alexmond.jhelm.core.ValuesOverrides;
+import org.alexmond.jhelm.core.action.TemplateAction;
+import org.alexmond.jhelm.core.util.ValuesOverrides;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;

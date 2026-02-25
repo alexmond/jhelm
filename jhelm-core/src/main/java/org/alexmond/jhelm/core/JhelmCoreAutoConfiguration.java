@@ -1,10 +1,27 @@
 package org.alexmond.jhelm.core;
 
+import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.alexmond.jhelm.core.action.CreateAction;
+import org.alexmond.jhelm.core.action.GetAction;
+import org.alexmond.jhelm.core.action.HistoryAction;
+import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.ListAction;
+import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.ShowAction;
+import org.alexmond.jhelm.core.action.StatusAction;
+import org.alexmond.jhelm.core.action.TemplateAction;
+import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.Engine;
+import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.service.RegistryManager;
+import org.alexmond.jhelm.core.service.RepoManager;
 
 /**
  * Auto-configuration for the jhelm core module. Registers all core Helm beans. Beans that

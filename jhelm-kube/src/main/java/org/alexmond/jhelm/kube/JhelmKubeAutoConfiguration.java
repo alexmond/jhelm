@@ -7,7 +7,7 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
 import io.kubernetes.client.util.KubeConfig;
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
-import org.alexmond.jhelm.core.KubeService;
+import org.alexmond.jhelm.core.service.KubeService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

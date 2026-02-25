@@ -1,6 +1,6 @@
 package org.alexmond.jhelm.app;
 
-import org.alexmond.jhelm.core.CreateAction;
+import org.alexmond.jhelm.core.action.CreateAction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
