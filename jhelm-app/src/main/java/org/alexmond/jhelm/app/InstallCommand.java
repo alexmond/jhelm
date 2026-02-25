@@ -8,8 +8,13 @@ import org.alexmond.jhelm.core.Release;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+import org.alexmond.jhelm.core.ValuesOverrides;
+import picocli.CommandLine.Option;
+
 import java.io.File;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @Component
 @CommandLine.Command(name = "install", description = "install a chart")
@@ -30,6 +35,12 @@ public class InstallCommand implements Runnable {
 	@CommandLine.Option(names = { "--dry-run" }, description = "simulate an install")
 	private boolean dryRun;
 
+	@Option(names = { "-f", "--values" }, description = "specify values YAML files")
+	private List<String> valuesFiles = new ArrayList<>();
+
+	@Option(names = { "--set" }, description = "set values on the command line (key=value, dot notation supported)")
+	private List<String> setValues = new ArrayList<>();
+
 	public InstallCommand(InstallAction installAction) {
 		this.installAction = installAction;
 	}
@@ -39,8 +50,9 @@ public class InstallCommand implements Runnable {
 		try {
 			ChartLoader loader = new ChartLoader();
 			Chart chart = loader.load(new File(chartPath));
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues);
 
-			Release release = installAction.install(chart, name, namespace, new HashMap<>(), 1, dryRun);
+			Release release = installAction.install(chart, name, namespace, overrides, 1, dryRun);
 
 			if (dryRun) {
 				log.info("NAME: {}", release.getName());

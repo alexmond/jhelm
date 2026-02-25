@@ -2,8 +2,14 @@ package org.alexmond.jhelm.app;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.TemplateAction;
+import org.alexmond.jhelm.core.ValuesOverrides;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
+import picocli.CommandLine.Option;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @Component
 @CommandLine.Command(name = "template", description = "locally render templates")
@@ -18,6 +24,15 @@ public class TemplateCommand implements Runnable {
 	@CommandLine.Parameters(index = "1", description = "chart path")
 	private String chartPath;
 
+	@Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
+	private String namespace;
+
+	@Option(names = { "-f", "--values" }, description = "specify values YAML files")
+	private List<String> valuesFiles = new ArrayList<>();
+
+	@Option(names = { "--set" }, description = "set values on the command line (key=value, dot notation supported)")
+	private List<String> setValues = new ArrayList<>();
+
 	public TemplateCommand(TemplateAction templateAction) {
 		this.templateAction = templateAction;
 	}
@@ -25,7 +40,8 @@ public class TemplateCommand implements Runnable {
 	@Override
 	public void run() {
 		try {
-			String manifest = templateAction.render(chartPath, name, "default");
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues);
+			String manifest = templateAction.render(chartPath, name, namespace, overrides);
 			log.info("\n{}", manifest);
 		}
 		catch (Exception ex) {
