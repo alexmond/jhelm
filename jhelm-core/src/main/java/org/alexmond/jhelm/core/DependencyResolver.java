@@ -88,7 +88,12 @@ public class DependencyResolver {
 		if (repoName != null && (repoName.startsWith("oci://") || repoName.startsWith("file://"))) {
 			// For OCI and file repos, we trust the version as-is since we can't query for
 			// versions
-			return LockDependency.builder().name(chartName).version(versionConstraint).repository(repoName).build();
+			return LockDependency.builder()
+				.name(chartName)
+				.version(versionConstraint)
+				.repository(repoName)
+				.alias(dependency.getAlias())
+				.build();
 		}
 
 		// Get available versions from the repository
@@ -111,6 +116,7 @@ public class DependencyResolver {
 			.name(chartName)
 			.version(resolvedVersion)
 			.repository(dependency.getRepository())
+			.alias(dependency.getAlias())
 			.build();
 	}
 
@@ -282,8 +288,19 @@ public class DependencyResolver {
 				repoName = repoName.substring(1);
 			}
 
-			// Download the chart
+			// Download the chart (extracts to charts/<name>/)
 			repoManager.pull(dep.getName(), repoName, dep.getVersion(), chartsDir.getAbsolutePath());
+
+			// Rename to alias directory if an alias is declared
+			if (dep.getAlias() != null && !dep.getAlias().isEmpty() && !dep.getAlias().equals(dep.getName())) {
+				File extracted = new File(chartsDir, dep.getName());
+				File aliasDir = new File(chartsDir, dep.getAlias());
+				if (extracted.exists() && !aliasDir.exists()) {
+					if (!extracted.renameTo(aliasDir)) {
+						log.warn("Failed to rename {} to alias {}", dep.getName(), dep.getAlias());
+					}
+				}
+			}
 		}
 	}
 

@@ -255,7 +255,9 @@ public class Engine {
 
 		// Render subcharts
 		for (Chart subchart : chart.getDependencies()) {
-			String subchartName = subchart.getMetadata().getName();
+			// Use alias as lookup key when set (alias takes precedence over chart name)
+			String subchartName = (subchart.getAlias() != null) ? subchart.getAlias()
+					: subchart.getMetadata().getName();
 
 			// Subcharts are only rendered if enabled in Values
 			Map<String, Object> subchartOverrides = (Map<String, Object>) mergedValues.getOrDefault(subchartName,

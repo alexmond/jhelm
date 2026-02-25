@@ -49,7 +49,12 @@ public class ChartLoader {
 			File[] subchartDirs = chartsDir.listFiles(File::isDirectory);
 			if (subchartDirs != null) {
 				for (File subchartDir : subchartDirs) {
-					dependencies.add(load(subchartDir));
+					Chart subchart = load(subchartDir);
+					// If the directory name differs from the chart name it is an alias
+					if (!subchartDir.getName().equals(subchart.getMetadata().getName())) {
+						subchart.setAlias(subchartDir.getName());
+					}
+					dependencies.add(subchart);
 				}
 			}
 		}

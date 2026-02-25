@@ -112,6 +112,12 @@ public class ChartLock {
 		 */
 		private String repository;
 
+		/**
+		 * Optional alias; if set, the chart is stored in {@code charts/<alias>/} and
+		 * parent values are addressed by this name instead of {@code name}.
+		 */
+		private String alias;
+
 	}
 
 }
