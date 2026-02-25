@@ -124,3 +124,21 @@ Now implement the work described in the issue:
   ```bash
   gh pr ready
   ```
+
+---
+
+### Step 8: Wait for CI to pass
+
+After the PR has real commits (not draft), wait for all checks to succeed:
+```bash
+gh pr checks --watch
+```
+
+This streams live check status until all checks complete. If any check fails:
+1. View the failing run logs:
+   ```bash
+   gh run view --log-failed
+   ```
+2. Fix the issue, commit, and push — then repeat `gh pr checks --watch`
+
+Only report success to the user once **all checks pass**.
