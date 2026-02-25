@@ -4,8 +4,9 @@ description: >
   Save a learning to project memory. Invoke automatically (without user asking) whenever
   a task required more than one fix cycle to resolve — e.g. a test failed and needed a
   second attempt, a compile error required a correction, an API behaved unexpectedly, or
-  an assumption proved wrong mid-task. Also invoke when the user explicitly asks to
-  remember something. Do NOT invoke for routine single-pass work.
+  an assumption proved wrong mid-task. ALWAYS invoke when a command fails due to a
+  platform-specific argument (macOS vs Linux shell differences). Also invoke when the
+  user explicitly asks to remember something. Do NOT invoke for routine single-pass work.
 argument-hint: "[topic] [what you learned]"
 ---
 
@@ -50,6 +51,7 @@ If triggered **by the user**, record exactly what they stated in `$ARGUMENTS`.
 - Architectural decisions and their rationale
 - Workflow or tool preferences the user has stated
 - Patterns confirmed to work that aren't obvious from the code
+- **Platform-specific shell/CLI argument failures** — save to the `## macOS / Platform-Specific Shell Quirks` section in `MEMORY.md` with the failing invocation and the correct macOS alternative
 
 ### What NOT to save
 - Routine outcomes that worked first time
