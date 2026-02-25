@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.kube;
+package org.alexmond.jhelm.kube.config;
 
 import lombok.Getter;
 import lombok.Setter;
