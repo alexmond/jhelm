@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core;
 
+import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,12 @@ public class UninstallAction {
 		}
 
 		Release release = releaseOpt.get();
-		kubeService.delete(namespace, release.getManifest());
+		List<HelmHook> hooks = HookParser.parseHooks(release.getManifest());
+		String regularManifest = HookParser.stripHooks(release.getManifest());
+		HookExecutor hookExecutor = new HookExecutor(kubeService);
+		hookExecutor.run(namespace, hooks, "pre-delete", 300);
+		kubeService.delete(namespace, regularManifest);
+		hookExecutor.run(namespace, hooks, "post-delete", 300);
 		kubeService.deleteReleaseHistory(releaseName, namespace);
 	}
 

@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
@@ -90,7 +91,9 @@ class RollbackActionTest {
 
 		rollbackAction.rollback("myapp", "default", 1);
 
-		verify(kubeService).apply("default", "---\nv1 manifest");
+		// apply receives the hook-stripped manifest (HookParser normalises docs with
+		// trailing \n)
+		verify(kubeService).apply("default", HookParser.stripHooks("---\nv1 manifest"));
 
 		ArgumentCaptor<Release> releaseCaptor = ArgumentCaptor.forClass(Release.class);
 		verify(kubeService).storeRelease(releaseCaptor.capture());
@@ -98,6 +101,58 @@ class RollbackActionTest {
 		Release storedRelease = releaseCaptor.getValue();
 		assertEquals(4, storedRelease.getVersion());
 		assertEquals("Rollback to 1", storedRelease.getInfo().getDescription());
+	}
+
+	@Test
+	void testRollbackRunsHooksAndStripsManifest() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).build();
+
+		String hookYaml = """
+				apiVersion: batch/v1
+				kind: Job
+				metadata:
+				  name: myapp-pre-rollback
+				  namespace: default
+				  annotations:
+				    helm.sh/hook: pre-rollback
+				    helm.sh/hook-delete-policy: before-hook-creation
+				spec:
+				  template:
+				    spec:
+				      restartPolicy: Never
+				""";
+		String regularYaml = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: myapp-cfg\n";
+		String manifest = "---\n" + hookYaml + regularYaml;
+
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status("deployed")
+			.build();
+
+		Release v1 = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.manifest(manifest)
+			.info(info)
+			.build();
+
+		when(kubeService.getReleaseHistory(anyString(), anyString())).thenReturn(Arrays.asList(v1));
+		doNothing().when(kubeService).delete(anyString(), anyString());
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).waitForReady(anyString(), anyString(), anyInt());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		rollbackAction.rollback("myapp", "default", 1);
+
+		List<HelmHook> hooks = HookParser.parseHooks(manifest);
+		String strippedManifest = HookParser.stripHooks(manifest);
+
+		verify(kubeService).apply("default", hooks.get(0).getYaml());
+		verify(kubeService).apply("default", strippedManifest);
 	}
 
 	@Test

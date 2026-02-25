@@ -2,6 +2,7 @@ package org.alexmond.jhelm.core;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
@@ -46,8 +47,13 @@ public class UpgradeAction {
 		newRelease.setManifest(manifest);
 
 		if (kubeService != null && !dryRun) {
-			kubeService.apply(newRelease.getNamespace(), manifest);
+			List<HelmHook> hooks = HookParser.parseHooks(manifest);
+			String regularManifest = HookParser.stripHooks(manifest);
+			HookExecutor hookExecutor = new HookExecutor(kubeService);
+			hookExecutor.run(newRelease.getNamespace(), hooks, "pre-upgrade", 300);
+			kubeService.apply(newRelease.getNamespace(), regularManifest);
 			kubeService.storeRelease(newRelease);
+			hookExecutor.run(newRelease.getNamespace(), hooks, "post-upgrade", 300);
 		}
 
 		return newRelease;

@@ -1,10 +1,10 @@
 package org.alexmond.jhelm.core;
 
-import lombok.RequiredArgsConstructor;
-
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+
+import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public class RollbackAction {
@@ -39,8 +39,14 @@ public class RollbackAction {
 				.build())
 			.build();
 
-		kubeService.apply(namespace, newRelease.getManifest());
+		String manifest = newRelease.getManifest();
+		List<HelmHook> hooks = HookParser.parseHooks(manifest);
+		String regularManifest = HookParser.stripHooks(manifest);
+		HookExecutor hookExecutor = new HookExecutor(kubeService);
+		hookExecutor.run(namespace, hooks, "pre-rollback", 300);
+		kubeService.apply(namespace, regularManifest);
 		kubeService.storeRelease(newRelease);
+		hookExecutor.run(namespace, hooks, "post-rollback", 300);
 	}
 
 }

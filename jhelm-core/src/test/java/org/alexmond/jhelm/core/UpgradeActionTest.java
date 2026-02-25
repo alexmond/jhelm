@@ -8,10 +8,12 @@ import org.mockito.MockitoAnnotations;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
@@ -80,7 +82,9 @@ class UpgradeActionTest {
 		assertEquals("Upgrade complete", upgradedRelease.getInfo().getDescription());
 		assertEquals(renderedManifest, upgradedRelease.getManifest());
 
-		verify(kubeService).apply("default", renderedManifest);
+		// apply receives the hook-stripped manifest (HookParser normalises docs with
+		// trailing \n)
+		verify(kubeService).apply("default", HookParser.stripHooks(renderedManifest));
 		verify(kubeService).storeRelease(any(Release.class));
 
 		ArgumentCaptor<Map<String, Object>> releaseDataCaptor = ArgumentCaptor.forClass(Map.class);
@@ -159,6 +163,58 @@ class UpgradeActionTest {
 
 		verify(kubeService, never()).apply(anyString(), anyString());
 		verify(kubeService, never()).storeRelease(any(Release.class));
+	}
+
+	@Test
+	void testUpgradeRunsHooksAndStripsManifest() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("2.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status("deployed")
+			.build();
+
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.info(info)
+			.build();
+
+		String hookYaml = """
+				apiVersion: batch/v1
+				kind: Job
+				metadata:
+				  name: myapp-pre-upgrade
+				  namespace: default
+				  annotations:
+				    helm.sh/hook: pre-upgrade
+				    helm.sh/hook-delete-policy: before-hook-creation
+				spec:
+				  template:
+				    spec:
+				      restartPolicy: Never
+				""";
+		String regularYaml = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
+		String fullManifest = "---\n" + hookYaml + regularYaml;
+
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(fullManifest);
+		doNothing().when(kubeService).delete(anyString(), anyString());
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).waitForReady(anyString(), anyString(), anyInt());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		upgradeAction.upgrade(currentRelease, chart, null, false);
+
+		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
+		String strippedManifest = HookParser.stripHooks(fullManifest);
+
+		// Hook apply called with hook yaml, regular apply called with stripped manifest
+		verify(kubeService).apply("default", hooks.get(0).getYaml());
+		verify(kubeService).apply("default", strippedManifest);
 	}
 
 	@Test
