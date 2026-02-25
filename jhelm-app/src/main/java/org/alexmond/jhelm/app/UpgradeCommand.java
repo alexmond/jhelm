@@ -10,8 +10,13 @@ import org.alexmond.jhelm.core.UpgradeAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+import org.alexmond.jhelm.core.ValuesOverrides;
+import picocli.CommandLine.Option;
+
 import java.io.File;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Component
@@ -40,6 +45,12 @@ public class UpgradeCommand implements Runnable {
 	@CommandLine.Option(names = { "--dry-run" }, description = "simulate an upgrade")
 	private boolean dryRun;
 
+	@Option(names = { "-f", "--values" }, description = "specify values YAML files")
+	private List<String> valuesFiles = new ArrayList<>();
+
+	@Option(names = { "--set" }, description = "set values on the command line (key=value, dot notation supported)")
+	private List<String> setValues = new ArrayList<>();
+
 	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UpgradeAction upgradeAction) {
 		this.kubeService = kubeService;
 		this.installAction = installAction;
@@ -52,10 +63,11 @@ public class UpgradeCommand implements Runnable {
 			Optional<Release> currentReleaseOpt = kubeService.getRelease(name, namespace);
 			ChartLoader loader = new ChartLoader();
 			Chart chart = loader.load(new File(chartPath));
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues);
 
 			if (currentReleaseOpt.isEmpty()) {
 				if (install) {
-					Release release = installAction.install(chart, name, namespace, new HashMap<>(), 1, dryRun);
+					Release release = installAction.install(chart, name, namespace, overrides, 1, dryRun);
 					if (dryRun) {
 						printRelease(release);
 					}
@@ -69,7 +81,7 @@ public class UpgradeCommand implements Runnable {
 				return;
 			}
 
-			Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, new HashMap<>(), dryRun);
+			Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, overrides, dryRun);
 
 			if (dryRun) {
 				printRelease(upgradedRelease);

@@ -11,8 +11,16 @@ public class TemplateAction {
 	private final Engine engine;
 
 	public String render(String chartPath, String releaseName, String namespace) throws Exception {
+		return render(chartPath, releaseName, namespace, new HashMap<>());
+	}
+
+	public String render(String chartPath, String releaseName, String namespace, Map<String, Object> overrides)
+			throws Exception {
 		ChartLoader loader = new ChartLoader();
 		Chart chart = loader.load(new File(chartPath));
+
+		Map<String, Object> values = new HashMap<>(chart.getValues());
+		ValuesLoader.deepMerge(values, overrides);
 
 		Map<String, Object> releaseData = new HashMap<>();
 		releaseData.put("Name", releaseName);
@@ -22,7 +30,7 @@ public class TemplateAction {
 		releaseData.put("IsUpgrade", false);
 		releaseData.put("Revision", 1);
 
-		return engine.render(chart, chart.getValues(), releaseData);
+		return engine.render(chart, values, releaseData);
 	}
 
 }
