@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @Getter
 @Setter
-@ConfigurationProperties(prefix = "jhelm.core")
+@ConfigurationProperties(prefix = "jhelm")
 public class JhelmCoreProperties {
 
 	/**

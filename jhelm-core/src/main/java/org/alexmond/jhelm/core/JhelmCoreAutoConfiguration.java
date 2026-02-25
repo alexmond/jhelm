@@ -1,5 +1,6 @@
-package org.alexmond.jhelm.core.config;
+package org.alexmond.jhelm.core;
 
+import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

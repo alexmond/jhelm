@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.config;
 
+import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
