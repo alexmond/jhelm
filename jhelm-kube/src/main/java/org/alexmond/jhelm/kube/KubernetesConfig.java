@@ -1,20 +1,14 @@
 package org.alexmond.jhelm.kube;
 
-import io.kubernetes.client.openapi.ApiClient;
-import io.kubernetes.client.util.Config;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 
-import java.io.IOException;
-
+/**
+ * Legacy configuration bridge. Delegates to {@link JhelmKubeAutoConfiguration}. Retained
+ * for backwards compatibility with tests that reference this class directly.
+ */
 @Configuration
+@Import(JhelmKubeAutoConfiguration.class)
 public class KubernetesConfig {
-
-	@Bean
-	public ApiClient apiClient() throws IOException {
-		// This will load the configuration from ~/.kube/config or service account if in
-		// cluster
-		return Config.defaultClient();
-	}
 
 }

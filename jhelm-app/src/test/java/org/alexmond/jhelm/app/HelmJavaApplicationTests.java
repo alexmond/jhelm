@@ -1,8 +1,10 @@
 package org.alexmond.jhelm.app;
 
+import org.alexmond.jhelm.core.KubeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,6 +12,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
 class HelmJavaApplicationTests {
+
+	@MockitoBean
+	private KubeService kubeService;
 
 	@Autowired(required = false)
 	private HelmJavaApplication application;
