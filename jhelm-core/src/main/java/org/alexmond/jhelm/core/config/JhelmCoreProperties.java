@@ -30,4 +30,14 @@ public class JhelmCoreProperties {
 	 */
 	private boolean insecureSkipTlsVerify = false;
 
+	/**
+	 * Whether to cache parsed template ASTs. Defaults to {@code true}.
+	 */
+	private boolean templateCacheEnabled = true;
+
+	/**
+	 * Maximum number of parsed templates in the LRU cache. Defaults to 256.
+	 */
+	private int templateCacheMaxSize = 256;
+
 }
