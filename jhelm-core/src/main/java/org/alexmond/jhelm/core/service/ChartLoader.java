@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.alexmond.jhelm.core.exception.ChartLoadException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.util.ValuesLoader;
@@ -19,15 +20,17 @@ public class ChartLoader {
 
 	private final YAMLMapper yamlMapper = YAMLMapper.builder().build();
 
-	public Chart load(File chartDir) throws IOException {
+	public Chart load(File chartDir) throws IOException, ChartLoadException {
 		if (!chartDir.exists() || !chartDir.isDirectory()) {
-			throw new IllegalArgumentException("Chart directory does not exist: " + chartDir.getPath());
+			throw new ChartLoadException("Chart directory does not exist", chartDir.getPath(),
+					"Verify the path is correct and points to a valid Helm chart directory");
 		}
 
 		// Load Chart.yaml
 		File metadataFile = new File(chartDir, "Chart.yaml");
 		if (!metadataFile.exists()) {
-			throw new IllegalArgumentException("Chart.yaml not found in " + chartDir.getPath());
+			throw new ChartLoadException("Chart.yaml not found", chartDir.getPath(),
+					"A valid Helm chart requires a Chart.yaml file. Run 'helm create' to scaffold a new chart");
 		}
 		ChartMetadata metadata = yamlMapper.readValue(metadataFile, ChartMetadata.class);
 

@@ -3,6 +3,7 @@ package org.alexmond.jhelm.core.service;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.cache.TemplateCache;
+import org.alexmond.jhelm.core.exception.TemplateRenderException;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.internal.parse.Node;
@@ -115,9 +116,11 @@ public class Engine {
 			return cleanManifest(rendered);
 		}
 		catch (StackOverflowError ex) {
-			log.error("Global StackOverflowError during rendering of chart {}: {}", chart.getMetadata().getName(),
-					ex.getMessage());
-			return "ERROR: Recursive template inclusion or too deep nesting";
+			String chartName = chart.getMetadata().getName();
+			log.error("StackOverflowError during rendering of chart '{}': recursive template inclusion detected",
+					chartName);
+			return "ERROR: chart '" + chartName
+					+ "': recursive template inclusion or too deep nesting. Check for circular {{ template }} calls.";
 		}
 	}
 
@@ -218,7 +221,8 @@ public class Engine {
 				}
 			}
 			catch (Exception ex) {
-				log.warn("Parse failure for {}: {}", name, ex.getMessage());
+				log.warn("Parse failure for template '{}' in chart '{}': {}", name, templateToChartName.get(name),
+						ex.getMessage());
 			}
 		}
 
@@ -300,7 +304,8 @@ public class Engine {
 				schemaValidator.validate(chart.getMetadata().getName(), chart.getValuesSchema(), mergedValues);
 			}
 			catch (SchemaValidationException ex) {
-				throw new RuntimeException(ex.getMessage(), ex);
+				throw new TemplateRenderException("Values schema validation failed: " + ex.getMessage(), ex,
+						chart.getMetadata().getName(), null);
 			}
 		}
 
@@ -380,11 +385,14 @@ public class Engine {
 				}
 			}
 			catch (StackOverflowError ex) {
-				log.error("StackOverflowError rendering template {}: {}", t.getName(), ex.getMessage());
+				log.error(
+						"StackOverflowError rendering chart '{}', template '{}': recursive template inclusion detected",
+						chart.getMetadata().getName(), t.getName());
 			}
 			catch (Exception ex) {
-				log.error("Failed to render template {}: {}", t.getName(), ex.getMessage());
-				throw new RuntimeException("Failed to render template " + t.getName(), ex);
+				String chartName = chart.getMetadata().getName();
+				log.error("Failed to render chart '{}', template '{}': {}", chartName, t.getName(), ex.getMessage());
+				throw new TemplateRenderException("Rendering failed: " + ex.getMessage(), ex, chartName, t.getName());
 			}
 		}
 	}
@@ -420,8 +428,8 @@ public class Engine {
 			return writer.toString();
 		}
 		catch (Exception ex) {
-			log.error("Template rendering failed for {}. Error: {}", template.getName(), ex.getMessage());
-			throw new RuntimeException("Failed to render template " + template.getName(), ex);
+			log.error("Template rendering failed for '{}': {}", template.getName(), ex.getMessage());
+			throw new TemplateRenderException("Rendering failed: " + ex.getMessage(), ex, null, template.getName());
 		}
 	}
 
