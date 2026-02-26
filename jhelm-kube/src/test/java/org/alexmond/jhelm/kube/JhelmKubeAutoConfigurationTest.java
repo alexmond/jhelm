@@ -1,7 +1,9 @@
 package org.alexmond.jhelm.kube;
 
 import io.kubernetes.client.openapi.ApiClient;
+import org.alexmond.jhelm.core.service.AsyncKubeService;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.kube.service.AsyncHelmKubeService;
 import org.alexmond.jhelm.kube.service.HelmKubeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -20,6 +22,9 @@ class JhelmKubeAutoConfigurationTest {
 		contextRunner.run((ctx) -> {
 			assertNotNull(ctx.getBean(ApiClient.class));
 			assertNotNull(ctx.getBean(KubeService.class));
+			assertNotNull(ctx.getBean(AsyncKubeService.class));
+			assertNotNull(ctx.getBean(AsyncHelmKubeService.class));
+			// AsyncHelmKubeService extends HelmKubeService, so both are accessible
 			assertNotNull(ctx.getBean(HelmKubeService.class));
 		});
 	}
