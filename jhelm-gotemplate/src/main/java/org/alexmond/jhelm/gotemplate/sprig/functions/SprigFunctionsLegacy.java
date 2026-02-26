@@ -69,12 +69,12 @@ public final class SprigFunctionsLegacy {
 				if (uriBuilder.getQueryParams() != null && !uriBuilder.getQueryParams().isEmpty()) {
 					for (int i = 0; i < uriBuilder.getQueryParams().size(); i++) {
 						if (i > 0) {
-							queryString.append("&");
+							queryString.append('&');
 						}
 						var param = uriBuilder.getQueryParams().get(i);
 						queryString.append(param.getName());
 						if (param.getValue() != null) {
-							queryString.append("=").append(param.getValue());
+							queryString.append('=').append(param.getValue());
 						}
 					}
 				}

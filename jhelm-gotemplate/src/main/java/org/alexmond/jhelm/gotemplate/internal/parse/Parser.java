@@ -565,6 +565,9 @@ public class Parser {
 				case EOF:
 					moveToPrevItem(lexer, state);
 					break loop;
+				default:
+					throwUnexpectError("unexpected token: " + token.type());
+					break;
 			}
 
 			if (node != null) {
@@ -714,7 +717,8 @@ public class Parser {
 				numberNode.setFloatValue(floatValue);
 				simplifyFloat(numberNode, floatValue);
 			}
-			catch (NumberFormatException ignoredAgain) {
+			catch (NumberFormatException ignoredAgain) { // NOPMD
+				// Not a float either; will fail validation below
 			}
 		}
 
@@ -782,7 +786,6 @@ public class Parser {
 			numberNode.setIsFloat(true);
 			numberNode.setFloatValue(floatValue);
 
-			long intValue = (long) floatValue;
 			simplifyFloat(numberNode, floatValue);
 		}
 	}
@@ -895,7 +898,7 @@ public class Parser {
 		throw new TemplateParseException(message);
 	}
 
-	private static class State {
+	private static final class State {
 
 		private final Map<String, Node> nodes = new LinkedHashMap<>();
 

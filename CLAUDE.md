@@ -44,6 +44,7 @@ jhelm (parent)
 - **Indentation**: Tabs (enforced by `spring-javaformat-maven-plugin`)
 - **Formatter**: `spring-javaformat` runs on every `validate` phase — run `./mvnw spring-javaformat:apply` to auto-format
 - **Naming**: Classes `PascalCase`, methods/variables `camelCase`, constants `UPPER_SNAKE_CASE`
+- **Imports**: Always use `import` statements — never use fully qualified class names inline in code (e.g., use `Locale.ROOT` not `java.util.Locale.ROOT`). Enforced by PMD `UnnecessaryFullyQualifiedName` rule. Fix script: `python3 .claude/scripts/fix_fqn.py .`
 - **Javadoc**: Use HTML tags for links, `{@code true}`/`{@code false}` for booleans, accurate `@param`/`@return` tags
 
 ### Lombok
@@ -97,6 +98,32 @@ jhelm (parent)
 - **Prefer real test data** (chart YAML, Go template strings, `@TempDir` files) over Mockito mocks
 - Test charts live in `src/test/resources/test-charts/<name>/` — use them for Engine/template tests
 - Mockito is acceptable only for HTTP (`CloseableHttpClient`) and Kubernetes (`KubeService`) where a live server is unavailable
+
+## PMD
+
+**Plugin**: `maven-pmd-plugin` 3.26.0 (PMD 7.7.0). Violations **fail the build** at `validate` phase.
+
+**Config**: `pmd-ruleset.xml` at project root. Excludes rules that don't fit the codebase (complexity rules for state machines, CLI-specific patterns, etc.).
+
+### Fixing violations
+
+```bash
+# Check PMD violations
+./mvnw validate 2>&1 | grep "PMD Failure"
+
+# Fix fully qualified names (most common violation)
+python3 .claude/scripts/fix_fqn.py .
+
+# Then format and re-validate
+./mvnw spring-javaformat:apply && ./mvnw validate
+```
+
+### Common rules to be aware of
+- `UnnecessaryFullyQualifiedName` — use imports, not inline FQN
+- `AppendCharacterWithChar` — use `.append('x')` not `.append("x")` for single chars
+- `UseLocaleWithCaseConversions` — use `.toLowerCase(Locale.ROOT)` not `.toLowerCase()`
+- `RedundantFieldInitializer` — don't write `boolean x = false` (false is the default)
+- `MissingOverride` — add `@Override` on interface/superclass method implementations
 
 ## Checkstyle
 

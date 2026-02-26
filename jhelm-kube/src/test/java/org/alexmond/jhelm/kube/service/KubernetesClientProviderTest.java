@@ -31,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.anyString;
+import java.time.OffsetDateTime;
 
 class KubernetesClientProviderTest {
 
@@ -373,7 +374,7 @@ class KubernetesClientProviderTest {
 		var method = KubernetesClientProvider.class.getDeclaredMethod("createMetadataMap", V1ObjectMeta.class);
 		method.setAccessible(true);
 
-		var now = java.time.OffsetDateTime.now();
+		var now = OffsetDateTime.now();
 		V1ObjectMeta metadata = new V1ObjectMeta().name("timestamped").creationTimestamp(now);
 
 		@SuppressWarnings("unchecked")

@@ -57,14 +57,14 @@ public class Lexer {
 	/**
 	 * Current position of the input
 	 */
-	private int pos = 0;
+	private int pos;
 
 	/**
 	 * Start position of current token
 	 */
-	private int start = 0;
+	private int start;
 
-	private int parenDepth = 0;
+	private int parenDepth;
 
 	/**
 	 * The count of newline have met + 1
@@ -79,13 +79,13 @@ public class Lexer {
 	/**
 	 * Start line of current token
 	 */
-	private int lineStart = 0;
+	private int lineStart;
 
 	/* Result tokens */
 	/**
 	 * Start line of current token
 	 */
-	private int startLineStart = 1;
+	private static final int START_LINE_START = 1;
 
 	public Lexer(String input) {
 		this(input, false);
@@ -98,7 +98,7 @@ public class Lexer {
 	public Lexer(String input, boolean keepComments, String leftDelimiter, String rightDelimiter, String leftComment,
 			String rightComment) {
 		if (input == null) {
-			throw new NullPointerException();
+			throw new IllegalStateException();
 		}
 
 		this.input = input;
@@ -722,11 +722,7 @@ public class Lexer {
 			return false;
 		}
 
-		if (TRIM_MARKER != input.charAt(pos + leftDelimLength)) {
-			return false;
-		}
-
-		return true;
+		return TRIM_MARKER == input.charAt(pos + leftDelimLength);
 	}
 
 	private boolean isPosAtRightDelim() {
@@ -738,11 +734,7 @@ public class Lexer {
 			return false;
 		}
 
-		if (TRIM_MARKER != input.charAt(pos)) {
-			return false;
-		}
-
-		return input.indexOf(rightDelimiter, pos + 1) == pos + 1;
+		return TRIM_MARKER == input.charAt(pos) && input.indexOf(rightDelimiter, pos + 1) == pos + 1;
 	}
 
 	private boolean isPosAtRightDelimWithoutTrimMarker() {
@@ -754,10 +746,6 @@ public class Lexer {
 		// 1. The delimiter is at current position
 		// 2. There's no trim marker at current position
 		return input.indexOf(rightDelimiter, pos) == pos && (pos >= input.length() || input.charAt(pos) != TRIM_MARKER);
-	}
-
-	private boolean isPosAtRightDelim(int pos) {
-		return input.indexOf(rightDelimiter, pos) == pos;
 	}
 
 	private boolean isPosAtWordTerminator() {

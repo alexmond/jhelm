@@ -2,6 +2,7 @@ package org.alexmond.jhelm.gotemplate.sprig.functions;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Locale;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
@@ -78,7 +79,7 @@ public final class DateFunctions {
 
 			String javaLayout = convertGoLayoutToJava(layout);
 			try {
-				SimpleDateFormat sdf = new SimpleDateFormat(javaLayout);
+				SimpleDateFormat sdf = new SimpleDateFormat(javaLayout, Locale.ROOT);
 				return sdf.format(date);
 			}
 			catch (Exception ex) {
@@ -106,7 +107,7 @@ public final class DateFunctions {
 
 			String javaLayout = convertGoLayoutToJava(layout);
 			try {
-				SimpleDateFormat sdf = new SimpleDateFormat(javaLayout);
+				SimpleDateFormat sdf = new SimpleDateFormat(javaLayout, Locale.ROOT);
 				sdf.setTimeZone(TimeZone.getTimeZone(timezone));
 				return sdf.format(date);
 			}
@@ -129,7 +130,7 @@ public final class DateFunctions {
 				return "";
 			}
 
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
 			return sdf.format(date);
 		};
 	}
@@ -148,7 +149,7 @@ public final class DateFunctions {
 			}
 
 			String timezone = String.valueOf(args[1]);
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT);
 			sdf.setTimeZone(TimeZone.getTimeZone(timezone));
 			return sdf.format(date);
 		};
@@ -170,7 +171,7 @@ public final class DateFunctions {
 
 			String javaLayout = convertGoLayoutToJava(layout);
 			try {
-				SimpleDateFormat sdf = new SimpleDateFormat(javaLayout);
+				SimpleDateFormat sdf = new SimpleDateFormat(javaLayout, Locale.ROOT);
 				return sdf.parse(dateStr);
 			}
 			catch (ParseException ex) {
@@ -194,7 +195,7 @@ public final class DateFunctions {
 
 			String javaLayout = convertGoLayoutToJava(layout);
 			try {
-				SimpleDateFormat sdf = new SimpleDateFormat(javaLayout);
+				SimpleDateFormat sdf = new SimpleDateFormat(javaLayout, Locale.ROOT);
 				return sdf.parse(dateStr);
 			}
 			catch (ParseException ex) {

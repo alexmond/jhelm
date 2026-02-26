@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -35,15 +36,15 @@ public class PullCommand implements Runnable {
 			else {
 				String resolvedVersion = resolveVersion();
 				if (resolvedVersion == null) {
-					log.error("--version is required for repository chart pulls");
+					CliOutput.errPrintln(CliOutput.error("--version is required for repository chart pulls"));
 					return;
 				}
 				repoManager.pull(chart, null, resolvedVersion, dest);
 			}
-			log.info("Chart pulled to {}", dest);
+			CliOutput.println(CliOutput.success("Chart pulled to " + dest));
 		}
 		catch (Exception ex) {
-			log.error("Error pulling chart: {}", ex.getMessage());
+			CliOutput.errPrintln(CliOutput.error("Error pulling chart: " + ex.getMessage()));
 		}
 	}
 

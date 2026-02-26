@@ -23,7 +23,7 @@ public class SchemaValidationException extends JhelmException {
 		sb.append("values don't meet the specifications of the schema(s) in the following chart(s):\n");
 		sb.append(chartName).append(":\n");
 		for (String e : errors) {
-			sb.append("- ").append(e).append("\n");
+			sb.append("- ").append(e).append('\n');
 		}
 		return sb.toString();
 	}

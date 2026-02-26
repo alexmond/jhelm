@@ -5,6 +5,7 @@ import org.springframework.boot.ExitCodeGenerator;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import picocli.CommandLine;
+import picocli.CommandLine.Help.Ansi;
 import picocli.CommandLine.IFactory;
 
 @SpringBootApplication
@@ -29,6 +30,7 @@ public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator
 	public void run(String... args) {
 		CommandLine cmd = new CommandLine(jHelmCommand, factory);
 		cmd.setUsageHelpWidth(120);
+		cmd.setColorScheme(CommandLine.Help.defaultColorScheme(Ansi.AUTO));
 		exitCode = cmd.execute(args);
 	}
 

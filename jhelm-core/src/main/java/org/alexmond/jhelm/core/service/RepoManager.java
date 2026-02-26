@@ -22,13 +22,14 @@ import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.entity.ByteArrayEntity;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.IOException;
-import java.io.FileInputStream;
-import java.io.BufferedInputStream;
-import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -37,6 +38,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import org.apache.hc.core5.http.Header;
+
 import org.alexmond.jhelm.core.model.RepositoryConfig;
 
 @Slf4j
@@ -51,7 +58,7 @@ public class RepoManager {
 	private CloseableHttpClient httpClient;
 
 	@Setter
-	private boolean insecureSkipTlsVerify = false;
+	private boolean insecureSkipTlsVerify;
 
 	@Setter
 	private RegistryManager registryManager;
@@ -78,7 +85,7 @@ public class RepoManager {
 
 	private static String resolveDefaultConfigPath() {
 		String home = System.getProperty("user.home");
-		String os = System.getProperty("os.name").toLowerCase();
+		String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
 		if (os.contains("mac")) {
 			return Paths.get(home, "Library/Preferences/helm/repositories.yaml").toString();
 		}
@@ -170,7 +177,7 @@ public class RepoManager {
 
 	private File getCacheDir() {
 		String home = System.getProperty("user.home");
-		String os = System.getProperty("os.name").toLowerCase();
+		String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
 		File base;
 		if (os.contains("mac")) {
 			base = Paths.get(home, "Library/Caches/jhelm/repository").toFile();
@@ -336,7 +343,7 @@ public class RepoManager {
 		}
 	}
 
-	public java.util.List<ChartVersion> getChartVersions(String repoName, String chartName) throws IOException {
+	public List<ChartVersion> getChartVersions(String repoName, String chartName) throws IOException {
 		// Prefer cached index if exists, else fetch live
 		File indexFile = getIndexCacheFile(repoName);
 		InputStream indexIn;
@@ -371,22 +378,22 @@ public class RepoManager {
 					throw new IOException("Empty response from " + indexUrl);
 				}
 			});
-			indexIn = new java.io.ByteArrayInputStream(indexData);
+			indexIn = new ByteArrayInputStream(indexData);
 		}
-		java.util.List<ChartVersion> result = new java.util.ArrayList<>();
+		List<ChartVersion> result = new ArrayList<>();
 		try (InputStream in = indexIn) {
 			// Parse YAML as Map<String,Object>
-			java.util.Map<?, ?> root = yamlMapper.readValue(in, java.util.Map.class);
+			Map<?, ?> root = yamlMapper.readValue(in, Map.class);
 			Object entriesObj = root.get("entries");
-			if (!(entriesObj instanceof java.util.Map<?, ?> entries)) {
+			if (!(entriesObj instanceof Map<?, ?> entries)) {
 				return result;
 			}
 			Object chartListObj = entries.get(chartName);
-			if (!(chartListObj instanceof java.util.List<?> list)) {
+			if (!(chartListObj instanceof List<?> list)) {
 				return result;
 			}
 			for (Object o : list) {
-				if (o instanceof java.util.Map<?, ?> m) {
+				if (o instanceof Map<?, ?> m) {
 					String version = asString(m.get("version"));
 					String appVersion = asString(m.get("appVersion"));
 					String description = asString(m.get("description"));
@@ -452,7 +459,7 @@ public class RepoManager {
 		String finalRepoName = repoName;
 
 		if (chartFullName.contains("/")) {
-			int slashIndex = chartFullName.lastIndexOf("/");
+			int slashIndex = chartFullName.lastIndexOf('/');
 			finalRepoName = chartFullName.substring(0, slashIndex);
 			finalChartName = chartFullName.substring(slashIndex + 1);
 		}
@@ -504,19 +511,19 @@ public class RepoManager {
 			return null;
 		}
 		try (InputStream in = new FileInputStream(indexFile)) {
-			java.util.Map<?, ?> root = yamlMapper.readValue(in, java.util.Map.class);
-			java.util.Map<?, ?> entries = (java.util.Map<?, ?>) root.get("entries");
+			Map<?, ?> root = yamlMapper.readValue(in, Map.class);
+			Map<?, ?> entries = (Map<?, ?>) root.get("entries");
 			if (entries == null) {
 				return null;
 			}
-			java.util.List<?> versions = (java.util.List<?>) entries.get(chartName);
+			List<?> versions = (List<?>) entries.get(chartName);
 			if (versions == null) {
 				return null;
 			}
 			for (Object o : versions) {
-				java.util.Map<?, ?> m = (java.util.Map<?, ?>) o;
+				Map<?, ?> m = (Map<?, ?>) o;
 				if (version.equals(asString(m.get("version")))) {
-					java.util.List<?> urls = (java.util.List<?>) m.get("urls");
+					List<?> urls = (List<?>) m.get("urls");
 					if (urls != null && !urls.isEmpty()) {
 						return new String[] { asString(urls.get(0)), asString(m.get("digest")) };
 					}
@@ -582,7 +589,7 @@ public class RepoManager {
 
 		// 2. Get Manifest
 		String manifestUrl = "https://" + registry + "/v2/" + path + "/manifests/" + tag;
-		JsonNode manifest = null;
+		JsonNode manifest;
 		try {
 			manifest = callOciApi(manifestUrl, token, "application/vnd.oci.image.manifest.v1+json");
 		}
@@ -882,7 +889,7 @@ public class RepoManager {
 			if (status != 202) {
 				throw new IOException("Failed to initiate blob upload: HTTP " + status);
 			}
-			org.apache.hc.core5.http.Header location = response.getFirstHeader("Location");
+			Header location = response.getFirstHeader("Location");
 			if (location == null) {
 				throw new IOException("No Location header in upload initiation response");
 			}

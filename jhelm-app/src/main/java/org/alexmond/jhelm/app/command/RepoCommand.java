@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.core.model.RepositoryConfig;
 import org.springframework.stereotype.Component;
@@ -41,10 +42,10 @@ public class RepoCommand implements Runnable {
 		public void run() {
 			try {
 				repoManager.addRepo(name, url);
-				log.info("\"{}\" has been added to your repositories", name);
+				CliOutput.println(CliOutput.success("\"" + name + "\" has been added to your repositories"));
 			}
 			catch (IOException ex) {
-				log.error("Error adding repository: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error adding repository: " + ex.getMessage()));
 			}
 		}
 
@@ -65,13 +66,13 @@ public class RepoCommand implements Runnable {
 		public void run() {
 			try {
 				RepositoryConfig config = repoManager.loadConfig();
-				System.out.printf("%-20s\t%-50s\n", "NAME", "URL");
+				CliOutput.printf("%-20s\t%-50s\n", CliOutput.bold("NAME"), CliOutput.bold("URL"));
 				for (RepositoryConfig.Repository repo : config.getRepositories()) {
-					System.out.printf("%-20s\t%-50s\n", repo.getName(), repo.getUrl());
+					CliOutput.printf("%-20s\t%-50s\n", repo.getName(), repo.getUrl());
 				}
 			}
 			catch (IOException ex) {
-				log.error("Error listing repositories: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error listing repositories: " + ex.getMessage()));
 			}
 		}
 
@@ -96,10 +97,10 @@ public class RepoCommand implements Runnable {
 		public void run() {
 			try {
 				repoManager.removeRepo(name);
-				log.info("\"{}\" has been removed from your repositories", name);
+				CliOutput.println(CliOutput.success("\"" + name + "\" has been removed from your repositories"));
 			}
 			catch (IOException ex) {
-				log.error("Error removing repository: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error removing repository: " + ex.getMessage()));
 			}
 		}
 
@@ -127,7 +128,7 @@ public class RepoCommand implements Runnable {
 		public void run() {
 			try {
 				if (query == null || !query.contains("/")) {
-					log.error("Please specify chart as repo/chart (e.g., bitnami/ghost)");
+					CliOutput.errPrintln(CliOutput.error("Please specify chart as repo/chart (e.g., bitnami/ghost)"));
 					return;
 				}
 				String repo = query.substring(0, query.indexOf('/'));
@@ -135,27 +136,27 @@ public class RepoCommand implements Runnable {
 
 				var versions = repoManager.getChartVersions(repo, chart);
 				if (versions.isEmpty()) {
-					log.info(
-							"No results found for {}. Make sure the repo is added (jhelm repo add) and contains the chart.",
-							query);
+					CliOutput.println(CliOutput.warn("No results found for " + query
+							+ ". Make sure the repo is added (jhelm repo add) and contains the chart."));
 					return;
 				}
 
-				System.out.printf("%-40s %-15s %-15s %-s\n", "NAME", "CHART VERSION", "APP VERSION", "DESCRIPTION");
+				CliOutput.printf("%-40s %-15s %-15s %-s\n", CliOutput.bold("NAME"), CliOutput.bold("CHART VERSION"),
+						CliOutput.bold("APP VERSION"), CliOutput.bold("DESCRIPTION"));
 				if (showAllVersions) {
 					for (var v : versions) {
-						System.out.printf("%-40s %-15s %-15s %-s\n", v.getName(), nv(v.getChartVersion()),
+						CliOutput.printf("%-40s %-15s %-15s %-s\n", v.getName(), nv(v.getChartVersion()),
 								nv(v.getAppVersion()), nv(v.getDescription()));
 					}
 				}
 				else {
 					var v = versions.get(0);
-					System.out.printf("%-40s %-15s %-15s %-s\n", v.getName(), nv(v.getChartVersion()),
+					CliOutput.printf("%-40s %-15s %-15s %-s\n", v.getName(), nv(v.getChartVersion()),
 							nv(v.getAppVersion()), nv(v.getDescription()));
 				}
 			}
 			catch (Exception ex) {
-				log.error("Error searching repositories: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error searching repositories: " + ex.getMessage()));
 			}
 		}
 

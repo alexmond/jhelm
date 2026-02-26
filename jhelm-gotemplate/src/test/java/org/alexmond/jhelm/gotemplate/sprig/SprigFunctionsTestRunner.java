@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.alexmond.jhelm.gotemplate.GoTemplate;
+import java.io.Writer;
 
 public class SprigFunctionsTestRunner {
 
@@ -26,7 +27,7 @@ public class SprigFunctionsTestRunner {
 		System.out.println("\nAll manual tests completed!");
 	}
 
-	private void execute(String name, String text, Object data, java.io.Writer writer) throws Exception {
+	private void execute(String name, String text, Object data, Writer writer) throws Exception {
 		GoTemplate template = new GoTemplate();
 		template.parse(name, text);
 		template.execute(name, data, writer);

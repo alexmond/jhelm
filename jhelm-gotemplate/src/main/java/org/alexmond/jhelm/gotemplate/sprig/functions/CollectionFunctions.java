@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import java.util.regex.Pattern;
 
 /**
  * Sprig Collection manipulation functions (lists, slices, dicts) Based on: <a href=
@@ -99,7 +100,7 @@ public final class CollectionFunctions {
 	}
 
 	private static Function tuple() {
-		return (args) -> Arrays.asList(args);
+		return Arrays::asList;
 	}
 
 	private static Function first() {
@@ -380,10 +381,7 @@ public final class CollectionFunctions {
 			if (haystack instanceof Collection) {
 				return ((Collection<?>) haystack).contains(needle);
 			}
-			if (haystack instanceof String) {
-				return ((String) haystack).contains(String.valueOf(needle));
-			}
-			return false;
+			return haystack instanceof String && ((String) haystack).contains(String.valueOf(needle));
 		};
 	}
 
@@ -508,7 +506,7 @@ public final class CollectionFunctions {
 			}
 			List<Object> result = new ArrayList<>();
 			for (Object item : (Collection<?>) args[0]) {
-				if (item != null && !item.equals("") && !item.equals(false)) {
+				if (item != null && !"".equals(item) && !Boolean.FALSE.equals(item)) {
 					result.add(item);
 				}
 			}
@@ -555,7 +553,7 @@ public final class CollectionFunctions {
 			if (args.length < 2) {
 				return new String[0];
 			}
-			return String.valueOf(args[1]).split(java.util.regex.Pattern.quote(String.valueOf(args[0])));
+			return String.valueOf(args[1]).split(Pattern.quote(String.valueOf(args[0])));
 		};
 	}
 
@@ -566,7 +564,7 @@ public final class CollectionFunctions {
 			}
 			String sep = String.valueOf(args[0]);
 			String s = String.valueOf(args[1]);
-			return Arrays.asList(s.split(java.util.regex.Pattern.quote(sep)));
+			return Arrays.asList(s.split(Pattern.quote(sep)));
 		};
 	}
 
@@ -578,7 +576,7 @@ public final class CollectionFunctions {
 			String sep = String.valueOf(args[0]);
 			int n = ((Number) args[1]).intValue();
 			String s = String.valueOf(args[2]);
-			return Arrays.asList(s.split(java.util.regex.Pattern.quote(sep), n));
+			return Arrays.asList(s.split(Pattern.quote(sep), n));
 		};
 	}
 

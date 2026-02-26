@@ -8,6 +8,7 @@ import org.alexmond.jhelm.plugin.service.PluginManager;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
+import org.alexmond.jhelm.app.output.CliOutput;
 
 @Component
 @CommandLine.Command(name = "plugin", mixinStandardHelpOptions = true, description = "Manage plugins",
@@ -37,16 +38,16 @@ public class PluginCommand implements Runnable {
 		public void run() {
 			PluginManager pm = pluginManagerProvider.getIfAvailable();
 			if (pm == null) {
-				System.err.println("Plugin system is not enabled. Set jhelm.plugins.enabled=true");
+				CliOutput.errPrintln(CliOutput.error("Plugin system is not enabled. Set jhelm.plugins.enabled=true"));
 				return;
 			}
 			try {
 				PluginDescriptor desc = pm.install(archivePath);
-				System.out.println("Installed plugin: " + desc.getManifest().getName() + " (type: "
-						+ desc.getManifest().getType().getValue() + ")");
+				CliOutput.println(CliOutput.success("Installed plugin: " + desc.getManifest().getName() + " (type: "
+						+ desc.getManifest().getType().getValue() + ")"));
 			}
 			catch (Exception ex) {
-				System.err.println("Failed to install plugin: " + ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Failed to install plugin: " + ex.getMessage()));
 			}
 		}
 
@@ -69,15 +70,15 @@ public class PluginCommand implements Runnable {
 		public void run() {
 			PluginManager pm = pluginManagerProvider.getIfAvailable();
 			if (pm == null) {
-				System.err.println("Plugin system is not enabled. Set jhelm.plugins.enabled=true");
+				CliOutput.errPrintln(CliOutput.error("Plugin system is not enabled. Set jhelm.plugins.enabled=true"));
 				return;
 			}
 			try {
 				pm.uninstall(pluginName);
-				System.out.println("Uninstalled plugin: " + pluginName);
+				CliOutput.println(CliOutput.success("Uninstalled plugin: " + pluginName));
 			}
 			catch (Exception ex) {
-				System.err.println("Failed to uninstall plugin: " + ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Failed to uninstall plugin: " + ex.getMessage()));
 			}
 		}
 
@@ -97,17 +98,18 @@ public class PluginCommand implements Runnable {
 		public void run() {
 			PluginManager pm = pluginManagerProvider.getIfAvailable();
 			if (pm == null) {
-				System.err.println("Plugin system is not enabled. Set jhelm.plugins.enabled=true");
+				CliOutput.errPrintln(CliOutput.error("Plugin system is not enabled. Set jhelm.plugins.enabled=true"));
 				return;
 			}
 			List<PluginDescriptor> plugins = pm.list();
 			if (plugins.isEmpty()) {
-				System.out.println("No plugins installed.");
+				CliOutput.println("No plugins installed.");
 				return;
 			}
-			System.out.printf("%-20s %-15s %-10s%n", "NAME", "TYPE", "VERSION");
+			CliOutput.printf("%-20s %-15s %-10s%n", CliOutput.bold("NAME"), CliOutput.bold("TYPE"),
+					CliOutput.bold("VERSION"));
 			for (PluginDescriptor desc : plugins) {
-				System.out.printf("%-20s %-15s %-10s%n", desc.getManifest().getName(),
+				CliOutput.printf("%-20s %-15s %-10s%n", desc.getManifest().getName(),
 						desc.getManifest().getType().getValue(), desc.getManifest().getVersion());
 			}
 		}

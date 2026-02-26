@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -27,10 +28,10 @@ public class PushCommand implements Runnable {
 	public void run() {
 		try {
 			repoManager.pushOci(chart, remote);
-			log.info("Pushed: {}", remote);
+			CliOutput.println(CliOutput.success("Pushed: " + remote));
 		}
 		catch (Exception ex) {
-			log.error("Error pushing chart: {}", ex.getMessage());
+			CliOutput.errPrintln(CliOutput.error("Error pushing chart: " + ex.getMessage()));
 		}
 	}
 

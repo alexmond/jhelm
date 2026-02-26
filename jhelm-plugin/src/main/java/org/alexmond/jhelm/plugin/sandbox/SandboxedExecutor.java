@@ -41,7 +41,7 @@ public class SandboxedExecutor {
 					"Plugin '" + pluginName + "' exceeded timeout of " + config.getTimeoutSeconds() + "s", ex);
 		}
 		catch (ExecutionException ex) {
-			throw new PluginExecutionException("Plugin '" + pluginName + "' execution failed", ex.getCause());
+			throw new PluginExecutionException("Plugin '" + pluginName + "' execution failed", ex);
 		}
 		catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();

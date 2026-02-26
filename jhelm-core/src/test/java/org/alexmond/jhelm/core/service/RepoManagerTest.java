@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import org.alexmond.jhelm.core.model.RepositoryConfig;
+import java.net.URL;
 
 class RepoManagerTest {
 
@@ -452,7 +453,7 @@ class RepoManagerTest {
 	 * src/test/resources/test-charts/minimal/.
 	 */
 	private static byte[] createMinimalTgz() throws Exception {
-		java.net.URL resource = RepoManagerTest.class.getResource("/test-charts/minimal");
+		URL resource = RepoManagerTest.class.getResource("/test-charts/minimal");
 		File chartDir = new File(resource.toURI());
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		try (GzipCompressorOutputStream gzos = new GzipCompressorOutputStream(baos);

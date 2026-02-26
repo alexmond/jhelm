@@ -9,6 +9,7 @@ import java.util.Map;
 
 import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.junit.jupiter.api.Test;
+import java.util.List;
 
 /**
  * Test Helm 4 new functions: mustToYaml, mustToJson, mustFromYaml, mustFromJson
@@ -154,7 +155,7 @@ public class Helm4FunctionsTest {
 
 	@Test
 	public void testHelmFunctionCategories() {
-		Map<String, java.util.List<String>> categories = HelmFunctions.getFunctionCategories();
+		Map<String, List<String>> categories = HelmFunctions.getFunctionCategories();
 
 		// Verify categories exist
 		assertTrue(categories.containsKey("Template"));

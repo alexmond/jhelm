@@ -7,6 +7,7 @@ import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +26,11 @@ import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import org.apache.commons.codec.binary.Hex;
 
 /**
  * Cryptographic and random generation functions from Sprig library. Includes password
@@ -150,12 +156,11 @@ public final class CryptoFunctions {
 			String user = String.valueOf(args[3]);
 			try {
 				String combined = counter + context + masterPassword + user;
-				javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
-				javax.crypto.spec.SecretKeySpec key = new javax.crypto.spec.SecretKeySpec(
-						masterPassword.getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256");
+				Mac mac = Mac.getInstance("HmacSHA256");
+				SecretKeySpec key = new SecretKeySpec(masterPassword.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
 				mac.init(key);
-				byte[] raw = mac.doFinal(combined.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-				return org.apache.commons.codec.binary.Hex.encodeHexString(raw).substring(0, 20);
+				byte[] raw = mac.doFinal(combined.getBytes(StandardCharsets.UTF_8));
+				return Hex.encodeHexString(raw).substring(0, 20);
 			}
 			catch (Exception ex) {
 				return "";
@@ -171,7 +176,7 @@ public final class CryptoFunctions {
 	 */
 	private static Function genPrivateKey() {
 		return (args) -> {
-			String algorithm = (args.length > 0) ? String.valueOf(args[0]).toLowerCase() : "rsa";
+			String algorithm = (args.length > 0) ? String.valueOf(args[0]).toLowerCase(Locale.ROOT) : "rsa";
 			try {
 				KeyPair keyPair = generateKeyPair(algorithm);
 				return toPemPrivateKey(keyPair, algorithm);
@@ -325,14 +330,14 @@ public final class CryptoFunctions {
 
 	private static String toPemPrivateKey(KeyPair keyPair, String algorithm) throws Exception {
 		byte[] encoded = keyPair.getPrivate().getEncoded();
-		String base64 = java.util.Base64.getMimeEncoder(64, new byte[] { '\n' }).encodeToString(encoded);
-		String label = (algorithm.equals("ecdsa") || algorithm.equals("ec")) ? "EC PRIVATE KEY" : "RSA PRIVATE KEY";
+		String base64 = Base64.getMimeEncoder(64, new byte[] { '\n' }).encodeToString(encoded);
+		String label = ("ecdsa".equals(algorithm) || "ec".equals(algorithm)) ? "EC PRIVATE KEY" : "RSA PRIVATE KEY";
 		return "-----BEGIN " + label + "-----\n" + base64 + "\n-----END " + label + "-----\n";
 	}
 
 	private static String toPemCert(X509Certificate cert) throws Exception {
 		byte[] encoded = cert.getEncoded();
-		String base64 = java.util.Base64.getMimeEncoder(64, new byte[] { '\n' }).encodeToString(encoded);
+		String base64 = Base64.getMimeEncoder(64, new byte[] { '\n' }).encodeToString(encoded);
 		return "-----BEGIN CERTIFICATE-----\n" + base64 + "\n-----END CERTIFICATE-----\n";
 	}
 

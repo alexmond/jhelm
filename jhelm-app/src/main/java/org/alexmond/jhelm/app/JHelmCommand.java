@@ -17,6 +17,7 @@ import org.alexmond.jhelm.app.command.StatusCommand;
 import org.alexmond.jhelm.app.command.TemplateCommand;
 import org.alexmond.jhelm.app.command.UninstallCommand;
 import org.alexmond.jhelm.app.command.UpgradeCommand;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -34,6 +35,14 @@ import picocli.CommandLine;
 				RollbackCommand.class, ShowCommand.class, GetCommand.class, DependencyCommand.class, PullCommand.class,
 				PushCommand.class, RepoCommand.class, RegistryCommand.class, PluginCommand.class })
 public class JHelmCommand implements Runnable {
+
+	@CommandLine.Option(names = { "--no-color" }, description = "Disable colored output",
+			scope = CommandLine.ScopeType.INHERIT)
+	public void setNoColor(boolean noColor) {
+		if (noColor) {
+			CliOutput.setEnabled(false);
+		}
+	}
 
 	@Override
 	public void run() {

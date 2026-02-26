@@ -21,6 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 @SpringBootTest(classes = { KubernetesConfig.class, HelmKubeService.class, CoreConfig.class })
 @Slf4j
@@ -47,36 +50,35 @@ class HelmFullFlowIntegrationTest {
 
 		Chart chart = Chart.builder()
 			.metadata(ChartMetadata.builder().name("nginx").version("1.0.0").build())
-			.templates(new java.util.ArrayList<>(
-					java.util.List.of(Chart.Template.builder().name("deployment.yaml").data("""
-							apiVersion: apps/v1
-							kind: Deployment
-							metadata:
-							  name: {{ .Release.Name }}-nginx
-							spec:
-							  replicas: {{ .Values.replicaCount }}
-							  selector:
-							    matchLabels:
-							      app: nginx
-							  template:
-							    metadata:
-							      labels:
-							        app: nginx
-							    spec:
-							      containers:
-							      - name: nginx
-							        image: nginx:latest
-							""").build(), Chart.Template.builder().name("service.yaml").data("""
-							apiVersion: v1
-							kind: Service
-							metadata:
-							  name: {{ .Release.Name }}-nginx
-							spec:
-							  ports:
-							  - port: 80
-							  selector:
-							    app: nginx
-							""").build())))
+			.templates(new ArrayList<>(List.of(Chart.Template.builder().name("deployment.yaml").data("""
+					apiVersion: apps/v1
+					kind: Deployment
+					metadata:
+					  name: {{ .Release.Name }}-nginx
+					spec:
+					  replicas: {{ .Values.replicaCount }}
+					  selector:
+					    matchLabels:
+					      app: nginx
+					  template:
+					    metadata:
+					      labels:
+					        app: nginx
+					    spec:
+					      containers:
+					      - name: nginx
+					        image: nginx:latest
+					""").build(), Chart.Template.builder().name("service.yaml").data("""
+					apiVersion: v1
+					kind: Service
+					metadata:
+					  name: {{ .Release.Name }}-nginx
+					spec:
+					  ports:
+					  - port: 80
+					  selector:
+					    app: nginx
+					""").build())))
 			.values(Map.of("replicaCount", 1))
 			.build();
 
@@ -125,11 +127,11 @@ class HelmFullFlowIntegrationTest {
 			// Basic fallback for CI or local dev if above fails
 			Chart simpleChart = Chart.builder()
 				.metadata(ChartMetadata.builder().name("simple").version("0.1.0").build())
-				.templates(new java.util.ArrayList<>(java.util.List.of(Chart.Template.builder()
+				.templates(new ArrayList<>(List.of(Chart.Template.builder()
 					.name("cm.yaml")
 					.data("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Release.Name }}")
 					.build())))
-				.values(new java.util.HashMap<>())
+				.values(new HashMap<>())
 				.build();
 
 			// Install Dry Run

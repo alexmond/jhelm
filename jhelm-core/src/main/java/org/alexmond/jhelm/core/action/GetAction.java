@@ -61,14 +61,14 @@ public class GetAction {
 		String[] docs = release.getManifest().split("---");
 		StringBuilder hooks = new StringBuilder();
 		for (String doc : docs) {
-			if (doc.trim().isEmpty()) {
+			if (doc.isBlank()) {
 				continue;
 			}
 			if (doc.contains("helm.sh/hook")) {
 				if (!hooks.isEmpty()) {
 					hooks.append("---\n");
 				}
-				hooks.append(doc.trim()).append("\n");
+				hooks.append(doc.trim()).append('\n');
 			}
 		}
 		return hooks.toString();
@@ -97,7 +97,7 @@ public class GetAction {
 		sb.append("MANIFEST:\n");
 		sb.append(getManifest(release));
 		if (!getManifest(release).endsWith("\n")) {
-			sb.append("\n");
+			sb.append('\n');
 		}
 
 		String hooks = getHooks(release);
@@ -111,7 +111,7 @@ public class GetAction {
 			sb.append("\nNOTES:\n");
 			sb.append(notes);
 			if (!notes.endsWith("\n")) {
-				sb.append("\n");
+				sb.append('\n');
 			}
 		}
 

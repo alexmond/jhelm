@@ -2,6 +2,7 @@ package org.alexmond.jhelm.app.command;
 
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.ChartLock;
 import org.alexmond.jhelm.core.model.Dependency;
@@ -17,6 +18,9 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Implements the {@code helm dependency} command and its subcommands.
@@ -60,14 +64,14 @@ public class DependencyCommand implements Runnable {
 			try {
 				File chartDir = new File(chartPath);
 				if (!chartDir.exists() || !chartDir.isDirectory()) {
-					System.err.println("Error: Chart directory not found: " + chartPath);
+					CliOutput.errPrintln(CliOutput.error("Error: Chart directory not found: " + chartPath));
 					return;
 				}
 
 				// Load Chart.yaml
 				ChartMetadata metadata = loadChartMetadata(chartDir);
 				if (metadata.getDependencies() == null || metadata.getDependencies().isEmpty()) {
-					System.out.println("No dependencies found in Chart.yaml");
+					CliOutput.println("No dependencies found in Chart.yaml");
 					return;
 				}
 
@@ -95,7 +99,8 @@ public class DependencyCommand implements Runnable {
 				}
 
 				// Print header
-				System.out.printf("%-20s %-15s %-40s %s%n", "NAME", "VERSION", "REPOSITORY", "STATUS");
+				CliOutput.printf("%-20s %-15s %-40s %s%n", CliOutput.bold("NAME"), CliOutput.bold("VERSION"),
+						CliOutput.bold("REPOSITORY"), CliOutput.bold("STATUS"));
 
 				// Print each dependency
 				for (Dependency dep : metadata.getDependencies()) {
@@ -104,14 +109,26 @@ public class DependencyCommand implements Runnable {
 					String repository = dep.getRepository();
 					String status = determineStatus(dep, lockMap.get(name), unpackedCharts);
 
-					System.out.printf("%-20s %-15s %-40s %s%n", name, version, (repository != null) ? repository : "",
-							status);
+					CliOutput.printf("%-20s %-15s %-40s %s%n", name, version, (repository != null) ? repository : "",
+							colorizeDependencyStatus(status));
 				}
 			}
 			catch (Exception ex) {
-				log.error("Error listing dependencies: {}", ex.getMessage(), ex);
-				System.err.println("Error listing dependencies: " + ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error listing dependencies: " + ex.getMessage()));
+				log.debug("Dependency list error details", ex);
 			}
+		}
+
+		private String colorizeDependencyStatus(String status) {
+			if (status == null) {
+				return "";
+			}
+			return switch (status.toLowerCase(Locale.ROOT)) {
+				case "ok" -> CliOutput.success(status);
+				case "missing", "wrong version" -> CliOutput.error(status);
+				case "unpacked" -> CliOutput.warn(status);
+				default -> status;
+			};
 		}
 
 		private String determineStatus(Dependency dep, LockDependency lockDep, Set<String> unpackedCharts) {
@@ -166,7 +183,7 @@ public class DependencyCommand implements Runnable {
 
 		@CommandLine.Option(names = { "--with-tags" },
 				description = "Enable dependency tags to include (comma-separated)")
-		java.util.List<String> withTags = new java.util.ArrayList<>();
+		List<String> withTags = new ArrayList<>();
 
 		public UpdateCommand(RepoManager repoManager) {
 			this.repoManager = repoManager;
@@ -177,21 +194,21 @@ public class DependencyCommand implements Runnable {
 			try {
 				File chartDir = new File(chartPath);
 				if (!chartDir.exists() || !chartDir.isDirectory()) {
-					System.err.println("Error: Chart directory not found: " + chartPath);
+					CliOutput.errPrintln(CliOutput.error("Error: Chart directory not found: " + chartPath));
 					return;
 				}
 
 				// Refresh repositories unless --skip-refresh
 				if (!skipRefresh) {
-					System.out.println("Hang tight while we grab the latest from your chart repositories...");
+					CliOutput.println("Hang tight while we grab the latest from your chart repositories...");
 					repoManager.updateAll();
-					System.out.println("...Successfully got an update from the chart repositories");
+					CliOutput.println(CliOutput.success("...Successfully got an update from the chart repositories"));
 				}
 
 				// Load Chart.yaml
 				ChartMetadata metadata = loadChartMetadata(chartDir);
 				if (metadata.getDependencies() == null || metadata.getDependencies().isEmpty()) {
-					System.out.println("No dependencies found in Chart.yaml");
+					CliOutput.println("No dependencies found in Chart.yaml");
 					return;
 				}
 
@@ -204,17 +221,17 @@ public class DependencyCommand implements Runnable {
 						withTags.isEmpty() ? null : withTags);
 
 				// Download dependencies
-				System.out.println("Updating dependencies from Chart.yaml...");
+				CliOutput.println("Updating dependencies from Chart.yaml...");
 				resolver.downloadDependencies(chartDir, chartLock.getDependencies());
 
 				// Save Chart.lock
 				chartLock.toFile(chartDir);
-				System.out.println("Saving " + chartLock.getDependencies().size() + " charts");
-				System.out.println("Dependency update complete.");
+				CliOutput.println("Saving " + chartLock.getDependencies().size() + " charts");
+				CliOutput.println(CliOutput.success("Dependency update complete."));
 			}
 			catch (Exception ex) {
-				log.error("Error updating dependencies: {}", ex.getMessage(), ex);
-				System.err.println("Error updating dependencies: " + ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error updating dependencies: " + ex.getMessage()));
+				log.debug("Dependency update error details", ex);
 			}
 		}
 
@@ -272,40 +289,41 @@ public class DependencyCommand implements Runnable {
 			try {
 				File chartDir = new File(chartPath);
 				if (!chartDir.exists() || !chartDir.isDirectory()) {
-					System.err.println("Error: Chart directory not found: " + chartPath);
+					CliOutput.errPrintln(CliOutput.error("Error: Chart directory not found: " + chartPath));
 					return;
 				}
 
 				// Load Chart.lock
 				ChartLock chartLock = ChartLock.fromFile(chartDir);
 				if (chartLock == null) {
-					System.err.println("Error: Chart.lock not found. Run 'dependency update' first.");
+					CliOutput
+						.errPrintln(CliOutput.error("Error: Chart.lock not found. Run 'dependency update' first."));
 					return;
 				}
 
 				if (chartLock.getDependencies() == null || chartLock.getDependencies().isEmpty()) {
-					System.out.println("No dependencies found in Chart.lock");
+					CliOutput.println("No dependencies found in Chart.lock");
 					return;
 				}
 
 				// Refresh repositories unless --skip-refresh
 				if (!skipRefresh) {
-					System.out.println("Hang tight while we grab the latest from your chart repositories...");
+					CliOutput.println("Hang tight while we grab the latest from your chart repositories...");
 					repoManager.updateAll();
-					System.out.println("...Successfully got an update from the chart repositories");
+					CliOutput.println(CliOutput.success("...Successfully got an update from the chart repositories"));
 				}
 
 				// Download dependencies
-				System.out.println("Building dependencies from Chart.lock...");
+				CliOutput.println("Building dependencies from Chart.lock...");
 				DependencyResolver resolver = new DependencyResolver(repoManager);
 				resolver.downloadDependencies(chartDir, chartLock.getDependencies());
 
-				System.out.println("Saving " + chartLock.getDependencies().size() + " charts");
-				System.out.println("Dependency build complete.");
+				CliOutput.println("Saving " + chartLock.getDependencies().size() + " charts");
+				CliOutput.println(CliOutput.success("Dependency build complete."));
 			}
 			catch (Exception ex) {
-				log.error("Error building dependencies: {}", ex.getMessage(), ex);
-				System.err.println("Error building dependencies: " + ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error building dependencies: " + ex.getMessage()));
+				log.debug("Dependency build error details", ex);
 			}
 		}
 

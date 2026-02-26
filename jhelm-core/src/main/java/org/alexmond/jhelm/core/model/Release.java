@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.Map;
 
 @Data
 @Builder
@@ -53,7 +54,7 @@ public class Release {
 	@AllArgsConstructor
 	public static class MapConfig {
 
-		private java.util.Map<String, Object> values;
+		private Map<String, Object> values;
 
 	}
 

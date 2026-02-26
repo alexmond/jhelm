@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -30,10 +31,10 @@ public class RollbackCommand implements Runnable {
 	public void run() {
 		try {
 			rollbackAction.rollback(name, namespace, revision);
-			log.info("Rollback was a success! Happy Helming!");
+			CliOutput.println(CliOutput.success("Rollback was a success! Happy Helming!"));
 		}
 		catch (Exception ex) {
-			log.error("Error during rollback: {}", ex.getMessage());
+			CliOutput.errPrintln(CliOutput.error("Error during rollback: " + ex.getMessage()));
 		}
 	}
 

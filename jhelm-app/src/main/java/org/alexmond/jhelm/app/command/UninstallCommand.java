@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -26,10 +27,10 @@ public class UninstallCommand implements Runnable {
 	public void run() {
 		try {
 			uninstallAction.uninstall(name, namespace);
-			log.info("release \"{}\" uninstalled", name);
+			CliOutput.println(CliOutput.success("release \"" + name + "\" uninstalled"));
 		}
 		catch (Exception ex) {
-			log.error("Error uninstalling release: {}", ex.getMessage());
+			CliOutput.errPrintln(CliOutput.error("Error uninstalling release: " + ex.getMessage()));
 		}
 	}
 

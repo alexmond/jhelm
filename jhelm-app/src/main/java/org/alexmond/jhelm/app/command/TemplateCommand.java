@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
@@ -49,10 +50,10 @@ public class TemplateCommand implements Runnable {
 			for (String renderer : postRenderers) {
 				manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
 			}
-			log.info("\n{}", manifest);
+			CliOutput.println(manifest);
 		}
 		catch (Exception ex) {
-			log.error("Error rendering template: {}", ex.getMessage());
+			CliOutput.errPrintln(CliOutput.error("Error rendering template: " + ex.getMessage()));
 		}
 	}
 

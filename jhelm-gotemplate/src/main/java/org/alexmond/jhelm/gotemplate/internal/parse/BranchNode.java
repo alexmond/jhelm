@@ -25,7 +25,7 @@ public abstract class BranchNode implements Node {
 				throw new IllegalStateException("unknown branch type");
 		}
 
-		StringBuilder sb = new StringBuilder();
+		StringBuilder sb = new StringBuilder(64);
 		sb.append("{{").append(name).append(' ').append(pipeNode).append("}}");
 		if (ifListNode != null) {
 			// Avoid printing "null"

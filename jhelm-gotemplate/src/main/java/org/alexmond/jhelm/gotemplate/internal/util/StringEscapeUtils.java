@@ -6,12 +6,6 @@ import java.util.Set;
 
 public final class StringEscapeUtils {
 
-	private static final Map<CharSequence, CharSequence> ESCAPE_MAP;
-
-	private static final int ESCAPE_LONGEST_LENGTH;
-
-	private static final int ESCAPE_SHORTEST_LENGTH;
-
 	private static final Map<CharSequence, CharSequence> UNESCAPE_MAP;
 
 	private static final int UNESCAPE_LONGEST_LENGTH;
@@ -26,9 +20,6 @@ public final class StringEscapeUtils {
 		initialMap.put("\t", "\\t");
 		initialMap.put("\f", "\\f");
 		initialMap.put("\r", "\\r");
-		ESCAPE_MAP = initialMap;
-		ESCAPE_LONGEST_LENGTH = getLongestLength(initialMap.keySet());
-		ESCAPE_SHORTEST_LENGTH = getShortestLength(initialMap.keySet());
 
 		final Map<CharSequence, CharSequence> invertMap = new LinkedHashMap<>();
 		for (Map.Entry<CharSequence, CharSequence> entry : initialMap.entrySet()) {

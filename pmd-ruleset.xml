@@ -1,0 +1,124 @@
+<?xml version="1.0"?>
+<ruleset name="jhelm PMD Rules"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>PMD ruleset for the jhelm project</description>
+
+    <!-- Best Practices -->
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="JUnitTestContainsTooManyAsserts"/>
+        <exclude name="JUnitAssertionsShouldIncludeMessage"/>
+        <exclude name="GuardLogStatement"/>
+        <exclude name="LooseCoupling"/>
+        <exclude name="AvoidReassigningLoopVariables"/> <!-- Go-style escape parsing in StringUtils -->
+        <exclude name="AvoidReassigningParameters"/> <!-- ChainNode follows Go template port pattern -->
+        <exclude name="UseVarargs"/> <!-- Changing method signatures could break API -->
+        <exclude name="SimplifiedTernary"/> <!-- False positive on Object-typed returns with boolean false -->
+        <exclude name="UnusedFormalParameter"/> <!-- Some method params are needed for interface/future compatibility -->
+        <exclude name="LiteralsFirstInComparisons"/> <!-- Project prefers subject.equals(literal) readability -->
+        <exclude name="UnusedAssignment"/> <!-- False positives on field assignments in try/catch branches -->
+        <exclude name="SystemPrintln"/> <!-- CLI application uses System.out/err for user output -->
+    </rule>
+
+    <!-- Code Style -->
+    <rule ref="category/java/codestyle.xml">
+        <exclude name="AtLeastOneConstructor"/>
+        <exclude name="OnlyOneReturn"/>
+        <exclude name="LocalVariableCouldBeFinal"/>
+        <exclude name="MethodArgumentCouldBeFinal"/>
+        <exclude name="ShortVariable"/>
+        <exclude name="LongVariable"/>
+        <exclude name="ShortMethodName"/>
+        <exclude name="ShortClassName"/>
+        <exclude name="CommentDefaultAccessModifier"/>
+        <exclude name="DefaultPackage"/>
+        <exclude name="CallSuperInConstructor"/>
+        <exclude name="ConfusingTernary"/>
+        <exclude name="TooManyStaticImports"/>
+        <exclude name="UnnecessaryAnnotationValueElement"/>
+        <exclude name="UseExplicitTypes"/>
+        <exclude name="UselessParentheses"/> <!-- Spring formatter controls parentheses style -->
+        <exclude name="FieldDeclarationsShouldBeAtStartOfClass"/> <!-- Function registries use inline fields -->
+        <exclude name="LinguisticNaming"/> <!-- Go template API mirrors Go naming (e.g., isBool, hasPrefix) -->
+        <exclude name="UseUnderscoresInNumericLiterals"/> <!-- Numeric constants match Go originals -->
+        <exclude name="UnnecessaryConstructor"/>
+        <exclude name="ForLoopShouldBeWhileLoop"/> <!-- Lexer state machine uses for(;;) idiom -->
+        <exclude name="NonExhaustiveSwitch"/> <!-- Parser switch intentionally handles known token types only -->
+        <exclude name="FieldNamingConventions"/> <!-- YAML/JSON deserialized models use snake_case field names -->
+    </rule>
+    <rule ref="category/java/codestyle.xml/ClassNamingConventions">
+        <properties>
+            <property name="utilityClassPattern" value="[A-Z][a-zA-Z0-9]*"/>
+        </properties>
+    </rule>
+
+    <!-- Design -->
+    <rule ref="category/java/design.xml">
+        <exclude name="ImmutableField"/> <!-- Picocli/Spring inject values into @Option/@Autowired fields -->
+        <exclude name="AvoidRethrowingException"/> <!-- Intentional rethrow before generic catch in plugin adapters -->
+        <exclude name="LawOfDemeter"/>
+        <exclude name="LoosePackageCoupling"/>
+        <exclude name="DataClass"/>
+        <exclude name="TooManyMethods"/>
+        <exclude name="ExcessiveImports"/>
+        <exclude name="CouplingBetweenObjects"/>
+        <exclude name="AvoidCatchingGenericException"/>
+        <exclude name="ExcessiveParameterList"/>
+        <exclude name="CyclomaticComplexity"/>
+        <exclude name="NcssCount"/>
+        <exclude name="NPathComplexity"/>
+        <exclude name="GodClass"/>
+        <exclude name="ExcessiveClassLength"/>
+        <exclude name="ExcessiveMethodLength"/>
+        <exclude name="TooManyFields"/>
+        <exclude name="AvoidThrowingRawExceptionTypes"/>
+        <exclude name="SignatureDeclareThrowsException"/>
+        <exclude name="UseObjectForClearerAPI"/>
+        <exclude name="CognitiveComplexity"/> <!-- Lexer/Parser/Executor are state machines with inherent complexity -->
+        <exclude name="ExceptionAsFlowControl"/> <!-- ConversionFunctions uses try-catch for type parsing (Go port pattern) -->
+        <exclude name="SimplifyBooleanReturns"/> <!-- Sometimes explicit if/return reads more clearly -->
+        <exclude name="SimplifiedTernary"/> <!-- False positive on Object-typed returns with boolean false -->
+        <exclude name="AvoidUncheckedExceptionsInSignatures"/> <!-- Utility methods declare specific runtime exceptions -->
+        <exclude name="AvoidDeeplyNestedIfStmts"/> <!-- Complex loaders/resolvers require deep nesting -->
+        <exclude name="CollapsibleIfStatements"/> <!-- Separate conditions often read more clearly -->
+    </rule>
+
+    <!-- Error Prone -->
+    <rule ref="category/java/errorprone.xml">
+        <exclude name="BeanMembersShouldSerialize"/>
+        <exclude name="DataflowAnomalyAnalysis"/>
+        <exclude name="DoNotTerminateVM"/> <!-- CLI application uses System.exit() for exit codes -->
+        <exclude name="AvoidLiteralsInIfCondition"/>
+        <exclude name="AvoidDuplicateLiterals"/>
+        <exclude name="MissingSerialVersionUID"/>
+        <exclude name="AvoidFieldNameMatchingMethodName"/>
+        <exclude name="AvoidFieldNameMatchingTypeName"/> <!-- Models/DTOs often have fields matching type names -->
+        <exclude name="NullAssignment"/>
+        <exclude name="ReturnEmptyCollectionRatherThanNull"/>
+        <exclude name="AvoidInstanceofChecksInCatchClause"/> <!-- Executor catch blocks pattern-match exception types -->
+        <exclude name="AvoidUncheckedExceptionsInSignatures"/> <!-- Utility methods declare specific runtime exceptions -->
+        <exclude name="AssignmentInOperand"/> <!-- Standard I/O read-loop idiom -->
+        <exclude name="EmptyCatchBlock"/> <!-- Number parsing catch blocks are intentionally empty -->
+        <exclude name="AvoidThrowingNullPointerException"/> <!-- Lexer signals sentinel with NPE (Go port) -->
+        <exclude name="ConfusingArgumentToVarargsMethod"/> <!-- False positive on Object[] varargs lambdas -->
+        <exclude name="PreserveStackTrace"/> <!-- ExecutionException unwrapping uses getCause() intentionally -->
+    </rule>
+
+    <!-- Multithreading -->
+    <rule ref="category/java/multithreading.xml">
+        <exclude name="UseConcurrentHashMap"/>
+        <exclude name="DoNotUseThreads"/>
+        <exclude name="AvoidUsingVolatile"/> <!-- Volatile is appropriate for double-checked locking patterns -->
+    </rule>
+
+    <!-- Performance -->
+    <rule ref="category/java/performance.xml">
+        <exclude name="AvoidInstantiatingObjectsInLoops"/>
+        <exclude name="AvoidFileStream"/> <!-- FileInputStream/FileOutputStream are acceptable for file I/O -->
+        <exclude name="ConsecutiveAppendsShouldReuse"/> <!-- Chaining style is a preference -->
+        <exclude name="InsufficientStringBufferDeclaration"/> <!-- Premature optimization -->
+    </rule>
+
+</ruleset>

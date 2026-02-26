@@ -28,7 +28,7 @@ public class ChartLoadException extends JhelmException {
 	private static String buildMessage(String message, String chartPath, String suggestion) {
 		StringBuilder sb = new StringBuilder(message);
 		if (chartPath != null) {
-			sb.append(" [path: ").append(chartPath).append("]");
+			sb.append(" [path: ").append(chartPath).append(']');
 		}
 		if (suggestion != null) {
 			sb.append(". Suggestion: ").append(suggestion);

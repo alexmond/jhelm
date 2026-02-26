@@ -114,7 +114,7 @@ public final class HookParser {
 			if (doc.isBlank() || doc.contains("helm.sh/hook")) {
 				continue;
 			}
-			result.append("---\n").append(doc.trim()).append("\n");
+			result.append("---\n").append(doc.trim()).append('\n');
 		}
 
 		return result.toString();

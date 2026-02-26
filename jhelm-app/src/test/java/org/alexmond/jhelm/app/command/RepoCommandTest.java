@@ -20,6 +20,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.anyString;
+import org.junit.jupiter.api.AfterEach;
 
 class RepoCommandTest {
 
@@ -45,7 +46,7 @@ class RepoCommandTest {
 		System.setOut(new PrintStream(outputStream));
 	}
 
-	@org.junit.jupiter.api.AfterEach
+	@AfterEach
 	void tearDown() {
 		System.setOut(originalOut);
 	}
