@@ -29,6 +29,9 @@ public class Chart {
 
 	private Map<String, Object> values;
 
+	/** Raw JSON content of {@code values.schema.json}, or {@code null} when absent. */
+	private String valuesSchema;
+
 	@Builder.Default
 	private List<Chart> dependencies = new ArrayList<>();
 

@@ -25,6 +25,7 @@ import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.RegistryManager;
 import org.alexmond.jhelm.core.service.RepoManager;
+import org.alexmond.jhelm.core.service.SchemaValidator;
 
 /**
  * Auto-configuration for the jhelm core module. Registers all core Helm beans. Beans that
@@ -63,8 +64,14 @@ public class JhelmCoreAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public Engine engine(ObjectProvider<TemplateCache> templateCache) {
-		return new Engine(templateCache.getIfAvailable());
+	public SchemaValidator schemaValidator() {
+		return new SchemaValidator();
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	public Engine engine(ObjectProvider<TemplateCache> templateCache, SchemaValidator schemaValidator) {
+		return new Engine(templateCache.getIfAvailable(), schemaValidator);
 	}
 
 	@Bean
