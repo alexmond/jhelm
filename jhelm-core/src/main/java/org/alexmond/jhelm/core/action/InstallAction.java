@@ -7,6 +7,8 @@ import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.exception.DeploymentFailedException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
@@ -18,6 +20,7 @@ import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
 
 @RequiredArgsConstructor
+@Slf4j
 public class InstallAction {
 
 	private final Engine engine;
@@ -75,12 +78,29 @@ public class InstallAction {
 			HookExecutor hookExecutor = new HookExecutor(kubeService);
 			hookExecutor.run(namespace, hooks, "pre-install", 300);
 			kubeService.apply(namespace, regularManifest);
-			kubeService.storeRelease(release);
+			try {
+				kubeService.storeRelease(release);
+			}
+			catch (Exception ex) {
+				rollbackAppliedResources(namespace, regularManifest);
+				throw new DeploymentFailedException("Failed to store release after apply; resources rolled back", ex,
+						regularManifest);
+			}
 			hookExecutor.run(namespace, hooks, "post-install", 300);
 			fireLifecycleEvent("post-install", releaseName, namespace);
 		}
 
 		return release;
+	}
+
+	private void rollbackAppliedResources(String namespace, String manifest) {
+		try {
+			log.warn("Rolling back applied resources in namespace {}", namespace);
+			kubeService.delete(namespace, manifest);
+		}
+		catch (Exception rollbackEx) {
+			log.error("Failed to rollback applied resources: {}", rollbackEx.getMessage(), rollbackEx);
+		}
 	}
 
 	private void fireLifecycleEvent(String phase, String releaseName, String namespace) throws Exception {

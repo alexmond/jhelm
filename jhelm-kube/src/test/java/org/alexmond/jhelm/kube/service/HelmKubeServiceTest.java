@@ -17,6 +17,9 @@ import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.util.PatchUtils;
+import org.alexmond.jhelm.core.exception.KubernetesOperationException;
+import org.alexmond.jhelm.core.exception.ReleaseStorageException;
+import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.junit.jupiter.api.AfterEach;
@@ -204,7 +207,7 @@ class HelmKubeServiceTest {
 			when(mock.createNamespacedConfigMap(eq("default"), any(V1ConfigMap.class))).thenReturn(createReq);
 		});
 
-		assertThrows(RuntimeException.class, () -> kubeService.storeRelease(release));
+		assertThrows(ReleaseStorageException.class, () -> kubeService.storeRelease(release));
 	}
 
 	// --- getRelease ---
@@ -236,14 +239,16 @@ class HelmKubeServiceTest {
 	void testGetReleaseThrowsOnDecodeError() throws Exception {
 		// ConfigMap with invalid base64 data
 		V1ConfigMap badCm = new V1ConfigMap()
-			.metadata(new V1ObjectMeta().putLabelsItem("version", "1").putLabelsItem("name", "myapp"))
+			.metadata(new V1ObjectMeta().name("sh.helm.release.v1.myapp.v1")
+				.putLabelsItem("version", "1")
+				.putLabelsItem("name", "myapp"))
 			.putDataItem("release", "not-valid-base64!!!");
 
 		V1ConfigMapList list = new V1ConfigMapList().items(List.of(badCm));
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListRequest(mock, list));
 
-		assertThrows(RuntimeException.class, () -> kubeService.getRelease("myapp", "default"));
+		assertThrows(ReleaseStorageException.class, () -> kubeService.getRelease("myapp", "default"));
 	}
 
 	// --- listReleases ---
@@ -271,7 +276,9 @@ class HelmKubeServiceTest {
 		// Mix of good and bad ConfigMaps
 		Release good = createTestRelease("good-app", "default", 1, "deployed");
 		V1ConfigMap badCm = new V1ConfigMap()
-			.metadata(new V1ObjectMeta().putLabelsItem("version", "1").putLabelsItem("name", "bad-app"))
+			.metadata(new V1ObjectMeta().name("sh.helm.release.v1.bad-app.v1")
+				.putLabelsItem("version", "1")
+				.putLabelsItem("name", "bad-app"))
 			.putDataItem("release", "invalid-base64");
 
 		V1ConfigMapList list = new V1ConfigMapList().items(List.of(createConfigMapForRelease(good), badCm));
@@ -316,14 +323,16 @@ class HelmKubeServiceTest {
 	@Test
 	void testGetReleaseHistoryThrowsOnDecodeError() throws Exception {
 		V1ConfigMap badCm = new V1ConfigMap()
-			.metadata(new V1ObjectMeta().putLabelsItem("version", "1").putLabelsItem("name", "myapp"))
+			.metadata(new V1ObjectMeta().name("sh.helm.release.v1.myapp.v1")
+				.putLabelsItem("version", "1")
+				.putLabelsItem("name", "myapp"))
 			.putDataItem("release", "bad-data");
 
 		V1ConfigMapList list = new V1ConfigMapList().items(List.of(badCm));
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListRequest(mock, list));
 
-		assertThrows(RuntimeException.class, () -> kubeService.getReleaseHistory("myapp", "default"));
+		assertThrows(ReleaseStorageException.class, () -> kubeService.getReleaseHistory("myapp", "default"));
 	}
 
 	// --- deleteReleaseHistory ---
@@ -453,7 +462,7 @@ class HelmKubeServiceTest {
 			return null;
 		});
 
-		assertThrows(Exception.class, () -> kubeService.apply("default", yaml));
+		assertThrows(KubernetesOperationException.class, () -> kubeService.apply("default", yaml));
 	}
 
 	// --- delete ---
@@ -519,7 +528,7 @@ class HelmKubeServiceTest {
 				.thenReturn(deleteReq);
 		});
 
-		assertThrows(Exception.class, () -> kubeService.delete("default", yaml));
+		assertThrows(KubernetesOperationException.class, () -> kubeService.delete("default", yaml));
 	}
 
 	@Test
@@ -748,7 +757,7 @@ class HelmKubeServiceTest {
 	}
 
 	@Test
-	void testWaitForReadyTimeoutThrowsException() {
+	void testWaitForReadyTimeoutThrowsWaitTimeoutException() {
 		String manifest = """
 				apiVersion: apps/v1
 				kind: Deployment
@@ -765,7 +774,10 @@ class HelmKubeServiceTest {
 			when(mock.readNamespacedDeployment(anyString(), anyString())).thenReturn(readReq);
 		});
 
-		assertThrows(Exception.class, () -> kubeService.waitForReady("default", manifest, 0));
+		WaitTimeoutException ex = assertThrows(WaitTimeoutException.class,
+				() -> kubeService.waitForReady("default", manifest, 0));
+		assertFalse(ex.getPendingResources().isEmpty());
+		assertEquals("Deployment", ex.getPendingResources().get(0).getKind());
 	}
 
 	// --- inferPlural ---

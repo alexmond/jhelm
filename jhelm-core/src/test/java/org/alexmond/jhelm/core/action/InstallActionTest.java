@@ -10,14 +10,17 @@ import org.mockito.MockitoAnnotations;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.alexmond.jhelm.core.exception.DeploymentFailedException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.HelmHook;
@@ -130,6 +133,25 @@ class InstallActionTest {
 
 		assertNotNull(release);
 		assertEquals("my-release", release.getName());
+	}
+
+	@Test
+	void testInstallRollsBackOnStoreFailure() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		String manifest = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\n";
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(manifest);
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doThrow(new RuntimeException("storage failed")).when(kubeService).storeRelease(any(Release.class));
+		doNothing().when(kubeService).delete(anyString(), anyString());
+
+		DeploymentFailedException ex = assertThrows(DeploymentFailedException.class,
+				() -> installAction.install(chart, "my-release", "default", null, 1, false));
+
+		assertEquals(HookParser.stripHooks(manifest), ex.getAppliedManifest());
+		// Verify rollback was attempted
+		verify(kubeService).delete("default", HookParser.stripHooks(manifest));
 	}
 
 }

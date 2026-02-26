@@ -10,16 +10,21 @@ import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
 import org.alexmond.jhelm.kube.service.AsyncHelmKubeService;
+import org.alexmond.jhelm.kube.service.RetryableKubeService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.retry.backoff.ExponentialBackOffPolicy;
+import org.springframework.retry.policy.SimpleRetryPolicy;
+import org.springframework.retry.support.RetryTemplate;
 
 /**
  * Auto-configuration for the jhelm Kubernetes integration module. Registers an
- * {@link ApiClient} and a {@link KubeService} implementation. Runs before
- * {@link JhelmCoreAutoConfiguration} so that the {@link KubeService} bean is available
- * for its {@code @ConditionalOnBean} checks.
+ * {@link ApiClient} and a {@link KubeService} implementation. When retry is enabled (the
+ * default), the service is wrapped with {@link RetryableKubeService} for transient
+ * failure recovery. Runs before {@link JhelmCoreAutoConfiguration} so that the
+ * {@link KubeService} bean is available for its {@code @ConditionalOnBean} checks.
  */
 @AutoConfiguration(before = JhelmCoreAutoConfiguration.class)
 @EnableConfigurationProperties(JhelmKubernetesProperties.class)
@@ -36,8 +41,49 @@ public class JhelmKubeAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean(KubeService.class)
-	public AsyncHelmKubeService asyncHelmKubeService(ApiClient apiClient) {
-		return new AsyncHelmKubeService(apiClient);
+	public KubeService kubeService(ApiClient apiClient, JhelmKubernetesProperties props) {
+		AsyncHelmKubeService base = new AsyncHelmKubeService(apiClient);
+		JhelmKubernetesProperties.Retry retryConfig = props.getRetry();
+		if (retryConfig.isEnabled()) {
+			return new RetryableKubeService(base, buildRetryTemplate(retryConfig));
+		}
+		return base;
+	}
+
+	private RetryTemplate buildRetryTemplate(JhelmKubernetesProperties.Retry config) {
+		SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy(config.getMaxAttempts());
+
+		ExponentialBackOffPolicy backOff = new ExponentialBackOffPolicy();
+		backOff.setInitialInterval(config.getInitialIntervalMs());
+		backOff.setMultiplier(config.getMultiplier());
+		backOff.setMaxInterval(config.getMaxIntervalMs());
+
+		RetryTemplate template = new RetryTemplate();
+		template.setRetryPolicy(retryPolicy);
+		template.setBackOffPolicy(backOff);
+		template.registerListener(new TransientRetryListener());
+		return template;
+	}
+
+	/**
+	 * A retry listener that only allows retries for transient errors.
+	 */
+	private static class TransientRetryListener implements org.springframework.retry.RetryListener {
+
+		@Override
+		public <T, E extends Throwable> boolean open(org.springframework.retry.RetryContext context,
+				org.springframework.retry.RetryCallback<T, E> callback) {
+			return true;
+		}
+
+		@Override
+		public <T, E extends Throwable> void onError(org.springframework.retry.RetryContext context,
+				org.springframework.retry.RetryCallback<T, E> callback, Throwable throwable) {
+			if (!RetryableKubeService.isTransient(throwable)) {
+				context.setExhaustedOnly();
+			}
+		}
+
 	}
 
 }

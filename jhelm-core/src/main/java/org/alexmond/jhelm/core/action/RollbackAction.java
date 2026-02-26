@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -12,6 +14,7 @@ import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
 
 @RequiredArgsConstructor
+@Slf4j
 public class RollbackAction {
 
 	private final KubeService kubeService;
@@ -21,7 +24,7 @@ public class RollbackAction {
 		Optional<Release> targetReleaseOpt = history.stream().filter((r) -> r.getVersion() == revision).findFirst();
 
 		if (targetReleaseOpt.isEmpty()) {
-			throw new RuntimeException("revision " + revision + " not found for release " + name);
+			throw ReleaseNotFoundException.forRevision(name, revision);
 		}
 
 		Optional<Release> currentReleaseOpt = history.stream().findFirst(); // History is

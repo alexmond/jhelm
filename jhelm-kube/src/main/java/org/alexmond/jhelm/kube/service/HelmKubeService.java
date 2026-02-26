@@ -21,6 +21,9 @@ import io.kubernetes.client.util.PatchUtils;
 import io.kubernetes.client.util.Yaml;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.exception.KubernetesOperationException;
+import org.alexmond.jhelm.core.exception.ReleaseStorageException;
+import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
@@ -44,7 +47,7 @@ public class HelmKubeService implements KubeService {
 	/**
 	 * Stores a release as a ConfigMap in Kubernetes.
 	 */
-	public void storeRelease(Release release) throws ApiException {
+	public void storeRelease(Release release) throws ReleaseStorageException {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String name = "sh.helm.release.v1." + release.getName() + ".v" + release.getVersion();
 
@@ -74,38 +77,35 @@ public class HelmKubeService implements KubeService {
 			}
 		}
 		catch (Exception ex) {
-			throw new RuntimeException("Failed to store release", ex);
+			throw new ReleaseStorageException("Failed to store release: " + release.getName(), ex);
 		}
 	}
 
 	/**
 	 * Retrieves the latest version of a release from Kubernetes.
 	 */
-	public Optional<Release> getRelease(String name, String namespace) throws ApiException {
+	public Optional<Release> getRelease(String name, String namespace) throws Exception {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm,name=" + name;
 
 		V1ConfigMapList list = api.listNamespacedConfigMap(namespace).labelSelector(labelSelector).execute();
 
-		return list.getItems().stream().sorted((s1, s2) -> {
+		Optional<V1ConfigMap> latest = list.getItems().stream().sorted((s1, s2) -> {
 			int v1 = Integer.parseInt(s1.getMetadata().getLabels().get("version"));
 			int v2 = Integer.parseInt(s2.getMetadata().getLabels().get("version"));
 			return Integer.compare(v2, v1); // Descending
-		}).findFirst().map((cm) -> {
-			try {
-				byte[] decoded = Base64.getDecoder().decode(cm.getData().get("release"));
-				return objectMapper.readValue(decoded, Release.class);
-			}
-			catch (Exception ex) {
-				throw new RuntimeException("Failed to decode release", ex);
-			}
-		});
+		}).findFirst();
+
+		if (latest.isEmpty()) {
+			return Optional.empty();
+		}
+		return Optional.of(decodeRelease(latest.get()));
 	}
 
 	/**
 	 * Retrieves all releases in a namespace.
 	 */
-	public List<Release> listReleases(String namespace) throws ApiException {
+	public List<Release> listReleases(String namespace) throws Exception {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm";
 
@@ -116,49 +116,48 @@ public class HelmKubeService implements KubeService {
 			.stream()
 			.collect(Collectors.groupingBy((cm) -> cm.getMetadata().getLabels().get("name")));
 
-		return grouped.values()
+		List<V1ConfigMap> latestPerName = grouped.values()
 			.stream()
 			.map((cms) -> cms.stream()
 				.max(Comparator.comparingInt((cm) -> Integer.parseInt(cm.getMetadata().getLabels().get("version"))))
 				.orElse(null))
 			.filter(Objects::nonNull)
-			.map((cm) -> {
-				try {
-					byte[] decoded = Base64.getDecoder().decode(cm.getData().get("release"));
-					return objectMapper.readValue(decoded, Release.class);
-				}
-				catch (Exception ex) {
-					log.error("Failed to decode release from ConfigMap {}: {}", cm.getMetadata().getName(),
-							ex.getMessage());
-					return null;
-				}
-			})
-			.filter(Objects::nonNull)
-			.collect(Collectors.toList());
+			.toList();
+
+		List<Release> releases = new ArrayList<>();
+		for (V1ConfigMap cm : latestPerName) {
+			try {
+				releases.add(decodeRelease(cm));
+			}
+			catch (ReleaseStorageException ex) {
+				log.error("Failed to decode release from ConfigMap {}: {}", cm.getMetadata().getName(),
+						ex.getMessage());
+			}
+		}
+		return releases;
 	}
 
 	/**
 	 * Retrieves all versions of a specific release.
 	 */
-	public List<Release> getReleaseHistory(String name, String namespace) throws ApiException {
+	public List<Release> getReleaseHistory(String name, String namespace) throws Exception {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm,name=" + name;
 
 		V1ConfigMapList list = api.listNamespacedConfigMap(namespace).labelSelector(labelSelector).execute();
 
-		return list.getItems().stream().sorted((s1, s2) -> {
-			int v1 = Integer.parseInt(s1.getMetadata().getLabels().get("version"));
-			int v2 = Integer.parseInt(s2.getMetadata().getLabels().get("version"));
-			return Integer.compare(v2, v1); // Descending
-		}).map((cm) -> {
-			try {
-				byte[] decoded = Base64.getDecoder().decode(cm.getData().get("release"));
-				return objectMapper.readValue(decoded, Release.class);
-			}
-			catch (Exception ex) {
-				throw new RuntimeException("Failed to decode release", ex);
-			}
-		}).collect(Collectors.toList());
+		List<V1ConfigMap> sorted = list.getItems()
+			.stream()
+			.sorted(Comparator
+				.comparingInt((V1ConfigMap cm) -> Integer.parseInt(cm.getMetadata().getLabels().get("version")))
+				.reversed())
+			.toList();
+
+		List<Release> history = new ArrayList<>();
+		for (V1ConfigMap cm : sorted) {
+			history.add(decodeRelease(cm));
+		}
+		return history;
 	}
 
 	/**
@@ -186,7 +185,7 @@ public class HelmKubeService implements KubeService {
 	/**
 	 * Applies a YAML manifest which can contain multiple resources.
 	 */
-	public void apply(String namespace, String yamlContent) throws ApiException {
+	public void apply(String namespace, String yamlContent) throws Exception {
 		try {
 			Iterable<Object> objects = Yaml.loadAll(yamlContent);
 			for (Object obj : objects) {
@@ -195,11 +194,11 @@ public class HelmKubeService implements KubeService {
 				}
 			}
 		}
+		catch (ApiException ex) {
+			throw new KubernetesOperationException("Failed to apply manifest", ex, ex.getCode());
+		}
 		catch (Exception ex) {
-			if (ex instanceof ApiException) {
-				throw (ApiException) ex;
-			}
-			throw new RuntimeException("Failed to apply manifest", ex);
+			throw new KubernetesOperationException("Failed to apply manifest", ex);
 		}
 	}
 
@@ -233,7 +232,7 @@ public class HelmKubeService implements KubeService {
 	/**
 	 * Deletes resources in a YAML manifest.
 	 */
-	public void delete(String namespace, String yamlContent) throws ApiException {
+	public void delete(String namespace, String yamlContent) throws Exception {
 		try {
 			Iterable<Object> objects = Yaml.loadAll(yamlContent);
 			for (Object obj : objects) {
@@ -242,11 +241,11 @@ public class HelmKubeService implements KubeService {
 				}
 			}
 		}
+		catch (ApiException ex) {
+			throw new KubernetesOperationException("Failed to delete manifest", ex, ex.getCode());
+		}
 		catch (Exception ex) {
-			if (ex instanceof ApiException) {
-				throw (ApiException) ex;
-			}
-			throw new RuntimeException("Failed to delete manifest", ex);
+			throw new KubernetesOperationException("Failed to delete manifest", ex);
 		}
 	}
 
@@ -423,7 +422,18 @@ public class HelmKubeService implements KubeService {
 			String msg = notReady.stream()
 				.map((s) -> s.getKind() + "/" + s.getName() + ": " + s.getMessage())
 				.collect(Collectors.joining(", "));
-			throw new Exception("Timeout waiting for resources to be ready: " + msg);
+			throw new WaitTimeoutException("Timeout waiting for resources to be ready: " + msg, notReady);
+		}
+	}
+
+	private Release decodeRelease(V1ConfigMap cm) throws ReleaseStorageException {
+		try {
+			byte[] decoded = Base64.getDecoder().decode(cm.getData().get("release"));
+			return objectMapper.readValue(decoded, Release.class);
+		}
+		catch (Exception ex) {
+			throw new ReleaseStorageException("Failed to decode release from ConfigMap: " + cm.getMetadata().getName(),
+					ex);
 		}
 	}
 

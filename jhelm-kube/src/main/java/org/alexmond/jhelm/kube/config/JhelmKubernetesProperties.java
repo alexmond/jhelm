@@ -18,4 +18,40 @@ public class JhelmKubernetesProperties {
 	 */
 	private String kubeconfigPath;
 
+	/**
+	 * Retry configuration for transient Kubernetes API failures.
+	 */
+	private Retry retry = new Retry();
+
+	@Getter
+	@Setter
+	public static class Retry {
+
+		/**
+		 * Whether retry is enabled for Kubernetes API calls.
+		 */
+		private boolean enabled = true;
+
+		/**
+		 * Maximum number of retry attempts (including the initial call).
+		 */
+		private int maxAttempts = 3;
+
+		/**
+		 * Initial interval between retries in milliseconds.
+		 */
+		private long initialIntervalMs = 1000;
+
+		/**
+		 * Multiplier for exponential backoff between retries.
+		 */
+		private double multiplier = 2.0;
+
+		/**
+		 * Maximum interval between retries in milliseconds.
+		 */
+		private long maxIntervalMs = 10000;
+
+	}
+
 }
