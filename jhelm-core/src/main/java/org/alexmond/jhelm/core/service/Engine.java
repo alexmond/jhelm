@@ -2,12 +2,14 @@ package org.alexmond.jhelm.core.service;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.cache.TemplateCache;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.alexmond.jhelm.core.model.Chart;
@@ -17,9 +19,39 @@ public class Engine {
 
 	private final Map<String, String> namedTemplates = new HashMap<>();
 
+	private final TemplateCache templateCache;
+
 	private GoTemplate factory;
 
 	public Engine() {
+		this(null);
+	}
+
+	public Engine(TemplateCache templateCache) {
+		this.templateCache = templateCache;
+	}
+
+	private void parseWithCache(String name, String text) throws Exception {
+		if (templateCache == null) {
+			factory.parse(name, text);
+			return;
+		}
+		String cacheKey = name + "|" + text.hashCode();
+		Map<String, Node> cached = templateCache.get(cacheKey);
+		if (cached != null) {
+			factory.getRootNodes().putAll(cached);
+			return;
+		}
+		Map<String, Node> before = new LinkedHashMap<>(factory.getRootNodes());
+		factory.parse(name, text);
+		Map<String, Node> after = factory.getRootNodes();
+		Map<String, Node> added = new LinkedHashMap<>();
+		for (Map.Entry<String, Node> entry : after.entrySet()) {
+			if (!before.containsKey(entry.getKey())) {
+				added.put(entry.getKey(), entry.getValue());
+			}
+		}
+		templateCache.put(cacheKey, added);
 	}
 
 	private boolean isTruthy(Object context) {
@@ -146,7 +178,7 @@ public class Engine {
 		for (String name : sortedNames) {
 			try {
 				String chartName = templateToChartName.get(name);
-				factory.parse(name, allTemplates.get(name));
+				parseWithCache(name, allTemplates.get(name));
 				log.info("Parsed template: {} (from chart: {})", name, chartName);
 
 				// After parsing, check if new named templates (defines) were added
@@ -291,7 +323,7 @@ public class Engine {
 				continue;
 			}
 			try {
-				factory.parse(t.getName(), t.getData());
+				parseWithCache(t.getName(), t.getData());
 				StringWriter writer = new StringWriter();
 
 				Map<String, Object> templateMap = new HashMap<>((Map<String, Object>) context.get("Template"));
@@ -349,7 +381,7 @@ public class Engine {
 
 	private String renderTemplate(Chart.Template template, Map<String, Object> context) {
 		try {
-			factory.parse(template.getName(), template.getData());
+			parseWithCache(template.getName(), template.getData());
 			StringWriter writer = new StringWriter();
 			factory.execute(template.getName(), context, writer);
 			return writer.toString();

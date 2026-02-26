@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.core.config;
 
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
+import org.alexmond.jhelm.core.cache.TemplateCache;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -70,6 +71,30 @@ class JhelmCoreAutoConfigurationTest {
 	void testConfigPathPropertyPassedToRepoManager() {
 		contextRunner.withPropertyValues("jhelm.core.config-path=/tmp/test-repos.yaml")
 			.run((ctx) -> assertNotNull(ctx.getBean(RepoManager.class)));
+	}
+
+	@Test
+	void templateCacheBeanRegisteredByDefault() {
+		contextRunner.run((ctx) -> assertNotNull(ctx.getBean(TemplateCache.class)));
+	}
+
+	@Test
+	void templateCacheBeanAbsentWhenDisabled() {
+		contextRunner.withPropertyValues("jhelm.template-cache-enabled=false")
+			.run((ctx) -> assertEquals(0, ctx.getBeanNamesForType(TemplateCache.class).length));
+	}
+
+	@Test
+	void templateCacheMaxSizeApplied() {
+		contextRunner.withPropertyValues("jhelm.template-cache-max-size=10").run((ctx) -> {
+			TemplateCache cache = ctx.getBean(TemplateCache.class);
+			assertNotNull(cache);
+			// Populate beyond the max and verify oldest are evicted
+			for (int i = 0; i < 12; i++) {
+				cache.put("key" + i, java.util.Map.of());
+			}
+			assertEquals(10, cache.size());
+		});
 	}
 
 }
