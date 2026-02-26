@@ -68,6 +68,7 @@
         <module>jhelm-kube</module>
         <module>jhelm-plugin</module>
         <module>jhelm-app</module>
+        <module>jhelm-sample</module>
     </modules>
 
     <dependencyManagement>
