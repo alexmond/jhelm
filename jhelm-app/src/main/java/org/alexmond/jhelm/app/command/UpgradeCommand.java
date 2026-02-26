@@ -1,23 +1,23 @@
 package org.alexmond.jhelm.app.command;
 
-import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.core.model.Chart;
-import org.alexmond.jhelm.core.service.ChartLoader;
-import org.alexmond.jhelm.core.model.Release;
-import org.alexmond.jhelm.core.service.KubeService;
-import org.alexmond.jhelm.core.action.InstallAction;
-import org.alexmond.jhelm.core.action.UpgradeAction;
-import org.springframework.stereotype.Component;
-import picocli.CommandLine;
-
-import org.alexmond.jhelm.core.util.ValuesOverrides;
-import picocli.CommandLine.Option;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
+import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.util.ValuesOverrides;
+import org.springframework.stereotype.Component;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
 
 @Component
 @CommandLine.Command(name = "upgrade", description = "upgrade a release")
@@ -59,6 +59,9 @@ public class UpgradeCommand implements Runnable {
 	@Option(names = { "--timeout" }, defaultValue = "300", description = "timeout in seconds for --wait (default 300)")
 	private int timeout;
 
+	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
+	private List<String> postRenderers = new ArrayList<>();
+
 	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UpgradeAction upgradeAction,
 			ChartLoader chartLoader) {
 		this.kubeService = kubeService;
@@ -77,6 +80,7 @@ public class UpgradeCommand implements Runnable {
 			if (currentReleaseOpt.isEmpty()) {
 				if (install) {
 					Release release = installAction.install(chart, name, namespace, overrides, 1, dryRun);
+					applyCliPostRenderers(release);
 					if (dryRun) {
 						printRelease(release);
 					}
@@ -94,6 +98,7 @@ public class UpgradeCommand implements Runnable {
 			}
 
 			Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, overrides, dryRun);
+			applyCliPostRenderers(upgradedRelease);
 
 			if (dryRun) {
 				printRelease(upgradedRelease);
@@ -108,6 +113,17 @@ public class UpgradeCommand implements Runnable {
 		catch (Exception ex) {
 			log.error("Error upgrading release: {}", ex.getMessage(), ex);
 		}
+	}
+
+	private void applyCliPostRenderers(Release release) throws Exception {
+		if (postRenderers.isEmpty()) {
+			return;
+		}
+		String manifest = release.getManifest();
+		for (String renderer : postRenderers) {
+			manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
+		}
+		release.setManifest(manifest);
 	}
 
 	private void printRelease(Release release) {
