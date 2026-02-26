@@ -9,7 +9,7 @@ import io.kubernetes.client.util.KubeConfig;
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
-import org.alexmond.jhelm.kube.service.HelmKubeService;
+import org.alexmond.jhelm.kube.service.AsyncHelmKubeService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -36,8 +36,8 @@ public class JhelmKubeAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean(KubeService.class)
-	public HelmKubeService helmKubeService(ApiClient apiClient) {
-		return new HelmKubeService(apiClient);
+	public AsyncHelmKubeService asyncHelmKubeService(ApiClient apiClient) {
+		return new AsyncHelmKubeService(apiClient);
 	}
 
 }
