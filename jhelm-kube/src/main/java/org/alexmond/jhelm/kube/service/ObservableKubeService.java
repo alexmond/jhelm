@@ -10,6 +10,7 @@ import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.service.KubeService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A {@link KubeService} decorator that records operation timers and success/error
@@ -105,7 +106,7 @@ public class ObservableKubeService implements KubeService {
 			throw ex;
 		}
 		finally {
-			timer.record(System.nanoTime() - startNanos, java.util.concurrent.TimeUnit.NANOSECONDS);
+			timer.record(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS);
 		}
 	}
 
@@ -120,7 +121,7 @@ public class ObservableKubeService implements KubeService {
 			throw ex;
 		}
 		finally {
-			timer.record(System.nanoTime() - startNanos, java.util.concurrent.TimeUnit.NANOSECONDS);
+			timer.record(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS);
 		}
 	}
 

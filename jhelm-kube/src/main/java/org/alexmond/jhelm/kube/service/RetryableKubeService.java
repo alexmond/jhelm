@@ -11,6 +11,8 @@ import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.springframework.retry.RetryCallback;
 import org.springframework.retry.support.RetryTemplate;
+import java.net.ConnectException;
+import java.net.SocketException;
 
 /**
  * A {@link KubeService} decorator that retries transient Kubernetes API failures using a
@@ -115,11 +117,11 @@ public class RetryableKubeService implements KubeService {
 			return kubeEx.isTransient();
 		}
 		// Connection-level errors (SocketException, ConnectException, etc.)
-		if (ex instanceof java.net.SocketException || ex instanceof java.net.ConnectException) {
+		if (ex instanceof SocketException || ex instanceof ConnectException) {
 			return true;
 		}
 		// Check wrapped cause
-		if (ex.getCause() != null && ex.getCause() != ex) {
+		if (ex.getCause() != null && !ex.getCause().equals(ex)) {
 			return isTransient(ex.getCause());
 		}
 		return false;

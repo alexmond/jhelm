@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.Objects;
 import java.util.Comparator;
 import java.util.stream.Collectors;
+import java.util.Locale;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -47,6 +48,7 @@ public class HelmKubeService implements KubeService {
 	/**
 	 * Stores a release as a ConfigMap in Kubernetes.
 	 */
+	@Override
 	public void storeRelease(Release release) throws ReleaseStorageException {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String name = "sh.helm.release.v1." + release.getName() + ".v" + release.getVersion();
@@ -84,6 +86,7 @@ public class HelmKubeService implements KubeService {
 	/**
 	 * Retrieves the latest version of a release from Kubernetes.
 	 */
+	@Override
 	public Optional<Release> getRelease(String name, String namespace) throws Exception {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm,name=" + name;
@@ -105,6 +108,7 @@ public class HelmKubeService implements KubeService {
 	/**
 	 * Retrieves all releases in a namespace.
 	 */
+	@Override
 	public List<Release> listReleases(String namespace) throws Exception {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm";
@@ -140,6 +144,7 @@ public class HelmKubeService implements KubeService {
 	/**
 	 * Retrieves all versions of a specific release.
 	 */
+	@Override
 	public List<Release> getReleaseHistory(String name, String namespace) throws Exception {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm,name=" + name;
@@ -163,6 +168,7 @@ public class HelmKubeService implements KubeService {
 	/**
 	 * Deletes all versions of a release from Kubernetes.
 	 */
+	@Override
 	public void deleteReleaseHistory(String name, String namespace) throws ApiException {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm,name=" + name;
@@ -185,6 +191,7 @@ public class HelmKubeService implements KubeService {
 	/**
 	 * Applies a YAML manifest which can contain multiple resources.
 	 */
+	@Override
 	public void apply(String namespace, String yamlContent) throws Exception {
 		try {
 			Iterable<Object> objects = Yaml.loadAll(yamlContent);
@@ -232,6 +239,7 @@ public class HelmKubeService implements KubeService {
 	/**
 	 * Deletes resources in a YAML manifest.
 	 */
+	@Override
 	public void delete(String namespace, String yamlContent) throws Exception {
 		try {
 			Iterable<Object> objects = Yaml.loadAll(yamlContent);
@@ -440,9 +448,9 @@ public class HelmKubeService implements KubeService {
 	private String inferPlural(String kind) {
 		// Very basic pluralization logic. In real Helm/Kubectl, this is done via
 		// discovery.
-		String plural = kind.toLowerCase() + "s";
+		String plural = kind.toLowerCase(Locale.ROOT) + "s";
 		if (kind.endsWith("y")) {
-			plural = kind.toLowerCase().substring(0, kind.length() - 1) + "ies";
+			plural = kind.toLowerCase(Locale.ROOT).substring(0, kind.length() - 1) + "ies";
 		}
 		return plural;
 	}

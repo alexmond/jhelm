@@ -325,10 +325,7 @@ public final class Functions {
 		if (arg instanceof Map) {
 			return !((Map<?, ?>) arg).isEmpty();
 		}
-		if (arg.getClass().isArray()) {
-			return Array.getLength(arg) > 0;
-		}
-		return true;
+		return !arg.getClass().isArray() || Array.getLength(arg) > 0;
 	}
 
 }

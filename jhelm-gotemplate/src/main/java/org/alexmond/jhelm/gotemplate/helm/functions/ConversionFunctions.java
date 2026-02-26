@@ -118,7 +118,7 @@ public final class ConversionFunctions {
 			}
 			try {
 				String yaml = String.valueOf(args[0]);
-				if (yaml.trim().isEmpty()) {
+				if (yaml.isBlank()) {
 					return Map.of();
 				}
 				return YAML_MAPPER.get().readValue(yaml, Map.class);
@@ -140,7 +140,7 @@ public final class ConversionFunctions {
 			}
 			try {
 				String yaml = String.valueOf(args[0]);
-				if (yaml.trim().isEmpty()) {
+				if (yaml.isBlank()) {
 					throw new RuntimeException("mustFromYaml: empty YAML string");
 				}
 				return YAML_MAPPER.get().readValue(yaml, Map.class);
@@ -161,7 +161,7 @@ public final class ConversionFunctions {
 			}
 			try {
 				String yaml = String.valueOf(args[0]);
-				if (yaml.trim().isEmpty()) {
+				if (yaml.isBlank()) {
 					return Collections.emptyList();
 				}
 				return YAML_MAPPER.get().readValue(yaml, List.class);
@@ -182,7 +182,7 @@ public final class ConversionFunctions {
 			}
 			try {
 				String yaml = String.valueOf(args[0]);
-				if (yaml.trim().isEmpty()) {
+				if (yaml.isBlank()) {
 					throw new RuntimeException("mustFromYamlArray: empty YAML string");
 				}
 				return YAML_MAPPER.get().readValue(yaml, List.class);
@@ -312,7 +312,7 @@ public final class ConversionFunctions {
 			}
 			try {
 				String json = String.valueOf(args[0]);
-				if (json.trim().isEmpty() || json.equals("null")) {
+				if (json.isBlank() || "null".equals(json)) {
 					return Map.of();
 				}
 				return JSON_MAPPER.get().readValue(json, Map.class);
@@ -334,10 +334,10 @@ public final class ConversionFunctions {
 			}
 			try {
 				String json = String.valueOf(args[0]);
-				if (json.trim().isEmpty()) {
+				if (json.isBlank()) {
 					throw new RuntimeException("mustFromJson: empty JSON string");
 				}
-				if (json.equals("null")) {
+				if ("null".equals(json)) {
 					throw new RuntimeException("mustFromJson: cannot parse null");
 				}
 				return JSON_MAPPER.get().readValue(json, Map.class);
@@ -358,7 +358,7 @@ public final class ConversionFunctions {
 			}
 			try {
 				String json = String.valueOf(args[0]);
-				if (json.trim().isEmpty() || json.equals("null")) {
+				if (json.isBlank() || "null".equals(json)) {
 					return Collections.emptyList();
 				}
 				return JSON_MAPPER.get().readValue(json, List.class);
@@ -379,10 +379,10 @@ public final class ConversionFunctions {
 			}
 			try {
 				String json = String.valueOf(args[0]);
-				if (json.trim().isEmpty()) {
+				if (json.isBlank()) {
 					throw new RuntimeException("mustFromJsonArray: empty JSON string");
 				}
-				if (json.equals("null")) {
+				if ("null".equals(json)) {
 					throw new RuntimeException("mustFromJsonArray: cannot parse null");
 				}
 				return JSON_MAPPER.get().readValue(json, List.class);

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
@@ -71,22 +72,23 @@ public class InstallCommand implements Runnable {
 			applyCliPostRenderers(release);
 
 			if (dryRun) {
-				log.info("NAME: {}", release.getName());
-				log.info("LAST DEPLOYED: {}", release.getInfo().getLastDeployed());
-				log.info("NAMESPACE: {}", release.getNamespace());
-				log.info("STATUS: {}", release.getInfo().getStatus());
-				log.info("REVISION: {}", release.getVersion());
-				log.info("\nMANIFEST:\n{}", release.getManifest());
+				CliOutput.println(CliOutput.bold("NAME:") + " " + release.getName());
+				CliOutput.println(CliOutput.bold("LAST DEPLOYED:") + " " + release.getInfo().getLastDeployed());
+				CliOutput.println(CliOutput.bold("NAMESPACE:") + " " + release.getNamespace());
+				CliOutput.println(CliOutput.bold("STATUS:") + " " + release.getInfo().getStatus());
+				CliOutput.println(CliOutput.bold("REVISION:") + " " + release.getVersion());
+				CliOutput.println("\n" + CliOutput.bold("MANIFEST:") + "\n" + release.getManifest());
 			}
 			else {
-				log.info("Release \"{}\" has been installed.", name);
+				CliOutput.println(CliOutput.success("Release \"" + name + "\" has been installed."));
 				if (wait) {
 					kubeService.waitForReady(namespace, release.getManifest(), timeout);
 				}
 			}
 		}
 		catch (Exception ex) {
-			log.error("Error installing chart: {}", ex.getMessage(), ex);
+			CliOutput.errPrintln(CliOutput.error("Error installing chart: " + ex.getMessage()));
+			log.debug("Install error details", ex);
 		}
 	}
 

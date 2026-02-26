@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Locale;
 
 @Slf4j
 public class RegistryManager {
@@ -23,7 +24,7 @@ public class RegistryManager {
 
 	public RegistryManager() {
 		String home = System.getProperty("user.home");
-		String os = System.getProperty("os.name").toLowerCase();
+		String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
 		if (os.contains("mac")) {
 			this.configPath = Paths.get(home, "Library/Preferences/helm/registry/config.json").toString();
 		}

@@ -109,8 +109,8 @@ public class Executor {
 		else if (node instanceof ActionNode actionNode) {
 			writeAction(writer, actionNode, data, beanInfo);
 		}
-		else if (node instanceof CommentNode) {
-			// Ignore comment
+		else if (node instanceof CommentNode commentNode) {
+			log.trace("Skipping comment node: {}", commentNode);
 		}
 		else if (node instanceof IfNode ifNode) {
 			writeIf(writer, ifNode, data, beanInfo);

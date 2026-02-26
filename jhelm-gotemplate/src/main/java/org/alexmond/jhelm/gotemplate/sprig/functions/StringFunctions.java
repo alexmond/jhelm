@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.gotemplate.sprig.functions;
 
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -110,11 +111,11 @@ public final class StringFunctions {
 	}
 
 	private static Function upper() {
-		return (args) -> (args.length == 0) ? "" : String.valueOf(args[0]).toUpperCase();
+		return (args) -> (args.length == 0) ? "" : String.valueOf(args[0]).toUpperCase(Locale.ROOT);
 	}
 
 	private static Function lower() {
-		return (args) -> (args.length == 0) ? "" : String.valueOf(args[0]).toLowerCase();
+		return (args) -> (args.length == 0) ? "" : String.valueOf(args[0]).toLowerCase(Locale.ROOT);
 	}
 
 	private static Function title() {
@@ -128,7 +129,7 @@ public final class StringFunctions {
 			}
 			return Arrays.stream(s.split("\\s+"))
 				.map((word) -> word.isEmpty() ? word
-						: Character.toUpperCase(word.charAt(0)) + word.substring(1).toLowerCase())
+						: Character.toUpperCase(word.charAt(0)) + word.substring(1).toLowerCase(Locale.ROOT))
 				.collect(Collectors.joining(" "));
 		};
 	}
@@ -226,7 +227,7 @@ public final class StringFunctions {
 			String s = String.valueOf(args[0]);
 			return Arrays.stream(s.split("\\s+"))
 				.filter((word) -> !word.isEmpty())
-				.map((word) -> String.valueOf(word.charAt(0)).toUpperCase())
+				.map((word) -> String.valueOf(word.charAt(0)).toUpperCase(Locale.ROOT))
 				.collect(Collectors.joining(""));
 		};
 	}
@@ -261,11 +262,11 @@ public final class StringFunctions {
 
 		for (String word : words) {
 			if (line.length() + word.length() + 1 > col && line.length() > indent.length()) {
-				result.append(line).append("\n");
+				result.append(line).append('\n');
 				line = new StringBuilder(indent);
 			}
 			if (line.length() > indent.length()) {
-				line.append(" ");
+				line.append(' ');
 			}
 			line.append(word);
 		}
@@ -367,7 +368,7 @@ public final class StringFunctions {
 				return "";
 			}
 			String s = String.valueOf(args[0]);
-			return s.replaceAll("([a-z])([A-Z])", "$1_$2").replaceAll("\\s+", "_").toLowerCase();
+			return s.replaceAll("([a-z])([A-Z])", "$1_$2").replaceAll("\\s+", "_").toLowerCase(Locale.ROOT);
 		};
 	}
 
@@ -378,9 +379,10 @@ public final class StringFunctions {
 			}
 			String s = String.valueOf(args[0]);
 			String[] parts = s.split("[\\s_-]+");
-			return parts[0].toLowerCase() + Arrays.stream(parts)
+			return parts[0].toLowerCase(Locale.ROOT) + Arrays.stream(parts)
 				.skip(1)
-				.map((p) -> p.isEmpty() ? p : Character.toUpperCase(p.charAt(0)) + p.substring(1).toLowerCase())
+				.map((p) -> p.isEmpty() ? p
+						: Character.toUpperCase(p.charAt(0)) + p.substring(1).toLowerCase(Locale.ROOT))
 				.collect(Collectors.joining(""));
 		};
 	}
@@ -391,7 +393,7 @@ public final class StringFunctions {
 				return "";
 			}
 			String s = String.valueOf(args[0]);
-			return s.replaceAll("([a-z])([A-Z])", "$1-$2").replaceAll("[\\s_]+", "-").toLowerCase();
+			return s.replaceAll("([a-z])([A-Z])", "$1-$2").replaceAll("[\\s_]+", "-").toLowerCase(Locale.ROOT);
 		};
 	}
 

@@ -15,6 +15,10 @@ import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 class GoTemplateTest {
 
@@ -39,7 +43,7 @@ class GoTemplateTest {
 		template.parse("main", "Hello {{ .name }}!");
 
 		StringWriter writer = new StringWriter();
-		java.util.Map<String, Object> data = java.util.Map.of("name", "World");
+		Map<String, Object> data = Map.of("name", "World");
 		template.execute(data, writer);
 
 		assertEquals("Hello World!", writer.toString());
@@ -99,7 +103,7 @@ class GoTemplateTest {
 		template.parse("greeting", "Hello {{ .name }}!");
 
 		StringWriter writer = new StringWriter();
-		java.util.Map<String, Object> data = java.util.Map.of("name", "Alice");
+		Map<String, Object> data = Map.of("name", "Alice");
 		template.execute("greeting", data, writer);
 
 		assertEquals("Hello Alice!", writer.toString());
@@ -111,7 +115,7 @@ class GoTemplateTest {
 		template.parse("{{ .value }}");
 
 		StringWriter writer = new StringWriter();
-		java.util.Map<String, Object> data = java.util.Map.of("value", "test");
+		Map<String, Object> data = Map.of("value", "test");
 		template.execute(data, writer);
 
 		assertEquals("test", writer.toString());
@@ -121,7 +125,7 @@ class GoTemplateTest {
 	void testParseFromInputStream() throws IOException, TemplateParseException {
 		GoTemplate template = new GoTemplate();
 		String templateText = "Hello {{ .name }}!";
-		java.io.InputStream inputStream = new java.io.ByteArrayInputStream(templateText.getBytes());
+		InputStream inputStream = new ByteArrayInputStream(templateText.getBytes());
 
 		template.parse("test", inputStream);
 		assertTrue(template.hasTemplate("test"));
@@ -133,8 +137,7 @@ class GoTemplateTest {
 		template.parse("main", "Hello!");
 
 		StringWriter writer = new StringWriter();
-		assertThrows(TemplateNotFoundException.class,
-				() -> template.execute("nonexistent", new java.util.HashMap<>(), writer));
+		assertThrows(TemplateNotFoundException.class, () -> template.execute("nonexistent", new HashMap<>(), writer));
 	}
 
 	@Test
@@ -143,7 +146,7 @@ class GoTemplateTest {
 		template.parse("main", "Hello!");
 
 		StringWriter writer = new StringWriter();
-		assertThrows(TemplateNotFoundException.class, () -> template.execute(null, new java.util.HashMap<>(), writer));
+		assertThrows(TemplateNotFoundException.class, () -> template.execute(null, new HashMap<>(), writer));
 	}
 
 	@Test
@@ -167,7 +170,7 @@ class GoTemplateTest {
 
 		// Main template name should still be "main"
 		StringWriter writer = new StringWriter();
-		template.execute("main", new java.util.HashMap<>(), writer);
+		template.execute("main", new HashMap<>(), writer);
 		assertEquals("First", writer.toString());
 	}
 

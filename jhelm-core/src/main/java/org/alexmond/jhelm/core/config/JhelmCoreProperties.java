@@ -28,7 +28,7 @@ public class JhelmCoreProperties {
 	 * Whether to skip TLS certificate verification for HTTP chart downloads. Defaults to
 	 * {@code false}.
 	 */
-	private boolean insecureSkipTlsVerify = false;
+	private boolean insecureSkipTlsVerify;
 
 	/**
 	 * Whether to cache parsed template ASTs. Defaults to {@code true}.

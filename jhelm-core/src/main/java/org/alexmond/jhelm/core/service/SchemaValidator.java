@@ -70,9 +70,8 @@ public class SchemaValidator {
 		}
 		if (schema.has("properties") && value.isObject()) {
 			JsonNode props = schema.get("properties");
-			Map<String, JsonNode> propsMap = JSON_MAPPER.convertValue(props,
-					new TypeReference<Map<String, JsonNode>>() {
-					});
+			Map<String, JsonNode> propsMap = JSON_MAPPER.convertValue(props, new TypeReference<>() {
+			});
 			for (Map.Entry<String, JsonNode> entry : propsMap.entrySet()) {
 				if (value.has(entry.getKey())) {
 					validateNode(entry.getValue(), value.get(entry.getKey()), path + "." + entry.getKey(), errors);

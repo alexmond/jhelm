@@ -29,13 +29,13 @@ public class TemplateRenderException extends JhelmException {
 	private static String buildMessage(String message, String chartName, String templateName) {
 		StringBuilder sb = new StringBuilder();
 		if (chartName != null) {
-			sb.append("chart '").append(chartName).append("'");
+			sb.append("chart '").append(chartName).append('\'');
 		}
 		if (templateName != null) {
 			if (sb.length() > 0) {
 				sb.append(", ");
 			}
-			sb.append("template '").append(templateName).append("'");
+			sb.append("template '").append(templateName).append('\'');
 		}
 		if (sb.length() > 0) {
 			sb.append(": ");

@@ -2,6 +2,7 @@ package org.alexmond.jhelm.gotemplate.sprig.functions;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Locale;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -90,7 +91,7 @@ public final class EncodingFunctions {
 			}
 			try {
 				String input = String.valueOf(args[0]);
-				if (!BASE32.isInAlphabet(input.replaceAll("=", "").toUpperCase())) {
+				if (!BASE32.isInAlphabet(input.replaceAll("=", "").toUpperCase(Locale.ROOT))) {
 					return "";
 				}
 				byte[] decoded = BASE32.decode(input);

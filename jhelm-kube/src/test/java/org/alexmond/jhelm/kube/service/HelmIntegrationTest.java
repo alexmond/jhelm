@@ -15,6 +15,7 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.HashMap;
 
 @SpringBootTest(classes = { KubernetesConfig.class, HelmKubeService.class, CoreConfig.class })
 class HelmIntegrationTest {
@@ -35,7 +36,7 @@ class HelmIntegrationTest {
 		assertNotNull(chart.getMetadata());
 
 		// 2. Prepare Install Action
-		Release release = installAction.install(chart, "test-release", "default", new java.util.HashMap<>(), 1, false);
+		Release release = installAction.install(chart, "test-release", "default", new HashMap<>(), 1, false);
 		assertNotNull(release);
 		assertNotNull(release.getManifest());
 		assertTrue(release.getManifest().contains("test-configmap"));

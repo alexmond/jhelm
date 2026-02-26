@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.gotemplate.sprig.functions;
 
+import java.util.Locale;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -7,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import java.lang.reflect.Array;
 
 /**
  * Type reflection and introspection functions from Sprig library. Includes type checking,
@@ -93,15 +95,15 @@ public final class ReflectionFunctions {
 			if (args.length < 2) {
 				return false;
 			}
-			String type = String.valueOf(args[0]).toLowerCase();
+			String type = String.valueOf(args[0]).toLowerCase(Locale.ROOT);
 			Object val = args[1];
 
 			if (val == null) {
 				return "nil".equals(type);
 			}
 
-			String className = val.getClass().getSimpleName().toLowerCase();
-			String fullName = val.getClass().getName().toLowerCase();
+			String className = val.getClass().getSimpleName().toLowerCase(Locale.ROOT);
+			String fullName = val.getClass().getName().toLowerCase(Locale.ROOT);
 
 			return className.equals(type) || fullName.contains(type);
 		};
@@ -116,14 +118,14 @@ public final class ReflectionFunctions {
 			if (args.length < 2) {
 				return false;
 			}
-			String typePattern = String.valueOf(args[0]).toLowerCase();
+			String typePattern = String.valueOf(args[0]).toLowerCase(Locale.ROOT);
 			Object val = args[1];
 
 			if (val == null) {
 				return "nil".equals(typePattern);
 			}
 
-			String fullName = val.getClass().getName().toLowerCase();
+			String fullName = val.getClass().getName().toLowerCase(Locale.ROOT);
 			return fullName.contains(typePattern);
 		};
 	}
@@ -164,12 +166,7 @@ public final class ReflectionFunctions {
 	 * @return {@code true} if values are deeply equal
 	 */
 	private static Function deepEqual() {
-		return (args) -> {
-			if (args.length < 2) {
-				return false;
-			}
-			return deepEquals(args[0], args[1]);
-		};
+		return (args) -> args.length >= 2 && deepEquals(args[0], args[1]);
 	}
 
 	// ========== Helper Methods ==========
@@ -179,7 +176,7 @@ public final class ReflectionFunctions {
 	 */
 	private static boolean deepEquals(Object a, Object b) {
 		// Null checks
-		if (a == b) {
+		if (Objects.equals(a, b)) {
 			return true;
 		}
 		if (a == null || b == null) {
@@ -234,16 +231,16 @@ public final class ReflectionFunctions {
 
 		// Arrays
 		if (a.getClass().isArray()) {
-			int lengthA = java.lang.reflect.Array.getLength(a);
-			int lengthB = java.lang.reflect.Array.getLength(b);
+			int lengthA = Array.getLength(a);
+			int lengthB = Array.getLength(b);
 
 			if (lengthA != lengthB) {
 				return false;
 			}
 
 			for (int i = 0; i < lengthA; i++) {
-				Object elemA = java.lang.reflect.Array.get(a, i);
-				Object elemB = java.lang.reflect.Array.get(b, i);
+				Object elemA = Array.get(a, i);
+				Object elemB = Array.get(b, i);
 				if (!deepEquals(elemA, elemB)) {
 					return false;
 				}

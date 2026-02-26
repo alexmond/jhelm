@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.model.Chart;
@@ -85,14 +86,15 @@ public class UpgradeCommand implements Runnable {
 						printRelease(release);
 					}
 					else {
-						log.info("Release \"{}\" does not exist. Installing it now.", name);
+						CliOutput
+							.println(CliOutput.success("Release \"" + name + "\" does not exist. Installing it now."));
 						if (wait) {
 							kubeService.waitForReady(namespace, release.getManifest(), timeout);
 						}
 					}
 				}
 				else {
-					log.error("Error: release \"{}\" does not exist", name);
+					CliOutput.errPrintln(CliOutput.error("Error: release \"" + name + "\" does not exist"));
 				}
 				return;
 			}
@@ -104,14 +106,15 @@ public class UpgradeCommand implements Runnable {
 				printRelease(upgradedRelease);
 			}
 			else {
-				log.info("Release \"{}\" has been upgraded. Happy Helming!", name);
+				CliOutput.println(CliOutput.success("Release \"" + name + "\" has been upgraded. Happy Helming!"));
 				if (wait) {
 					kubeService.waitForReady(namespace, upgradedRelease.getManifest(), timeout);
 				}
 			}
 		}
 		catch (Exception ex) {
-			log.error("Error upgrading release: {}", ex.getMessage(), ex);
+			CliOutput.errPrintln(CliOutput.error("Error upgrading release: " + ex.getMessage()));
+			log.debug("Upgrade error details", ex);
 		}
 	}
 
@@ -127,12 +130,12 @@ public class UpgradeCommand implements Runnable {
 	}
 
 	private void printRelease(Release release) {
-		log.info("NAME: {}", release.getName());
-		log.info("LAST DEPLOYED: {}", release.getInfo().getLastDeployed());
-		log.info("NAMESPACE: {}", release.getNamespace());
-		log.info("STATUS: {}", release.getInfo().getStatus());
-		log.info("REVISION: {}", release.getVersion());
-		log.info("\nMANIFEST:\n{}", release.getManifest());
+		CliOutput.println(CliOutput.bold("NAME:") + " " + release.getName());
+		CliOutput.println(CliOutput.bold("LAST DEPLOYED:") + " " + release.getInfo().getLastDeployed());
+		CliOutput.println(CliOutput.bold("NAMESPACE:") + " " + release.getNamespace());
+		CliOutput.println(CliOutput.bold("STATUS:") + " " + release.getInfo().getStatus());
+		CliOutput.println(CliOutput.bold("REVISION:") + " " + release.getVersion());
+		CliOutput.println("\n" + CliOutput.bold("MANIFEST:") + "\n" + release.getManifest());
 	}
 
 }

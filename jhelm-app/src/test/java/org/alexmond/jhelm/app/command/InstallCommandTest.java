@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.Mockito;
 
 class InstallCommandTest {
 
@@ -115,7 +116,7 @@ class InstallCommandTest {
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--wait", "--dry-run");
 
 		// waitForReady should NOT be called when --dry-run is active
-		verify(kubeService, org.mockito.Mockito.never()).waitForReady(anyString(), anyString(), anyInt());
+		verify(kubeService, Mockito.never()).waitForReady(anyString(), anyString(), anyInt());
 	}
 
 	private File createMockChart() throws Exception {

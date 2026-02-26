@@ -34,6 +34,12 @@ import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.RepoManager;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Slf4j
 class KpsComparisonTest {
@@ -48,7 +54,7 @@ class KpsComparisonTest {
 
 	private final JsonMapper objectMapper = JsonMapper.builder().build();
 
-	private final java.util.Set<String> addedRepos = new java.util.HashSet<>();
+	private final Set<String> addedRepos = new HashSet<>();
 
 	private RepoManager createRepoManager() {
 		RepoManager rm = new RepoManager();
@@ -108,7 +114,7 @@ class KpsComparisonTest {
 		Chart chart = Chart.builder()
 			.metadata(ChartMetadata.builder().name("simple").build())
 			.values(Map.of("enabled", true, "name", "world"))
-			.templates(new java.util.ArrayList<>(java.util.List.of(Chart.Template.builder()
+			.templates(new ArrayList<>(List.of(Chart.Template.builder()
 				.name("hello.yaml")
 				.data("hello {{ .Values.name }} {{ if .Values.enabled }}enabled{{ end }}")
 				.build())))
@@ -279,8 +285,8 @@ class KpsComparisonTest {
 
 		try {
 			// Parse both manifests into YAML documents
-			java.util.List<JsonNode> jhelmDocs = parseYamlDocuments(jhelm);
-			java.util.List<JsonNode> helmDocs = parseYamlDocuments(helm);
+			List<JsonNode> jhelmDocs = parseYamlDocuments(jhelm);
+			List<JsonNode> helmDocs = parseYamlDocuments(helm);
 
 			log.info("{} - JHelm documents: {}, Helm documents: {}", chartName, jhelmDocs.size(), helmDocs.size());
 
@@ -294,10 +300,10 @@ class KpsComparisonTest {
 			var helmMap = buildResourceMap(helmDocs);
 
 			// Check for missing resources
-			var missingInJhelm = new java.util.HashSet<>(helmMap.keySet());
+			var missingInJhelm = new HashSet<>(helmMap.keySet());
 			missingInJhelm.removeAll(jhelmMap.keySet());
 
-			var missingInHelm = new java.util.HashSet<>(jhelmMap.keySet());
+			var missingInHelm = new HashSet<>(jhelmMap.keySet());
 			missingInHelm.removeAll(helmMap.keySet());
 
 			if (!missingInJhelm.isEmpty()) {
@@ -350,8 +356,8 @@ class KpsComparisonTest {
 		}
 	}
 
-	private java.util.List<JsonNode> parseYamlDocuments(String yaml) throws Exception {
-		java.util.List<JsonNode> docs = new java.util.ArrayList<>();
+	private List<JsonNode> parseYamlDocuments(String yaml) throws Exception {
+		List<JsonNode> docs = new ArrayList<>();
 		YAMLMapper yamlMapper = YAMLMapper.builder().build();
 
 		// Split by YAML document separator "---" with various whitespace patterns
@@ -390,8 +396,8 @@ class KpsComparisonTest {
 		return docs;
 	}
 
-	private java.util.Map<String, JsonNode> buildResourceMap(java.util.List<JsonNode> docs) {
-		java.util.Map<String, JsonNode> map = new java.util.HashMap<>();
+	private Map<String, JsonNode> buildResourceMap(List<JsonNode> docs) {
+		Map<String, JsonNode> map = new HashMap<>();
 
 		for (JsonNode doc : docs) {
 			String kind = doc.has("kind") ? doc.get("kind").asString() : "Unknown";
@@ -482,7 +488,7 @@ class KpsComparisonTest {
 
 		// Use latest version from index
 		try {
-			java.util.List<RepoManager.ChartVersion> versions = repoManager.getChartVersions(repoId, shortName);
+			List<RepoManager.ChartVersion> versions = repoManager.getChartVersions(repoId, shortName);
 			if (versions.isEmpty()) {
 				throw new IOException("No versions found for chart '" + shortName + "' in repo '" + repoId + "'");
 			}
@@ -571,7 +577,7 @@ class KpsComparisonTest {
 
 				public void checkServerTrusted(X509Certificate[] certs, String authType) {
 				}
-			} }, new java.security.SecureRandom());
+			} }, new SecureRandom());
 			conn.setSSLSocketFactory(sc.getSocketFactory());
 			conn.setHostnameVerifier((hostname, session) -> true);
 		}

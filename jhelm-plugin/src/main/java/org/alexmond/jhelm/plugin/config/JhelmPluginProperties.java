@@ -15,7 +15,7 @@ public class JhelmPluginProperties {
 	/**
 	 * Whether the plugin system is enabled.
 	 */
-	private boolean enabled = false;
+	private boolean enabled;
 
 	/**
 	 * Directory where plugins are installed.

@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.AfterEach;
 
 class ShowCommandTest {
 
@@ -368,7 +369,7 @@ class ShowCommandTest {
 		assertTrue(output.contains("test-chart"));
 	}
 
-	@org.junit.jupiter.api.AfterEach
+	@AfterEach
 	void tearDown() {
 		// Restore System.out
 		System.setOut(originalOut);

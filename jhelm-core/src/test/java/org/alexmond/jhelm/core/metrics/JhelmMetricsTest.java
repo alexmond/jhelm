@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 class JhelmMetricsTest {
 
@@ -75,7 +77,7 @@ class JhelmMetricsTest {
 	void testKubeOperationTimer() {
 		Timer timer = metrics.kubeOperationTimer("apply");
 		assertNotNull(timer);
-		timer.record(java.time.Duration.ofMillis(100));
+		timer.record(Duration.ofMillis(100));
 		assertEquals(1, timer.count());
 	}
 
@@ -100,7 +102,7 @@ class JhelmMetricsTest {
 		Timer timer = registry.find("jhelm.engine.render").timer();
 		assertNotNull(timer);
 		assertEquals(3, timer.count());
-		assertTrue(timer.totalTime(java.util.concurrent.TimeUnit.NANOSECONDS) > 0);
+		assertTrue(timer.totalTime(TimeUnit.NANOSECONDS) > 0);
 	}
 
 }

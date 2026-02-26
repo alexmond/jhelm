@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.model.Release;
 import org.springframework.stereotype.Component;
@@ -29,16 +30,16 @@ public class HistoryCommand implements Runnable {
 	public void run() {
 		try {
 			List<Release> history = historyAction.history(name, namespace);
-			System.out.printf("%-10s %-30s %-10s %-20s %-30s\n", "REVISION", "UPDATED", "STATUS", "CHART",
-					"DESCRIPTION");
+			CliOutput.printf("%-10s %-30s %-10s %-20s %-30s\n", CliOutput.bold("REVISION"), CliOutput.bold("UPDATED"),
+					CliOutput.bold("STATUS"), CliOutput.bold("CHART"), CliOutput.bold("DESCRIPTION"));
 			for (Release r : history) {
 				String chartInfo = r.getChart().getMetadata().getName() + "-" + r.getChart().getMetadata().getVersion();
-				System.out.printf("%-10d %-30s %-10s %-20s %-30s\n", r.getVersion(), r.getInfo().getLastDeployed(),
+				CliOutput.printf("%-10d %-30s %-10s %-20s %-30s\n", r.getVersion(), r.getInfo().getLastDeployed(),
 						r.getInfo().getStatus(), chartInfo, r.getInfo().getDescription());
 			}
 		}
 		catch (Exception ex) {
-			log.error("Error fetching history: {}", ex.getMessage());
+			CliOutput.errPrintln(CliOutput.error("Error fetching history: " + ex.getMessage()));
 		}
 	}
 

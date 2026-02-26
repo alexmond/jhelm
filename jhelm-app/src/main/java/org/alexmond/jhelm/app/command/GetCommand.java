@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.model.Release;
 import org.springframework.stereotype.Component;
@@ -64,7 +65,7 @@ public class GetCommand implements Runnable {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
-					log.error("Error: release not found: {}", releaseName);
+					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
 					return;
 				}
 				Release release = releaseOpt.get();
@@ -83,7 +84,7 @@ public class GetCommand implements Runnable {
 				}
 			}
 			catch (Exception ex) {
-				log.error("Error getting values: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error getting values: " + ex.getMessage()));
 			}
 		}
 
@@ -116,13 +117,13 @@ public class GetCommand implements Runnable {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
-					log.error("Error: release not found: {}", releaseName);
+					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
 					return;
 				}
 				System.out.println(getAction.getManifest(releaseOpt.get()));
 			}
 			catch (Exception ex) {
-				log.error("Error getting manifest: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error getting manifest: " + ex.getMessage()));
 			}
 		}
 
@@ -155,7 +156,7 @@ public class GetCommand implements Runnable {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
-					log.error("Error: release not found: {}", releaseName);
+					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
 					return;
 				}
 				String notes = getAction.getNotes(releaseOpt.get());
@@ -167,7 +168,7 @@ public class GetCommand implements Runnable {
 				}
 			}
 			catch (Exception ex) {
-				log.error("Error getting notes: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error getting notes: " + ex.getMessage()));
 			}
 		}
 
@@ -200,7 +201,7 @@ public class GetCommand implements Runnable {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
-					log.error("Error: release not found: {}", releaseName);
+					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
 					return;
 				}
 				String hooks = getAction.getHooks(releaseOpt.get());
@@ -212,7 +213,7 @@ public class GetCommand implements Runnable {
 				}
 			}
 			catch (Exception ex) {
-				log.error("Error getting hooks: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error getting hooks: " + ex.getMessage()));
 			}
 		}
 
@@ -249,7 +250,7 @@ public class GetCommand implements Runnable {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
-					log.error("Error: release not found: {}", releaseName);
+					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
 					return;
 				}
 				Map<String, Object> metadata = getAction.getMetadata(releaseOpt.get());
@@ -261,7 +262,7 @@ public class GetCommand implements Runnable {
 				}
 			}
 			catch (Exception ex) {
-				log.error("Error getting metadata: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error getting metadata: " + ex.getMessage()));
 			}
 		}
 
@@ -294,13 +295,13 @@ public class GetCommand implements Runnable {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
-					log.error("Error: release not found: {}", releaseName);
+					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
 					return;
 				}
 				System.out.println(getAction.getAll(releaseOpt.get(), false));
 			}
 			catch (Exception ex) {
-				log.error("Error getting release info: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error getting release info: " + ex.getMessage()));
 			}
 		}
 

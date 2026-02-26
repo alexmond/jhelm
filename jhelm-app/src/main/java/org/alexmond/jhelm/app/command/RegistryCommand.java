@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.service.RegistryManager;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -43,10 +44,10 @@ public class RegistryCommand implements Runnable {
 		public void run() {
 			try {
 				registryManager.login(server, username, password);
-				log.info("Login Succeeded");
+				CliOutput.println(CliOutput.success("Login Succeeded"));
 			}
 			catch (IOException ex) {
-				log.error("Error logging in: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error logging in: " + ex.getMessage()));
 			}
 		}
 
@@ -70,10 +71,10 @@ public class RegistryCommand implements Runnable {
 		public void run() {
 			try {
 				registryManager.logout(server);
-				log.info("Logout Succeeded");
+				CliOutput.println(CliOutput.success("Logout Succeeded"));
 			}
 			catch (IOException ex) {
-				log.error("Error logging out: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error logging out: " + ex.getMessage()));
 			}
 		}
 

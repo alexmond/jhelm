@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.ShowAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -37,7 +38,7 @@ public class ShowCommand implements Runnable {
 				System.out.println(showAction.showChart(chartPath));
 			}
 			catch (Exception ex) {
-				log.error("Error showing chart: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error showing chart: " + ex.getMessage()));
 			}
 		}
 
@@ -63,7 +64,7 @@ public class ShowCommand implements Runnable {
 				System.out.println(showAction.showValues(chartPath));
 			}
 			catch (Exception ex) {
-				log.error("Error showing values: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error showing values: " + ex.getMessage()));
 			}
 		}
 
@@ -94,7 +95,7 @@ public class ShowCommand implements Runnable {
 				System.out.println(readme);
 			}
 			catch (Exception ex) {
-				log.error("Error showing readme: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error showing readme: " + ex.getMessage()));
 			}
 		}
 
@@ -126,7 +127,7 @@ public class ShowCommand implements Runnable {
 				System.out.println(crds);
 			}
 			catch (Exception ex) {
-				log.error("Error showing crds: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error showing crds: " + ex.getMessage()));
 			}
 		}
 
@@ -153,7 +154,7 @@ public class ShowCommand implements Runnable {
 				System.out.println(showAction.showAll(chartPath));
 			}
 			catch (Exception ex) {
-				log.error("Error showing all: {}", ex.getMessage());
+				CliOutput.errPrintln(CliOutput.error("Error showing all: " + ex.getMessage()));
 			}
 		}
 

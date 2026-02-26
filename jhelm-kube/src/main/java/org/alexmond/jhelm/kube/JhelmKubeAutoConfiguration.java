@@ -21,6 +21,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.retry.backoff.ExponentialBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
+import org.springframework.retry.RetryCallback;
+import org.springframework.retry.RetryContext;
+import org.springframework.retry.RetryListener;
 
 /**
  * Auto-configuration for the jhelm Kubernetes integration module. Registers an
@@ -80,17 +83,16 @@ public class JhelmKubeAutoConfiguration {
 	/**
 	 * A retry listener that only allows retries for transient errors.
 	 */
-	private static class TransientRetryListener implements org.springframework.retry.RetryListener {
+	private static final class TransientRetryListener implements RetryListener {
 
 		@Override
-		public <T, E extends Throwable> boolean open(org.springframework.retry.RetryContext context,
-				org.springframework.retry.RetryCallback<T, E> callback) {
+		public <T, E extends Throwable> boolean open(RetryContext context, RetryCallback<T, E> callback) {
 			return true;
 		}
 
 		@Override
-		public <T, E extends Throwable> void onError(org.springframework.retry.RetryContext context,
-				org.springframework.retry.RetryCallback<T, E> callback, Throwable throwable) {
+		public <T, E extends Throwable> void onError(RetryContext context, RetryCallback<T, E> callback,
+				Throwable throwable) {
 			if (!RetryableKubeService.isTransient(throwable)) {
 				context.setExhaustedOnly();
 			}

@@ -27,6 +27,7 @@ import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.RegistryManager;
 import org.alexmond.jhelm.core.service.RepoManager;
+import java.util.Map;
 
 class JhelmCoreAutoConfigurationTest {
 
@@ -94,7 +95,7 @@ class JhelmCoreAutoConfigurationTest {
 			assertNotNull(cache);
 			// Populate beyond the max and verify oldest are evicted
 			for (int i = 0; i < 12; i++) {
-				cache.put("key" + i, java.util.Map.of());
+				cache.put("key" + i, Map.of());
 			}
 			assertEquals(10, cache.size());
 		});

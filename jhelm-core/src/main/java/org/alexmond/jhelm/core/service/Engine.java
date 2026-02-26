@@ -16,6 +16,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.alexmond.jhelm.core.model.Chart;
+import java.util.HashSet;
+import java.util.Set;
 
 @Slf4j
 public class Engine {
@@ -112,7 +114,7 @@ public class Engine {
 		try {
 			// Using a shared set for the whole rendering process to avoid redundant work
 			// and loops
-			java.util.Set<String> renderedCharts = new java.util.HashSet<>();
+			Set<String> renderedCharts = new HashSet<>();
 			String rendered = renderWithSubcharts(chart, values, releaseInfo, renderedCharts, 0);
 			return cleanManifest(rendered);
 		}
@@ -171,7 +173,7 @@ public class Engine {
 
 		// Add final newline if there's content
 		if (cleaned.length() > 0) {
-			cleaned.append("\n");
+			cleaned.append('\n');
 		}
 
 		return cleaned.toString();
@@ -275,15 +277,8 @@ public class Engine {
 		}
 	}
 
-	private void processDefines(String data) {
-	}
-
-	private int findMatchingEnd(String data, int start) {
-		return -1;
-	}
-
 	private String renderWithSubcharts(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo,
-			java.util.Set<String> renderedCharts, int depth) {
+			Set<String> renderedCharts, int depth) {
 		String chartKey = chart.getMetadata().getName() + ":" + chart.getMetadata().getVersion();
 		if (renderedCharts.contains(chartKey)) {
 			log.debug("Chart {} already rendered in this path, skipping to avoid recursion", chartKey);
@@ -372,11 +367,11 @@ public class Engine {
 
 				factory.execute(t.getName(), currentContext, writer);
 				String rendered = writer.toString();
-				if (rendered != null && !rendered.trim().isEmpty()) {
+				if (rendered != null && !rendered.isBlank()) {
 					if (!rendered.trim().endsWith("---")) {
 						sb.append(rendered);
 						if (!rendered.endsWith("\n")) {
-							sb.append("\n");
+							sb.append('\n');
 						}
 						sb.append("---\n");
 					}
@@ -419,26 +414,6 @@ public class Engine {
 			}
 		}
 		return merged;
-	}
-
-	private String renderTemplate(Chart.Template template, Map<String, Object> context) {
-		try {
-			parseWithCache(template.getName(), template.getData());
-			StringWriter writer = new StringWriter();
-			factory.execute(template.getName(), context, writer);
-			return writer.toString();
-		}
-		catch (Exception ex) {
-			log.error("Template rendering failed for '{}': {}", template.getName(), ex.getMessage());
-			throw new TemplateRenderException("Rendering failed: " + ex.getMessage(), ex, null, template.getName());
-		}
-	}
-
-	private String stripDot(String s) {
-		if (s != null && s.startsWith(".")) {
-			return s.substring(1);
-		}
-		return s;
 	}
 
 }

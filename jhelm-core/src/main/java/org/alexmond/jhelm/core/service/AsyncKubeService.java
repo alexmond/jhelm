@@ -6,6 +6,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
+import java.util.concurrent.CompletionException;
 
 /**
  * Async extension of {@link KubeService}. All methods return a {@link CompletableFuture}
@@ -13,8 +14,7 @@ import org.alexmond.jhelm.core.model.ResourceStatus;
  * Kubernetes API calls are in flight.
  * <p>
  * Exceptions thrown by the underlying synchronous calls are wrapped in
- * {@link java.util.concurrent.CompletionException} and can be retrieved via
- * {@link Throwable#getCause()}.
+ * {@link CompletionException} and can be retrieved via {@link Throwable#getCause()}.
  * </p>
  */
 public interface AsyncKubeService extends KubeService {
