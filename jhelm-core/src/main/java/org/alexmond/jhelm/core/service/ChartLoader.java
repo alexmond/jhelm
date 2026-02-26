@@ -69,6 +69,13 @@ public class ChartLoader {
 			readme = Files.readString(readmeFile.toPath());
 		}
 
+		// Load values.schema.json
+		String valuesSchema = null;
+		File valuesSchemaFile = new File(chartDir, "values.schema.json");
+		if (valuesSchemaFile.exists()) {
+			valuesSchema = Files.readString(valuesSchemaFile.toPath());
+		}
+
 		// Load CRDs
 		File crdsDir = new File(chartDir, "crds");
 		List<Chart.Crd> crds = new ArrayList<>();
@@ -79,6 +86,7 @@ public class ChartLoader {
 		return Chart.builder()
 			.metadata(metadata)
 			.values(values)
+			.valuesSchema(valuesSchema)
 			.templates(templates)
 			.dependencies(dependencies)
 			.readme(readme)

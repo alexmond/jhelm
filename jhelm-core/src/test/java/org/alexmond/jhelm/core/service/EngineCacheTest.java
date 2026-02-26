@@ -34,7 +34,7 @@ class EngineCacheTest {
 	void render_withCache_producesIdenticalOutput() throws Exception {
 		Chart chart = loadMinimalChart();
 		TemplateCache cache = new TemplateCache(64);
-		Engine engineWithCache = new Engine(cache);
+		Engine engineWithCache = new Engine(cache, null);
 		Engine engineWithout = new Engine();
 
 		String withCache = engineWithCache.render(chart, Map.of(), RELEASE_INFO);
@@ -49,7 +49,7 @@ class EngineCacheTest {
 	void render_twiceSameChart_cacheIsPopulated() throws Exception {
 		Chart chart = loadMinimalChart();
 		TemplateCache cache = new TemplateCache(64);
-		Engine engine = new Engine(cache);
+		Engine engine = new Engine(cache, null);
 
 		engine.render(chart, Map.of(), RELEASE_INFO);
 		assertTrue(cache.size() > 0, "Cache should be populated after first render");
@@ -63,7 +63,7 @@ class EngineCacheTest {
 	@Test
 	void render_contentChange_doesNotReturnStaleResult() throws Exception {
 		TemplateCache cache = new TemplateCache(64);
-		Engine engine = new Engine(cache);
+		Engine engine = new Engine(cache, null);
 
 		ChartMetadata metadata = ChartMetadata.builder().name("dynamic").version("1.0.0").build();
 

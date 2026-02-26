@@ -21,14 +21,17 @@ public class Engine {
 
 	private final TemplateCache templateCache;
 
+	private final SchemaValidator schemaValidator;
+
 	private GoTemplate factory;
 
 	public Engine() {
-		this(null);
+		this(null, new SchemaValidator());
 	}
 
-	public Engine(TemplateCache templateCache) {
+	public Engine(TemplateCache templateCache, SchemaValidator schemaValidator) {
 		this.templateCache = templateCache;
+		this.schemaValidator = (schemaValidator != null) ? schemaValidator : new SchemaValidator();
 	}
 
 	private void parseWithCache(String name, String text) throws Exception {
@@ -270,6 +273,16 @@ public class Engine {
 		// Merge chart default values with provided values
 		Map<String, Object> chartValues = (chart.getValues() != null) ? chart.getValues() : new HashMap<>();
 		Map<String, Object> mergedValues = mergeValues(chartValues, values);
+
+		// Validate merged values against the chart's JSON Schema (if present)
+		if (chart.getValuesSchema() != null) {
+			try {
+				schemaValidator.validate(chart.getMetadata().getName(), chart.getValuesSchema(), mergedValues);
+			}
+			catch (SchemaValidationException ex) {
+				throw new RuntimeException(ex.getMessage(), ex);
+			}
+		}
 
 		Map<String, Object> context = new HashMap<>();
 		context.put("Values", mergedValues);

@@ -303,4 +303,48 @@ class ChartLoaderTest {
 		assertThrows(IllegalArgumentException.class, () -> chartLoader.load(chartDir.toFile()));
 	}
 
+	@Test
+	void testLoadChartWithValuesSchema() throws IOException {
+		Path chartDir = tempDir.resolve("chart-with-schema");
+		Files.createDirectories(chartDir);
+		Files.writeString(chartDir.resolve("Chart.yaml"), """
+				apiVersion: v2
+				name: chart-with-schema
+				version: 1.0.0
+				""");
+		Files.writeString(chartDir.resolve("values.yaml"), "replicas: 1\n");
+		Files.createDirectories(chartDir.resolve("templates"));
+		Files.writeString(chartDir.resolve("values.schema.json"), """
+				{
+				  "$schema": "https://json-schema.org/draft-07/schema",
+				  "type": "object",
+				  "properties": {
+				    "replicas": { "type": "integer", "minimum": 1 }
+				  }
+				}
+				""");
+
+		Chart chart = chartLoader.load(chartDir.toFile());
+
+		assertNotNull(chart.getValuesSchema());
+		assertTrue(chart.getValuesSchema().contains("$schema"));
+	}
+
+	@Test
+	void testLoadChartWithoutValuesSchema() throws IOException {
+		Path chartDir = tempDir.resolve("chart-without-schema");
+		Files.createDirectories(chartDir);
+		Files.writeString(chartDir.resolve("Chart.yaml"), """
+				apiVersion: v2
+				name: chart-without-schema
+				version: 1.0.0
+				""");
+		Files.writeString(chartDir.resolve("values.yaml"), "replicas: 1\n");
+		Files.createDirectories(chartDir.resolve("templates"));
+
+		Chart chart = chartLoader.load(chartDir.toFile());
+
+		assertNull(chart.getValuesSchema());
+	}
+
 }
