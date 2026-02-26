@@ -1,7 +1,10 @@
 package org.alexmond.jhelm.core.config;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
+import org.alexmond.jhelm.core.JhelmMetricsAutoConfiguration;
 import org.alexmond.jhelm.core.cache.TemplateCache;
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -27,8 +30,8 @@ import org.alexmond.jhelm.core.service.RepoManager;
 
 class JhelmCoreAutoConfigurationTest {
 
-	private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-		.withConfiguration(AutoConfigurations.of(JhelmCoreAutoConfiguration.class));
+	private final ApplicationContextRunner contextRunner = new ApplicationContextRunner().withConfiguration(
+			AutoConfigurations.of(JhelmMetricsAutoConfiguration.class, JhelmCoreAutoConfiguration.class));
 
 	@Test
 	void testCoreBeansRegisteredWithoutKubeService() {
@@ -95,6 +98,19 @@ class JhelmCoreAutoConfigurationTest {
 			}
 			assertEquals(10, cache.size());
 		});
+	}
+
+	@Test
+	void jhelmMetricsBeanCreatedWhenMeterRegistryPresent() {
+		contextRunner.withBean(SimpleMeterRegistry.class, SimpleMeterRegistry::new).run((ctx) -> {
+			assertNotNull(ctx.getBean(JhelmMetrics.class));
+			assertNotNull(ctx.getBean(Engine.class));
+		});
+	}
+
+	@Test
+	void jhelmMetricsBeanAbsentWithoutMeterRegistry() {
+		contextRunner.run((ctx) -> assertEquals(0, ctx.getBeanNamesForType(JhelmMetrics.class).length));
 	}
 
 }

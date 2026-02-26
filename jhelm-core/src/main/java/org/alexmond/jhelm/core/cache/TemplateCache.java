@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 
 /**
@@ -19,14 +20,24 @@ public final class TemplateCache {
 
 	private final int maxSize;
 
+	private final JhelmMetrics metrics;
+
 	public TemplateCache(int maxSize) {
+		this(maxSize, null);
+	}
+
+	public TemplateCache(int maxSize, JhelmMetrics metrics) {
 		this.maxSize = maxSize;
+		this.metrics = metrics;
 		this.cache = Collections.synchronizedMap(new LinkedHashMap<>(maxSize, 0.75f, true) {
 			@Override
 			protected boolean removeEldestEntry(Map.Entry<String, Map<String, Node>> eldest) {
 				return size() > TemplateCache.this.maxSize;
 			}
 		});
+		if (metrics != null) {
+			metrics.registerCacheSizeGauge(this::size);
+		}
 	}
 
 	/**
@@ -38,6 +49,14 @@ public final class TemplateCache {
 		Map<String, Node> cached = cache.get(key);
 		if (cached != null) {
 			log.debug("Template cache hit for key: {}", key);
+			if (metrics != null) {
+				metrics.recordCacheHit();
+			}
+		}
+		else {
+			if (metrics != null) {
+				metrics.recordCacheMiss();
+			}
 		}
 		return cached;
 	}
