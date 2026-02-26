@@ -6,11 +6,14 @@ import java.util.List;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.service.LifecycleListener;
+import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
 
@@ -20,6 +23,12 @@ public class UpgradeAction {
 	private final Engine engine;
 
 	private final KubeService kubeService;
+
+	@Setter
+	private List<PostRenderProcessor> postRenderProcessors = List.of();
+
+	@Setter
+	private List<LifecycleListener> lifecycleListeners = List.of();
 
 	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues, boolean dryRun)
 			throws Exception {
@@ -51,9 +60,15 @@ public class UpgradeAction {
 		releaseData.put("IsUpgrade", true);
 
 		String manifest = engine.render(newChart, values, releaseData);
+
+		for (PostRenderProcessor processor : postRenderProcessors) {
+			manifest = processor.process(manifest);
+		}
+
 		newRelease.setManifest(manifest);
 
 		if (kubeService != null && !dryRun) {
+			fireLifecycleEvent("pre-upgrade", newRelease.getName(), newRelease.getNamespace());
 			List<HelmHook> hooks = HookParser.parseHooks(manifest);
 			String regularManifest = HookParser.stripHooks(manifest);
 			HookExecutor hookExecutor = new HookExecutor(kubeService);
@@ -61,9 +76,16 @@ public class UpgradeAction {
 			kubeService.apply(newRelease.getNamespace(), regularManifest);
 			kubeService.storeRelease(newRelease);
 			hookExecutor.run(newRelease.getNamespace(), hooks, "post-upgrade", 300);
+			fireLifecycleEvent("post-upgrade", newRelease.getName(), newRelease.getNamespace());
 		}
 
 		return newRelease;
+	}
+
+	private void fireLifecycleEvent(String phase, String releaseName, String namespace) throws Exception {
+		for (LifecycleListener listener : lifecycleListeners) {
+			listener.onEvent(phase, releaseName, namespace, Map.of());
+		}
 	}
 
 }

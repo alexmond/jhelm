@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.core;
 
+import java.util.List;
+
 import org.alexmond.jhelm.core.cache.TemplateCache;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -23,6 +25,8 @@ import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.service.LifecycleListener;
+import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.service.RegistryManager;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.core.service.SchemaValidator;
@@ -88,8 +92,14 @@ public class JhelmCoreAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public TemplateAction templateAction(Engine engine) {
-		return new TemplateAction(engine);
+	public TemplateAction templateAction(Engine engine,
+			ObjectProvider<List<PostRenderProcessor>> postRenderProcessors) {
+		TemplateAction action = new TemplateAction(engine);
+		List<PostRenderProcessor> processors = postRenderProcessors.getIfAvailable();
+		if (processors != null) {
+			action.setPostRenderProcessors(processors);
+		}
+		return action;
 	}
 
 	@Bean
@@ -101,15 +111,37 @@ public class JhelmCoreAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
-	public InstallAction installAction(Engine engine, KubeService kubeService) {
-		return new InstallAction(engine, kubeService);
+	public InstallAction installAction(Engine engine, KubeService kubeService,
+			ObjectProvider<List<PostRenderProcessor>> postRenderProcessors,
+			ObjectProvider<List<LifecycleListener>> lifecycleListeners) {
+		InstallAction action = new InstallAction(engine, kubeService);
+		List<PostRenderProcessor> processors = postRenderProcessors.getIfAvailable();
+		if (processors != null) {
+			action.setPostRenderProcessors(processors);
+		}
+		List<LifecycleListener> listeners = lifecycleListeners.getIfAvailable();
+		if (listeners != null) {
+			action.setLifecycleListeners(listeners);
+		}
+		return action;
 	}
 
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
-	public UpgradeAction upgradeAction(Engine engine, KubeService kubeService) {
-		return new UpgradeAction(engine, kubeService);
+	public UpgradeAction upgradeAction(Engine engine, KubeService kubeService,
+			ObjectProvider<List<PostRenderProcessor>> postRenderProcessors,
+			ObjectProvider<List<LifecycleListener>> lifecycleListeners) {
+		UpgradeAction action = new UpgradeAction(engine, kubeService);
+		List<PostRenderProcessor> processors = postRenderProcessors.getIfAvailable();
+		if (processors != null) {
+			action.setPostRenderProcessors(processors);
+		}
+		List<LifecycleListener> listeners = lifecycleListeners.getIfAvailable();
+		if (listeners != null) {
+			action.setLifecycleListeners(listeners);
+		}
+		return action;
 	}
 
 	@Bean

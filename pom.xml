@@ -40,6 +40,7 @@
         <picocli.version>4.7.6</picocli.version>
         <semver4j.version>3.1.0</semver4j.version>
         <bouncycastle.version>1.80</bouncycastle.version>
+        <chicory.version>1.7.0</chicory.version>
 
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
@@ -63,6 +64,7 @@
         <module>jhelm-gotemplate</module>
         <module>jhelm-core</module>
         <module>jhelm-kube</module>
+        <module>jhelm-plugin</module>
         <module>jhelm-app</module>
     </modules>
 
@@ -106,6 +108,21 @@
                 <groupId>com.vdurmont</groupId>
                 <artifactId>semver4j</artifactId>
                 <version>${semver4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.alexmond</groupId>
+                <artifactId>jhelm-plugin</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.dylibso.chicory</groupId>
+                <artifactId>runtime</artifactId>
+                <version>${chicory.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.dylibso.chicory</groupId>
+                <artifactId>wasi</artifactId>
+                <version>${chicory.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
