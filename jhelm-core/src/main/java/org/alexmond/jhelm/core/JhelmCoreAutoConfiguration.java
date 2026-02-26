@@ -19,6 +19,7 @@ import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.ShowAction;
+import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.StatusAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
@@ -186,6 +187,13 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnBean(KubeService.class)
 	public GetAction getAction(KubeService kubeService) {
 		return new GetAction(kubeService);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnBean(KubeService.class)
+	public TestAction testAction(KubeService kubeService) {
+		return new TestAction(kubeService);
 	}
 
 }

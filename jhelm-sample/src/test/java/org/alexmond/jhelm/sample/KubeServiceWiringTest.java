@@ -6,6 +6,7 @@ import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.StatusAction;
+import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -49,6 +50,9 @@ class KubeServiceWiringTest {
 	@Autowired
 	private GetAction getAction;
 
+	@Autowired
+	private TestAction testAction;
+
 	@Test
 	void kubeActionsAvailableWithMockKubeService() {
 		assertNotNull(installAction, "InstallAction should be present when KubeService is available");
@@ -59,6 +63,7 @@ class KubeServiceWiringTest {
 		assertNotNull(historyAction, "HistoryAction should be present when KubeService is available");
 		assertNotNull(rollbackAction, "RollbackAction should be present when KubeService is available");
 		assertNotNull(getAction, "GetAction should be present when KubeService is available");
+		assertNotNull(testAction, "TestAction should be present when KubeService is available");
 	}
 
 	@TestConfiguration
