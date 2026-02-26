@@ -1,29 +1,72 @@
-# Architecture
+= Architecture
 
-This is a multi-module Maven project with the following structure:
+jhelm is a multi-module Maven project.
 
-## Modules
+== Module Structure
 
-1. **jhelm-gotemplate** - Go template engine for Java
-    - Java implementation of Go's template language
-    - Based on gotemplate4j (MIT License, Copyright 2021 verils)
-    - Provides lexer, parser, AST nodes, and executor for Go templates
-    - Includes Sprig functions and Helm-specific template functions
-    - Location: `jhelm-gotemplate/`
+----
+jhelm (parent)
+├── jhelm-gotemplate/  — Go template engine (standalone)
+├── jhelm-core/        — Helm logic, charts, actions (depends on: jhelm-gotemplate)
+├── jhelm-kube/        — Kubernetes client integration (depends on: jhelm-core)
+└── jhelm-app/         — CLI entry point, Spring Boot + Picocli (depends on: jhelm-core, jhelm-kube)
+----
 
-2. **jhelm-core** - Core Helm logic and models
-    - Chart management and parsing
-    - Repository management
-    - Template rendering engine
-    - Value merging and processing
-    - Location: `jhelm-core/`
+== Modules
 
-3. **jhelm-kube** - Kubernetes integration
-    - Kubernetes client integration
-    - Resource deployment and management
-    - Location: `jhelm-kube/`
+=== jhelm-gotemplate
 
-4. **jhelm-app** - Application/CLI layer
-    - Command-line interface built with Picocli
-    - User-facing commands and workflows
-    - Location: `jhelm-app/`
+Java implementation of Go's template language (based on gotemplate4j, MIT License).
+
+* Lexer -> Parser -> AST -> Executor pipeline
+* Sprig functions and Helm-specific template functions
+* Category-based function registry (`SprigFunctionsRegistry`, `HelmFunctions`)
+
+=== jhelm-core
+
+Core Helm logic and models. Ships with Spring Boot auto-configuration (`JhelmCoreAutoConfiguration`).
+
+* *Engine* -- orchestrates template rendering with subchart recursion, value merging, and JSON Schema validation
+* *ChartLoader* -- loads charts from the filesystem (templates, subcharts, CRDs, README, schema)
+* *RepoManager* -- manages chart repositories (HTTP and OCI), content-based caching, digest verification
+* *Action classes* -- encapsulate Helm operations: `InstallAction`, `UpgradeAction`, `RollbackAction`, `UninstallAction`, `TemplateAction`, `ShowAction`, `ListAction`, `StatusAction`, `HistoryAction`, `GetAction`, `CreateAction`
+* *TemplateCache* -- LRU cache for parsed template ASTs (thread-safe, configurable size)
+* *SchemaValidator* -- validates chart values against `values.schema.json` (JSON Schema Draft-07)
+
+=== jhelm-kube
+
+Kubernetes client integration. Ships with Spring Boot auto-configuration (`JhelmKubeAutoConfiguration`).
+
+* *HelmKubeService* -- Kubernetes operations using the official Java client: resource apply/delete via server-side PATCH, ConfigMap-based release storage (Helm-compatible format), resource status checking (Deployments, StatefulSets, Jobs, Pods)
+* *AsyncHelmKubeService* -- extends `HelmKubeService` with `CompletableFuture`-based async methods using Java 21 virtual threads (`Executors.newVirtualThreadPerTaskExecutor()`)
+
+=== jhelm-app
+
+CLI entry point built with Picocli and Spring Boot. Provides 16 top-level commands covering the full Helm workflow. See the xref:cli-reference.adoc[CLI Reference] for details.
+
+== Key Design Decisions
+
+=== Template Rendering
+
+* A new `GoTemplate` instance is created per render to prevent template accumulation across calls.
+* Named templates (`define` blocks) are collected from the chart and all subcharts before rendering begins.
+* Subchart rendering is recursive with a maximum depth of 3 to prevent infinite loops.
+* Parsed template ASTs can be cached in a configurable LRU cache (`TemplateCache`) for performance.
+
+=== Spring Boot Integration
+
+* `JhelmKubeAutoConfiguration` runs _before_ `JhelmCoreAutoConfiguration` so that the `KubeService` bean is available for conditional registration of Kubernetes-dependent action beans.
+* All auto-configured beans use `@ConditionalOnMissingBean`, allowing applications to override any bean.
+* Optional dependencies (e.g., `TemplateCache`) are injected via `ObjectProvider` to avoid hard failures.
+
+=== Kubernetes Release Storage
+
+Releases are stored as Kubernetes ConfigMaps, matching Helm's native format:
+
+* ConfigMap name: `sh.helm.release.v1.<release-name>.v<version>`
+* Labels: `owner=helm`, `name=<release-name>`, `status=<status>`, `version=<version>`
+* Data: JSON-encoded release object, Base64-encoded in the ConfigMap
+
+=== Async Operations
+
+The `AsyncKubeService` interface extends `KubeService` with `CompletableFuture`-based async variants of every method. The default implementation (`AsyncHelmKubeService`) dispatches work to a virtual-thread executor, keeping platform threads free for other work.

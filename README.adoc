@@ -1,0 +1,85 @@
+= jhelm
+:url-docs: https://www.alexmond.org/jhelm/current/index.html
+
+A native Java implementation of the https://helm.sh[Helm] package manager for Kubernetes.
+Render templates, manage charts, and deploy releases without the Go-based Helm CLI.
+
+== Features
+
+* *Full template engine* -- Go templates with 100% Sprig and Helm function coverage
+* *Chart lifecycle* -- install, upgrade, rollback, uninstall, list, status, history
+* *Repository management* -- add/remove repos, search, pull, push (HTTP + OCI registries)
+* *Dependency management* -- list, update, build chart dependencies
+* *Spring Boot integration* -- auto-configured beans, `@ConfigurationProperties`, and programmatic API
+* *JSON Schema validation* -- validates chart values against `values.schema.json` (Draft-07)
+* *Template caching* -- LRU cache for parsed template ASTs
+* *Async Kubernetes operations* -- Java 21 virtual threads via `AsyncKubeService`
+
+== Tech Stack
+
+[cols="1,1"]
+|===
+| Java | 21
+| Spring Boot | 4.0.2
+| Kubernetes Client | 25.0.0
+| CLI Framework | Picocli 4.7.6
+|===
+
+== Quick Start
+
+=== As a Library
+
+Add the dependency to your `pom.xml`:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-core</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+</dependency>
+----
+
+For Kubernetes operations, also add:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-kube</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+</dependency>
+----
+
+Render a chart programmatically:
+
+[source,java]
+----
+@Autowired TemplateAction templateAction;
+
+String manifest = templateAction.render(
+    "/path/to/chart", "my-release", "default");
+----
+
+=== As a CLI
+
+[source,bash]
+----
+./mvnw clean install -DskipTests
+java -jar jhelm-app/target/jhelm-0.0.1-SNAPSHOT.jar template my-release ./my-chart
+----
+
+== Documentation
+
+Full documentation is available at {url-docs}.
+
+== Building
+
+[source,bash]
+----
+./mvnw clean install
+----
+
+== License
+
+https://www.apache.org/licenses/LICENSE-2.0[Apache License 2.0]

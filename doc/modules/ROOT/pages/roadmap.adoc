@@ -21,13 +21,13 @@ The roadmap is divided into several phases focusing on compatibility, feature co
 1. Dependency management system
 2. Hooks support (pre/post install/upgrade)
 3. Missing commands (`get`, `show`, `dependency`)
-4. JSON Schema validation
+4. JSON Schema validation - *✅ COMPLETED*
 5. Improved resource status watching
 
 === Phase 3: Architecture & Quality (2-3 weeks)
 
 1. Remove Spring Boot from core modules (making them library-first)
-2. Async/reactive support
+2. Async/reactive support - *✅ COMPLETED* (virtual-thread `AsyncKubeService`)
 3. Metrics and observability
 4. Enhanced error recovery
 5. Better contextual error messages
@@ -42,7 +42,7 @@ The roadmap is divided into several phases focusing on compatibility, feature co
 
 === Phase 5: Polish & Performance (2-3 weeks)
 
-1. Template compilation cache
+1. Template compilation cache - *✅ COMPLETED* (LRU `TemplateCache`)
 2. CLI color output
 3. CPU/memory profiling
 4. Enhanced test coverage
@@ -62,8 +62,8 @@ The roadmap is divided into several phases focusing on compatibility, feature co
 | OCI Registries | ✅ | ✅ (enhanced) | ⚠️ | P1 | Partial
 | Chart Dependencies | ✅ | ✅ | ❌ | P2 | Pending
 | Hooks | ✅ | ✅ | ❌ | P2 | Pending
-| JSON Schema | ❌ | ✅ | ❌ | P2 | Pending
-| Content Caching | ❌ | ✅ | ❌ | P1 | Pending
+| JSON Schema | ❌ | ✅ | ✅ | P2 | ✅ Complete
+| Content Caching | ❌ | ✅ | ✅ | P1 | ✅ Complete
 | Structured Logging | ❌ | ✅ | ⚠️ | P1 | Partial
 |===
 

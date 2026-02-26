@@ -1,0 +1,109 @@
+= Getting Started
+
+== Prerequisites
+
+* Java 21 or later
+* Maven 3.9+ (or use the included `mvnw` wrapper)
+* A Kubernetes cluster (for deploy operations; not needed for template rendering)
+
+== Building from Source
+
+[source,bash]
+----
+git clone https://github.com/alexmond/jhelm.git
+cd jhelm
+./mvnw clean install
+----
+
+== Using the CLI
+
+After building, run the CLI via the application JAR:
+
+[source,bash]
+----
+java -jar jhelm-app/target/jhelm-{jhelm-version}.jar --help
+----
+
+=== Examples
+
+Render chart templates locally:
+
+[source,bash]
+----
+jhelm template my-release ./my-chart
+jhelm template my-release ./my-chart -f custom-values.yaml
+jhelm template my-release ./my-chart --set image.tag=v2.0
+----
+
+Add a chart repository and install a chart:
+
+[source,bash]
+----
+jhelm repo add bitnami https://charts.bitnami.com/bitnami
+jhelm pull bitnami/nginx --version 15.0.0
+jhelm install my-nginx ./nginx -n production
+----
+
+Check release status and history:
+
+[source,bash]
+----
+jhelm list -n production
+jhelm status my-nginx -n production --show-resources
+jhelm history my-nginx -n production
+----
+
+See the xref:cli-reference.adoc[CLI Reference] for all available commands.
+
+== Using as a Library
+
+Add `jhelm-core` to your Maven project for offline operations (template rendering, chart loading, repo management):
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-core</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+----
+
+Add `jhelm-kube` when you also need Kubernetes operations (install, upgrade, rollback, etc.):
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-kube</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+----
+
+Both modules ship with Spring Boot auto-configuration. In a Spring Boot application the relevant beans are created automatically.
+
+=== Minimal Code Example
+
+[source,java]
+----
+import org.alexmond.jhelm.core.service.Engine;
+import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.model.Chart;
+import java.io.File;
+import java.util.Map;
+
+// Load a chart from disk
+ChartLoader loader = new ChartLoader();
+Chart chart = loader.load(new File("/path/to/my-chart"));
+
+// Render templates
+Engine engine = new Engine();
+String manifest = engine.render(chart, Map.of(), Map.of(
+    "Name", "my-release",
+    "Namespace", "default",
+    "IsInstall", true
+));
+
+System.out.println(manifest);
+----
+
+For Spring Boot integration with auto-configured beans and configuration properties, see the xref:spring-boot-starter.adoc[Spring Boot Starter] guide.

@@ -2,5 +2,14 @@ name: jhelm
 title: jhelm Documentation
 version: master
 start_page: ROOT:index.adoc
+asciidoc:
+  attributes:
+    jhelm-version: 0.0.1-SNAPSHOT
+    toc: left
+    sectnums: ''
+    keywords: 'Helm, Java, Kubernetes, Spring Boot, Chart management, Template engine'
+    author: 'Alexander Mondshain'
+    email: 'alex.mondshain@gmail.com'
+    imagesdir: ../images
 nav:
 - modules/ROOT/nav.adoc
