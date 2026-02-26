@@ -1,0 +1,101 @@
+= Configuration
+
+jhelm uses Spring Boot `@ConfigurationProperties` for all configuration. Properties can be set in `application.yaml`, `application.properties`, environment variables, or system properties.
+
+== Core Properties (`jhelm.*`)
+
+Provided by `JhelmCoreAutoConfiguration` when `jhelm-core` is on the classpath.
+
+[cols="3,1,2,4"]
+|===
+| Property | Type | Default | Description
+
+| `jhelm.config-path`
+| `String`
+| `null`
+| Path to the Helm repository configuration file. Defaults to `~/.config/helm/repositories.yaml` when not set.
+
+| `jhelm.registry-config-path`
+| `String`
+| `null`
+| Path to the OCI registry auth configuration file. Uses a platform-specific default location when not set.
+
+| `jhelm.insecure-skip-tls-verify`
+| `boolean`
+| `false`
+| Skip TLS certificate verification when downloading charts over HTTP.
+
+| `jhelm.template-cache-enabled`
+| `boolean`
+| `true`
+| Enable caching of parsed template ASTs in an LRU cache. Improves rendering performance for repeated chart renders.
+
+| `jhelm.template-cache-max-size`
+| `int`
+| `256`
+| Maximum number of parsed templates to keep in the LRU cache. Only applies when `template-cache-enabled` is `true`.
+|===
+
+== Kubernetes Properties (`jhelm.kubernetes.*`)
+
+Provided by `JhelmKubeAutoConfiguration` when `jhelm-kube` is on the classpath.
+
+[cols="3,1,2,4"]
+|===
+| Property | Type | Default | Description
+
+| `jhelm.kubernetes.kubeconfig-path`
+| `String`
+| `null`
+| Path to the kubeconfig file. When not set, uses standard Kubernetes auto-detection: `~/.kube/config` or in-cluster credentials.
+|===
+
+== Example Configuration
+
+=== application.yaml
+
+[source,yaml]
+----
+jhelm:
+  config-path: /etc/jhelm/repositories.yaml
+  insecure-skip-tls-verify: false
+  template-cache-enabled: true
+  template-cache-max-size: 512
+  kubernetes:
+    kubeconfig-path: /home/deploy/.kube/config
+----
+
+=== application.properties
+
+[source,properties]
+----
+jhelm.config-path=/etc/jhelm/repositories.yaml
+jhelm.insecure-skip-tls-verify=false
+jhelm.template-cache-enabled=true
+jhelm.template-cache-max-size=512
+jhelm.kubernetes.kubeconfig-path=/home/deploy/.kube/config
+----
+
+== Environment Variables
+
+Spring Boot maps properties to environment variables using relaxed binding. Replace dots with underscores and use uppercase:
+
+[cols="2,2"]
+|===
+| Property | Environment Variable
+
+| `jhelm.config-path`
+| `JHELM_CONFIG_PATH`
+
+| `jhelm.insecure-skip-tls-verify`
+| `JHELM_INSECURE_SKIP_TLS_VERIFY`
+
+| `jhelm.template-cache-enabled`
+| `JHELM_TEMPLATE_CACHE_ENABLED`
+
+| `jhelm.template-cache-max-size`
+| `JHELM_TEMPLATE_CACHE_MAX_SIZE`
+
+| `jhelm.kubernetes.kubeconfig-path`
+| `JHELM_KUBERNETES_KUBECONFIG_PATH`
+|===

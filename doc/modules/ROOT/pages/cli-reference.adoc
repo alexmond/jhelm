@@ -1,0 +1,446 @@
+= CLI Reference
+
+jhelm provides a command-line interface built on Picocli and Spring Boot.
+
+[source,bash]
+----
+java -jar jhelm-app/target/jhelm-{jhelm-version}.jar [command] [options]
+----
+
+== Chart Lifecycle Commands
+
+=== create
+
+Create a new chart with the given name.
+
+[source,bash]
+----
+jhelm create <name> [-p <starter>]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `name` | Yes | Chart name
+| `-p, --starter` | No | Name or absolute path to a Helm starter scaffold
+|===
+
+=== template
+
+Render chart templates locally (without deploying).
+
+[source,bash]
+----
+jhelm template <name> <chartPath> [-n <namespace>] [-f <values>] [--set <key=value>]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `name` | Yes | Release name
+| `chartPath` | Yes | Path to the chart directory or archive
+| `-n, --namespace` | No | Namespace (default: `default`)
+| `-f, --values` | No | Values YAML file(s), repeatable
+| `--set` | No | Set values on the command line (`key=value`, dot notation), repeatable
+|===
+
+=== install
+
+Install a chart to the cluster.
+
+[source,bash]
+----
+jhelm install <name> <chartPath> [-n <namespace>] [--dry-run] [-f <values>] [--set <key=value>] [--wait] [--timeout <seconds>]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `name` | Yes | Release name
+| `chartPath` | Yes | Chart path
+| `-n, --namespace` | No | Namespace (default: `default`)
+| `--dry-run` | No | Simulate the install without deploying
+| `-f, --values` | No | Values YAML file(s), repeatable
+| `--set` | No | Set values (`key=value`), repeatable
+| `--wait` | No | Wait until all resources are ready
+| `--timeout` | No | Timeout in seconds for `--wait` (default: `300`)
+|===
+
+=== upgrade
+
+Upgrade an existing release.
+
+[source,bash]
+----
+jhelm upgrade <name> <chartPath> [-n <namespace>] [--install] [--dry-run] [-f <values>] [--set <key=value>] [--wait] [--timeout <seconds>]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `name` | Yes | Release name
+| `chartPath` | Yes | Chart path
+| `-n, --namespace` | No | Namespace (default: `default`)
+| `--install` | No | Install if the release does not exist
+| `--dry-run` | No | Simulate the upgrade
+| `-f, --values` | No | Values YAML file(s), repeatable
+| `--set` | No | Set values (`key=value`), repeatable
+| `--wait` | No | Wait until all resources are ready
+| `--timeout` | No | Timeout in seconds for `--wait` (default: `300`)
+|===
+
+=== uninstall
+
+Uninstall a release from the cluster.
+
+[source,bash]
+----
+jhelm uninstall <name> [-n <namespace>]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `name` | Yes | Release name
+| `-n, --namespace` | No | Namespace (default: `default`)
+|===
+
+=== rollback
+
+Roll back a release to a previous revision.
+
+[source,bash]
+----
+jhelm rollback <name> <revision> [-n <namespace>]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `name` | Yes | Release name
+| `revision` | Yes | Revision number to roll back to
+| `-n, --namespace` | No | Namespace (default: `default`)
+|===
+
+== Release Query Commands
+
+=== list
+
+List all releases in a namespace.
+
+[source,bash]
+----
+jhelm list [-n <namespace>]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `-n, --namespace` | No | Namespace (default: `default`)
+|===
+
+=== status
+
+Display the status of a release.
+
+[source,bash]
+----
+jhelm status <name> [-n <namespace>] [--show-resources]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `name` | Yes | Release name
+| `-n, --namespace` | No | Namespace (default: `default`)
+| `--show-resources` | No | Show resource readiness status
+|===
+
+=== history
+
+Fetch release history.
+
+[source,bash]
+----
+jhelm history <name> [-n <namespace>]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `name` | Yes | Release name
+| `-n, --namespace` | No | Namespace (default: `default`)
+|===
+
+=== get
+
+Download extended information about a release. Has several subcommands.
+
+==== get values
+
+[source,bash]
+----
+jhelm get values <releaseName> [-n <namespace>] [--revision <rev>] [-a] [-o <format>]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `releaseName` | Yes | Release name
+| `-n, --namespace` | No | Namespace (default: `default`)
+| `--revision` | No | Specific revision
+| `-a, --all` | No | Dump all (computed) values
+| `-o, --output` | No | Output format: `yaml` or `json` (default: `yaml`)
+|===
+
+==== get manifest
+
+[source,bash]
+----
+jhelm get manifest <releaseName> [-n <namespace>] [--revision <rev>]
+----
+
+==== get notes
+
+[source,bash]
+----
+jhelm get notes <releaseName> [-n <namespace>] [--revision <rev>]
+----
+
+==== get hooks
+
+[source,bash]
+----
+jhelm get hooks <releaseName> [-n <namespace>] [--revision <rev>]
+----
+
+==== get metadata
+
+[source,bash]
+----
+jhelm get metadata <releaseName> [-n <namespace>] [--revision <rev>] [-o <format>]
+----
+
+==== get all
+
+[source,bash]
+----
+jhelm get all <releaseName> [-n <namespace>] [--revision <rev>]
+----
+
+== Chart Inspection Commands
+
+=== show
+
+Show information about a chart.
+
+==== show chart
+
+Show the chart's `Chart.yaml`.
+
+[source,bash]
+----
+jhelm show chart <chartPath>
+----
+
+==== show values
+
+Show the chart's `values.yaml`.
+
+[source,bash]
+----
+jhelm show values <chartPath>
+----
+
+==== show readme
+
+Show the chart's README.
+
+[source,bash]
+----
+jhelm show readme <chartPath>
+----
+
+==== show crds
+
+Show the chart's Custom Resource Definitions.
+
+[source,bash]
+----
+jhelm show crds <chartPath>
+----
+
+==== show all
+
+Show all information about the chart.
+
+[source,bash]
+----
+jhelm show all <chartPath>
+----
+
+== Repository Commands
+
+=== repo add
+
+Add a chart repository.
+
+[source,bash]
+----
+jhelm repo add <name> <url>
+----
+
+=== repo list
+
+List configured chart repositories.
+
+[source,bash]
+----
+jhelm repo list
+----
+
+=== repo remove
+
+Remove a chart repository.
+
+[source,bash]
+----
+jhelm repo remove <name>
+----
+
+=== repo search
+
+Search repositories for a chart.
+
+[source,bash]
+----
+jhelm repo search <query> [--versions]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `query` | Yes | Chart query in the form `repo/chart`
+| `--versions` | No | Show all available versions
+|===
+
+== Registry Commands
+
+=== registry login
+
+Authenticate with an OCI registry.
+
+[source,bash]
+----
+jhelm registry login <server> -u <username> -p <password>
+----
+
+=== registry logout
+
+Log out from an OCI registry.
+
+[source,bash]
+----
+jhelm registry logout <server>
+----
+
+== Distribution Commands
+
+=== pull
+
+Download a chart from a repository.
+
+[source,bash]
+----
+jhelm pull <chart> [--version <version>] [-d <dest>]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `chart` | Yes | Chart reference: `repo/chart`, `repo/chart:version`, or `oci://...`
+| `--version` | No | Chart version (required for repo charts)
+| `-d, --dest` | No | Destination directory (default: `.`)
+|===
+
+=== push
+
+Push a chart archive to an OCI registry.
+
+[source,bash]
+----
+jhelm push <chart> <remote>
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `chart` | Yes | Path to the chart archive (`.tgz`)
+| `remote` | Yes | OCI registry destination (`oci://registry/repo/chart[:tag]`)
+|===
+
+== Dependency Commands
+
+=== dependency list
+
+List chart dependencies.
+
+[source,bash]
+----
+jhelm dependency list [chartPath]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `chartPath` | No | Chart directory (default: `.`)
+|===
+
+=== dependency update
+
+Update the `charts/` directory based on `Chart.yaml` dependencies.
+
+[source,bash]
+----
+jhelm dependency update [chartPath] [--skip-refresh] [--with-tags <tags>]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `chartPath` | No | Chart directory (default: `.`)
+| `--skip-refresh` | No | Skip refreshing the local repository cache
+| `--with-tags` | No | Dependency tags to include (comma-separated), repeatable
+|===
+
+=== dependency build
+
+Rebuild the `charts/` directory based on `Chart.lock`.
+
+[source,bash]
+----
+jhelm dependency build [chartPath] [--skip-refresh]
+----
+
+[cols="1,1,3"]
+|===
+| Argument | Required | Description
+
+| `chartPath` | No | Chart directory (default: `.`)
+| `--skip-refresh` | No | Skip refreshing the local repository cache
+|===

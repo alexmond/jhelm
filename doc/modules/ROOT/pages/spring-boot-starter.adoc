@@ -1,0 +1,418 @@
+= Spring Boot Starter (Programmatic Usage)
+
+jhelm ships as a set of Spring Boot starters. Adding the right module to your classpath auto-configures all the beans you need to manage Helm charts programmatically.
+
+== Module Selection
+
+[cols="1,3,2"]
+|===
+| Module | Use Case | Key Beans
+
+| `jhelm-core`
+| Offline operations: render templates, load charts, manage repos, validate schemas
+| `Engine`, `ChartLoader`, `RepoManager`, `TemplateAction`, `ShowAction`, `CreateAction`, `SchemaValidator`, `TemplateCache`
+
+| `jhelm-kube`
+| Kubernetes operations: install, upgrade, rollback, uninstall, list, status
+| `AsyncHelmKubeService` (implements `KubeService`), `ApiClient`, plus all Kube-dependent actions: `InstallAction`, `UpgradeAction`, `UninstallAction`, `ListAction`, `StatusAction`, `HistoryAction`, `RollbackAction`, `GetAction`
+|===
+
+== Maven Dependencies
+
+For template rendering and chart management only:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-core</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+----
+
+For full Kubernetes lifecycle management, add both:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-core</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-kube</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+----
+
+== Auto-Configuration Overview
+
+=== JhelmCoreAutoConfiguration
+
+Activated by `jhelm-core` on the classpath. Registers:
+
+[cols="2,3"]
+|===
+| Bean | Description
+
+| `RepoManager`
+| Manages Helm chart repositories (add, remove, search, pull, push)
+
+| `RegistryManager`
+| OCI registry authentication
+
+| `TemplateCache`
+| LRU cache for parsed template ASTs (enabled by default, configurable)
+
+| `SchemaValidator`
+| Validates chart values against `values.schema.json`
+
+| `Engine`
+| Template rendering engine (accepts optional `TemplateCache` and `SchemaValidator`)
+
+| `ChartLoader`
+| Loads charts from the filesystem
+
+| `CreateAction`
+| Scaffolds new chart directories
+
+| `TemplateAction`
+| Renders chart templates to manifests
+
+| `ShowAction`
+| Inspects chart metadata, values, README, and CRDs
+|===
+
+=== JhelmKubeAutoConfiguration
+
+Activated by `jhelm-kube` on the classpath. Runs _before_ the core auto-configuration so that the `KubeService` bean is available for conditional registration of Kubernetes-dependent actions.
+
+[cols="2,3"]
+|===
+| Bean | Description
+
+| `ApiClient`
+| Kubernetes API client (from `kubeconfigPath` property or default discovery)
+
+| `AsyncHelmKubeService`
+| Implements `KubeService` and `AsyncKubeService`; provides both synchronous and async (virtual-thread) Kubernetes operations
+|===
+
+When `KubeService` is present, the core auto-configuration additionally registers: `InstallAction`, `UpgradeAction`, `UninstallAction`, `ListAction`, `StatusAction`, `HistoryAction`, `RollbackAction`, and `GetAction`.
+
+== Configuration Properties
+
+See the xref:configuration.adoc[Configuration] page for the full property reference. Key properties:
+
+[source,yaml]
+----
+jhelm:
+  config-path: ~/.config/helm/repositories.yaml   # Helm repo config
+  insecure-skip-tls-verify: false                  # Skip TLS for chart downloads
+  template-cache-enabled: true                     # Enable template AST cache
+  template-cache-max-size: 256                     # Max cached templates
+  kubernetes:
+    kubeconfig-path: ~/.kube/config                # Path to kubeconfig
+----
+
+== Programmatic API Examples
+
+=== Rendering Templates
+
+[source,java]
+----
+@Autowired
+private TemplateAction templateAction;
+
+// Render with default values
+String manifest = templateAction.render(
+    "/path/to/chart", "my-release", "default");
+
+// Render with value overrides
+String manifest = templateAction.render(
+    "/path/to/chart", "my-release", "production",
+    Map.of("replicaCount", 3, "image.tag", "v2.0"));
+----
+
+=== Loading Charts
+
+[source,java]
+----
+@Autowired
+private ChartLoader chartLoader;
+
+Chart chart = chartLoader.load(new File("/path/to/my-chart"));
+
+// Access chart metadata
+String name = chart.getMetadata().getName();
+String version = chart.getMetadata().getVersion();
+
+// Access default values
+Map<String, Object> defaults = chart.getValues();
+----
+
+=== Using the Engine Directly
+
+[source,java]
+----
+@Autowired
+private Engine engine;
+
+@Autowired
+private ChartLoader chartLoader;
+
+Chart chart = chartLoader.load(new File("/path/to/chart"));
+
+Map<String, Object> releaseInfo = Map.of(
+    "Name", "my-release",
+    "Namespace", "production",
+    "IsInstall", true
+);
+
+Map<String, Object> overrides = Map.of("replicaCount", 3);
+
+String manifest = engine.render(chart, overrides, releaseInfo);
+----
+
+=== Managing Repositories
+
+[source,java]
+----
+@Autowired
+private RepoManager repoManager;
+
+// Add a repository
+repoManager.addRepo("bitnami", "https://charts.bitnami.com/bitnami");
+
+// Search for chart versions
+List<ChartVersion> versions = repoManager.getChartVersions("bitnami", "nginx");
+
+// Pull a chart to a local directory
+repoManager.pull("bitnami/nginx", "bitnami", "15.0.0", "/tmp/charts");
+
+// Pull from OCI registry
+repoManager.pullOci("oci://registry.example.com/charts/my-chart:1.0.0",
+    "/tmp/charts", "my-chart-1.0.0.tgz");
+
+// Push to OCI registry
+repoManager.pushOci("/tmp/my-chart-1.0.0.tgz",
+    "oci://registry.example.com/charts/my-chart");
+----
+
+=== Installing a Release
+
+[source,java]
+----
+@Autowired
+private InstallAction installAction;
+
+@Autowired
+private ChartLoader chartLoader;
+
+Chart chart = chartLoader.load(new File("/path/to/chart"));
+
+Release release = installAction.install(
+    chart,
+    "my-release",        // release name
+    "production",        // namespace
+    Map.of(),            // value overrides
+    1,                   // version
+    false                // dryRun
+);
+----
+
+=== Upgrading a Release
+
+[source,java]
+----
+@Autowired
+private UpgradeAction upgradeAction;
+
+@Autowired
+private GetAction getAction;
+
+@Autowired
+private ChartLoader chartLoader;
+
+// Get current release
+Release current = getAction.getRelease("my-release", "production")
+    .orElseThrow();
+
+// Load new chart version
+Chart newChart = chartLoader.load(new File("/path/to/chart-v2"));
+
+Release upgraded = upgradeAction.upgrade(
+    current,
+    newChart,
+    Map.of("image.tag", "v2.0"),
+    false  // dryRun
+);
+----
+
+=== Listing and Querying Releases
+
+[source,java]
+----
+@Autowired
+private ListAction listAction;
+
+@Autowired
+private StatusAction statusAction;
+
+@Autowired
+private GetAction getAction;
+
+// List all releases in a namespace
+List<Release> releases = listAction.list("production");
+
+// Get release status
+Optional<Release> release = statusAction.status("my-release", "production");
+
+// Get resource readiness
+List<ResourceStatus> statuses = statusAction.getResourceStatuses(release.get());
+
+// Get release values, manifest, notes
+String values = getAction.getValues(release.get(), true);
+String manifest = getAction.getManifest(release.get());
+String notes = getAction.getNotes(release.get());
+----
+
+=== Chart Inspection
+
+[source,java]
+----
+@Autowired
+private ShowAction showAction;
+
+String chartYaml = showAction.showChart("/path/to/chart");
+String valuesYaml = showAction.showValues("/path/to/chart");
+String readme = showAction.showReadme("/path/to/chart");
+String crds = showAction.showCrds("/path/to/chart");
+String all = showAction.showAll("/path/to/chart");
+----
+
+=== Rollback
+
+[source,java]
+----
+@Autowired
+private RollbackAction rollbackAction;
+
+@Autowired
+private HistoryAction historyAction;
+
+// View release history
+List<Release> history = historyAction.history("my-release", "production");
+
+// Rollback to revision 2
+rollbackAction.rollback("my-release", "production", 2);
+----
+
+=== JSON Schema Validation
+
+The `Engine` automatically validates merged values against the chart's `values.schema.json` file during rendering. You can also use the `SchemaValidator` directly:
+
+[source,java]
+----
+@Autowired
+private SchemaValidator schemaValidator;
+
+String schema = """
+    {
+      "type": "object",
+      "required": ["replicaCount"],
+      "properties": {
+        "replicaCount": { "type": "integer", "minimum": 1 }
+      }
+    }
+    """;
+
+// Throws SchemaValidationException if values don't match
+schemaValidator.validate("my-chart", schema, Map.of("replicaCount", 3));
+----
+
+Supported Draft-07 constraints: `type`, `required`, `properties`, `enum`, `minimum`, `maximum`, `minLength`, `maxLength`, `pattern`.
+
+=== Template Caching
+
+Template caching is enabled by default and caches parsed template ASTs in an LRU cache. Configure it via properties:
+
+[source,yaml]
+----
+jhelm:
+  template-cache-enabled: true   # default
+  template-cache-max-size: 256   # default
+----
+
+Or disable caching:
+
+[source,yaml]
+----
+jhelm:
+  template-cache-enabled: false
+----
+
+=== Async Kubernetes Operations
+
+When `jhelm-kube` is on the classpath, the auto-configured `AsyncHelmKubeService` provides both synchronous and asynchronous methods. Async methods run on Java 21 virtual threads:
+
+[source,java]
+----
+@Autowired
+private AsyncKubeService kubeService;
+
+// Synchronous
+kubeService.apply("production", manifestYaml);
+
+// Asynchronous (returns CompletableFuture)
+CompletableFuture<Void> future = kubeService.applyAsync("production", manifestYaml);
+
+// Combine multiple async operations
+CompletableFuture.allOf(
+    kubeService.applyAsync("production", manifest1),
+    kubeService.applyAsync("production", manifest2)
+).join();
+
+// Async release queries
+CompletableFuture<List<Release>> releases =
+    kubeService.listReleasesAsync("production");
+----
+
+== Custom Bean Overrides
+
+All auto-configured beans are registered with `@ConditionalOnMissingBean`. You can replace any bean by defining your own:
+
+[source,java]
+----
+@Configuration
+public class CustomHelmConfig {
+
+    @Bean
+    public Engine engine() {
+        // Custom engine with no cache and no schema validation
+        return new Engine(null, null);
+    }
+
+    @Bean
+    public RepoManager repoManager() {
+        return new RepoManager("/custom/path/to/repositories.yaml");
+    }
+}
+----
+
+To provide a custom `KubeService` implementation (e.g., for testing):
+
+[source,java]
+----
+@Configuration
+public class TestKubeConfig {
+
+    @Bean
+    public KubeService kubeService() {
+        return new MyMockKubeService();
+    }
+}
+----
+
+This prevents `JhelmKubeAutoConfiguration` from creating the default `AsyncHelmKubeService`, while the core auto-configuration still registers all Kube-dependent actions using your custom implementation.

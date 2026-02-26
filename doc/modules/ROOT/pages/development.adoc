@@ -1,32 +1,34 @@
-# Development Guide
+= Development Guide
 
-## Building the Project
+== Building the Project
 
-```bash
+[source,bash]
+----
 ./mvnw clean install
-```
+----
 
-## Module Dependencies
+== Module Dependencies
 
-```
+----
 jhelm (parent)
 ├── jhelm-gotemplate (standalone template engine)
 ├── jhelm-core (depends on: jhelm-gotemplate)
 ├── jhelm-kube (depends on: jhelm-core)
 └── jhelm-app (depends on: jhelm-core, jhelm-kube)
-```
+----
 
-## Testing
+== Testing
 
-- **Unit Tests**: Each module has comprehensive unit tests.
-- **Integration Tests**: `KpsComparisonTest.java` compares output with native Helm.
-- **Template Tests**: `GoTemplateStandardTest.java`, `TemplateTest.java`.
+* *Unit Tests*: Each module has comprehensive unit tests.
+* *Integration Tests*: `KpsComparisonTest.java` compares output with native Helm.
+* *Template Tests*: `GoTemplateStandardTest.java`, `TemplateTest.java`.
 
-### Testing Guidelines
+=== Testing Guidelines
 
-**IMPORTANT**: Always run tests after making code changes to ensure they don't break existing functionality.
+IMPORTANT: Always run tests after making code changes to ensure they don't break existing functionality.
 
-```bash
+[source,bash]
+----
 # Run all tests
 ./mvnw test
 
@@ -38,29 +40,30 @@ jhelm (parent)
 
 # Run specific test method
 ./mvnw test -Dtest=KpsComparisonTest#testSimpleRendering -pl jhelm-core
-```
+----
 
 Before committing changes:
-1. Run relevant tests to verify your changes work
-2. Check that existing tests still pass
-3. Add new tests for new functionality
-4. Fix any test failures before pushing
 
-## Debugging Tips
+. Run relevant tests to verify your changes work
+. Check that existing tests still pass
+. Add new tests for new functionality
+. Fix any test failures before pushing
 
-- Enable detailed logging with `@Slf4j` annotations.
-- Check `test_output.txt` and `jhelm-core/test_output.txt` for test results.
-- Use `GoTemplateStandardTest` to verify template behavior.
-- Compare output with Helm using dry-run tests in `KpsComparisonTest`.
+== Debugging Tips
 
-## Common Operations
+* Enable detailed logging with `@Slf4j` annotations.
+* Check `test_output.txt` and `jhelm-core/test_output.txt` for test results.
+* Use `GoTemplateStandardTest` to verify template behavior.
+* Compare output with Helm using dry-run tests in `KpsComparisonTest`.
 
-### Adding a new template function
+== Common Operations
 
-1. Determine the appropriate category:
-    - **Helm functions**: Use `helm/conversion/`, `helm/template/`, `helm/kubernetes/`, or `helm/chart/`
-    - **Sprig functions**: Use `sprig/strings/`, `sprig/collections/`, `sprig/logic/`, or create new category
-2. Add function to the appropriate category class (e.g., `StringFunctions.java`)
-3. Function will be automatically registered via the coordinator (`HelmFunctions` or `SprigFunctionsRegistry`)
-4. Add tests in corresponding test class (e.g., `Helm4FunctionsTest.java`)
-5. Update `getFunctionCategories()` in the coordinator if adding a new category
+=== Adding a new template function
+
+. Determine the appropriate category:
+** *Helm functions*: Use `helm/conversion/`, `helm/template/`, `helm/kubernetes/`, or `helm/chart/`
+** *Sprig functions*: Use `sprig/strings/`, `sprig/collections/`, `sprig/logic/`, or create a new category
+. Add function to the appropriate category class (e.g., `StringFunctions.java`)
+. Function will be automatically registered via the coordinator (`HelmFunctions` or `SprigFunctionsRegistry`)
+. Add tests in corresponding test class (e.g., `Helm4FunctionsTest.java`)
+. Update `getFunctionCategories()` in the coordinator if adding a new category

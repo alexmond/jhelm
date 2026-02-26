@@ -1,27 +1,27 @@
-# Core Engine
+= Core Engine
 
-The core engine (jhelm-core) handles chart management and the rendering pipeline.
+The core engine (`jhelm-core`) handles chart management and the rendering pipeline.
 
-## Key Classes
+== Key Classes
 
-- `Engine.java` - Main rendering engine that orchestrates template processing
-- `Chart.java` - Represents a Helm chart with metadata and templates
-- `RepoManager.java` - Manages Helm chart repositories
+* `Engine.java` -- Main rendering engine that orchestrates template processing
+* `Chart.java` -- Represents a Helm chart with metadata and templates
+* `RepoManager.java` -- Manages Helm chart repositories
 
-## Rendering Pipeline
+== Rendering Pipeline
 
 The engine handles:
 
-- Named template collection and caching
-- Subchart rendering with recursion prevention
-- Value merging from chart defaults and user overrides
-- Template context management (Release, Chart, Values, Capabilities, etc.)
+* Named template collection and caching
+* Subchart rendering with recursion prevention
+* Value merging from chart defaults and user overrides
+* Template context management (Release, Chart, Values, Capabilities, etc.)
 
-## Implementation Details
+== Implementation Details
 
-1. **Template Rendering**: The `Engine` class creates a new `GoTemplate` for each render to avoid template accumulation.
-2. **Action Classes**: Logic for Helm operations is encapsulated in Action classes (e.g., `InstallAction`, `UpgradeAction`, `RollbackAction`, `TemplateAction`, `ShowAction`).
-3. **Recursion Protection**: Stack depth tracking prevents infinite template recursion.
-4. **Named Templates**: `define` blocks are collected before rendering begins.
-5. **Value Merging**: Chart values are merged with user-provided values and release info.
-6. **Error Handling**: Custom exceptions for parsing, execution, and not-found scenarios.
+. *Template Rendering*: The `Engine` class creates a new `GoTemplate` for each render to avoid template accumulation.
+. *Action Classes*: Logic for Helm operations is encapsulated in Action classes (e.g., `InstallAction`, `UpgradeAction`, `RollbackAction`, `TemplateAction`, `ShowAction`).
+. *Recursion Protection*: Stack depth tracking prevents infinite template recursion.
+. *Named Templates*: `define` blocks are collected before rendering begins.
+. *Value Merging*: Chart values are merged with user-provided values and release info.
+. *Error Handling*: Custom exceptions for parsing, execution, and not-found scenarios.
