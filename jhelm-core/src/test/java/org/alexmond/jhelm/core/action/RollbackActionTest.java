@@ -20,6 +20,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
+import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.HelmHook;
@@ -166,10 +167,10 @@ class RollbackActionTest {
 		Release v1 = Release.builder().name("myapp").version(1).build();
 		when(kubeService.getReleaseHistory(anyString(), anyString())).thenReturn(Arrays.asList(v1));
 
-		RuntimeException exception = assertThrows(RuntimeException.class,
+		ReleaseNotFoundException exception = assertThrows(ReleaseNotFoundException.class,
 				() -> rollbackAction.rollback("myapp", "default", 99));
 
-		assertTrue(exception.getMessage().contains("revision 99 not found"));
+		assertTrue(exception.getMessage().contains("Revision 99 not found"));
 	}
 
 }

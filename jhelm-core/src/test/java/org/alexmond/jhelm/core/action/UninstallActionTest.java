@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.anyString;
+import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -90,7 +91,7 @@ class UninstallActionTest {
 	void testUninstallThrowsWhenReleaseNotFound() throws Exception {
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.empty());
 
-		RuntimeException exception = assertThrows(RuntimeException.class,
+		ReleaseNotFoundException exception = assertThrows(ReleaseNotFoundException.class,
 				() -> uninstallAction.uninstall("non-existent", "default"));
 
 		assertTrue(exception.getMessage().contains("Release not found"));

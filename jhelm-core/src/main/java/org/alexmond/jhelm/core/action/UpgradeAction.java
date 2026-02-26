@@ -7,6 +7,8 @@ import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.exception.DeploymentFailedException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
@@ -18,6 +20,7 @@ import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
 
 @RequiredArgsConstructor
+@Slf4j
 public class UpgradeAction {
 
 	private final Engine engine;
@@ -74,12 +77,33 @@ public class UpgradeAction {
 			HookExecutor hookExecutor = new HookExecutor(kubeService);
 			hookExecutor.run(newRelease.getNamespace(), hooks, "pre-upgrade", 300);
 			kubeService.apply(newRelease.getNamespace(), regularManifest);
-			kubeService.storeRelease(newRelease);
+			try {
+				kubeService.storeRelease(newRelease);
+			}
+			catch (Exception ex) {
+				reapplyPreviousRelease(currentRelease);
+				throw new DeploymentFailedException("Failed to store release after apply; previous release re-applied",
+						ex, regularManifest);
+			}
 			hookExecutor.run(newRelease.getNamespace(), hooks, "post-upgrade", 300);
 			fireLifecycleEvent("post-upgrade", newRelease.getName(), newRelease.getNamespace());
 		}
 
 		return newRelease;
+	}
+
+	private void reapplyPreviousRelease(Release previousRelease) {
+		if (previousRelease.getManifest() == null) {
+			return;
+		}
+		try {
+			log.warn("Re-applying previous release {} v{}", previousRelease.getName(), previousRelease.getVersion());
+			String regularManifest = HookParser.stripHooks(previousRelease.getManifest());
+			kubeService.apply(previousRelease.getNamespace(), regularManifest);
+		}
+		catch (Exception rollbackEx) {
+			log.error("Failed to re-apply previous release: {}", rollbackEx.getMessage(), rollbackEx);
+		}
 	}
 
 	private void fireLifecycleEvent(String phase, String releaseName, String namespace) throws Exception {
