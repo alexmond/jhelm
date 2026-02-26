@@ -292,4 +292,218 @@ class DependencyResolverTest {
 		assertNull(subchart.getAlias(), "Alias should be null when dir name matches chart name");
 	}
 
+	@Test
+	void testConditionEvaluationNestedPath() throws IOException {
+		Dependency dep = Dependency.builder()
+			.name("postgresql")
+			.version("12.1.0")
+			.repository("oci://registry.example.com/charts")
+			.condition("config.postgresql.enabled")
+			.build();
+
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(List.of(dep))
+			.build();
+
+		Map<String, Object> values = new HashMap<>();
+		Map<String, Object> pgConfig = new HashMap<>();
+		pgConfig.put("enabled", true);
+		Map<String, Object> configMap = new HashMap<>();
+		configMap.put("postgresql", pgConfig);
+		values.put("config", configMap);
+
+		ChartLock lock = resolver.resolveDependencies(metadata, values, null);
+		assertEquals(1, lock.getDependencies().size(), "Nested condition should evaluate to true");
+	}
+
+	@Test
+	void testConditionEvaluationStringTrue() throws IOException {
+		Dependency dep = Dependency.builder()
+			.name("redis")
+			.version("17.0.0")
+			.repository("oci://registry.example.com/charts")
+			.condition("redis.enabled")
+			.build();
+
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(List.of(dep))
+			.build();
+
+		// String "true" should be parsed as boolean true
+		Map<String, Object> values = new HashMap<>();
+		values.put("redis", new HashMap<>(Map.of("enabled", "true")));
+
+		ChartLock lock = resolver.resolveDependencies(metadata, values, null);
+		assertEquals(1, lock.getDependencies().size(), "String 'true' should satisfy condition");
+	}
+
+	@Test
+	void testConditionEvaluationStringFalse() throws IOException {
+		Dependency dep = Dependency.builder()
+			.name("redis")
+			.version("17.0.0")
+			.repository("oci://registry.example.com/charts")
+			.condition("redis.enabled")
+			.build();
+
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(List.of(dep))
+			.build();
+
+		Map<String, Object> values = new HashMap<>();
+		values.put("redis", new HashMap<>(Map.of("enabled", "false")));
+
+		ChartLock lock = resolver.resolveDependencies(metadata, values, null);
+		assertTrue(lock.getDependencies().isEmpty(), "String 'false' should not satisfy condition");
+	}
+
+	@Test
+	void testFileDependencyPreservesVersion() throws IOException {
+		Dependency dep = Dependency.builder().name("common").version("1.0.0").repository("file://../common").build();
+
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(List.of(dep))
+			.build();
+
+		ChartLock lock = resolver.resolveDependencies(metadata, new HashMap<>(), null);
+		assertEquals(1, lock.getDependencies().size());
+		assertEquals("1.0.0", lock.getDependencies().get(0).getVersion());
+		assertEquals("file://../common", lock.getDependencies().get(0).getRepository());
+	}
+
+	@Test
+	void testRepositoryAliasStripsAtPrefix() throws IOException {
+		Dependency dep = Dependency.builder()
+			.name("nginx")
+			.version("13.0.0")
+			.repository("oci://registry.example.com/charts")
+			.build();
+
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(List.of(dep))
+			.build();
+
+		ChartLock lock = resolver.resolveDependencies(metadata, new HashMap<>(), null);
+		assertEquals(1, lock.getDependencies().size());
+		assertEquals("nginx", lock.getDependencies().get(0).getName());
+	}
+
+	@Test
+	void testDigestIsConsistentForSameInput() throws IOException {
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(Collections.emptyList())
+			.build();
+
+		ChartLock lock1 = resolver.resolveDependencies(metadata, new HashMap<>(), null);
+		ChartLock lock2 = resolver.resolveDependencies(metadata, new HashMap<>(), null);
+
+		assertEquals(lock1.getDigest(), lock2.getDigest(), "Same input should produce same digest");
+	}
+
+	@Test
+	void testNullValuesExcludesConditionedDependency() throws IOException {
+		Dependency dep = Dependency.builder()
+			.name("postgresql")
+			.version("12.1.0")
+			.repository("oci://registry.example.com/charts")
+			.condition("postgresql.enabled")
+			.build();
+
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(List.of(dep))
+			.build();
+
+		ChartLock lock = resolver.resolveDependencies(metadata, null, null);
+		assertTrue(lock.getDependencies().isEmpty(), "Null values should exclude conditioned dependency");
+	}
+
+	@Test
+	void testDependencyWithoutConditionOrTagsIsIncluded() throws IOException {
+		Dependency dep = Dependency.builder()
+			.name("redis")
+			.version("17.0.0")
+			.repository("oci://registry.example.com/charts")
+			.build();
+
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(List.of(dep))
+			.build();
+
+		ChartLock lock = resolver.resolveDependencies(metadata, new HashMap<>(), List.of("frontend"));
+		assertEquals(1, lock.getDependencies().size(), "Dep with no conditions/tags should always be included");
+	}
+
+	@Test
+	void testConditionWithEmptyString() throws IOException {
+		Dependency dep = Dependency.builder()
+			.name("redis")
+			.version("17.0.0")
+			.repository("oci://registry.example.com/charts")
+			.condition("")
+			.build();
+
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(List.of(dep))
+			.build();
+
+		ChartLock lock = resolver.resolveDependencies(metadata, new HashMap<>(), null);
+		assertEquals(1, lock.getDependencies().size(), "Empty condition should not filter dependency");
+	}
+
+	@Test
+	void testMultipleDependenciesMixedConditions() throws IOException {
+		Dependency enabledDep = Dependency.builder()
+			.name("redis")
+			.version("17.0.0")
+			.repository("oci://registry.example.com/charts")
+			.condition("redis.enabled")
+			.build();
+
+		Dependency disabledDep = Dependency.builder()
+			.name("postgresql")
+			.version("12.1.0")
+			.repository("oci://registry.example.com/charts")
+			.condition("postgresql.enabled")
+			.build();
+
+		Dependency unconditionalDep = Dependency.builder()
+			.name("common")
+			.version("1.0.0")
+			.repository("oci://registry.example.com/charts")
+			.build();
+
+		ChartMetadata metadata = ChartMetadata.builder()
+			.name("test-chart")
+			.version("1.0.0")
+			.dependencies(List.of(enabledDep, disabledDep, unconditionalDep))
+			.build();
+
+		Map<String, Object> values = new HashMap<>();
+		values.put("redis", new HashMap<>(Map.of("enabled", true)));
+		values.put("postgresql", new HashMap<>(Map.of("enabled", false)));
+
+		ChartLock lock = resolver.resolveDependencies(metadata, values, null);
+		assertEquals(2, lock.getDependencies().size());
+		assertEquals("redis", lock.getDependencies().get(0).getName());
+		assertEquals("common", lock.getDependencies().get(1).getName());
+	}
+
 }
