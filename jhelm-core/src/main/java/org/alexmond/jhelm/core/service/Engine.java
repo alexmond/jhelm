@@ -3,6 +3,7 @@ package org.alexmond.jhelm.core.service;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.cache.TemplateCache;
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 
@@ -23,15 +24,22 @@ public class Engine {
 
 	private final SchemaValidator schemaValidator;
 
+	private final JhelmMetrics metrics;
+
 	private GoTemplate factory;
 
 	public Engine() {
-		this(null, new SchemaValidator());
+		this(null, new SchemaValidator(), null);
 	}
 
 	public Engine(TemplateCache templateCache, SchemaValidator schemaValidator) {
+		this(templateCache, schemaValidator, null);
+	}
+
+	public Engine(TemplateCache templateCache, SchemaValidator schemaValidator, JhelmMetrics metrics) {
 		this.templateCache = templateCache;
 		this.schemaValidator = (schemaValidator != null) ? schemaValidator : new SchemaValidator();
+		this.metrics = metrics;
 	}
 
 	private void parseWithCache(String name, String text) throws Exception {
@@ -81,6 +89,18 @@ public class Engine {
 
 	@SneakyThrows
 	public String render(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
+		long startNanos = System.nanoTime();
+		try {
+			return doRender(chart, values, releaseInfo);
+		}
+		finally {
+			if (metrics != null) {
+				metrics.recordRender(System.nanoTime() - startNanos);
+			}
+		}
+	}
+
+	private String doRender(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
 		namedTemplates.clear();
 		// Create a new template for each render to avoid accumulation
 		this.factory = new GoTemplate();

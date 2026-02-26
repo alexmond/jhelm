@@ -4,12 +4,13 @@ import java.util.List;
 
 import org.alexmond.jhelm.core.cache.TemplateCache;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.beans.factory.ObjectProvider;
 import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.GetAction;
@@ -36,7 +37,7 @@ import org.alexmond.jhelm.core.service.SchemaValidator;
  * require a {@link KubeService} are only created when one is present in the application
  * context.
  */
-@AutoConfiguration
+@AutoConfiguration(after = JhelmMetricsAutoConfiguration.class)
 @EnableConfigurationProperties(JhelmCoreProperties.class)
 public class JhelmCoreAutoConfiguration {
 
@@ -62,8 +63,8 @@ public class JhelmCoreAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnProperty(name = "jhelm.template-cache-enabled", havingValue = "true", matchIfMissing = true)
-	public TemplateCache templateCache(JhelmCoreProperties props) {
-		return new TemplateCache(props.getTemplateCacheMaxSize());
+	public TemplateCache templateCache(JhelmCoreProperties props, ObjectProvider<JhelmMetrics> metrics) {
+		return new TemplateCache(props.getTemplateCacheMaxSize(), metrics.getIfAvailable());
 	}
 
 	@Bean
@@ -74,8 +75,9 @@ public class JhelmCoreAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public Engine engine(ObjectProvider<TemplateCache> templateCache, SchemaValidator schemaValidator) {
-		return new Engine(templateCache.getIfAvailable(), schemaValidator);
+	public Engine engine(ObjectProvider<TemplateCache> templateCache, SchemaValidator schemaValidator,
+			ObjectProvider<JhelmMetrics> metrics) {
+		return new Engine(templateCache.getIfAvailable(), schemaValidator, metrics.getIfAvailable());
 	}
 
 	@Bean

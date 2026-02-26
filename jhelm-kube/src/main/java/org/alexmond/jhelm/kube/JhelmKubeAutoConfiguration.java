@@ -7,10 +7,13 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
 import io.kubernetes.client.util.KubeConfig;
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
 import org.alexmond.jhelm.kube.service.AsyncHelmKubeService;
+import org.alexmond.jhelm.kube.service.ObservableKubeService;
 import org.alexmond.jhelm.kube.service.RetryableKubeService;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -23,10 +26,13 @@ import org.springframework.retry.support.RetryTemplate;
  * Auto-configuration for the jhelm Kubernetes integration module. Registers an
  * {@link ApiClient} and a {@link KubeService} implementation. When retry is enabled (the
  * default), the service is wrapped with {@link RetryableKubeService} for transient
- * failure recovery. Runs before {@link JhelmCoreAutoConfiguration} so that the
- * {@link KubeService} bean is available for its {@code @ConditionalOnBean} checks.
+ * failure recovery. When a {@link JhelmMetrics} bean is available, the service is further
+ * wrapped with {@link ObservableKubeService} for operation timing and counting. Runs
+ * before {@link JhelmCoreAutoConfiguration} so that the {@link KubeService} bean is
+ * available for its {@code @ConditionalOnBean} checks.
  */
-@AutoConfiguration(before = JhelmCoreAutoConfiguration.class)
+@AutoConfiguration(before = JhelmCoreAutoConfiguration.class,
+		after = org.alexmond.jhelm.core.JhelmMetricsAutoConfiguration.class)
 @EnableConfigurationProperties(JhelmKubernetesProperties.class)
 public class JhelmKubeAutoConfiguration {
 
@@ -41,13 +47,19 @@ public class JhelmKubeAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean(KubeService.class)
-	public KubeService kubeService(ApiClient apiClient, JhelmKubernetesProperties props) {
+	public KubeService kubeService(ApiClient apiClient, JhelmKubernetesProperties props,
+			ObjectProvider<JhelmMetrics> metricsProvider) {
 		AsyncHelmKubeService base = new AsyncHelmKubeService(apiClient);
+		KubeService service = base;
 		JhelmKubernetesProperties.Retry retryConfig = props.getRetry();
 		if (retryConfig.isEnabled()) {
-			return new RetryableKubeService(base, buildRetryTemplate(retryConfig));
+			service = new RetryableKubeService(base, buildRetryTemplate(retryConfig));
 		}
-		return base;
+		JhelmMetrics metrics = metricsProvider.getIfAvailable();
+		if (metrics != null) {
+			service = new ObservableKubeService(service, metrics);
+		}
+		return service;
 	}
 
 	private RetryTemplate buildRetryTemplate(JhelmKubernetesProperties.Retry config) {
