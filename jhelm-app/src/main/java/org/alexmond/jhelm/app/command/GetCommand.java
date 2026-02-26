@@ -10,7 +10,8 @@ import java.util.Map;
 import java.util.Optional;
 
 @Component
-@CommandLine.Command(name = "get", description = "Download extended information of a named release",
+@CommandLine.Command(name = "get", mixinStandardHelpOptions = true,
+		description = "Download extended information of a named release",
 		subcommands = { GetCommand.ValuesCommand.class, GetCommand.ManifestCommand.class, GetCommand.NotesCommand.class,
 				GetCommand.HooksCommand.class, GetCommand.MetadataCommand.class, GetCommand.AllCommand.class })
 @Slf4j
@@ -30,7 +31,8 @@ public class GetCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "values", description = "Download the values file for a named release")
+	@CommandLine.Command(name = "values", mixinStandardHelpOptions = true,
+			description = "Download the values file for a named release")
 	@Slf4j
 	public static class ValuesCommand implements Runnable {
 
@@ -88,7 +90,8 @@ public class GetCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "manifest", description = "Download the manifest for a named release")
+	@CommandLine.Command(name = "manifest", mixinStandardHelpOptions = true,
+			description = "Download the manifest for a named release")
 	@Slf4j
 	public static class ManifestCommand implements Runnable {
 
@@ -126,7 +129,8 @@ public class GetCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "notes", description = "Download the notes for a named release")
+	@CommandLine.Command(name = "notes", mixinStandardHelpOptions = true,
+			description = "Download the notes for a named release")
 	@Slf4j
 	public static class NotesCommand implements Runnable {
 
@@ -170,7 +174,8 @@ public class GetCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "hooks", description = "Download all hooks for a named release")
+	@CommandLine.Command(name = "hooks", mixinStandardHelpOptions = true,
+			description = "Download all hooks for a named release")
 	@Slf4j
 	public static class HooksCommand implements Runnable {
 
@@ -214,7 +219,8 @@ public class GetCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "metadata", description = "Download the metadata for a named release")
+	@CommandLine.Command(name = "metadata", mixinStandardHelpOptions = true,
+			description = "Download the metadata for a named release")
 	@Slf4j
 	public static class MetadataCommand implements Runnable {
 
@@ -262,7 +268,8 @@ public class GetCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "all", description = "Download all information for a named release")
+	@CommandLine.Command(name = "all", mixinStandardHelpOptions = true,
+			description = "Download all information for a named release")
 	@Slf4j
 	public static class AllCommand implements Runnable {
 

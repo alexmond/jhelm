@@ -18,7 +18,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
 @Component
-@CommandLine.Command(name = "install", description = "install a chart")
+@CommandLine.Command(name = "install", mixinStandardHelpOptions = true, description = "Install a chart")
 @Slf4j
 public class InstallCommand implements Runnable {
 

@@ -11,7 +11,8 @@ import java.nio.file.Paths;
 
 @Slf4j
 @Component
-@CommandLine.Command(name = "create", description = "Create a new chart with the given name")
+@CommandLine.Command(name = "create", mixinStandardHelpOptions = true,
+		description = "Create a new chart with the given name")
 public class CreateCommand implements Runnable {
 
 	private final CreateAction createAction;

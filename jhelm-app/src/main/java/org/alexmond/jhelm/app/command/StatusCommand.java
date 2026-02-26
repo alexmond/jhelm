@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.Optional;
 
 @Component
-@CommandLine.Command(name = "status", description = "display the status of the named release")
+@CommandLine.Command(name = "status", mixinStandardHelpOptions = true,
+		description = "Display the status of the named release")
 @Slf4j
 public class StatusCommand implements Runnable {
 

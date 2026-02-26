@@ -13,7 +13,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
 @Component
-@CommandLine.Command(name = "template", description = "locally render templates")
+@CommandLine.Command(name = "template", mixinStandardHelpOptions = true, description = "Locally render templates")
 @Slf4j
 public class TemplateCommand implements Runnable {
 

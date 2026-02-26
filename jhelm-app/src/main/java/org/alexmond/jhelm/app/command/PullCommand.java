@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 @Component
-@CommandLine.Command(name = "pull", description = "download a chart from a repository")
+@CommandLine.Command(name = "pull", mixinStandardHelpOptions = true, description = "Download a chart from a repository")
 @Slf4j
 public class PullCommand implements Runnable {
 

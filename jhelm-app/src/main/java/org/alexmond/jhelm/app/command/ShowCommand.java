@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 @Component
-@CommandLine.Command(name = "show", description = "Show information about a chart",
+@CommandLine.Command(name = "show", mixinStandardHelpOptions = true, description = "Show information about a chart",
 		subcommands = { ShowCommand.ChartCommand.class, ShowCommand.ValuesCommand.class,
 				ShowCommand.ReadmeCommand.class, ShowCommand.CrdsCommand.class, ShowCommand.AllCommand.class })
 @Slf4j
@@ -18,7 +18,7 @@ public class ShowCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "chart", description = "Show the chart's Chart.yaml")
+	@CommandLine.Command(name = "chart", mixinStandardHelpOptions = true, description = "Show the chart's Chart.yaml")
 	@Slf4j
 	public static class ChartCommand implements Runnable {
 
@@ -44,7 +44,7 @@ public class ShowCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "values", description = "Show the chart's values.yaml")
+	@CommandLine.Command(name = "values", mixinStandardHelpOptions = true, description = "Show the chart's values.yaml")
 	@Slf4j
 	public static class ValuesCommand implements Runnable {
 
@@ -70,7 +70,7 @@ public class ShowCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "readme", description = "Show the chart's README")
+	@CommandLine.Command(name = "readme", mixinStandardHelpOptions = true, description = "Show the chart's README")
 	@Slf4j
 	public static class ReadmeCommand implements Runnable {
 
@@ -101,7 +101,8 @@ public class ShowCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "crds", description = "Show the chart's Custom Resource Definitions")
+	@CommandLine.Command(name = "crds", mixinStandardHelpOptions = true,
+			description = "Show the chart's Custom Resource Definitions")
 	@Slf4j
 	public static class CrdsCommand implements Runnable {
 
@@ -132,7 +133,8 @@ public class ShowCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "all", description = "Show all information about the chart")
+	@CommandLine.Command(name = "all", mixinStandardHelpOptions = true,
+			description = "Show all information about the chart")
 	@Slf4j
 	public static class AllCommand implements Runnable {
 

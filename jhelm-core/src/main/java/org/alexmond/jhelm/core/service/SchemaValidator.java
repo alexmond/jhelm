@@ -7,6 +7,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.exception.SchemaValidationException;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -31,10 +32,10 @@ public class SchemaValidator {
 	 * @param chartName chart name used in error messages
 	 * @param schemaJson raw JSON content of {@code values.schema.json}, or {@code null}
 	 * @param values merged values to validate
-	 * @throws SchemaValidationException if any constraint is violated
+	 * @throws org.alexmond.jhelm.core.exception.SchemaValidationException if any
+	 * constraint is violated
 	 */
-	public void validate(String chartName, String schemaJson, Map<String, Object> values)
-			throws SchemaValidationException {
+	public void validate(String chartName, String schemaJson, Map<String, Object> values) {
 		if (schemaJson == null || schemaJson.isBlank()) {
 			return;
 		}

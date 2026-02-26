@@ -8,7 +8,8 @@ import picocli.CommandLine;
 import java.io.IOException;
 
 @Component
-@CommandLine.Command(name = "registry", description = "login to or logout from a registry",
+@CommandLine.Command(name = "registry", mixinStandardHelpOptions = true,
+		description = "Login to or logout from a registry",
 		subcommands = { RegistryCommand.LoginCommand.class, RegistryCommand.LogoutCommand.class })
 @Slf4j
 public class RegistryCommand implements Runnable {
@@ -19,7 +20,7 @@ public class RegistryCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "login", description = "login to a registry")
+	@CommandLine.Command(name = "login", mixinStandardHelpOptions = true, description = "Login to a registry")
 	@Slf4j
 	public static class LoginCommand implements Runnable {
 
@@ -52,7 +53,7 @@ public class RegistryCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "logout", description = "logout from a registry")
+	@CommandLine.Command(name = "logout", mixinStandardHelpOptions = true, description = "Logout from a registry")
 	@Slf4j
 	public static class LogoutCommand implements Runnable {
 

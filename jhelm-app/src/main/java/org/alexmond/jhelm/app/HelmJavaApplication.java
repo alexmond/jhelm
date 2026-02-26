@@ -27,7 +27,9 @@ public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator
 
 	@Override
 	public void run(String... args) {
-		exitCode = new CommandLine(jHelmCommand, factory).execute(args);
+		CommandLine cmd = new CommandLine(jHelmCommand, factory);
+		cmd.setUsageHelpWidth(120);
+		exitCode = cmd.execute(args);
 	}
 
 	@Override

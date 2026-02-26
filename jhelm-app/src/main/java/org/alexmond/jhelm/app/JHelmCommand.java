@@ -6,6 +6,7 @@ import org.alexmond.jhelm.app.command.GetCommand;
 import org.alexmond.jhelm.app.command.HistoryCommand;
 import org.alexmond.jhelm.app.command.InstallCommand;
 import org.alexmond.jhelm.app.command.ListCommand;
+import org.alexmond.jhelm.app.command.PluginCommand;
 import org.alexmond.jhelm.app.command.PullCommand;
 import org.alexmond.jhelm.app.command.PushCommand;
 import org.alexmond.jhelm.app.command.RegistryCommand;
@@ -14,7 +15,6 @@ import org.alexmond.jhelm.app.command.RollbackCommand;
 import org.alexmond.jhelm.app.command.ShowCommand;
 import org.alexmond.jhelm.app.command.StatusCommand;
 import org.alexmond.jhelm.app.command.TemplateCommand;
-import org.alexmond.jhelm.app.command.PluginCommand;
 import org.alexmond.jhelm.app.command.UninstallCommand;
 import org.alexmond.jhelm.app.command.UpgradeCommand;
 import org.springframework.stereotype.Component;
@@ -22,11 +22,17 @@ import picocli.CommandLine;
 
 @Component
 @CommandLine.Command(name = "jhelm", mixinStandardHelpOptions = true, version = "jhelm 0.0.1",
-		description = "A Spring Boot based implementation of Helm-like functionality in Java.",
-		subcommands = { CreateCommand.class, RepoCommand.class, RegistryCommand.class, TemplateCommand.class,
-				InstallCommand.class, UpgradeCommand.class, UninstallCommand.class, ListCommand.class,
-				HistoryCommand.class, StatusCommand.class, RollbackCommand.class, ShowCommand.class, GetCommand.class,
-				DependencyCommand.class, PullCommand.class, PushCommand.class, PluginCommand.class })
+		header = { "", "The Java Kubernetes package manager", "" },
+		description = { "%nCommon actions for jhelm:%n", "  - jhelm search:    search for charts in repositories",
+				"  - jhelm pull:      download a chart to your local directory",
+				"  - jhelm install:   install a chart into a Kubernetes cluster",
+				"  - jhelm list:      list releases of charts", "" },
+		synopsisHeading = "%nUsage: ", commandListHeading = "%nAvailable Commands:%n", optionListHeading = "%nFlags:%n",
+		footer = { "", "Use \"jhelm [command] --help\" for more information about a command." },
+		subcommands = { CreateCommand.class, TemplateCommand.class, InstallCommand.class, UpgradeCommand.class,
+				UninstallCommand.class, ListCommand.class, StatusCommand.class, HistoryCommand.class,
+				RollbackCommand.class, ShowCommand.class, GetCommand.class, DependencyCommand.class, PullCommand.class,
+				PushCommand.class, RepoCommand.class, RegistryCommand.class, PluginCommand.class })
 public class JHelmCommand implements Runnable {
 
 	@Override

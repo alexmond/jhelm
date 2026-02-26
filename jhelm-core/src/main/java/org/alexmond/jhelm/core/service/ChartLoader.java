@@ -20,7 +20,7 @@ public class ChartLoader {
 
 	private final YAMLMapper yamlMapper = YAMLMapper.builder().build();
 
-	public Chart load(File chartDir) throws IOException, ChartLoadException {
+	public Chart load(File chartDir) throws IOException {
 		if (!chartDir.exists() || !chartDir.isDirectory()) {
 			throw new ChartLoadException("Chart directory does not exist", chartDir.getPath(),
 					"Verify the path is correct and points to a valid Helm chart directory");

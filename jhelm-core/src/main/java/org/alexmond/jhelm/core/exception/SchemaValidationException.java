@@ -1,26 +1,21 @@
-package org.alexmond.jhelm.core.service;
+package org.alexmond.jhelm.core.exception;
 
 import java.util.List;
+
+import lombok.Getter;
 
 /**
  * Thrown when user-supplied values fail JSON Schema validation against a chart's
  * {@code values.schema.json}.
  */
-public class SchemaValidationException extends Exception {
+@Getter
+public class SchemaValidationException extends JhelmException {
 
 	private final List<String> validationErrors;
 
 	public SchemaValidationException(String chartName, List<String> errors) {
 		super(buildMessage(chartName, errors));
 		this.validationErrors = List.copyOf(errors);
-	}
-
-	/**
-	 * Returns the individual validation error messages.
-	 * @return unmodifiable list of error messages
-	 */
-	public List<String> getValidationErrors() {
-		return validationErrors;
 	}
 
 	private static String buildMessage(String chartName, List<String> errors) {

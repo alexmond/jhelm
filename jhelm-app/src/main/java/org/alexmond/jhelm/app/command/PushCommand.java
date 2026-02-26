@@ -6,7 +6,8 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 @Component
-@CommandLine.Command(name = "push", description = "push a chart to a remote OCI registry")
+@CommandLine.Command(name = "push", mixinStandardHelpOptions = true,
+		description = "Push a chart to a remote OCI registry")
 @Slf4j
 public class PushCommand implements Runnable {
 

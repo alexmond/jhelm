@@ -29,7 +29,8 @@ import java.util.HashSet;
  * </ul>
  */
 @Component
-@CommandLine.Command(name = "dependency", description = "Manage a chart's dependencies",
+@CommandLine.Command(name = "dependency", mixinStandardHelpOptions = true,
+		description = "Manage a chart's dependencies",
 		subcommands = { DependencyCommand.ListCommand.class, DependencyCommand.UpdateCommand.class,
 				DependencyCommand.BuildCommand.class })
 @Slf4j
@@ -46,7 +47,8 @@ public class DependencyCommand implements Runnable {
 	 * Lists the dependencies for the chart, showing their status.
 	 */
 	@Component
-	@CommandLine.Command(name = "list", description = "List the dependencies for the given chart")
+	@CommandLine.Command(name = "list", mixinStandardHelpOptions = true,
+			description = "List the dependencies for the given chart")
 	@Slf4j
 	public static class ListCommand implements Runnable {
 
@@ -149,7 +151,8 @@ public class DependencyCommand implements Runnable {
 	 * constraints and generating Chart.lock.
 	 */
 	@Component
-	@CommandLine.Command(name = "update", description = "Update charts/ based on the contents of Chart.yaml")
+	@CommandLine.Command(name = "update", mixinStandardHelpOptions = true,
+			description = "Update charts/ based on the contents of Chart.yaml")
 	@Slf4j
 	public static class UpdateCommand implements Runnable {
 
@@ -247,7 +250,8 @@ public class DependencyCommand implements Runnable {
 	 * Rebuilds the charts/ directory from Chart.lock.
 	 */
 	@Component
-	@CommandLine.Command(name = "build", description = "Rebuild the charts/ directory based on Chart.lock")
+	@CommandLine.Command(name = "build", mixinStandardHelpOptions = true,
+			description = "Rebuild the charts/ directory based on Chart.lock")
 	@Slf4j
 	public static class BuildCommand implements Runnable {
 
