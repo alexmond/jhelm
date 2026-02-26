@@ -3,6 +3,7 @@ package org.alexmond.jhelm.core.service;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.cache.TemplateCache;
+import org.alexmond.jhelm.core.exception.SchemaValidationException;
 import org.alexmond.jhelm.core.exception.TemplateRenderException;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.gotemplate.GoTemplate;

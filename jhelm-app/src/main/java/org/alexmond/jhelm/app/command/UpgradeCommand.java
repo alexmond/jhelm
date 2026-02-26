@@ -20,7 +20,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
 @Component
-@CommandLine.Command(name = "upgrade", description = "upgrade a release")
+@CommandLine.Command(name = "upgrade", mixinStandardHelpOptions = true, description = "Upgrade a release")
 @Slf4j
 public class UpgradeCommand implements Runnable {
 

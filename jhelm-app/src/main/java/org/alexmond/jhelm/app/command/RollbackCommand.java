@@ -6,7 +6,8 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 @Component
-@CommandLine.Command(name = "rollback", description = "roll back a release to a previous revision")
+@CommandLine.Command(name = "rollback", mixinStandardHelpOptions = true,
+		description = "Roll back a release to a previous revision")
 @Slf4j
 public class RollbackCommand implements Runnable {
 

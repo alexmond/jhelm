@@ -9,7 +9,7 @@ import picocli.CommandLine;
 import java.io.IOException;
 
 @Component
-@CommandLine.Command(name = "repo", description = "manage a chart's repositories",
+@CommandLine.Command(name = "repo", mixinStandardHelpOptions = true, description = "Manage chart repositories",
 		subcommands = { RepoCommand.AddCommand.class, RepoCommand.ListCommand.class, RepoCommand.RemoveCommand.class,
 				RepoCommand.SearchCommand.class })
 @Slf4j
@@ -21,7 +21,7 @@ public class RepoCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "add", description = "add a chart repository")
+	@CommandLine.Command(name = "add", mixinStandardHelpOptions = true, description = "Add a chart repository")
 	@Slf4j
 	public static class AddCommand implements Runnable {
 
@@ -51,7 +51,7 @@ public class RepoCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "list", description = "list chart repositories")
+	@CommandLine.Command(name = "list", mixinStandardHelpOptions = true, description = "List chart repositories")
 	@Slf4j
 	public static class ListCommand implements Runnable {
 
@@ -78,7 +78,8 @@ public class RepoCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "remove", description = "remove one or more chart repositories")
+	@CommandLine.Command(name = "remove", mixinStandardHelpOptions = true,
+			description = "Remove one or more chart repositories")
 	@Slf4j
 	public static class RemoveCommand implements Runnable {
 
@@ -105,8 +106,8 @@ public class RepoCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "search",
-			description = "search the added repositories for a chart (supports repo/chart); use --versions to show all versions like Helm)")
+	@CommandLine.Command(name = "search", mixinStandardHelpOptions = true,
+			description = "Search the added repositories for a chart")
 	@Slf4j
 	public static class SearchCommand implements Runnable {
 

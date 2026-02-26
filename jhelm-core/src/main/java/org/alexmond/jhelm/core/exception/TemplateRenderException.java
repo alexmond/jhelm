@@ -8,7 +8,7 @@ import lombok.Getter;
  * the error.
  */
 @Getter
-public class TemplateRenderException extends RuntimeException {
+public class TemplateRenderException extends JhelmException {
 
 	private final String chartName;
 

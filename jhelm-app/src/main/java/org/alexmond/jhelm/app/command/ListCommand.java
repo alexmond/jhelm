@@ -9,7 +9,7 @@ import picocli.CommandLine;
 import java.util.List;
 
 @Component
-@CommandLine.Command(name = "list", description = "list releases")
+@CommandLine.Command(name = "list", mixinStandardHelpOptions = true, description = "List releases")
 @Slf4j
 public class ListCommand implements Runnable {
 

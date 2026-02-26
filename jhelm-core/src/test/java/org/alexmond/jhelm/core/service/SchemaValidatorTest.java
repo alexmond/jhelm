@@ -2,6 +2,7 @@ package org.alexmond.jhelm.core.service;
 
 import java.util.Map;
 
+import org.alexmond.jhelm.core.exception.SchemaValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

@@ -9,7 +9,7 @@ import picocli.CommandLine;
 import java.util.List;
 
 @Component
-@CommandLine.Command(name = "history", description = "fetch release history")
+@CommandLine.Command(name = "history", mixinStandardHelpOptions = true, description = "Fetch release history")
 @Slf4j
 public class HistoryCommand implements Runnable {
 

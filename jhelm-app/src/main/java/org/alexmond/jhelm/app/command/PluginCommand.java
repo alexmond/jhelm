@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 @Component
-@CommandLine.Command(name = "plugin", description = "Manage plugins",
+@CommandLine.Command(name = "plugin", mixinStandardHelpOptions = true, description = "Manage plugins",
 		subcommands = { PluginCommand.Install.class, PluginCommand.Uninstall.class, PluginCommand.ListPlugins.class })
 public class PluginCommand implements Runnable {
 
@@ -20,7 +20,8 @@ public class PluginCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "install", description = "Install a plugin from a .jhp archive")
+	@CommandLine.Command(name = "install", mixinStandardHelpOptions = true,
+			description = "Install a plugin from a .jhp archive")
 	public static class Install implements Runnable {
 
 		@CommandLine.Parameters(index = "0", description = "Path to plugin archive (.jhp)")
@@ -52,7 +53,7 @@ public class PluginCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "uninstall", description = "Uninstall a plugin")
+	@CommandLine.Command(name = "uninstall", mixinStandardHelpOptions = true, description = "Uninstall a plugin")
 	public static class Uninstall implements Runnable {
 
 		@CommandLine.Parameters(index = "0", description = "Plugin name")
@@ -83,7 +84,7 @@ public class PluginCommand implements Runnable {
 	}
 
 	@Component
-	@CommandLine.Command(name = "list", description = "List installed plugins")
+	@CommandLine.Command(name = "list", mixinStandardHelpOptions = true, description = "List installed plugins")
 	public static class ListPlugins implements Runnable {
 
 		private final ObjectProvider<PluginManager> pluginManagerProvider;

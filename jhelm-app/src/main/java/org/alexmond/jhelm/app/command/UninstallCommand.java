@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 @Component
-@CommandLine.Command(name = "uninstall", description = "uninstall a release")
+@CommandLine.Command(name = "uninstall", mixinStandardHelpOptions = true, description = "Uninstall a release")
 @Slf4j
 public class UninstallCommand implements Runnable {
 
