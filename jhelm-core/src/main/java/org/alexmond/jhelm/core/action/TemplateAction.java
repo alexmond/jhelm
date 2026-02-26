@@ -1,18 +1,25 @@
 package org.alexmond.jhelm.core.action;
 
-import lombok.RequiredArgsConstructor;
 import java.io.File;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
+import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.util.ValuesLoader;
 
 @RequiredArgsConstructor
 public class TemplateAction {
 
 	private final Engine engine;
+
+	@Setter
+	private List<PostRenderProcessor> postRenderProcessors = List.of();
 
 	public String render(String chartPath, String releaseName, String namespace) throws Exception {
 		return render(chartPath, releaseName, namespace, new HashMap<>());
@@ -34,7 +41,13 @@ public class TemplateAction {
 		releaseData.put("IsUpgrade", false);
 		releaseData.put("Revision", 1);
 
-		return engine.render(chart, values, releaseData);
+		String manifest = engine.render(chart, values, releaseData);
+
+		for (PostRenderProcessor processor : postRenderProcessors) {
+			manifest = processor.process(manifest);
+		}
+
+		return manifest;
 	}
 
 }

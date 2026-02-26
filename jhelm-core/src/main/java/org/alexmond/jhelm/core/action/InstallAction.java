@@ -6,11 +6,14 @@ import java.util.List;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.service.LifecycleListener;
+import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
 
@@ -20,6 +23,12 @@ public class InstallAction {
 	private final Engine engine;
 
 	private final KubeService kubeService;
+
+	@Setter
+	private List<PostRenderProcessor> postRenderProcessors = List.of();
+
+	@Setter
+	private List<LifecycleListener> lifecycleListeners = List.of();
 
 	public Release install(Chart chart, String releaseName, String namespace, Map<String, Object> overrideValues,
 			int version, boolean dryRun) throws Exception {
@@ -53,9 +62,14 @@ public class InstallAction {
 
 		String manifest = engine.render(chart, values, releaseData);
 
+		for (PostRenderProcessor processor : postRenderProcessors) {
+			manifest = processor.process(manifest);
+		}
+
 		release.setManifest(manifest);
 
 		if (kubeService != null && !dryRun) {
+			fireLifecycleEvent("pre-install", releaseName, namespace);
 			List<HelmHook> hooks = HookParser.parseHooks(manifest);
 			String regularManifest = HookParser.stripHooks(manifest);
 			HookExecutor hookExecutor = new HookExecutor(kubeService);
@@ -63,9 +77,16 @@ public class InstallAction {
 			kubeService.apply(namespace, regularManifest);
 			kubeService.storeRelease(release);
 			hookExecutor.run(namespace, hooks, "post-install", 300);
+			fireLifecycleEvent("post-install", releaseName, namespace);
 		}
 
 		return release;
+	}
+
+	private void fireLifecycleEvent(String phase, String releaseName, String namespace) throws Exception {
+		for (LifecycleListener listener : lifecycleListeners) {
+			listener.onEvent(phase, releaseName, namespace, Map.of());
+		}
 	}
 
 }
