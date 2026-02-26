@@ -138,17 +138,17 @@ class KpsComparisonTest {
 
 	@ParameterizedTest
 	@CsvFileSource(resources = "/single.csv")
-	void compareSingleChart(String chartName, String repoId, String repoUrl) throws IOException {
+	void compareSingleChart(String chartName, String repoId, String repoUrl) throws Exception {
 		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
 	}
 
 	@ParameterizedTest
 	@CsvFileSource(resources = "/charts.csv")
-	void compareAllTopCharts(String chartName, String repoId, String repoUrl) throws IOException {
+	void compareAllTopCharts(String chartName, String repoId, String repoUrl) throws Exception {
 		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
 	}
 
-	private void compareChart(String chartName, String releaseName, String repoId, String repoUrl) throws IOException {
+	private void compareChart(String chartName, String releaseName, String repoId, String repoUrl) throws Exception {
 		// No charts skipped anymore
 
 		File chartDir = findChartDir(chartName);
@@ -350,7 +350,7 @@ class KpsComparisonTest {
 		}
 	}
 
-	private java.util.List<JsonNode> parseYamlDocuments(String yaml) throws IOException {
+	private java.util.List<JsonNode> parseYamlDocuments(String yaml) throws Exception {
 		java.util.List<JsonNode> docs = new java.util.ArrayList<>();
 		YAMLMapper yamlMapper = YAMLMapper.builder().build();
 
@@ -438,7 +438,7 @@ class KpsComparisonTest {
 		return null;
 	}
 
-	private void addHelmRepo(String repoId, String repoUrl) throws IOException {
+	private void addHelmRepo(String repoId, String repoUrl) throws Exception {
 		if (addedRepos.contains(repoId)) {
 			log.debug("Repo {} already added in this session, skipping", repoId);
 			return;
@@ -466,7 +466,7 @@ class KpsComparisonTest {
 		addedRepos.add(repoId);
 	}
 
-	private void fetchFromHelmRepo(String chartName) throws IOException {
+	private void fetchFromHelmRepo(String chartName) throws Exception {
 		log.info("Fetching chart {} via RepoManager...", chartName);
 		File tempDir = new File("target/temp-charts");
 		tempDir.mkdirs();
@@ -546,7 +546,7 @@ class KpsComparisonTest {
 		repoManager.untar(new File(testChartsDir, fileName), testChartsDir);
 	}
 
-	private JsonNode callApi(String urlString) throws IOException {
+	private JsonNode callApi(String urlString) throws Exception {
 		URL url = URI.create(urlString).toURL();
 		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 		if (conn instanceof HttpsURLConnection httpsConn) {

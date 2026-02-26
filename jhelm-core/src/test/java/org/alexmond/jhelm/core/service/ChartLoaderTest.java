@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.alexmond.jhelm.core.exception.ChartLoadException;
 import org.alexmond.jhelm.core.model.Chart;
 
 class ChartLoaderTest {
@@ -29,7 +29,7 @@ class ChartLoaderTest {
 	}
 
 	@Test
-	void testLoadChartWithReadme() throws IOException {
+	void testLoadChartWithReadme() throws Exception {
 		// Create a minimal chart with README
 		Path chartDir = tempDir.resolve("test-chart");
 		Files.createDirectories(chartDir);
@@ -79,7 +79,7 @@ class ChartLoaderTest {
 	}
 
 	@Test
-	void testLoadChartWithCrds() throws IOException {
+	void testLoadChartWithCrds() throws Exception {
 		// Create a minimal chart with CRDs
 		Path chartDir = tempDir.resolve("test-chart-crds");
 		Files.createDirectories(chartDir);
@@ -167,7 +167,7 @@ class ChartLoaderTest {
 	}
 
 	@Test
-	void testLoadChartWithoutReadme() throws IOException {
+	void testLoadChartWithoutReadme() throws Exception {
 		// Create a minimal chart without README
 		Path chartDir = tempDir.resolve("test-chart-no-readme");
 		Files.createDirectories(chartDir);
@@ -197,7 +197,7 @@ class ChartLoaderTest {
 	}
 
 	@Test
-	void testLoadChartWithoutCrds() throws IOException {
+	void testLoadChartWithoutCrds() throws Exception {
 		// Create a minimal chart without CRDs
 		Path chartDir = tempDir.resolve("test-chart-no-crds");
 		Files.createDirectories(chartDir);
@@ -228,7 +228,7 @@ class ChartLoaderTest {
 	}
 
 	@Test
-	void testLoadChartWithEverything() throws IOException {
+	void testLoadChartWithEverything() throws Exception {
 		// Create a complete chart with README, CRDs, templates, and values
 		Path chartDir = tempDir.resolve("complete-chart");
 		Files.createDirectories(chartDir);
@@ -292,19 +292,24 @@ class ChartLoaderTest {
 	@Test
 	void testLoadNonExistentChartThrowsException() {
 		File nonExistentDir = new File("/nonexistent/path");
-		assertThrows(IllegalArgumentException.class, () -> chartLoader.load(nonExistentDir));
+		ChartLoadException ex = assertThrows(ChartLoadException.class, () -> chartLoader.load(nonExistentDir));
+		assertNotNull(ex.getChartPath());
+		assertNotNull(ex.getSuggestion());
+		assertTrue(ex.getMessage().contains("does not exist"));
 	}
 
 	@Test
-	void testLoadChartWithoutChartYamlThrowsException() throws IOException {
+	void testLoadChartWithoutChartYamlThrowsException() throws Exception {
 		Path chartDir = tempDir.resolve("no-chart-yaml");
 		Files.createDirectories(chartDir);
 
-		assertThrows(IllegalArgumentException.class, () -> chartLoader.load(chartDir.toFile()));
+		ChartLoadException ex = assertThrows(ChartLoadException.class, () -> chartLoader.load(chartDir.toFile()));
+		assertTrue(ex.getMessage().contains("Chart.yaml not found"));
+		assertNotNull(ex.getSuggestion());
 	}
 
 	@Test
-	void testLoadChartWithValuesSchema() throws IOException {
+	void testLoadChartWithValuesSchema() throws Exception {
 		Path chartDir = tempDir.resolve("chart-with-schema");
 		Files.createDirectories(chartDir);
 		Files.writeString(chartDir.resolve("Chart.yaml"), """
@@ -331,7 +336,7 @@ class ChartLoaderTest {
 	}
 
 	@Test
-	void testLoadChartWithoutValuesSchema() throws IOException {
+	void testLoadChartWithoutValuesSchema() throws Exception {
 		Path chartDir = tempDir.resolve("chart-without-schema");
 		Files.createDirectories(chartDir);
 		Files.writeString(chartDir.resolve("Chart.yaml"), """

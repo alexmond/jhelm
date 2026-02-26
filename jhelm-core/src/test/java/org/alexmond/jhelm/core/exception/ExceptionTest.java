@@ -94,6 +94,48 @@ class ExceptionTest {
 	}
 
 	@Test
+	void testTemplateRenderExceptionWithChartAndTemplate() {
+		RuntimeException cause = new RuntimeException("parse error");
+		TemplateRenderException ex = new TemplateRenderException("Rendering failed: parse error", cause, "my-chart",
+				"deployment.yaml");
+		assertTrue(ex.getMessage().contains("my-chart"));
+		assertTrue(ex.getMessage().contains("deployment.yaml"));
+		assertTrue(ex.getMessage().contains("Rendering failed"));
+		assertEquals("my-chart", ex.getChartName());
+		assertEquals("deployment.yaml", ex.getTemplateName());
+		assertEquals(cause, ex.getCause());
+	}
+
+	@Test
+	void testTemplateRenderExceptionWithChartOnly() {
+		TemplateRenderException ex = new TemplateRenderException("Schema validation failed", "my-chart", null);
+		assertTrue(ex.getMessage().contains("my-chart"));
+		assertFalse(ex.getMessage().contains("template"));
+		assertEquals("my-chart", ex.getChartName());
+		assertNull(ex.getTemplateName());
+	}
+
+	@Test
+	void testChartLoadExceptionWithSuggestion() {
+		ChartLoadException ex = new ChartLoadException("Chart directory does not exist", "/tmp/bad-path",
+				"Verify the path is correct");
+		assertTrue(ex.getMessage().contains("does not exist"));
+		assertTrue(ex.getMessage().contains("/tmp/bad-path"));
+		assertTrue(ex.getMessage().contains("Verify the path"));
+		assertEquals("/tmp/bad-path", ex.getChartPath());
+		assertEquals("Verify the path is correct", ex.getSuggestion());
+	}
+
+	@Test
+	void testChartLoadExceptionWithCause() {
+		RuntimeException cause = new RuntimeException("io");
+		ChartLoadException ex = new ChartLoadException("Failed to parse", cause, "/charts/app", "Check YAML syntax");
+		assertEquals(cause, ex.getCause());
+		assertTrue(ex.getMessage().contains("/charts/app"));
+		assertTrue(ex.getMessage().contains("Check YAML syntax"));
+	}
+
+	@Test
 	void testWaitTimeoutException() {
 		List<ResourceStatus> pending = List.of(ResourceStatus.builder()
 			.kind("Deployment")
