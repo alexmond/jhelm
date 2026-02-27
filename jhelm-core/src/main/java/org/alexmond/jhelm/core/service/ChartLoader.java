@@ -7,7 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.alexmond.jhelm.core.exception.ChartLoadException;
@@ -36,7 +36,7 @@ public class ChartLoader {
 
 		// Load values.yaml (supports multi-document files separated by ---)
 		File valuesFile = new File(chartDir, "values.yaml");
-		Map<String, Object> values = new HashMap<>();
+		Map<String, Object> values = new LinkedHashMap<>();
 		if (valuesFile.exists()) {
 			values = ValuesLoader.load(valuesFile);
 		}

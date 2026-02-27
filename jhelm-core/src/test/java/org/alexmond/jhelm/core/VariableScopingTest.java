@@ -43,11 +43,6 @@ class VariableScopingTest {
 		assertNotNull(manifest, "Manifest should not be null");
 		assertFalse(manifest.trim().isEmpty(), "Manifest should not be empty");
 
-		// Debug: print manifest to see what was rendered
-		System.out.println("=== Rendered Manifest ===");
-		System.out.println(manifest);
-		System.out.println("=== End Manifest ===");
-
 		// Test 1: Root variable assignment
 		assertTrue(manifest.contains("Root variable assigned: YES"), "Root variable should be assigned successfully");
 		assertTrue(manifest.contains("Can access Release: YES"), "Should be able to access Release from root variable");
@@ -106,8 +101,6 @@ class VariableScopingTest {
 		assertTrue(manifest.contains("Parent serverList is not accessible"),
 				"Subchart should not have access to parent-specific values");
 
-		System.out.println("All variable scoping tests passed!");
-		System.out.println("\nRendered manifest length: " + manifest.length() + " bytes");
 	}
 
 	@Test

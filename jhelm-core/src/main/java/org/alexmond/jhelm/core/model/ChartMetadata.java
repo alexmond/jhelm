@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.core.model;
 
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
@@ -28,5 +29,7 @@ public class ChartMetadata {
 	private String appVersion;
 
 	private List<Dependency> dependencies;
+
+	private Map<String, String> annotations;
 
 }

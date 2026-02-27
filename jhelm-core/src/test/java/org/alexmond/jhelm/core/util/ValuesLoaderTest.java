@@ -126,6 +126,21 @@ class ValuesLoaderTest {
 		assertEquals(2, mergedNested.get("b"));
 	}
 
+	@Test
+	void testYamlAnchorAliasResolution() throws IOException {
+		File f = writeValues("""
+				portName: &portName http
+				livenessProbe:
+				  httpGet:
+				    port: *portName
+				""");
+		Map<String, Object> result = ValuesLoader.load(f);
+		assertEquals("http", result.get("portName"));
+		Map<?, ?> probe = (Map<?, ?>) result.get("livenessProbe");
+		Map<?, ?> httpGet = (Map<?, ?>) probe.get("httpGet");
+		assertEquals("http", httpGet.get("port"));
+	}
+
 	private File writeValues(String content) throws IOException {
 		Path file = tempDir.resolve("values.yaml");
 		Files.writeString(file, content);

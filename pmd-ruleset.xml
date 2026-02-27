@@ -8,18 +8,21 @@
 
     <!-- Best Practices -->
     <rule ref="category/java/bestpractices.xml">
-        <exclude name="JUnitTestContainsTooManyAsserts"/>
-        <exclude name="JUnitAssertionsShouldIncludeMessage"/>
+        <exclude name="UnitTestContainsTooManyAsserts"/> <!-- was JUnitTestContainsTooManyAsserts before PMD 7.7 -->
+        <exclude name="UnitTestAssertionsShouldIncludeMessage"/> <!-- was JUnitAssertionsShouldIncludeMessage before PMD 7.7 -->
         <exclude name="GuardLogStatement"/>
         <exclude name="LooseCoupling"/>
         <exclude name="AvoidReassigningLoopVariables"/> <!-- Go-style escape parsing in StringUtils -->
         <exclude name="AvoidReassigningParameters"/> <!-- ChainNode follows Go template port pattern -->
         <exclude name="UseVarargs"/> <!-- Changing method signatures could break API -->
-        <exclude name="SimplifiedTernary"/> <!-- False positive on Object-typed returns with boolean false -->
         <exclude name="UnusedFormalParameter"/> <!-- Some method params are needed for interface/future compatibility -->
         <exclude name="LiteralsFirstInComparisons"/> <!-- Project prefers subject.equals(literal) readability -->
         <exclude name="UnusedAssignment"/> <!-- False positives on field assignments in try/catch branches -->
         <exclude name="SystemPrintln"/> <!-- CLI application uses System.out/err for user output -->
+        <exclude name="NonExhaustiveSwitch"/> <!-- Parser switch intentionally handles known token types only (moved from codestyle in PMD 7) -->
+        <exclude name="PreserveStackTrace"/> <!-- ExecutionException unwrapping uses getCause() intentionally (moved from errorprone in PMD 7) -->
+        <exclude name="ImplicitFunctionalInterface"/> <!-- Single-method interfaces don't always need @FunctionalInterface -->
+        <exclude name="RelianceOnDefaultCharset"/> <!-- GoTemplate API mirrors Go behavior; charset is not configurable -->
     </rule>
 
     <!-- Code Style -->
@@ -33,7 +36,6 @@
         <exclude name="ShortMethodName"/>
         <exclude name="ShortClassName"/>
         <exclude name="CommentDefaultAccessModifier"/>
-        <exclude name="DefaultPackage"/>
         <exclude name="CallSuperInConstructor"/>
         <exclude name="ConfusingTernary"/>
         <exclude name="TooManyStaticImports"/>
@@ -45,7 +47,6 @@
         <exclude name="UseUnderscoresInNumericLiterals"/> <!-- Numeric constants match Go originals -->
         <exclude name="UnnecessaryConstructor"/>
         <exclude name="ForLoopShouldBeWhileLoop"/> <!-- Lexer state machine uses for(;;) idiom -->
-        <exclude name="NonExhaustiveSwitch"/> <!-- Parser switch intentionally handles known token types only -->
         <exclude name="FieldNamingConventions"/> <!-- YAML/JSON deserialized models use snake_case field names -->
     </rule>
     <rule ref="category/java/codestyle.xml/ClassNamingConventions">
@@ -70,8 +71,6 @@
         <exclude name="NcssCount"/>
         <exclude name="NPathComplexity"/>
         <exclude name="GodClass"/>
-        <exclude name="ExcessiveClassLength"/>
-        <exclude name="ExcessiveMethodLength"/>
         <exclude name="TooManyFields"/>
         <exclude name="AvoidThrowingRawExceptionTypes"/>
         <exclude name="SignatureDeclareThrowsException"/>
@@ -83,12 +82,12 @@
         <exclude name="AvoidUncheckedExceptionsInSignatures"/> <!-- Utility methods declare specific runtime exceptions -->
         <exclude name="AvoidDeeplyNestedIfStmts"/> <!-- Complex loaders/resolvers require deep nesting -->
         <exclude name="CollapsibleIfStatements"/> <!-- Separate conditions often read more clearly -->
+        <exclude name="AvoidThrowingNullPointerException"/> <!-- Lexer signals sentinel with NPE (Go port); moved from errorprone in PMD 7 -->
     </rule>
 
     <!-- Error Prone -->
     <rule ref="category/java/errorprone.xml">
-        <exclude name="BeanMembersShouldSerialize"/>
-        <exclude name="DataflowAnomalyAnalysis"/>
+        <exclude name="NonSerializableClass"/> <!-- was BeanMembersShouldSerialize before PMD 6.52 -->
         <exclude name="DoNotTerminateVM"/> <!-- CLI application uses System.exit() for exit codes -->
         <exclude name="AvoidLiteralsInIfCondition"/>
         <exclude name="AvoidDuplicateLiterals"/>
@@ -98,12 +97,10 @@
         <exclude name="NullAssignment"/>
         <exclude name="ReturnEmptyCollectionRatherThanNull"/>
         <exclude name="AvoidInstanceofChecksInCatchClause"/> <!-- Executor catch blocks pattern-match exception types -->
-        <exclude name="AvoidUncheckedExceptionsInSignatures"/> <!-- Utility methods declare specific runtime exceptions -->
         <exclude name="AssignmentInOperand"/> <!-- Standard I/O read-loop idiom -->
         <exclude name="EmptyCatchBlock"/> <!-- Number parsing catch blocks are intentionally empty -->
-        <exclude name="AvoidThrowingNullPointerException"/> <!-- Lexer signals sentinel with NPE (Go port) -->
         <exclude name="ConfusingArgumentToVarargsMethod"/> <!-- False positive on Object[] varargs lambdas -->
-        <exclude name="PreserveStackTrace"/> <!-- ExecutionException unwrapping uses getCause() intentionally -->
+        <exclude name="ReplaceJavaUtilDate"/> <!-- DateFunctions mirrors Go's date handling which uses Date objects -->
     </rule>
 
     <!-- Multithreading -->

@@ -73,7 +73,7 @@ public class GoTemplate {
 			rootNodes.putAll(parsedNodes);
 		}
 		catch (Exception ex) {
-			log.warn("Internal error during parsing of {}: {}. Text: {}", name, ex.getMessage(),
+			log.debug("Parse error in {}: {}. Text: {}", name, ex.getMessage(),
 					(text.length() > 100) ? text.substring(0, 100) + "..." : text);
 			throw new TemplateParseException("Internal error during parsing of " + name, ex);
 		}

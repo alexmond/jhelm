@@ -134,8 +134,7 @@ public class HelmKubeService implements KubeService {
 				releases.add(decodeRelease(cm));
 			}
 			catch (ReleaseStorageException ex) {
-				log.error("Failed to decode release from ConfigMap {}: {}", cm.getMetadata().getName(),
-						ex.getMessage());
+				log.warn("Failed to decode release from ConfigMap {}: {}", cm.getMetadata().getName(), ex.getMessage());
 			}
 		}
 		return releases;
@@ -473,9 +472,9 @@ public class HelmKubeService implements KubeService {
 				api.replaceNamespacedConfigMap(cm.getMetadata().getName(), namespace, cm).execute();
 			}
 			else {
-				log.error("Error installing ConfigMap: {}", ex.getMessage());
+				log.debug("Error installing ConfigMap: {}", ex.getMessage());
 				if (ex instanceof ApiException ae) {
-					log.error("API Response: {}", ae.getResponseBody());
+					log.debug("API Response: {}", ae.getResponseBody());
 				}
 				throw ex;
 			}
