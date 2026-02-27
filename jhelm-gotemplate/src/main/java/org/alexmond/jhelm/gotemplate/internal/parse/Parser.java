@@ -717,7 +717,7 @@ public class Parser {
 				numberNode.setFloatValue(floatValue);
 				simplifyFloat(numberNode, floatValue);
 			}
-			catch (NumberFormatException ignoredAgain) { // NOPMD
+			catch (NumberFormatException ignoredAgain) {
 				// Not a float either; will fail validation below
 			}
 		}

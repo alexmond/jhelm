@@ -46,6 +46,7 @@ import static org.mockito.Mockito.when;
 import org.alexmond.jhelm.core.model.RepositoryConfig;
 import java.net.URL;
 
+@SuppressWarnings("unchecked")
 class RepoManagerTest {
 
 	@TempDir

@@ -10,6 +10,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 
 import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 import org.junit.jupiter.api.Test;
@@ -172,6 +175,118 @@ class GoTemplateTest {
 		StringWriter writer = new StringWriter();
 		template.execute("main", new HashMap<>(), writer);
 		assertEquals("First", writer.toString());
+	}
+
+	// --- Range over maps: sorted key iteration (Bug #2 fix) ---
+
+	@Test
+	void testRangeMapSortedKeyIteration() throws TemplateParseException, IOException, TemplateException {
+		// Go text/template guarantees sorted-key iteration for maps with string keys.
+		// Use a HashMap (unsorted) to ensure the executor sorts keys, not the input.
+		GoTemplate template = new GoTemplate();
+		template.parse("main", "{{ range $k, $v := .items }}{{ $k }}={{ $v }} {{ end }}");
+
+		Map<String, Object> items = new HashMap<>();
+		items.put("cherry", 3);
+		items.put("apple", 1);
+		items.put("banana", 2);
+
+		StringWriter writer = new StringWriter();
+		template.execute(Map.of("items", items), writer);
+
+		assertEquals("apple=1 banana=2 cherry=3 ", writer.toString());
+	}
+
+	@Test
+	void testRangeMapSingleVariableSorted() throws TemplateParseException, IOException, TemplateException {
+		// When range uses a single variable, it iterates values in sorted key order
+		GoTemplate template = new GoTemplate();
+		template.parse("main", "{{ range $v := .ports }}{{ $v }},{{ end }}");
+
+		Map<String, Object> ports = new HashMap<>();
+		ports.put("http", 80);
+		ports.put("amqp", 5672);
+		ports.put("https", 443);
+
+		StringWriter writer = new StringWriter();
+		template.execute(Map.of("ports", ports), writer);
+
+		assertEquals("5672,80,443,", writer.toString());
+	}
+
+	// --- printValue: Collection rendering (Bug #3 fix) ---
+
+	@Test
+	void testPrintValueCollection() throws TemplateParseException, IOException, TemplateException {
+		// Go's fmt.Sprint on a slice produces [item1 item2 item3]
+		GoTemplate template = new GoTemplate();
+		template.parse("main", "ranges: {{ .cidrs }}");
+
+		List<String> cidrs = new ArrayList<>();
+		cidrs.add("10.0.0.0/8");
+		cidrs.add("192.168.1.0/24");
+
+		StringWriter writer = new StringWriter();
+		template.execute(Map.of("cidrs", cidrs), writer);
+
+		assertEquals("ranges: [10.0.0.0/8 192.168.1.0/24]", writer.toString());
+	}
+
+	@Test
+	void testPrintValueEmptyCollection() throws TemplateParseException, IOException, TemplateException {
+		GoTemplate template = new GoTemplate();
+		template.parse("main", "items: {{ .items }}");
+
+		StringWriter writer = new StringWriter();
+		template.execute(Map.of("items", new ArrayList<>()), writer);
+
+		assertEquals("items: []", writer.toString());
+	}
+
+	@Test
+	void testPrintValueMap() throws TemplateParseException, IOException, TemplateException {
+		// Go's fmt.Sprint on a map produces map[key1:val1 key2:val2]
+		GoTemplate template = new GoTemplate();
+		template.parse("main", "labels: {{ .labels }}");
+
+		Map<String, String> labels = new LinkedHashMap<>();
+		labels.put("app", "nginx");
+		labels.put("env", "prod");
+
+		StringWriter writer = new StringWriter();
+		template.execute(Map.of("labels", labels), writer);
+
+		assertEquals("labels: map[app:nginx env:prod]", writer.toString());
+	}
+
+	// --- Method invocation on data objects ---
+
+	@Test
+	void testMethodInvocationOnDataObject() throws TemplateParseException, IOException, TemplateException {
+		// Go templates support calling methods on values: .obj.Method "arg"
+		// Test using ArrayList.contains (a public method on a public class)
+		GoTemplate template = new GoTemplate();
+		template.parse("main", "{{ if .versions.contains \"policy/v1\" }}yes{{ else }}no{{ end }}");
+
+		ArrayList<String> versions = new ArrayList<>(List.of("v1", "apps/v1", "policy/v1"));
+
+		StringWriter writer = new StringWriter();
+		template.execute(Map.of("versions", versions), writer);
+
+		assertEquals("yes", writer.toString());
+	}
+
+	@Test
+	void testMethodInvocationReturnsFalse() throws TemplateParseException, IOException, TemplateException {
+		GoTemplate template = new GoTemplate();
+		template.parse("main", "{{ if .versions.contains \"batch/v1beta1\" }}yes{{ else }}no{{ end }}");
+
+		ArrayList<String> versions = new ArrayList<>(List.of("v1", "apps/v1"));
+
+		StringWriter writer = new StringWriter();
+		template.execute(Map.of("versions", versions), writer);
+
+		assertEquals("no", writer.toString());
 	}
 
 }

@@ -1,15 +1,22 @@
 package org.alexmond.jhelm.core.util;
 
-import tools.jackson.databind.MappingIterator;
-import tools.jackson.dataformat.yaml.YAMLMapper;
+import org.snakeyaml.engine.v2.api.Load;
+import org.snakeyaml.engine.v2.api.LoadSettings;
 
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
-import java.util.HashMap;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * Utility for loading Helm values YAML files, including multi-document files.
+ * <p>
+ * Uses SnakeYAML Engine directly (instead of Jackson YAMLMapper) to ensure YAML anchors
+ * and aliases are properly resolved. Jackson's YAML parser does not resolve aliases in
+ * untyped deserialization, returning the anchor name as a literal string.
  * <p>
  * A multi-document YAML file contains multiple documents separated by {@code ---}.
  * Documents are merged in order: later documents override earlier ones, with nested maps
@@ -21,18 +28,18 @@ public final class ValuesLoader {
 	}
 
 	/**
-	 * Loads a YAML values file, supporting multi-document files.
+	 * Loads a YAML values file, supporting multi-document files and YAML anchors/aliases.
 	 * @param valuesFile the YAML file to load
 	 * @return merged values map (empty map if file has no non-null documents)
 	 * @throws IOException if the file cannot be read
 	 */
 	@SuppressWarnings("unchecked")
 	public static Map<String, Object> load(File valuesFile) throws IOException {
-		YAMLMapper mapper = YAMLMapper.builder().build();
-		Map<String, Object> merged = new HashMap<>();
-		try (MappingIterator<Object> it = mapper.readerFor(Object.class).readValues(valuesFile)) {
-			while (it.hasNext()) {
-				Object doc = it.next();
+		LoadSettings settings = LoadSettings.builder().build();
+		Load load = new Load(settings);
+		Map<String, Object> merged = new LinkedHashMap<>();
+		try (Reader reader = new FileReader(valuesFile, StandardCharsets.UTF_8)) {
+			for (Object doc : load.loadAllFromReader(reader)) {
 				if (doc instanceof Map) {
 					deepMerge(merged, (Map<String, Object>) doc);
 				}

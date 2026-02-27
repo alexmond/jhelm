@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import org.alexmond.jhelm.gotemplate.sprig.SprigFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.SprigFunctionsRegistry;
 
 public final class Functions {
 
@@ -41,7 +41,7 @@ public final class Functions {
 		BUILTIN.put("ne", ne());
 
 		// Load Sprig functions
-		BUILTIN.putAll(SprigFunctions.getFunctions());
+		BUILTIN.putAll(SprigFunctionsRegistry.getAllFunctions());
 	}
 
 	private Functions() {

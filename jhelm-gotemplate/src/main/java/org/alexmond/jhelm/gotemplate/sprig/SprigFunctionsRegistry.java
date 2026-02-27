@@ -14,7 +14,6 @@ import org.alexmond.jhelm.gotemplate.sprig.functions.MathFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.NetworkFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.ReflectionFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.SemverFunctions;
-import org.alexmond.jhelm.gotemplate.sprig.functions.SprigFunctionsLegacy;
 import org.alexmond.jhelm.gotemplate.sprig.functions.StringFunctions;
 
 /**
@@ -73,9 +72,6 @@ public final class SprigFunctionsRegistry {
 		// Semantic versioning
 		functions.putAll(SemverFunctions.getFunctions());
 
-		// Legacy functions (if any remain that weren't refactored)
-		functions.putAll(SprigFunctionsLegacy.getFunctions());
-
 		return functions;
 	}
 
@@ -119,7 +115,7 @@ public final class SprigFunctionsRegistry {
 
 		categories.put("Type/Reflection", List.of("typeOf", "kindOf", "typeIs", "kindIs", "typeIsLike", "deepEqual"));
 
-		categories.put("Network", List.of("getHostByName"));
+		categories.put("Network", List.of("getHostByName", "urlParse"));
 
 		categories.put("Semver", List.of("semver", "semverCompare"));
 

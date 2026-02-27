@@ -58,13 +58,13 @@ public class SchemaValidator {
 		if (schema == null || schema.isMissingNode()) {
 			return;
 		}
-		if (schema.has("type")) {
-			validateType(schema.get("type").asText(), value, path, errors);
+		if (schema.has("type") && schema.get("type").isString()) {
+			validateType(schema.get("type").asString(), value, path, errors);
 		}
 		if (schema.has("required") && value.isObject()) {
 			for (JsonNode req : schema.get("required")) {
-				if (!value.has(req.asText())) {
-					errors.add(path + "." + req.asText() + " is required");
+				if (!value.has(req.asString())) {
+					errors.add(path + "." + req.asString() + " is required");
 				}
 			}
 		}
@@ -99,8 +99,8 @@ public class SchemaValidator {
 				errors.add(path + ": " + num + " must be <= " + schema.get("maximum").doubleValue());
 			}
 		}
-		if (value.isTextual()) {
-			String text = value.asText();
+		if (value.isString()) {
+			String text = value.asString();
 			if (schema.has("minLength") && text.length() < schema.get("minLength").asInt()) {
 				errors
 					.add(path + ": string length " + text.length() + " must be >= " + schema.get("minLength").asInt());
@@ -110,7 +110,7 @@ public class SchemaValidator {
 					.add(path + ": string length " + text.length() + " must be <= " + schema.get("maxLength").asInt());
 			}
 			if (schema.has("pattern")) {
-				String patternStr = schema.get("pattern").asText();
+				String patternStr = schema.get("pattern").asString();
 				try {
 					if (!Pattern.compile(patternStr).matcher(text).find()) {
 						errors.add(path + ": string does not match pattern " + patternStr);
@@ -125,7 +125,7 @@ public class SchemaValidator {
 
 	private void validateType(String type, JsonNode value, String path, List<String> errors) {
 		boolean valid = switch (type) {
-			case "string" -> value.isTextual();
+			case "string" -> value.isString();
 			case "integer" -> value.isIntegralNumber();
 			case "number" -> value.isNumber();
 			case "boolean" -> value.isBoolean();
@@ -140,7 +140,7 @@ public class SchemaValidator {
 	}
 
 	private String nodeTypeName(JsonNode node) {
-		if (node.isTextual()) {
+		if (node.isString()) {
 			return "string";
 		}
 		if (node.isIntegralNumber()) {

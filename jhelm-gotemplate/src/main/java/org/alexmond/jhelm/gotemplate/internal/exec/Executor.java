@@ -9,8 +9,10 @@ import java.io.Writer;
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,7 +82,7 @@ public class Executor {
 				writeNode(writer, listNode, data, beanInfo);
 			}
 			catch (IndexOutOfBoundsException ex) {
-				log.error("Internal IndexOutOfBounds in '{}': {}", name, ex.getMessage(), ex);
+				log.debug("Internal IndexOutOfBounds in '{}': {}", name, ex.getMessage(), ex);
 				throw new TemplateExecutionException("Internal IndexOutOfBounds in '" + name + "': " + ex.getMessage(),
 						ex);
 			}
@@ -89,7 +91,7 @@ public class Executor {
 						|| ex instanceof TemplateNotFoundException) {
 					throw ex;
 				}
-				log.error("Execution failure in template '{}': {}", name, ex.getMessage(), ex);
+				log.debug("Execution failure in template '{}': {}", name, ex.getMessage(), ex);
 				throw new TemplateExecutionException("Execution error in '" + name + "': " + ex.getMessage(), ex);
 			}
 		}
@@ -230,7 +232,11 @@ public class Executor {
 				restoreVariables(rangeVars, savedVars);
 				return;
 			}
-			for (Map.Entry<?, ?> entry : map.entrySet()) {
+			// Go text/template guarantees sorted-key iteration for maps with
+			// comparable keys
+			List<Map.Entry<?, ?>> sorted = new ArrayList<>(map.entrySet());
+			sorted.sort(Comparator.comparing((e) -> String.valueOf(e.getKey())));
+			for (Map.Entry<?, ?> entry : sorted) {
 				setRangeVariables(rangeVars, entry.getKey(), entry.getValue());
 				writeRangeValue(writer, rangeNode, entry.getValue());
 			}
@@ -349,15 +355,29 @@ public class Executor {
 			throw new TemplateExecutionException("empty command");
 		}
 		Node firstArgument = command.getFirstArgument();
-		if (firstArgument instanceof FieldNode) {
-			return executeField((FieldNode) firstArgument, data, beanInfo);
+		if (firstArgument instanceof FieldNode fieldNode) {
+			// Go templates: .obj.Method arg → call Method(arg) on obj
+			if (command.getArgumentCount() > 1) {
+				Object result = tryFieldMethodCall(fieldNode, command.getArguments(), data, beanInfo);
+				if (result != INVOKE_NOT_FOUND) {
+					return result;
+				}
+			}
+			return executeField(fieldNode, data, beanInfo);
 		}
 		if (firstArgument instanceof IdentifierNode) {
 			return executeFunction((IdentifierNode) firstArgument, command.getArguments(), data, beanInfo,
 					currentPipelineValue);
 		}
-		if (firstArgument instanceof ChainNode) {
-			return executeChain((ChainNode) firstArgument, data, beanInfo);
+		if (firstArgument instanceof ChainNode chainNode) {
+			// Go templates: (.pipe).Method arg or .X.Y.Method arg → method call
+			if (command.getArgumentCount() > 1) {
+				Object result = tryChainMethodCall(chainNode, command.getArguments(), data, beanInfo);
+				if (result != INVOKE_NOT_FOUND) {
+					return result;
+				}
+			}
+			return executeChain(chainNode, data, beanInfo);
 		}
 		if (firstArgument instanceof VariableNode) {
 			return executeVariable((VariableNode) firstArgument);
@@ -406,9 +426,9 @@ public class Executor {
 			return null;
 		}
 
-		if (current instanceof Map) {
-			// noinspection unchecked
-			Map<String, Object> map = (Map<String, Object>) current;
+		if (current instanceof Map<?, ?> rawMap) {
+			@SuppressWarnings("unchecked")
+			Map<String, Object> map = (Map<String, Object>) rawMap;
 			return map.get(identifier);
 		}
 
@@ -445,6 +465,85 @@ public class Executor {
 		}
 
 		return current;
+	}
+
+	// Sentinel value indicating that no matching method was found
+	private static final Object INVOKE_NOT_FOUND = new Object();
+
+	/**
+	 * Try to invoke the last identifier in a field chain as a method call. Go templates
+	 * support method calls on values: {@code .Obj.Method arg1 arg2} calls
+	 * {@code Method(arg1, arg2)} on the result of {@code .Obj}.
+	 * @return the method result, or {@link #INVOKE_NOT_FOUND} if no method matched
+	 */
+	private Object tryFieldMethodCall(FieldNode fieldNode, List<Node> cmdArgNodes, Object data, BeanInfo beanInfo)
+			throws TemplateExecutionException {
+		String[] identifiers = fieldNode.getIdentifiers();
+		if (identifiers.length == 0) {
+			return INVOKE_NOT_FOUND;
+		}
+
+		// Resolve all identifiers except the last to get the receiver object
+		Object receiver = data;
+		for (int i = 0; i < identifiers.length - 1; i++) {
+			receiver = getFieldValue(receiver, identifiers[i]);
+		}
+
+		String methodName = identifiers[identifiers.length - 1];
+		return tryMethodInvoke(receiver, methodName, cmdArgNodes, data, beanInfo);
+	}
+
+	/**
+	 * Try to invoke the last field in a chain node as a method call. Handles the parser's
+	 * ChainNode structure: {@code .X.Y.Method arg} where the parser creates
+	 * {@code ChainNode(FieldNode("X"), ["Y", "Method"])}.
+	 * @return the method result, or {@link #INVOKE_NOT_FOUND} if no method matched
+	 */
+	private Object tryChainMethodCall(ChainNode chainNode, List<Node> cmdArgNodes, Object data, BeanInfo beanInfo)
+			throws TemplateExecutionException {
+		List<String> fields = chainNode.getFields();
+		if (fields.isEmpty()) {
+			return INVOKE_NOT_FOUND;
+		}
+
+		// Resolve the chain's base node and all fields except the last
+		Object receiver = executeArgument(chainNode.getNode(), data, beanInfo);
+		for (int i = 0; i < fields.size() - 1; i++) {
+			receiver = getFieldValue(receiver, fields.get(i));
+		}
+
+		String methodName = fields.get(fields.size() - 1);
+		return tryMethodInvoke(receiver, methodName, cmdArgNodes, data, beanInfo);
+	}
+
+	/**
+	 * Core method invocation logic shared by field and chain method calls.
+	 */
+	private Object tryMethodInvoke(Object receiver, String methodName, List<Node> cmdArgNodes, Object data,
+			BeanInfo beanInfo) throws TemplateExecutionException {
+		if (receiver == null) {
+			return INVOKE_NOT_FOUND;
+		}
+
+		// Evaluate the method arguments (skip the first arg which is the node itself)
+		List<Node> argNodes = cmdArgNodes.subList(1, cmdArgNodes.size());
+		Object[] args = new Object[argNodes.size()];
+		executeArguments(data, beanInfo, argNodes, args);
+
+		// Try to find a matching method via reflection
+		for (Method m : receiver.getClass().getMethods()) {
+			if (m.getName().equals(methodName) && m.getParameterCount() == args.length) {
+				try {
+					return m.invoke(receiver, args);
+				}
+				catch (IllegalAccessException | InvocationTargetException ex) {
+					log.debug("Method invocation failed: {}.{}(): {}", receiver.getClass().getSimpleName(), methodName,
+							ex.getMessage());
+				}
+			}
+		}
+
+		return INVOKE_NOT_FOUND;
 	}
 
 	private Object executeFunction(IdentifierNode identifierNode, List<Node> cmdArgNodes, Object data,
@@ -633,11 +732,33 @@ public class Executor {
 		else if (value instanceof Number || value instanceof Boolean) {
 			writer.write(String.valueOf(value));
 		}
+		else if (value instanceof Collection<?> coll) {
+			// Match Go's fmt.Sprint format: [item1 item2 item3]
+			writer.write("[");
+			boolean first = true;
+			for (Object item : coll) {
+				if (!first) {
+					writer.write(" ");
+				}
+				writer.write(String.valueOf(item));
+				first = false;
+			}
+			writer.write("]");
+		}
+		else if (value instanceof Map<?, ?> map) {
+			// Match Go's fmt.Sprint format: map[key1:val1 key2:val2]
+			writer.write("map[");
+			boolean first = true;
+			for (Map.Entry<?, ?> e : map.entrySet()) {
+				if (!first) {
+					writer.write(" ");
+				}
+				writer.write(e.getKey() + ":" + e.getValue());
+				first = false;
+			}
+			writer.write("]");
+		}
 		else {
-			// Avoid calling toString on complex objects (Maps, Collections, etc)
-			// This indicates a template error where a complex object is used in string
-			// context
-			// Output a marker to help identify the issue
 			writer.write("[object " + value.getClass().getSimpleName() + "]");
 		}
 	}

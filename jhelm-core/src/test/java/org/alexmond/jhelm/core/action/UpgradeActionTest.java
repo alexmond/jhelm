@@ -98,6 +98,7 @@ class UpgradeActionTest {
 		verify(kubeService).apply("default", HookParser.stripHooks(renderedManifest));
 		verify(kubeService).storeRelease(any(Release.class));
 
+		@SuppressWarnings("unchecked")
 		ArgumentCaptor<Map<String, Object>> releaseDataCaptor = ArgumentCaptor.forClass(Map.class);
 		verify(engine).render(eq(newChart), anyMap(), releaseDataCaptor.capture());
 
@@ -137,6 +138,7 @@ class UpgradeActionTest {
 
 		upgradeAction.upgrade(currentRelease, chart, overrideValues, false);
 
+		@SuppressWarnings("unchecked")
 		ArgumentCaptor<Map<String, Object>> valuesCaptor = ArgumentCaptor.forClass(Map.class);
 		verify(engine).render(eq(chart), valuesCaptor.capture(), anyMap());
 

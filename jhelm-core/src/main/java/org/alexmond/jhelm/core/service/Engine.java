@@ -12,15 +12,29 @@ import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.alexmond.jhelm.core.model.Chart;
-import java.util.HashSet;
 import java.util.Set;
+
+import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.model.VersionSet;
 
 @Slf4j
 public class Engine {
+
+	// Full set of API group versions matching k8s client-go v1.31 scheme registration.
+	// Helm builds this from scheme.Scheme.PrioritizedVersionsAllGroups().
+	private static final List<String> DEFAULT_API_VERSIONS = List.of("v1", "admissionregistration.k8s.io/v1",
+			"admissionregistration.k8s.io/v1beta1", "apiextensions.k8s.io/v1", "apiregistration.k8s.io/v1", "apps/v1",
+			"authentication.k8s.io/v1", "authentication.k8s.io/v1beta1", "authorization.k8s.io/v1", "autoscaling/v2",
+			"autoscaling/v1", "batch/v1", "certificates.k8s.io/v1", "certificates.k8s.io/v1alpha1",
+			"coordination.k8s.io/v1", "coordination.k8s.io/v1alpha2", "discovery.k8s.io/v1", "events.k8s.io/v1",
+			"flowcontrol.apiserver.k8s.io/v1", "flowcontrol.apiserver.k8s.io/v1beta3",
+			"internal.apiserver.k8s.io/v1alpha1", "networking.k8s.io/v1", "networking.k8s.io/v1alpha1",
+			"node.k8s.io/v1", "policy/v1", "rbac.authorization.k8s.io/v1", "resource.k8s.io/v1alpha3",
+			"scheduling.k8s.io/v1", "storage.k8s.io/v1", "storage.k8s.io/v1alpha1", "storagemigration.k8s.io/v1alpha1");
 
 	private final Map<String, String> namedTemplates = new HashMap<>();
 
@@ -208,7 +222,7 @@ public class Engine {
 			try {
 				String chartName = templateToChartName.get(name);
 				parseWithCache(name, allTemplates.get(name));
-				log.info("Parsed template: {} (from chart: {})", name, chartName);
+				log.debug("Parsed template: {} (from chart: {})", name, chartName);
 
 				// After parsing, check if new named templates (defines) were added
 				// If this is a _helpers.tpl from a subchart, we need to alias the
@@ -231,7 +245,7 @@ public class Engine {
 
 		// Count how many named templates (defines) we actually collected
 		int namedTemplateCount = factory.getRootNodes().size() - allTemplates.size();
-		log.info("Collected {} named templates from {} files", namedTemplateCount, allTemplates.size());
+		log.debug("Collected {} named templates from {} files", namedTemplateCount, allTemplates.size());
 	}
 
 	private void createChartPrefixedAliases(String chartName, int beforeCount, int afterCount) {
@@ -294,6 +308,10 @@ public class Engine {
 		Map<String, Object> chartValues = (chart.getValues() != null) ? chart.getValues() : new HashMap<>();
 		Map<String, Object> mergedValues = mergeValues(chartValues, values);
 
+		// Helm makes subchart defaults available to parent templates via
+		// .Values.<subchartName>.*
+		mergeSubchartDefaults(chart, mergedValues);
+
 		// Validate merged values against the chart's JSON Schema (if present)
 		if (chart.getValuesSchema() != null) {
 			try {
@@ -311,8 +329,8 @@ public class Engine {
 		context.put("Release", releaseInfo);
 
 		// Add standard Helm objects
-		context.put("Capabilities", Map.of("KubeVersion", Map.of("Version", "v1.28.0", "Major", "1", "Minor", "28"),
-				"APIVersions", List.of("v1", "apps/v1", "networking.k8s.io/v1")));
+		context.put("Capabilities", Map.of("KubeVersion", Map.of("Version", "v1.31.0", "Major", "1", "Minor", "31"),
+				"APIVersions", new VersionSet(DEFAULT_API_VERSIONS)));
 		context.put("Template", Map.of("Name", "", "BasePath", "templates"));
 
 		StringBuilder sb = new StringBuilder();
@@ -327,6 +345,7 @@ public class Engine {
 					: subchart.getMetadata().getName();
 
 			// Subcharts are only rendered if enabled in Values
+			@SuppressWarnings("unchecked")
 			Map<String, Object> subchartOverrides = (Map<String, Object>) mergedValues.getOrDefault(subchartName,
 					new HashMap<>());
 
@@ -335,7 +354,7 @@ public class Engine {
 
 			// If subchart is disabled, skip it
 			if (subchartOverrides.containsKey("enabled") && !isTruthy(subchartOverrides.get("enabled"))) {
-				log.info("Subchart {} is disabled", subchartName);
+				log.debug("Subchart {} is disabled", subchartName);
 				continue;
 			}
 
@@ -344,7 +363,7 @@ public class Engine {
 				subchartOverrides.put("global", mergedValues.get("global"));
 			}
 
-			log.info("Rendering subchart: {}", subchartName);
+			log.debug("Rendering subchart: {}", subchartName);
 			sb.append(renderWithSubcharts(subchart, subchartOverrides, releaseInfo, renderedCharts, depth + 1));
 		}
 
@@ -360,6 +379,7 @@ public class Engine {
 				parseWithCache(t.getName(), t.getData());
 				StringWriter writer = new StringWriter();
 
+				@SuppressWarnings("unchecked")
 				Map<String, Object> templateMap = new HashMap<>((Map<String, Object>) context.get("Template"));
 				templateMap.put("Name", chart.getMetadata().getName() + "/templates/" + t.getName());
 				Map<String, Object> currentContext = new HashMap<>(context);
@@ -387,8 +407,24 @@ public class Engine {
 			}
 			catch (Exception ex) {
 				String chartName = chart.getMetadata().getName();
-				log.error("Failed to render chart '{}', template '{}': {}", chartName, t.getName(), ex.getMessage());
+				log.debug("Failed to render chart '{}', template '{}': {}", chartName, t.getName(), ex.getMessage());
 				throw new TemplateRenderException("Rendering failed: " + ex.getMessage(), ex, chartName, t.getName());
+			}
+		}
+	}
+
+	/**
+	 * Merge each subchart's default values under its name/alias key so parent templates
+	 * can access them via {@code .Values.<subchartName>.*}.
+	 */
+	@SuppressWarnings("unchecked")
+	private void mergeSubchartDefaults(Chart chart, Map<String, Object> mergedValues) {
+		for (Chart dep : chart.getDependencies()) {
+			String depKey = (dep.getAlias() != null) ? dep.getAlias() : dep.getMetadata().getName();
+			if (dep.getValues() != null && !dep.getValues().isEmpty()) {
+				Map<String, Object> existing = (Map<String, Object>) mergedValues.getOrDefault(depKey, new HashMap<>());
+				Map<String, Object> merged = mergeValues(dep.getValues(), existing);
+				mergedValues.put(depKey, merged);
 			}
 		}
 	}
@@ -406,7 +442,11 @@ public class Engine {
 			Object overrideValue = entry.getValue();
 			Object defaultValue = merged.get(entry.getKey());
 
-			if (overrideValue instanceof Map overMap && defaultValue instanceof Map defMap) {
+			if (overrideValue instanceof Map<?, ?> && defaultValue instanceof Map<?, ?>) {
+				@SuppressWarnings("unchecked")
+				Map<String, Object> defMap = (Map<String, Object>) defaultValue;
+				@SuppressWarnings("unchecked")
+				Map<String, Object> overMap = (Map<String, Object>) overrideValue;
 				merged.put(entry.getKey(), mergeValues(defMap, overMap));
 			}
 			else {

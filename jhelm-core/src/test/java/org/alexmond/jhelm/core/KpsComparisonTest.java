@@ -36,10 +36,13 @@ import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.RepoManager;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 class KpsComparisonTest {
@@ -86,7 +89,6 @@ class KpsComparisonTest {
 	}
 
 	private String runHelmSearchRepo(String query) {
-		System.out.println("[DEBUG_LOG] Running helm search repo for " + query);
 		try {
 			ProcessBuilder pb = new ProcessBuilder("helm", "search", "repo", query);
 			Process process = pb.start();
@@ -238,8 +240,6 @@ class KpsComparisonTest {
 	}
 
 	private String runHelmInstallDryRun(File chartDir, String releaseName, String namespace) {
-		System.out.println("[DEBUG_LOG] Running helm install dry-run for " + releaseName + " using chart "
-				+ chartDir.getAbsolutePath());
 		try {
 			ProcessBuilder pb = new ProcessBuilder("helm", "template", releaseName, chartDir.getAbsolutePath(),
 					"--namespace", namespace);
@@ -256,7 +256,6 @@ class KpsComparisonTest {
 				try (InputStream es = process.getErrorStream();
 						Scanner s = new Scanner(es, StandardCharsets.UTF_8).useDelimiter("\\A")) {
 					String error = s.hasNext() ? s.next() : "";
-					System.err.println("[DEBUG_LOG] Helm failed with exit code " + exitCode + ": " + error);
 					log.error("Helm failed with exit code {}: {}", exitCode, error);
 				}
 				return null;
@@ -265,94 +264,92 @@ class KpsComparisonTest {
 			// helm template outputs the manifest directly (no MANIFEST: prefix)
 			// Just return the output, but skip any leading/trailing whitespace
 			if (output == null || output.trim().isEmpty()) {
-				System.err.println("[DEBUG_LOG] Helm template returned empty output");
 				return null;
 			}
 
-			System.out.println("[DEBUG_LOG] Successfully captured helm manifest for " + releaseName + " ("
-					+ output.length() + " bytes)");
 			return output.trim();
 		}
 		catch (Exception ex) {
-			System.err.println("[DEBUG_LOG] Failed to run helm: " + ex.getMessage());
 			log.error("Failed to run helm", ex);
 			return null;
 		}
 	}
 
-	private void compareManifests(String chartName, String jhelm, String helm) {
-		System.out.println("[DEBUG_LOG] Comparing manifests for " + chartName);
+	private void compareManifests(String chartName, String jhelm, String helm) throws Exception {
+		// Parse both manifests into YAML documents
+		List<JsonNode> jhelmDocs = parseYamlDocuments(jhelm);
+		List<JsonNode> helmDocs = parseYamlDocuments(helm);
 
-		try {
-			// Parse both manifests into YAML documents
-			List<JsonNode> jhelmDocs = parseYamlDocuments(jhelm);
-			List<JsonNode> helmDocs = parseYamlDocuments(helm);
+		log.info("{} - JHelm documents: {}, Helm documents: {}", chartName, jhelmDocs.size(), helmDocs.size());
 
-			log.info("{} - JHelm documents: {}, Helm documents: {}", chartName, jhelmDocs.size(), helmDocs.size());
+		// Create a map of documents by kind and name for order-independent comparison
+		var jhelmMap = buildResourceMap(jhelmDocs);
+		var helmMap = buildResourceMap(helmDocs);
 
-			if (jhelmDocs.size() != helmDocs.size()) {
-				log.warn("{} - Document count mismatch: JHelm={}, Helm={}", chartName, jhelmDocs.size(),
-						helmDocs.size());
-			}
+		// Check for missing resources
+		var missingInJhelm = new LinkedHashSet<>(helmMap.keySet());
+		missingInJhelm.removeAll(jhelmMap.keySet());
 
-			// Create a map of documents by kind and name for order-independent comparison
-			var jhelmMap = buildResourceMap(jhelmDocs);
-			var helmMap = buildResourceMap(helmDocs);
+		var extraInJhelm = new LinkedHashSet<>(jhelmMap.keySet());
+		extraInJhelm.removeAll(helmMap.keySet());
 
-			// Check for missing resources
-			var missingInJhelm = new HashSet<>(helmMap.keySet());
-			missingInJhelm.removeAll(jhelmMap.keySet());
+		List<String> failures = new ArrayList<>();
 
-			var missingInHelm = new HashSet<>(jhelmMap.keySet());
-			missingInHelm.removeAll(helmMap.keySet());
-
-			if (!missingInJhelm.isEmpty()) {
-				log.error("{} - Resources missing in JHelm: {}", chartName, missingInJhelm);
-				fail(chartName + " - Resources missing in JHelm: " + missingInJhelm);
-			}
-
-			if (!missingInHelm.isEmpty()) {
-				log.warn("{} - Extra resources in JHelm: {}", chartName, missingInHelm);
-			}
-
-			// Compare each resource
-			int differences = 0;
-			for (String key : helmMap.keySet()) {
-				if (!jhelmMap.containsKey(key)) {
-					continue;
-				}
-
-				JsonNode helmDoc = helmMap.get(key);
-				JsonNode jhelmDoc = jhelmMap.get(key);
-
-				if (!helmDoc.equals(jhelmDoc)) {
-					differences++;
-					log.warn("{} - Resource {} differs", chartName, key);
-					log.debug("{} - Helm: {}", key, helmDoc.toPrettyString());
-					log.debug("{} - JHelm: {}", key, jhelmDoc.toPrettyString());
-				}
-			}
-
-			if (differences == 0) {
-				System.out.println("[DEBUG_LOG] " + chartName + " - All resources match!");
-				log.info("{} - All resources match Helm output!", chartName);
-			}
-			else {
-				System.out.println("[DEBUG_LOG] " + chartName + " - Found " + differences + " resource differences");
-				log.warn("{} - Found {} resource differences", chartName, differences);
-			}
-
+		if (!missingInJhelm.isEmpty()) {
+			failures.add("Resources missing in JHelm: " + missingInJhelm);
 		}
-		catch (Exception ex) {
-			log.error("{} - Failed to parse and compare manifests", chartName, ex);
-			// Fallback to simple string comparison
-			String jhelmClean = cleanManifest(jhelm);
-			String helmClean = cleanManifest(helm);
 
-			if (!jhelmClean.equals(helmClean)) {
-				log.warn("{} - Manifests differ (fallback comparison)", chartName);
-				log.info("{} - JHelm Length: {}, Helm Length: {}", chartName, jhelmClean.length(), helmClean.length());
+		if (!extraInJhelm.isEmpty()) {
+			log.warn("{} - Extra resources in JHelm (not in Helm): {}", chartName, extraInJhelm);
+		}
+
+		// Load ignore rules for this chart
+		List<IgnoreRule> ignoreRules = loadIgnoreRules(chartName);
+
+		// Compare each resource — fast-path with equals(), detailed diff only when needed
+		for (String key : helmMap.keySet()) {
+			if (!jhelmMap.containsKey(key)) {
+				continue;
 			}
+
+			JsonNode helmDoc = helmMap.get(key);
+			JsonNode jhelmDoc = jhelmMap.get(key);
+
+			// Fast path: skip expensive diff computation if trees are identical
+			if (helmDoc.equals(jhelmDoc)) {
+				continue;
+			}
+
+			List<Diff> diffs = computeDiffs(helmDoc, jhelmDoc, "");
+			List<Diff> unignored = diffs.stream()
+				.filter((d) -> !isIgnored(key, d.path(), ignoreRules))
+				.collect(Collectors.toList());
+
+			if (!unignored.isEmpty()) {
+				int ignored = diffs.size() - unignored.size();
+				StringBuilder sb = new StringBuilder();
+				sb.append("Resource ").append(key).append(" has ").append(unignored.size()).append(" diff(s)");
+				if (ignored > 0) {
+					sb.append(" (").append(ignored).append(" ignored)");
+				}
+				sb.append(":\n");
+				for (Diff d : unignored) {
+					sb.append("  ").append(d).append('\n');
+				}
+				failures.add(sb.toString());
+			}
+		}
+
+		if (failures.isEmpty()) {
+			log.info("{} - All resources match Helm output!", chartName);
+		}
+		else {
+			StringBuilder msg = new StringBuilder();
+			msg.append(chartName).append(" - ").append(failures.size()).append(" comparison failure(s):\n");
+			for (String f : failures) {
+				msg.append("  - ").append(f).append('\n');
+			}
+			fail(msg.toString());
 		}
 	}
 
@@ -414,16 +411,103 @@ class KpsComparisonTest {
 		return map;
 	}
 
-	private String cleanManifest(String m) {
-		StringBuilder sb = new StringBuilder();
-		for (String line : m.split("\n")) {
-			String trimmed = line.trim();
-			if (trimmed.isEmpty() || trimmed.startsWith("#")) {
-				continue;
+	private List<Diff> computeDiffs(JsonNode expected, JsonNode actual, String path) {
+		List<Diff> diffs = new ArrayList<>();
+
+		if (expected.isObject() && actual.isObject()) {
+			Set<String> allKeys = new LinkedHashSet<>(expected.propertyNames());
+			allKeys.addAll(actual.propertyNames());
+			for (String key : allKeys) {
+				String childPath = path.isEmpty() ? key : path + "." + key;
+				if (!expected.has(key)) {
+					diffs.add(new Diff(childPath, "<missing>", actual.get(key).toString()));
+				}
+				else if (!actual.has(key)) {
+					diffs.add(new Diff(childPath, expected.get(key).toString(), "<missing>"));
+				}
+				else {
+					diffs.addAll(computeDiffs(expected.get(key), actual.get(key), childPath));
+				}
 			}
-			sb.append(trimmed).append("\n");
 		}
-		return sb.toString().trim();
+		else if (expected.isArray() && actual.isArray()) {
+			int max = Math.max(expected.size(), actual.size());
+			for (int i = 0; i < max; i++) {
+				String childPath = path + "[" + i + "]";
+				if (i >= expected.size()) {
+					diffs.add(new Diff(childPath, "<missing>", actual.get(i).toString()));
+				}
+				else if (i >= actual.size()) {
+					diffs.add(new Diff(childPath, expected.get(i).toString(), "<missing>"));
+				}
+				else {
+					diffs.addAll(computeDiffs(expected.get(i), actual.get(i), childPath));
+				}
+			}
+		}
+		else if (!expected.equals(actual)) {
+			diffs.add(new Diff(path, expected.toString(), actual.toString()));
+		}
+
+		return diffs;
+	}
+
+	private List<IgnoreRule> loadIgnoreRules(String chartName) {
+		try (InputStream is = getClass().getResourceAsStream("/comparison-ignores.yaml")) {
+			if (is == null) {
+				return Collections.emptyList();
+			}
+			YAMLMapper yamlMapper = YAMLMapper.builder().build();
+			JsonNode root = yamlMapper.readTree(is);
+			if (root == null || root.isNull()) {
+				return Collections.emptyList();
+			}
+			List<IgnoreRule> rules = new ArrayList<>();
+			// Load global rules (key "*") and chart-specific rules
+			for (String key : List.of("*", chartName)) {
+				if (root.has(key)) {
+					for (JsonNode entry : root.get(key)) {
+						String resource = entry.has("resource") ? entry.get("resource").asString() : "*";
+						String path = entry.has("path") ? entry.get("path").asString() : "*";
+						String reason = entry.has("reason") ? entry.get("reason").asString() : "";
+						rules.add(new IgnoreRule(resource, path, reason));
+					}
+				}
+			}
+			return rules;
+		}
+		catch (Exception ex) {
+			log.warn("Failed to load comparison-ignores.yaml: {}", ex.getMessage());
+			return Collections.emptyList();
+		}
+	}
+
+	private boolean isIgnored(String resourceKey, String diffPath, List<IgnoreRule> rules) {
+		for (IgnoreRule rule : rules) {
+			if (pathMatches(resourceKey, rule.resource()) && pathMatches(diffPath, rule.path())) {
+				log.debug("Ignoring diff at {} in {} (reason: {})", diffPath, resourceKey, rule.reason());
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean pathMatches(String value, String pattern) {
+		if ("*".equals(pattern)) {
+			return true;
+		}
+		// Prefix match: "path.*" matches any path starting with "path" followed by
+		// ".", "[", or "/"
+		if (pattern.endsWith(".*")) {
+			String stem = pattern.substring(0, pattern.length() - 2);
+			return value.equals(stem) || value.startsWith(stem + ".") || value.startsWith(stem + "[")
+					|| value.startsWith(stem + "/");
+		}
+		// Simple trailing wildcard: "Secret/*" matches "Secret/name"
+		if (pattern.endsWith("*")) {
+			return value.startsWith(pattern.substring(0, pattern.length() - 1));
+		}
+		return value.equals(pattern);
 	}
 
 	private File findChartDir(String chartFullName) {
@@ -584,6 +668,16 @@ class KpsComparisonTest {
 		catch (Exception ex) {
 			log.error("Failed to setup insecure SSL in test", ex);
 		}
+	}
+
+	record Diff(String path, String expected, String actual) {
+		@Override
+		public String toString() {
+			return path + ": expected=" + expected + ", actual=" + actual;
+		}
+	}
+
+	record IgnoreRule(String resource, String path, String reason) {
 	}
 
 }

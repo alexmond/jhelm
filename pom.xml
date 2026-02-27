@@ -37,17 +37,17 @@
 
     <properties>
         <kubernetes-client.version>25.0.0</kubernetes-client.version>
-        <picocli.version>4.7.6</picocli.version>
+        <picocli.version>4.7.7</picocli.version>
         <semver4j.version>3.1.0</semver4j.version>
         <bouncycastle.version>1.80</bouncycastle.version>
-        <chicory.version>1.7.0</chicory.version>
+        <chicory.version>1.7.2</chicory.version>
         <spring-retry.version>2.0.11</spring-retry.version>
 
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
-        <central-publishing-maven-plugin.version>0.9.0</central-publishing-maven-plugin.version>
+        <central-publishing-maven-plugin.version>0.10.0</central-publishing-maven-plugin.version>
 
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
-        <maven-pmd-plugin.version>3.26.0</maven-pmd-plugin.version>
+        <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
         <spring-javaformat.version>0.0.43</spring-javaformat.version>
         <checkstyle.version>9.3</checkstyle.version>
@@ -306,6 +306,7 @@
                 <version>${maven-pmd-plugin.version}</version>
                 <configuration>
                     <targetJdk>${java.version}</targetJdk>
+                    <linkXRef>false</linkXRef>
                     <failOnViolation>true</failOnViolation>
                     <printFailingErrors>true</printFailingErrors>
                     <includeTests>false</includeTests>

@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.core.service;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -223,7 +224,7 @@ class EngineTest {
 		Chart chart = simpleChart("mychart", "1.0.0",
 				List.of(tmpl("test.yaml", "kube: {{ .Capabilities.KubeVersion.Version }}")), Map.of());
 		String result = engine.render(chart, Map.of(), releaseInfo());
-		assertTrue(result.contains("kube: v1.28.0"));
+		assertTrue(result.contains("kube: v1.31.0"));
 	}
 
 	// --- Error handling ---
@@ -315,6 +316,238 @@ class EngineTest {
 			.build();
 		String result = engine.render(chart, Map.of(), releaseInfo());
 		assertTrue(result.contains("kind: ConfigMap"));
+	}
+
+	// --- Capabilities: APIVersions.Has method invocation ---
+
+	@Test
+	void testApiVersionsHasReturnsTrue() {
+		// .Capabilities.APIVersions.Has "policy/v1" should return true
+		// because the engine includes policy/v1 in DEFAULT_API_VERSIONS
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml",
+						"{{ if .Capabilities.APIVersions.Has \"policy/v1\" }}policy-v1{{ else }}no-policy{{ end }}")),
+				Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("policy-v1"));
+	}
+
+	@Test
+	void testApiVersionsHasReturnsFalse() {
+		// An unknown API version should not be found
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("test.yaml",
+				"{{ if .Capabilities.APIVersions.Has \"custom.example.com/v1beta1\" }}found{{ else }}not-found{{ end }}")),
+				Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("not-found"));
+	}
+
+	@Test
+	void testApiVersionsHasMultipleVersions() {
+		// Verify several known API versions are available
+		String template = """
+				apps: {{ if .Capabilities.APIVersions.Has "apps/v1" }}yes{{ else }}no{{ end }}
+				batch: {{ if .Capabilities.APIVersions.Has "batch/v1" }}yes{{ else }}no{{ end }}
+				networking: {{ if .Capabilities.APIVersions.Has "networking.k8s.io/v1" }}yes{{ else }}no{{ end }}
+				rbac: {{ if .Capabilities.APIVersions.Has "rbac.authorization.k8s.io/v1" }}yes{{ else }}no{{ end }}""";
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("test.yaml", template)), Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("apps: yes"));
+		assertTrue(result.contains("batch: yes"));
+		assertTrue(result.contains("networking: yes"));
+		assertTrue(result.contains("rbac: yes"));
+	}
+
+	// --- Capabilities: KubeVersion fields ---
+
+	@Test
+	void testKubeVersionFields() {
+		String template = """
+				version: {{ .Capabilities.KubeVersion.Version }}
+				major: {{ .Capabilities.KubeVersion.Major }}
+				minor: {{ .Capabilities.KubeVersion.Minor }}""";
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("test.yaml", template)), Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("version: v1.31.0"));
+		assertTrue(result.contains("major: 1"));
+		assertTrue(result.contains("minor: 31"));
+	}
+
+	// --- Chart.Annotations access ---
+
+	@Test
+	void testChartAnnotationsAccess() {
+		Chart chart = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("mychart")
+				.version("1.0.0")
+				.annotations(Map.of("fips", "true", "category", "database"))
+				.build())
+			.templates(List.of(tmpl("test.yaml",
+					"fips: {{ .Chart.annotations.fips }}\ncategory: {{ .Chart.annotations.category }}")))
+			.values(Map.of())
+			.build();
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("fips: true"));
+		assertTrue(result.contains("category: database"));
+	}
+
+	@Test
+	void testChartAnnotationsConditional() {
+		// Simulate bitnami charts that check .Chart.Annotations for FIPS
+		Chart chart = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("mychart")
+				.version("1.0.0")
+				.annotations(Map.of("fips", "true"))
+				.build())
+			.templates(List
+				.of(tmpl("test.yaml", "{{ if .Chart.annotations.fips }}fips-enabled{{ else }}standard{{ end }}")))
+			.values(Map.of())
+			.build();
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("fips-enabled"));
+	}
+
+	// --- semverCompare from Sprig ---
+
+	@Test
+	void testSemverCompareInTemplate() {
+		// semverCompare should properly compare versions — this was broken when
+		// ChartFunctions had a stub that always returned true
+		String template = """
+				{{ if semverCompare ">=1.21-0" .Capabilities.KubeVersion.Version -}}
+				modern-api
+				{{- else -}}
+				legacy-api
+				{{- end }}""";
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("test.yaml", template)), Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("modern-api"));
+	}
+
+	@Test
+	void testSemverCompareSelectsApiVersion() {
+		// Common bitnami pattern: choose Ingress API version based on kube version
+		String template = """
+				{{- if semverCompare ">=1.19-0" .Capabilities.KubeVersion.Version -}}
+				apiVersion: networking.k8s.io/v1
+				{{- else -}}
+				apiVersion: extensions/v1beta1
+				{{- end }}""";
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("ingress.yaml", template)), Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("apiVersion: networking.k8s.io/v1"));
+		assertFalse(result.contains("extensions/v1beta1"));
+	}
+
+	// --- Range over maps: sorted key iteration ---
+
+	@Test
+	void testRangeOverMapSortedKeys() {
+		// Go text/template guarantees sorted-key iteration for string-keyed maps
+		Map<String, Object> env = new HashMap<>();
+		env.put("ZOO_PORT", "2181");
+		env.put("APP_NAME", "myapp");
+		env.put("LOG_LEVEL", "info");
+
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("cm.yaml", "{{ range $k, $v := .Values.env }}{{ $k }}={{ $v }}\n{{ end }}")),
+				Map.of("env", env));
+		String result = engine.render(chart, Map.of(), releaseInfo());
+
+		// Keys should appear in alphabetical order
+		int appIdx = result.indexOf("APP_NAME");
+		int logIdx = result.indexOf("LOG_LEVEL");
+		int zooIdx = result.indexOf("ZOO_PORT");
+		assertTrue(appIdx < logIdx && logIdx < zooIdx, "Expected sorted key order: APP_NAME < LOG_LEVEL < ZOO_PORT");
+	}
+
+	// --- printValue: Collection and Map rendering ---
+
+	@Test
+	void testCollectionPrintedAsGoFormat() {
+		// Collections should print as [item1 item2] matching Go's fmt.Sprint
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("svc.yaml", "sourceRanges: {{ .Values.loadBalancerSourceRanges }}")),
+				Map.of("loadBalancerSourceRanges", List.of("10.0.0.0/8", "172.16.0.0/12")));
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("sourceRanges: [10.0.0.0/8 172.16.0.0/12]"));
+	}
+
+	@Test
+	void testMapPrintedAsGoFormat() {
+		Map<String, String> labels = new LinkedHashMap<>();
+		labels.put("app", "nginx");
+		labels.put("tier", "frontend");
+
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "labels: {{ .Values.selectorLabels }}")), Map.of("selectorLabels", labels));
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("labels: map[app:nginx tier:frontend]"));
+	}
+
+	// --- Subchart default values merging ---
+
+	@Test
+	void testSubchartDefaultsAvailableInParent() {
+		// Parent template should access subchart defaults via .Values.<subchart>.*
+		Chart subchart = simpleChart("redis", "17.0.0", List.of(tmpl("svc.yaml", "kind: Service")),
+				Map.of("port", 6379, "auth", Map.of("enabled", true)));
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder().name("parent").version("1.0.0").build())
+			.templates(List.of(tmpl("cm.yaml", "port: {{ .Values.redis.port }}")))
+			.values(Map.of())
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("port: 6379"));
+	}
+
+	@Test
+	void testSubchartDefaultsMergedWithOverrides() {
+		// User overrides should be deep-merged with subchart defaults
+		Chart subchart = simpleChart("redis", "17.0.0", List.of(tmpl("svc.yaml", "kind: Service")),
+				Map.of("port", 6379, "auth", new HashMap<>(Map.of("enabled", true, "password", "default"))));
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder().name("parent").version("1.0.0").build())
+			.templates(List.of(tmpl("cm.yaml",
+					"port: {{ .Values.redis.port }}\nauth: {{ .Values.redis.auth.enabled }}\npwd: {{ .Values.redis.auth.password }}")))
+			.values(Map.of())
+			.dependencies(List.of(subchart))
+			.build();
+
+		Map<String, Object> overrides = new HashMap<>();
+		overrides.put("redis", new HashMap<>(Map.of("auth", new HashMap<>(Map.of("password", "secret123")))));
+
+		String result = engine.render(parent, overrides, releaseInfo());
+		assertTrue(result.contains("port: 6379"));
+		assertTrue(result.contains("auth: true"));
+		assertTrue(result.contains("pwd: secret123"));
+	}
+
+	@Test
+	void testSubchartWithAliasDefaultsAvailable() {
+		// Subchart with alias should have its defaults under the alias key
+		Chart subchart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("redis").version("17.0.0").build())
+			.templates(List.of(tmpl("svc.yaml", "kind: Service")))
+			.values(Map.of("port", 6379))
+			.alias("cache")
+			.build();
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder().name("parent").version("1.0.0").build())
+			.templates(List.of(tmpl("cm.yaml", "cache-port: {{ .Values.cache.port }}")))
+			.values(Map.of())
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("cache-port: 6379"));
 	}
 
 }
