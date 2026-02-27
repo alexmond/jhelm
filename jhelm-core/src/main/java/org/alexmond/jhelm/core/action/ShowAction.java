@@ -84,6 +84,7 @@ public class ShowAction {
 		YAMLMapper yamlMapper = YAMLMapper.builder()
 			.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
 			.enable(YAMLWriteFeature.MINIMIZE_QUOTES)
+			.enable(YAMLWriteFeature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS)
 			.changeDefaultPropertyInclusion((v) -> v.withValueInclusion(JsonInclude.Include.NON_NULL)
 				.withContentInclusion(JsonInclude.Include.NON_NULL))
 			.build();

@@ -13,11 +13,6 @@
 
 # Known JHelm behavioral differences (apply to all charts)
 "*":
-  # Type/format differences
-  - resource: "*"
-    path: "metadata.annotations.helm.sh/hook-weight"
-    reason: "JHelm renders annotation values as numbers, Helm as quoted strings"
-
   # Checksum annotations — different hash computation
   - resource: "*"
     path: "spec.template.metadata.annotations.checksum.*"

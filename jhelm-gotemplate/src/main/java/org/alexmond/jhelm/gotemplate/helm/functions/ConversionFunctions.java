@@ -26,6 +26,8 @@ public final class ConversionFunctions {
 	private static final ThreadLocal<YAMLMapper> YAML_MAPPER = ThreadLocal.withInitial(() -> YAMLMapper.builder()
 		.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
 		.enable(YAMLWriteFeature.MINIMIZE_QUOTES)
+		// Keep quotes on numeric-looking strings to match Go yaml.Marshal behavior
+		.enable(YAMLWriteFeature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS)
 		// Sort keys alphabetically for consistent, predictable output
 		.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
 		// Omit null-valued fields/entries to match Helm's Go yaml.Marshal behavior
