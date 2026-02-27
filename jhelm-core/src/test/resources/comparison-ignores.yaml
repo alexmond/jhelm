@@ -43,6 +43,9 @@
   - resource: "*"
     path: "spec.template.spec.enableServiceLinks"
     reason: "Subchart defaults merging may change boolean conditional evaluation"
+  - resource: "*"
+    path: "spec.trafficDistribution"
+    reason: "Subchart defaults merging exposes values that Helm omits"
 
 # Charts using bitnami common library with nested parenthesized pipeline
 # expressions ((X).Y) in semverCompare — parser evaluation issue
