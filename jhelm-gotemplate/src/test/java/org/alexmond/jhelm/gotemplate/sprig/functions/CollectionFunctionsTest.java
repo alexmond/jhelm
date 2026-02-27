@@ -323,6 +323,16 @@ class CollectionFunctionsTest {
 		assertEquals("a,b,c", exec("{{ $t := tuple \"a\" \"b\" \"c\" }}{{ join \",\" $t }}"));
 	}
 
+	@Test
+	void testTupleLenWithComparison() throws IOException, TemplateException {
+		// Reproduces cert-manager v1.20.0 pattern: ne (len .) 4
+		// len returns int (Integer), literal 4 is long (Long) — eq/ne must handle mixed
+		// types
+		assertEquals("true", exec("{{ $t := tuple \"a\" \"b\" \"c\" \"d\" }}{{ eq (len $t) 4 }}"));
+		assertEquals("false", exec("{{ $t := tuple \"a\" \"b\" \"c\" \"d\" }}{{ ne (len $t) 4 }}"));
+		assertEquals("true", exec("{{ $t := tuple \"a\" \"b\" }}{{ ne (len $t) 4 }}"));
+	}
+
 	@ParameterizedTest
 	@CsvSource(delimiter = '|',
 			value = { "{{ $s := split \",\" \"a,b,c\" }}{{ index $s 1 }}        | b",

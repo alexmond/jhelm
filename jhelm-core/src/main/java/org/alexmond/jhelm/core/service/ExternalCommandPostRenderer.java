@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
@@ -77,7 +78,15 @@ public class ExternalCommandPostRenderer implements PostRenderProcessor {
 						"Post-renderer command timed out after " + timeoutSeconds + "s: " + String.join(" ", command));
 			}
 
-			stdinFuture.join();
+			// Stdin may fail if process exits before input is fully written (e.g.,
+			// broken pipe). Defer this error so we can check exit code first.
+			CompletionException stdinError = null;
+			try {
+				stdinFuture.join();
+			}
+			catch (CompletionException ex) {
+				stdinError = ex;
+			}
 			String stdout = stdoutFuture.join();
 			String stderr = stderrFuture.join();
 
@@ -85,6 +94,9 @@ public class ExternalCommandPostRenderer implements PostRenderProcessor {
 			if (exitCode != 0) {
 				throw new IOException("Post-renderer command exited with code " + exitCode + ": "
 						+ String.join(" ", command) + (stderr.isBlank() ? "" : "\nstderr: " + stderr));
+			}
+			if (stdinError != null) {
+				throw stdinError;
 			}
 
 			log.debug("Post-renderer completed successfully");

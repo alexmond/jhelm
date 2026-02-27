@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.action;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
@@ -125,6 +126,9 @@ public class GetAction {
 		YAMLMapper yamlMapper = YAMLMapper.builder()
 			.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
 			.enable(YAMLWriteFeature.MINIMIZE_QUOTES)
+			.enable(YAMLWriteFeature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS)
+			.changeDefaultPropertyInclusion((v) -> v.withValueInclusion(JsonInclude.Include.NON_NULL)
+				.withContentInclusion(JsonInclude.Include.NON_NULL))
 			.build();
 		return yamlMapper.writeValueAsString(obj);
 	}

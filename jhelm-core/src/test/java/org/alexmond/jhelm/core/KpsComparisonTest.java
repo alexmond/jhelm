@@ -47,6 +47,8 @@ import java.util.stream.Collectors;
 @Slf4j
 class KpsComparisonTest {
 
+	private static final YAMLMapper YAML_MAPPER = YAMLMapper.builder().build();
+
 	private final RepoManager repoManager = createRepoManager();
 
 	private final ChartLoader chartLoader = new ChartLoader();
@@ -446,6 +448,19 @@ class KpsComparisonTest {
 			}
 		}
 		else if (!expected.equals(actual)) {
+			if (expected.isTextual() && actual.isTextual()) {
+				try {
+					JsonNode parsedExpected = YAML_MAPPER.readTree(expected.textValue());
+					JsonNode parsedActual = YAML_MAPPER.readTree(actual.textValue());
+					if (parsedExpected != null && parsedActual != null && !parsedExpected.isValueNode()
+							&& !parsedActual.isValueNode()) {
+						diffs.addAll(computeDiffs(parsedExpected, parsedActual, path));
+						return diffs;
+					}
+				}
+				catch (Exception ignored) {
+				}
+			}
 			diffs.add(new Diff(path, expected.toString(), actual.toString()));
 		}
 

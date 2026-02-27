@@ -136,4 +136,61 @@ class StringFunctionsTest {
 		assertFalse(exec("{{ regexReplaceAllLiteral \"[0-9]+\" \"abc123def456\" \"X\" }}").isEmpty());
 	}
 
+	// --- quote/squote null handling ---
+
+	@Test
+	void testQuoteNull() throws IOException, TemplateException {
+		// quote(null) should return empty double-quoted string, matching Go Sprig
+		HashMap<String, Object> data = new HashMap<>();
+		data.put("val", null);
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ quote .val }}", data, writer);
+		assertEquals("\"\"", writer.toString());
+	}
+
+	@Test
+	void testSquoteNull() throws IOException, TemplateException {
+		// squote(null) should return empty single-quoted string, matching Go Sprig
+		HashMap<String, Object> data = new HashMap<>();
+		data.put("val", null);
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ squote .val }}", data, writer);
+		assertEquals("''", writer.toString());
+	}
+
+	@Test
+	void testNullGuardPatternWithQuote() throws IOException, TemplateException {
+		// Cert-manager null-guard pattern: quote(nil) produces "", which is in the
+		// list, so the block should be skipped
+		HashMap<String, Object> data = new HashMap<>();
+		data.put("val", null);
+		StringWriter writer = new StringWriter();
+		String template = """
+				{{- if not (has (quote .val) (list "" (quote ""))) -}}visible{{- end -}}""";
+		execute("test", template, data, writer);
+		assertEquals("", writer.toString());
+	}
+
+	@Test
+	void testNullGuardPatternWithNonNullValue() throws IOException, TemplateException {
+		// When value is non-null, the guard should allow rendering
+		HashMap<String, Object> data = new HashMap<>();
+		data.put("val", 10);
+		StringWriter writer = new StringWriter();
+		String template = """
+				{{- if not (has (quote .val) (list "" (quote ""))) -}}visible{{- end -}}""";
+		execute("test", template, data, writer);
+		assertEquals("visible", writer.toString());
+	}
+
+	@Test
+	void testIfBlockSkippedForNullValue() throws IOException, TemplateException {
+		// {{if .nullVal}} should evaluate to false and skip the block
+		HashMap<String, Object> data = new HashMap<>();
+		data.put("nullVal", null);
+		StringWriter writer = new StringWriter();
+		execute("test", "{{- if .nullVal }}visible{{- end -}}", data, writer);
+		assertEquals("", writer.toString());
+	}
+
 }

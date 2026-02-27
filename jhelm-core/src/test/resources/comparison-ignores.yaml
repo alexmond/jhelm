@@ -13,14 +13,6 @@
 
 # Known JHelm behavioral differences (apply to all charts)
 "*":
-  # Type/format differences
-  - resource: "*"
-    path: "spec.revisionHistoryLimit"
-    reason: "JHelm emits explicit null, Helm omits the field"
-  - resource: "*"
-    path: "metadata.annotations.helm.sh/hook-weight"
-    reason: "JHelm renders annotation values as numbers, Helm as quoted strings"
-
   # Checksum annotations — different hash computation
   - resource: "*"
     path: "spec.template.metadata.annotations.checksum.*"
@@ -31,33 +23,14 @@
     path: "data.*"
     reason: "Secret data contains generated passwords/certs that differ between runs"
 
-  # ConfigMap data — embedded configs with different key ordering or whitespace
-  - resource: "ConfigMap/*"
-    path: "data.*"
-    reason: "ConfigMap embedded config ordering/whitespace differs"
-
-  # Null vs omitted fields
-  - resource: "*"
-    path: "spec.template.spec.dnsPolicy"
-    reason: "JHelm emits tilde for nil, Helm omits the field"
-  - resource: "*"
-    path: "spec.template.spec.enableServiceLinks"
-    reason: "Subchart defaults merging may change boolean conditional evaluation"
+  # Subchart defaults merging — JHelm exposes values that Helm omits
   - resource: "*"
     path: "spec.trafficDistribution"
     reason: "Subchart defaults merging exposes values that Helm omits"
 
-# Charts using bitnami common library with nested parenthesized pipeline
-# expressions ((X).Y) in semverCompare — parser evaluation issue
-"bitnami/joomla":
-  - resource: "*"
-    path: "apiVersion"
-    reason: "common.capabilities.kubeVersion nested pipeline ((X).Y) evaluates incorrectly"
-
-"bitnami/magento":
-  - resource: "*"
-    path: "apiVersion"
-    reason: "common.capabilities.kubeVersion nested pipeline ((X).Y) evaluates incorrectly"
-  - resource: "*"
-    path: "spec.template.spec.containers.*"
-    reason: "Elasticsearch subchart env value differs due to semverCompare issue"
+# Prometheus ConfigMap — JHelm double-quotes regex values, making \d an invalid
+# YAML escape in the embedded config (unparseable for structural comparison)
+"prometheus-community/prometheus":
+  - resource: "ConfigMap/*"
+    path: "data.prometheus.yml"
+    reason: "JHelm double-quotes regex values with backslash escapes in embedded YAML"

@@ -96,4 +96,45 @@ class ConversionFunctionsTest {
 		assertTrue(result.contains(expectedContains));
 	}
 
+	@ParameterizedTest
+	@CsvSource({ "toYaml", "mustToYaml" })
+	void testYamlNumericStringsQuoted(String func) throws IOException, TemplateException {
+		Map<String, Object> annotations = new HashMap<>();
+		annotations.put("helm.sh/hook-weight", "-5");
+		annotations.put("helm.sh/hook", "pre-install");
+		annotations.put("port", "8080");
+
+		Map<String, Object> data = new HashMap<>();
+		data.put("obj", annotations);
+
+		String result = execWithData("{{ " + func + " .obj }}", data);
+		// Numeric-looking strings must be quoted to match Go yaml.Marshal
+		assertTrue(result.contains("\"-5\"") || result.contains("'-5'"),
+				"Numeric string '-5' should be quoted: " + result);
+		assertTrue(result.contains("\"8080\"") || result.contains("'8080'"),
+				"Numeric string '8080' should be quoted: " + result);
+		// Non-numeric strings should be plain (minimized)
+		assertTrue(result.contains("pre-install") && !result.contains("\"pre-install\""),
+				"Non-numeric string should not be quoted: " + result);
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "toYaml", "mustToYaml" })
+	void testYamlNullSuppression(String func) throws IOException, TemplateException {
+		Map<String, Object> obj = new HashMap<>();
+		obj.put("name", "myapp");
+		obj.put("replicas", 3);
+		obj.put("revisionHistoryLimit", null);
+		obj.put("dnsPolicy", null);
+
+		Map<String, Object> data = new HashMap<>();
+		data.put("obj", obj);
+
+		String result = execWithData("{{ " + func + " .obj }}", data);
+		assertTrue(result.contains("name: myapp"), "non-null string field should be present");
+		assertTrue(result.contains("replicas: 3"), "non-null integer field should be present");
+		assertFalse(result.contains("revisionHistoryLimit"), "null field should be omitted");
+		assertFalse(result.contains("dnsPolicy"), "null field should be omitted");
+	}
+
 }

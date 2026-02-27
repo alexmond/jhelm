@@ -329,8 +329,10 @@ public class Engine {
 		context.put("Release", releaseInfo);
 
 		// Add standard Helm objects
-		context.put("Capabilities", Map.of("KubeVersion", Map.of("Version", "v1.31.0", "Major", "1", "Minor", "31"),
-				"APIVersions", new VersionSet(DEFAULT_API_VERSIONS)));
+		context.put("Capabilities",
+				Map.of("KubeVersion",
+						Map.of("Version", "v1.31.0", "Major", "1", "Minor", "31", "GitVersion", "v1.31.0"),
+						"APIVersions", new VersionSet(DEFAULT_API_VERSIONS)));
 		context.put("Template", Map.of("Name", "", "BasePath", "templates"));
 
 		StringBuilder sb = new StringBuilder();

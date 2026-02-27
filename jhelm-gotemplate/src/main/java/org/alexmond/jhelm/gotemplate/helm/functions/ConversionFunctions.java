@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import org.alexmond.jhelm.gotemplate.Function;
 import tools.jackson.core.json.JsonWriteFeature;
 import tools.jackson.databind.SerializationFeature;
@@ -25,8 +26,13 @@ public final class ConversionFunctions {
 	private static final ThreadLocal<YAMLMapper> YAML_MAPPER = ThreadLocal.withInitial(() -> YAMLMapper.builder()
 		.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
 		.enable(YAMLWriteFeature.MINIMIZE_QUOTES)
+		// Keep quotes on numeric-looking strings to match Go yaml.Marshal behavior
+		.enable(YAMLWriteFeature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS)
 		// Sort keys alphabetically for consistent, predictable output
 		.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+		// Omit null-valued fields/entries to match Helm's Go yaml.Marshal behavior
+		.changeDefaultPropertyInclusion((v) -> v.withValueInclusion(JsonInclude.Include.NON_NULL)
+			.withContentInclusion(JsonInclude.Include.NON_NULL))
 		.build());
 
 	private static final ThreadLocal<JsonMapper> JSON_MAPPER = ThreadLocal
