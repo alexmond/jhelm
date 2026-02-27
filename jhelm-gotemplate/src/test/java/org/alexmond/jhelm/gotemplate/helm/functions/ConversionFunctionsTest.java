@@ -96,4 +96,23 @@ class ConversionFunctionsTest {
 		assertTrue(result.contains(expectedContains));
 	}
 
+	@ParameterizedTest
+	@CsvSource({ "toYaml", "mustToYaml" })
+	void testYamlNullSuppression(String func) throws IOException, TemplateException {
+		Map<String, Object> obj = new HashMap<>();
+		obj.put("name", "myapp");
+		obj.put("replicas", 3);
+		obj.put("revisionHistoryLimit", null);
+		obj.put("dnsPolicy", null);
+
+		Map<String, Object> data = new HashMap<>();
+		data.put("obj", obj);
+
+		String result = execWithData("{{ " + func + " .obj }}", data);
+		assertTrue(result.contains("name: myapp"), "non-null string field should be present");
+		assertTrue(result.contains("replicas: 3"), "non-null integer field should be present");
+		assertFalse(result.contains("revisionHistoryLimit"), "null field should be omitted");
+		assertFalse(result.contains("dnsPolicy"), "null field should be omitted");
+	}
+
 }

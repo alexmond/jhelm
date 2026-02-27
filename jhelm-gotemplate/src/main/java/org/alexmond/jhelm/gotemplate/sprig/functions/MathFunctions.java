@@ -177,24 +177,21 @@ public final class MathFunctions {
 	}
 
 	/**
-	 * Divides first argument by second argument. Returns integer if result is whole
-	 * number, otherwise double. Returns 0 if divisor is 0.
+	 * Performs integer division of first argument by second argument (truncating toward
+	 * zero). Returns 0 if divisor is 0. Matches Go Sprig behavior where {@code div} is
+	 * always integer division and {@code divf} is for floating point.
 	 */
 	private static Function div() {
 		return (args) -> {
 			if (args.length < 2) {
-				return 0;
+				return 0L;
 			}
-			double dividend = ((Number) args[0]).doubleValue();
-			double divisor = ((Number) args[1]).doubleValue();
+			long dividend = ((Number) args[0]).longValue();
+			long divisor = ((Number) args[1]).longValue();
 			if (divisor == 0) {
-				return 0; // Avoid division by zero
+				return 0L;
 			}
-			double result = dividend / divisor;
-			if (result == Math.floor(result)) {
-				return (long) result;
-			}
-			return result;
+			return dividend / divisor;
 		};
 	}
 

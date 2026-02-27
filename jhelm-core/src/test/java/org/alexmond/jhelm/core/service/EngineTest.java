@@ -10,6 +10,8 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -360,17 +362,13 @@ class EngineTest {
 
 	// --- Capabilities: KubeVersion fields ---
 
-	@Test
-	void testKubeVersionFields() {
-		String template = """
-				version: {{ .Capabilities.KubeVersion.Version }}
-				major: {{ .Capabilities.KubeVersion.Major }}
-				minor: {{ .Capabilities.KubeVersion.Minor }}""";
-		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("test.yaml", template)), Map.of());
+	@ParameterizedTest(name = "KubeVersion.{0} is accessible")
+	@CsvSource({ "Version, v1.31.0", "GitVersion, v1.31.0", "Major, 1", "Minor, 31" })
+	void testKubeVersionField(String field, String expected) {
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "val: {{ .Capabilities.KubeVersion." + field + " }}")), Map.of());
 		String result = engine.render(chart, Map.of(), releaseInfo());
-		assertTrue(result.contains("version: v1.31.0"));
-		assertTrue(result.contains("major: 1"));
-		assertTrue(result.contains("minor: 31"));
+		assertTrue(result.contains("val: " + expected));
 	}
 
 	// --- Chart.Annotations access ---
@@ -527,6 +525,67 @@ class EngineTest {
 		assertTrue(result.contains("port: 6379"));
 		assertTrue(result.contains("auth: true"));
 		assertTrue(result.contains("pwd: secret123"));
+	}
+
+	// --- YAML tilde null handling ---
+
+	@Test
+	void testDnsPolicyNullOmitted() {
+		Map<String, Object> defaults = new HashMap<>();
+		defaults.put("dnsPolicy", null);
+		String template = """
+				kind: Deployment
+				spec:
+				  template:
+				    spec:
+				    {{- if .Values.dnsPolicy }}
+				      dnsPolicy: {{ .Values.dnsPolicy }}
+				    {{- end }}
+				      containers: []""";
+		Chart chart = simpleChart("grafana", "1.0.0", List.of(tmpl("deploy.yaml", template)), defaults);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertFalse(result.contains("dnsPolicy"), "null dnsPolicy should be omitted");
+		assertTrue(result.contains("containers: []"));
+	}
+
+	// --- toYaml null suppression ---
+
+	@Test
+	void testToYamlOmitsNullValues() {
+		// toYaml should omit null-valued map entries to match Helm's Go yaml.Marshal
+		Map<String, Object> spec = new HashMap<>();
+		spec.put("replicas", 3);
+		spec.put("revisionHistoryLimit", null);
+		spec.put("selector", "app=test");
+
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("deploy.yaml", "spec:\n{{ .Values.spec | toYaml | indent 2 }}")), Map.of("spec", spec));
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("replicas: 3"), "non-null field should be present");
+		assertTrue(result.contains("selector: app=test"), "non-null field should be present");
+		assertFalse(result.contains("revisionHistoryLimit"), "null field should be omitted by toYaml");
+	}
+
+	// --- quote null-guard pattern (cert-manager) ---
+
+	@Test
+	void testQuoteNullGuardOmitsField() {
+		// Cert-manager pattern: field guarded by quote+has should be omitted when
+		// value is null
+		Map<String, Object> global = new HashMap<>();
+		global.put("revisionHistoryLimit", null);
+
+		String template = """
+				kind: Deployment
+				spec:
+				{{- if not (has (quote .Values.global.revisionHistoryLimit) (list "" (quote ""))) }}
+				  revisionHistoryLimit: {{ .Values.global.revisionHistoryLimit }}
+				{{- end }}
+				  replicas: 1""";
+		Chart chart = simpleChart("certmgr", "1.0.0", List.of(tmpl("deploy.yaml", template)), Map.of("global", global));
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertFalse(result.contains("revisionHistoryLimit"), "null-guarded field should be omitted");
+		assertTrue(result.contains("replicas: 1"));
 	}
 
 	@Test

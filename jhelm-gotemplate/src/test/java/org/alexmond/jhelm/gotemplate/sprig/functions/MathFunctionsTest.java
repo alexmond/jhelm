@@ -30,10 +30,11 @@ class MathFunctionsTest {
 	@ParameterizedTest
 	@CsvSource(delimiter = '|',
 			value = { "{{ add 2 3 }}       | 5", "{{ add1 5 }}        | 6", "{{ sub 5 3 }}       | 2",
-					"{{ mul 3 4 }}       | 12", "{{ div 10 2 }}      | 5", "{{ mod 10 3 }}      | 1",
-					"{{ max 2 5 3 }}     | 5", "{{ min 2 5 3 }}     | 2", "{{ len \"hello\" }} | 5",
-					"{{ int \"42\" }}    | 42", "{{ int64 \"123\" }} | 123", "{{ toString 42 }}   | 42",
-					"{{ min 5 }}         | 5", "{{ max 5 }}         | 5", "{{ add }}           | 0" })
+					"{{ mul 3 4 }}       | 12", "{{ div 10 2 }}      | 5", "{{ div 1 2 }}       | 0",
+					"{{ div 7 3 }}       | 2", "{{ mod 10 3 }}      | 1", "{{ max 2 5 3 }}     | 5",
+					"{{ min 2 5 3 }}     | 2", "{{ len \"hello\" }} | 5", "{{ int \"42\" }}    | 42",
+					"{{ int64 \"123\" }} | 123", "{{ toString 42 }}   | 42", "{{ min 5 }}         | 5",
+					"{{ max 5 }}         | 5", "{{ add }}           | 0" })
 	void testExactMathFunction(String template, String expected) throws IOException, TemplateException {
 		assertEquals(expected, exec(template));
 	}

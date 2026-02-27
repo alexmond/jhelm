@@ -2,6 +2,8 @@ package org.alexmond.jhelm.core.util;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ValuesLoaderTest {
@@ -139,6 +142,16 @@ class ValuesLoaderTest {
 		Map<?, ?> probe = (Map<?, ?>) result.get("livenessProbe");
 		Map<?, ?> httpGet = (Map<?, ?>) probe.get("httpGet");
 		assertEquals("http", httpGet.get("port"));
+	}
+
+	@ParameterizedTest(name = "YAML null literal \"{0}\" is parsed as null")
+	@ValueSource(strings = { "~", "null", "Null", "NULL", "" })
+	void testNullLiteralParsedAsNull(String literal) throws IOException {
+		File f = writeValues("key: " + literal + "\nother: value\n");
+		Map<String, Object> result = ValuesLoader.load(f);
+		assertTrue(result.containsKey("key"), "key should exist");
+		assertNull(result.get("key"), "'" + literal + "' should be parsed as null");
+		assertEquals("value", result.get("other"));
 	}
 
 	private File writeValues(String content) throws IOException {

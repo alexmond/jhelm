@@ -1,7 +1,13 @@
 package org.alexmond.jhelm.core.util;
 
+import org.snakeyaml.engine.v2.api.ConstructNode;
 import org.snakeyaml.engine.v2.api.Load;
 import org.snakeyaml.engine.v2.api.LoadSettings;
+import org.snakeyaml.engine.v2.nodes.Tag;
+import org.snakeyaml.engine.v2.resolver.CoreScalarResolver;
+import org.snakeyaml.engine.v2.resolver.ScalarResolver;
+import org.snakeyaml.engine.v2.schema.CoreSchema;
+import org.snakeyaml.engine.v2.schema.Schema;
 
 import java.io.File;
 import java.io.FileReader;
@@ -24,7 +30,29 @@ import java.util.Map;
  */
 public final class ValuesLoader {
 
+	private static final Schema HELM_SCHEMA = createHelmSchema();
+
 	private ValuesLoader() {
+	}
+
+	private static Schema createHelmSchema() {
+		CoreScalarResolver resolver = new CoreScalarResolver(true);
+		// Fix: CoreScalarResolver's NULL first-char is "n\0" but the regex
+		// includes ~. Add ~ to the first-char lookup so the resolver checks
+		// the NULL regex for tilde values (YAML 1.1/1.2 null literal).
+		resolver.addImplicitResolver(Tag.NULL, CoreScalarResolver.NULL, "~");
+		Map<Tag, ConstructNode> constructors = new CoreSchema().getSchemaTagConstructors();
+		return new Schema() {
+			@Override
+			public ScalarResolver getScalarResolver() {
+				return resolver;
+			}
+
+			@Override
+			public Map<Tag, ConstructNode> getSchemaTagConstructors() {
+				return constructors;
+			}
+		};
 	}
 
 	/**
@@ -35,7 +63,7 @@ public final class ValuesLoader {
 	 */
 	@SuppressWarnings("unchecked")
 	public static Map<String, Object> load(File valuesFile) throws IOException {
-		LoadSettings settings = LoadSettings.builder().build();
+		LoadSettings settings = LoadSettings.builder().setSchema(HELM_SCHEMA).build();
 		Load load = new Load(settings);
 		Map<String, Object> merged = new LinkedHashMap<>();
 		try (Reader reader = new FileReader(valuesFile, StandardCharsets.UTF_8)) {

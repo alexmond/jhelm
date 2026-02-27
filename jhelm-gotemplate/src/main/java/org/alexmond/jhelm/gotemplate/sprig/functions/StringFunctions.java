@@ -289,11 +289,11 @@ public final class StringFunctions {
 	}
 
 	private static Function quote() {
-		return (args) -> (args.length == 0) ? "\"\"" : "\"" + args[0] + "\"";
+		return (args) -> (args.length == 0 || args[0] == null) ? "\"\"" : "\"" + args[0] + "\"";
 	}
 
 	private static Function squote() {
-		return (args) -> (args.length == 0) ? "''" : "'" + args[0] + "'";
+		return (args) -> (args.length == 0 || args[0] == null) ? "''" : "'" + args[0] + "'";
 	}
 
 	private static Function cat() {
