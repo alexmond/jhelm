@@ -111,6 +111,13 @@ public final class Functions {
 		};
 	}
 
+	private static boolean valuesEqual(Object a, Object b) {
+		if (a instanceof Number && b instanceof Number) {
+			return ((Number) a).doubleValue() == ((Number) b).doubleValue();
+		}
+		return Objects.equals(a, b);
+	}
+
 	private static Function eq() {
 		return (args) -> {
 			if (args.length < 2) {
@@ -118,7 +125,7 @@ public final class Functions {
 			}
 			Object first = args[0];
 			for (int i = 1; i < args.length; i++) {
-				if (!Objects.equals(first, args[i])) {
+				if (!valuesEqual(first, args[i])) {
 					return false;
 				}
 			}
@@ -127,7 +134,7 @@ public final class Functions {
 	}
 
 	private static Function ne() {
-		return (args) -> args.length >= 2 && !Objects.equals(args[0], args[1]);
+		return (args) -> args.length >= 2 && !valuesEqual(args[0], args[1]);
 	}
 
 	private static Function lt() {

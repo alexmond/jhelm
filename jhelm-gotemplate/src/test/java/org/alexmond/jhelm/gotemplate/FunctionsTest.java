@@ -235,10 +235,30 @@ class FunctionsTest {
 	}
 
 	@Test
+	void testEqMixedNumericTypes() throws Exception {
+		Function eq = Functions.BUILTIN.get("eq");
+		// Integer vs Long — the exact case triggered by ne (len .) 4
+		assertEquals(true, eq.invoke(new Object[] { Integer.valueOf(4), Long.valueOf(4L) }));
+		assertEquals(true, eq.invoke(new Object[] { Long.valueOf(4L), Integer.valueOf(4) }));
+		// Integer vs Double
+		assertEquals(true, eq.invoke(new Object[] { Integer.valueOf(3), Double.valueOf(3.0) }));
+		// Different values across types
+		assertEquals(false, eq.invoke(new Object[] { Integer.valueOf(4), Long.valueOf(5L) }));
+	}
+
+	@Test
 	void testNeNotEqual() throws Exception {
 		Function ne = Functions.BUILTIN.get("ne");
 		assertEquals(true, ne.invoke(new Object[] { "a", "b" }));
 		assertEquals(false, ne.invoke(new Object[] { "a", "a" }));
+	}
+
+	@Test
+	void testNeMixedNumericTypes() throws Exception {
+		Function ne = Functions.BUILTIN.get("ne");
+		// Integer vs Long — must return false (values are equal)
+		assertEquals(false, ne.invoke(new Object[] { Integer.valueOf(4), Long.valueOf(4L) }));
+		assertEquals(true, ne.invoke(new Object[] { Integer.valueOf(4), Long.valueOf(5L) }));
 	}
 
 	@Test
