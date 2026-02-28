@@ -2,13 +2,18 @@ package org.alexmond.jhelm.gotemplate.helm.functions;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.alexmond.jhelm.gotemplate.Function;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.TemplateException;
 import org.junit.jupiter.api.Test;
@@ -135,6 +140,163 @@ class ConversionFunctionsTest {
 		assertTrue(result.contains("replicas: 3"), "non-null integer field should be present");
 		assertFalse(result.contains("revisionHistoryLimit"), "null field should be omitted");
 		assertFalse(result.contains("dnsPolicy"), "null field should be omitted");
+	}
+
+	// --- Direct function invocation tests for edge cases ---
+
+	private Map<String, Function> functions() {
+		return ConversionFunctions.getFunctions();
+	}
+
+	@Test
+	void testToYamlNullAndEmpty() {
+		Function toYaml = functions().get("toYaml");
+		assertEquals("", toYaml.invoke(new Object[] {}));
+		assertEquals("", toYaml.invoke(new Object[] { null }));
+	}
+
+	@Test
+	void testToJsonNullReturnsNullString() {
+		Function toJson = functions().get("toJson");
+		assertEquals("null", toJson.invoke(new Object[] {}));
+		assertEquals("null", toJson.invoke(new Object[] { null }));
+	}
+
+	@Test
+	void testToRawJsonNullReturnsNullString() {
+		Function toRawJson = functions().get("toRawJson");
+		assertEquals("null", toRawJson.invoke(new Object[] {}));
+		assertEquals("null", toRawJson.invoke(new Object[] { null }));
+	}
+
+	@Test
+	void testToPrettyJsonNullReturnsNullString() {
+		Function fn = functions().get("toPrettyJson");
+		assertEquals("null", fn.invoke(new Object[] {}));
+		assertEquals("null", fn.invoke(new Object[] { null }));
+	}
+
+	@Test
+	void testFromYamlNullAndEmpty() {
+		Function fromYaml = functions().get("fromYaml");
+		assertEquals(Map.of(), fromYaml.invoke(new Object[] {}));
+		assertEquals(Map.of(), fromYaml.invoke(new Object[] { null }));
+		assertEquals(Map.of(), fromYaml.invoke(new Object[] { "  " }));
+	}
+
+	@Test
+	void testFromJsonNullAndEmpty() {
+		Function fromJson = functions().get("fromJson");
+		assertEquals(Map.of(), fromJson.invoke(new Object[] {}));
+		assertEquals(Map.of(), fromJson.invoke(new Object[] { null }));
+		assertEquals(Map.of(), fromJson.invoke(new Object[] { "  " }));
+		assertEquals(Map.of(), fromJson.invoke(new Object[] { "null" }));
+	}
+
+	@Test
+	void testFromYamlArrayNullAndEmpty() {
+		Function fn = functions().get("fromYamlArray");
+		assertEquals(Collections.emptyList(), fn.invoke(new Object[] {}));
+		assertEquals(Collections.emptyList(), fn.invoke(new Object[] { null }));
+		assertEquals(Collections.emptyList(), fn.invoke(new Object[] { "  " }));
+	}
+
+	@Test
+	void testFromJsonArrayNullAndEmpty() {
+		Function fn = functions().get("fromJsonArray");
+		assertEquals(Collections.emptyList(), fn.invoke(new Object[] {}));
+		assertEquals(Collections.emptyList(), fn.invoke(new Object[] { null }));
+		assertEquals(Collections.emptyList(), fn.invoke(new Object[] { "  " }));
+		assertEquals(Collections.emptyList(), fn.invoke(new Object[] { "null" }));
+	}
+
+	// must* variants throw on null/empty
+
+	@Test
+	void testMustToYamlThrowsOnNull() {
+		Function fn = functions().get("mustToYaml");
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] {}));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { null }));
+	}
+
+	@Test
+	void testMustToJsonThrowsOnNull() {
+		Function fn = functions().get("mustToJson");
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] {}));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { null }));
+	}
+
+	@Test
+	void testMustToPrettyJsonThrowsOnNull() {
+		Function fn = functions().get("mustToPrettyJson");
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] {}));
+	}
+
+	@Test
+	void testMustToRawJsonThrowsOnNull() {
+		Function fn = functions().get("mustToRawJson");
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] {}));
+	}
+
+	@Test
+	void testMustFromYamlThrowsOnNull() {
+		Function fn = functions().get("mustFromYaml");
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] {}));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { null }));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { "  " }));
+	}
+
+	@Test
+	void testMustFromJsonThrowsOnNull() {
+		Function fn = functions().get("mustFromJson");
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] {}));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { null }));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { "  " }));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { "null" }));
+	}
+
+	@Test
+	void testMustFromYamlArrayThrowsOnNull() {
+		Function fn = functions().get("mustFromYamlArray");
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] {}));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { null }));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { "  " }));
+	}
+
+	@Test
+	void testMustFromJsonArrayThrowsOnNull() {
+		Function fn = functions().get("mustFromJsonArray");
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] {}));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { null }));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { "  " }));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { "null" }));
+	}
+
+	@Test
+	void testGetFunctionsReturnsAllExpected() {
+		Map<String, Function> fns = functions();
+		List<String> expected = List.of("toYaml", "mustToYaml", "fromYaml", "mustFromYaml", "fromYamlArray",
+				"mustFromYamlArray", "toJson", "mustToJson", "toPrettyJson", "mustToPrettyJson", "toRawJson",
+				"mustToRawJson", "fromJson", "mustFromJson", "fromJsonArray", "mustFromJsonArray");
+		for (String name : expected) {
+			assertTrue(fns.containsKey(name), "missing function: " + name);
+		}
+		assertEquals(expected.size(), fns.size());
+	}
+
+	@Test
+	void testFromJsonReturnsMap() {
+		Function fn = functions().get("fromJson");
+		Object result = fn.invoke(new Object[] { "{\"a\":1}" });
+		assertInstanceOf(Map.class, result);
+	}
+
+	@Test
+	void testFromJsonArrayReturnsList() {
+		Function fn = functions().get("fromJsonArray");
+		Object result = fn.invoke(new Object[] { "[1,2,3]" });
+		assertInstanceOf(List.class, result);
+		assertEquals(3, ((List<?>) result).size());
 	}
 
 }
