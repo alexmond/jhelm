@@ -7,21 +7,21 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
 
 class GoTemplateTest {
 
@@ -287,6 +287,132 @@ class GoTemplateTest {
 		template.execute(Map.of("versions", versions), writer);
 
 		assertEquals("no", writer.toString());
+	}
+
+	// --- Builder tests ---
+
+	@Test
+	void testBuilderNoAutoDiscovery() throws TemplateParseException, IOException, TemplateException {
+		GoTemplate template = GoTemplate.builder().noAutoDiscovery().build();
+
+		// Should have Go builtins
+		assertTrue(template.getFunctions().containsKey("len"));
+		assertTrue(template.getFunctions().containsKey("print"));
+		assertTrue(template.getFunctions().containsKey("eq"));
+
+		// Should work for basic templates
+		template.parse("test", "Hello {{ .name }}!");
+		StringWriter writer = new StringWriter();
+		template.execute("test", Map.of("name", "World"), writer);
+		assertEquals("Hello World!", writer.toString());
+	}
+
+	@Test
+	void testBuilderWithExplicitProvider() throws TemplateParseException, IOException, TemplateException {
+		FunctionProvider customProvider = new FunctionProvider() {
+			@Override
+			public Map<String, Function> getFunctions(GoTemplate template) {
+				return Map.of("greet", (args) -> "hi " + args[0]);
+			}
+
+			@Override
+			public int priority() {
+				return 500;
+			}
+
+			@Override
+			public String name() {
+				return "TestProvider";
+			}
+		};
+
+		GoTemplate template = GoTemplate.builder().noAutoDiscovery().withProvider(customProvider).build();
+
+		assertTrue(template.getFunctions().containsKey("greet"));
+		assertTrue(template.getFunctions().containsKey("len"));
+
+		template.parse("test", "{{ greet .name }}");
+		StringWriter writer = new StringWriter();
+		template.execute("test", Map.of("name", "World"), writer);
+		assertEquals("hi World", writer.toString());
+	}
+
+	@Test
+	void testBuilderWithFunctionsOverridesProvider() {
+		FunctionProvider provider = new FunctionProvider() {
+			@Override
+			public Map<String, Function> getFunctions(GoTemplate template) {
+				return Map.of("myfn", (args) -> "from-provider");
+			}
+		};
+
+		GoTemplate template = GoTemplate.builder()
+			.noAutoDiscovery()
+			.withProvider(provider)
+			.withFunctions(Map.of("myfn", (args) -> "from-override"))
+			.build();
+
+		Function myfn = template.getFunctions().get("myfn");
+		assertNotNull(myfn);
+		assertEquals("from-override", myfn.invoke(new Object[] {}));
+	}
+
+	@Test
+	void testBuilderProviderPriorityOrder() {
+		FunctionProvider lowPriority = new FunctionProvider() {
+			@Override
+			public Map<String, Function> getFunctions(GoTemplate template) {
+				return Map.of("shared", (args) -> "low");
+			}
+
+			@Override
+			public int priority() {
+				return 10;
+			}
+		};
+
+		FunctionProvider highPriority = new FunctionProvider() {
+			@Override
+			public Map<String, Function> getFunctions(GoTemplate template) {
+				return Map.of("shared", (args) -> "high");
+			}
+
+			@Override
+			public int priority() {
+				return 200;
+			}
+		};
+
+		// Add low first, high second — high should override
+		GoTemplate template = GoTemplate.builder()
+			.noAutoDiscovery()
+			.withProvider(lowPriority)
+			.withProvider(highPriority)
+			.build();
+
+		Function shared = template.getFunctions().get("shared");
+		assertEquals("high", shared.invoke(new Object[] {}));
+	}
+
+	@Test
+	void testBuilderWithAutoDiscovery() {
+		// Default builder has autoDiscovery=true
+		GoTemplate template = GoTemplate.builder().build();
+
+		// Should have Go builtins regardless
+		assertTrue(template.getFunctions().containsKey("len"));
+		assertTrue(template.getFunctions().containsKey("print"));
+	}
+
+	@Test
+	void testBuilderProducesIndependentInstances() throws TemplateParseException {
+		GoTemplate t1 = GoTemplate.builder().noAutoDiscovery().build();
+		GoTemplate t2 = GoTemplate.builder().noAutoDiscovery().build();
+
+		t1.parse("only-in-t1", "Hello");
+
+		assertTrue(t1.hasTemplate("only-in-t1"));
+		assertFalse(t2.hasTemplate("only-in-t1"));
 	}
 
 }

@@ -492,4 +492,51 @@ class FunctionsTest {
 		assertNotNull(Functions.BUILTIN.get("println"));
 	}
 
+	// --- GO_BUILTINS map verification ---
+
+	private static final List<String> GO_BUILTIN_NAMES = List.of("call", "html", "index", "slice", "js", "len", "print",
+			"printf", "println", "urlquery", "and", "or", "not", "eq", "ge", "gt", "le", "lt", "ne");
+
+	@Test
+	void testGoBuiltinsContainsAllExpectedFunctions() {
+		for (String name : GO_BUILTIN_NAMES) {
+			assertNotNull(Functions.GO_BUILTINS.get(name), "GO_BUILTINS missing: " + name);
+		}
+	}
+
+	@Test
+	void testGoBuiltinsSize() {
+		assertEquals(GO_BUILTIN_NAMES.size(), Functions.GO_BUILTINS.size());
+	}
+
+	@Test
+	void testGoBuiltinsIsImmutable() {
+		assertThrows(UnsupportedOperationException.class, () -> Functions.GO_BUILTINS.put("custom", (args) -> null));
+	}
+
+	@Test
+	void testGoBuiltinsDoesNotContainSprigFunctions() {
+		// GO_BUILTINS should only have Go text/template built-ins, not Sprig
+		assertNull(Functions.GO_BUILTINS.get("upper"));
+		assertNull(Functions.GO_BUILTINS.get("lower"));
+		assertNull(Functions.GO_BUILTINS.get("trim"));
+		assertNull(Functions.GO_BUILTINS.get("list"));
+		assertNull(Functions.GO_BUILTINS.get("dict"));
+	}
+
+	@Test
+	void testBuiltinContainsSprigFunctions() {
+		// BUILTIN (deprecated) includes both Go built-ins and Sprig
+		assertNotNull(Functions.BUILTIN.get("upper"));
+		assertNotNull(Functions.BUILTIN.get("lower"));
+		assertNotNull(Functions.BUILTIN.get("trim"));
+	}
+
+	@Test
+	void testGoBuiltinsIsSubsetOfBuiltin() {
+		for (String name : GO_BUILTIN_NAMES) {
+			assertNotNull(Functions.BUILTIN.get(name), "BUILTIN missing GO_BUILTIN function: " + name);
+		}
+	}
+
 }
