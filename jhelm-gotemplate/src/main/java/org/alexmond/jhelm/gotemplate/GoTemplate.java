@@ -124,8 +124,10 @@ public class GoTemplate {
 			rootNodes.putAll(parsedNodes);
 		}
 		catch (Exception ex) {
-			log.debug("Parse error in {}: {}. Text: {}", name, ex.getMessage(),
-					(text.length() > 100) ? text.substring(0, 100) + "..." : text);
+			if (log.isDebugEnabled()) {
+				log.debug("Parse error in {}: {}. Text: {}", name, ex.getMessage(),
+						(text.length() > 100) ? text.substring(0, 100) + "..." : text);
+			}
 			throw new TemplateParseException("Internal error during parsing of " + name, ex);
 		}
 		return this;
@@ -249,8 +251,10 @@ public class GoTemplate {
 			if (autoDiscovery) {
 				ServiceLoader<FunctionProvider> loader = ServiceLoader.load(FunctionProvider.class);
 				for (FunctionProvider discovered : loader) {
-					log.debug("Discovered FunctionProvider: {} (priority={})", discovered.name(),
-							discovered.priority());
+					if (log.isDebugEnabled()) {
+						log.debug("Discovered FunctionProvider: {} (priority={})", discovered.name(),
+								discovered.priority());
+					}
 					allProviders.add(discovered);
 				}
 			}
@@ -266,8 +270,10 @@ public class GoTemplate {
 			for (FunctionProvider provider : allProviders) {
 				Map<String, Function> providerFunctions = provider.getFunctions(template);
 				template.functions.putAll(providerFunctions);
-				log.debug("Loaded {} functions from {} (priority={})", providerFunctions.size(), provider.name(),
-						provider.priority());
+				if (log.isDebugEnabled()) {
+					log.debug("Loaded {} functions from {} (priority={})", providerFunctions.size(), provider.name(),
+							provider.priority());
+				}
 			}
 
 			// Raw functions override everything

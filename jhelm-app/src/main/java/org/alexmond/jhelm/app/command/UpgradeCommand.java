@@ -114,7 +114,9 @@ public class UpgradeCommand implements Runnable {
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error upgrading release: " + ex.getMessage()));
-			log.debug("Upgrade error details", ex);
+			if (log.isDebugEnabled()) {
+				log.debug("Upgrade error details", ex);
+			}
 		}
 	}
 

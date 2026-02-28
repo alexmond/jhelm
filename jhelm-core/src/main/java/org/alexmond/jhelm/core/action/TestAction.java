@@ -67,7 +67,9 @@ public class TestAction {
 			// Wait for completion
 			kubeService.waitForReady(namespace, hook.getYaml(), timeoutSeconds);
 			result.setStatus(TestStatus.PASSED);
-			log.info("Test hook {}/{} passed", hook.getKind(), hook.getName());
+			if (log.isInfoEnabled()) {
+				log.info("Test hook {}/{} passed", hook.getKind(), hook.getName());
+			}
 
 			// Clean up if delete policy includes hook-succeeded
 			if (hook.getDeletePolicy() != null && hook.getDeletePolicy().contains("hook-succeeded")) {
@@ -78,12 +80,16 @@ public class TestAction {
 			result.setStatus(TestStatus.FAILED);
 			result.setMessage("Timeout waiting for test to complete");
 			result.setPendingResources(ex.getPendingResources());
-			log.warn("Test hook {}/{} timed out", hook.getKind(), hook.getName());
+			if (log.isWarnEnabled()) {
+				log.warn("Test hook {}/{} timed out", hook.getKind(), hook.getName());
+			}
 		}
 		catch (Exception ex) {
 			result.setStatus(TestStatus.FAILED);
 			result.setMessage(ex.getMessage());
-			log.warn("Test hook {}/{} failed: {}", hook.getKind(), hook.getName(), ex.getMessage());
+			if (log.isWarnEnabled()) {
+				log.warn("Test hook {}/{} failed: {}", hook.getKind(), hook.getName(), ex.getMessage());
+			}
 		}
 
 		return result;
@@ -110,7 +116,9 @@ public class TestAction {
 			return sb.toString();
 		}
 		catch (Exception ex) {
-			log.debug("Failed to get logs for {}/{}: {}", hook.getKind(), hook.getName(), ex.getMessage());
+			if (log.isDebugEnabled()) {
+				log.debug("Failed to get logs for {}/{}: {}", hook.getKind(), hook.getName(), ex.getMessage());
+			}
 			return "";
 		}
 	}

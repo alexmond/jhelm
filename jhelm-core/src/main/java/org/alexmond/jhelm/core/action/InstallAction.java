@@ -95,11 +95,15 @@ public class InstallAction {
 
 	private void rollbackAppliedResources(String namespace, String manifest) {
 		try {
-			log.warn("Rolling back applied resources in namespace {}", namespace);
+			if (log.isWarnEnabled()) {
+				log.warn("Rolling back applied resources in namespace {}", namespace);
+			}
 			kubeService.delete(namespace, manifest);
 		}
 		catch (Exception rollbackEx) {
-			log.error("Failed to rollback applied resources: {}", rollbackEx.getMessage(), rollbackEx);
+			if (log.isErrorEnabled()) {
+				log.error("Failed to rollback applied resources: {}", rollbackEx.getMessage(), rollbackEx);
+			}
 		}
 	}
 

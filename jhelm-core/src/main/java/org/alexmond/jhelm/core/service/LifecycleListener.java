@@ -6,6 +6,7 @@ import java.util.Map;
  * Callback interface for lifecycle event listeners. Implementations are notified at
  * lifecycle points such as pre-install, post-install, pre-upgrade, etc.
  */
+@FunctionalInterface
 public interface LifecycleListener {
 
 	/**

@@ -134,8 +134,10 @@ public class Engine {
 		}
 		catch (StackOverflowError ex) {
 			String chartName = chart.getMetadata().getName();
-			log.error("StackOverflowError during rendering of chart '{}': recursive template inclusion detected",
-					chartName);
+			if (log.isErrorEnabled()) {
+				log.error("StackOverflowError during rendering of chart '{}': recursive template inclusion detected",
+						chartName);
+			}
 			return "ERROR: chart '" + chartName
 					+ "': recursive template inclusion or too deep nesting. Check for circular {{ template }} calls.";
 		}
@@ -222,7 +224,9 @@ public class Engine {
 			try {
 				String chartName = templateToChartName.get(name);
 				parseWithCache(name, allTemplates.get(name));
-				log.debug("Parsed template: {} (from chart: {})", name, chartName);
+				if (log.isDebugEnabled()) {
+					log.debug("Parsed template: {} (from chart: {})", name, chartName);
+				}
 
 				// After parsing, check if new named templates (defines) were added
 				// If this is a _helpers.tpl from a subchart, we need to alias the
@@ -232,23 +236,27 @@ public class Engine {
 					if (afterCount > beforeCount) {
 						// New named templates were added
 						// We need to create aliases with chart prefix
-						createChartPrefixedAliases(chartName, beforeCount, afterCount);
+						createChartPrefixedAliases(chartName);
 					}
 					beforeCount = afterCount;
 				}
 			}
 			catch (Exception ex) {
-				log.warn("Parse failure for template '{}' in chart '{}': {}", name, templateToChartName.get(name),
-						ex.getMessage());
+				if (log.isWarnEnabled()) {
+					log.warn("Parse failure for template '{}' in chart '{}': {}", name, templateToChartName.get(name),
+							ex.getMessage());
+				}
 			}
 		}
 
 		// Count how many named templates (defines) we actually collected
 		int namedTemplateCount = factory.getRootNodes().size() - allTemplates.size();
-		log.debug("Collected {} named templates from {} files", namedTemplateCount, allTemplates.size());
+		if (log.isDebugEnabled()) {
+			log.debug("Collected {} named templates from {} files", namedTemplateCount, allTemplates.size());
+		}
 	}
 
-	private void createChartPrefixedAliases(String chartName, int beforeCount, int afterCount) {
+	private void createChartPrefixedAliases(String chartName) {
 		// Get the rootNodes map to find newly added templates
 		Map<String, Node> rootNodes = factory.getRootNodes();
 		List<String> allKeys = new ArrayList<>(rootNodes.keySet());
@@ -268,7 +276,9 @@ public class Engine {
 				Node node = rootNodes.get(templateName);
 				if (node != null && !rootNodes.containsKey(prefixedName)) {
 					rootNodes.put(prefixedName, node);
-					log.debug("Created template alias: {} -> {}", prefixedName, templateName);
+					if (log.isDebugEnabled()) {
+						log.debug("Created template alias: {} -> {}", prefixedName, templateName);
+					}
 				}
 			}
 		}
@@ -295,11 +305,15 @@ public class Engine {
 			Set<String> renderedCharts, int depth) {
 		String chartKey = chart.getMetadata().getName() + ":" + chart.getMetadata().getVersion();
 		if (renderedCharts.contains(chartKey)) {
-			log.debug("Chart {} already rendered in this path, skipping to avoid recursion", chartKey);
+			if (log.isDebugEnabled()) {
+				log.debug("Chart {} already rendered in this path, skipping to avoid recursion", chartKey);
+			}
 			return "";
 		}
 		if (depth > 3) { // Even further reduced depth
-			log.warn("Subchart nesting depth too high (>3) for chart {}", chartKey);
+			if (log.isWarnEnabled()) {
+				log.warn("Subchart nesting depth too high (>3) for chart {}", chartKey);
+			}
 			return "";
 		}
 		renderedCharts.add(chartKey);
@@ -351,12 +365,16 @@ public class Engine {
 			Map<String, Object> subchartOverrides = (Map<String, Object>) mergedValues.getOrDefault(subchartName,
 					new HashMap<>());
 
-			log.debug("Subchart {}: overrides={}, enabled={}", subchartName, subchartOverrides,
-					subchartOverrides.get("enabled"));
+			if (log.isDebugEnabled()) {
+				log.debug("Subchart {}: overrides={}, enabled={}", subchartName, subchartOverrides,
+						subchartOverrides.get("enabled"));
+			}
 
 			// If subchart is disabled, skip it
 			if (subchartOverrides.containsKey("enabled") && !isTruthy(subchartOverrides.get("enabled"))) {
-				log.debug("Subchart {} is disabled", subchartName);
+				if (log.isDebugEnabled()) {
+					log.debug("Subchart {} is disabled", subchartName);
+				}
 				continue;
 			}
 
@@ -365,7 +383,9 @@ public class Engine {
 				subchartOverrides.put("global", mergedValues.get("global"));
 			}
 
-			log.debug("Rendering subchart: {}", subchartName);
+			if (log.isDebugEnabled()) {
+				log.debug("Rendering subchart: {}", subchartName);
+			}
 			sb.append(renderWithSubcharts(subchart, subchartOverrides, releaseInfo, renderedCharts, depth + 1));
 		}
 
@@ -403,13 +423,18 @@ public class Engine {
 				}
 			}
 			catch (StackOverflowError ex) {
-				log.error(
-						"StackOverflowError rendering chart '{}', template '{}': recursive template inclusion detected",
-						chart.getMetadata().getName(), t.getName());
+				if (log.isErrorEnabled()) {
+					log.error(
+							"StackOverflowError rendering chart '{}', template '{}': recursive template inclusion detected",
+							chart.getMetadata().getName(), t.getName());
+				}
 			}
 			catch (Exception ex) {
 				String chartName = chart.getMetadata().getName();
-				log.debug("Failed to render chart '{}', template '{}': {}", chartName, t.getName(), ex.getMessage());
+				if (log.isDebugEnabled()) {
+					log.debug("Failed to render chart '{}', template '{}': {}", chartName, t.getName(),
+							ex.getMessage());
+				}
 				throw new TemplateRenderException("Rendering failed: " + ex.getMessage(), ex, chartName, t.getName());
 			}
 		}

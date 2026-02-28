@@ -41,13 +41,17 @@ public class KubernetesClientProvider implements KubernetesProvider {
 	@Override
 	public Map<String, Object> lookup(String apiVersion, String kind, String namespace, String name) {
 		if (!isAvailable()) {
-			log.warn("Kubernetes API not available, returning empty result for lookup");
+			if (log.isWarnEnabled()) {
+				log.warn("Kubernetes API not available, returning empty result for lookup");
+			}
 			return Map.of();
 		}
 
 		try {
-			log.debug("Looking up Kubernetes resource: apiVersion={}, kind={}, namespace={}, name={}", apiVersion, kind,
-					namespace, name);
+			if (log.isDebugEnabled()) {
+				log.debug("Looking up Kubernetes resource: apiVersion={}, kind={}, namespace={}, name={}", apiVersion,
+						kind, namespace, name);
+			}
 
 			Object resource = fetchResource(apiVersion, kind, namespace, name);
 			if (resource == null) {
@@ -59,14 +63,20 @@ public class KubernetesClientProvider implements KubernetesProvider {
 		}
 		catch (ApiException ex) {
 			if (ex.getCode() == 404) {
-				log.debug("Resource not found: {}/{} in namespace {}", apiVersion, kind, namespace);
+				if (log.isDebugEnabled()) {
+					log.debug("Resource not found: {}/{} in namespace {}", apiVersion, kind, namespace);
+				}
 				return Map.of();
 			}
-			log.error("Error looking up Kubernetes resource: {}", ex.getMessage(), ex);
+			if (log.isErrorEnabled()) {
+				log.error("Error looking up Kubernetes resource: {}", ex.getMessage(), ex);
+			}
 			return Map.of();
 		}
 		catch (Exception ex) {
-			log.error("Unexpected error during Kubernetes lookup: {}", ex.getMessage(), ex);
+			if (log.isErrorEnabled()) {
+				log.error("Unexpected error during Kubernetes lookup: {}", ex.getMessage(), ex);
+			}
 			return Map.of();
 		}
 	}
@@ -74,7 +84,9 @@ public class KubernetesClientProvider implements KubernetesProvider {
 	@Override
 	public Map<String, Object> getVersion() {
 		if (!isAvailable()) {
-			log.warn("Kubernetes API not available, returning stub version info");
+			if (log.isWarnEnabled()) {
+				log.warn("Kubernetes API not available, returning stub version info");
+			}
 			return getStubVersion();
 		}
 
@@ -90,7 +102,9 @@ public class KubernetesClientProvider implements KubernetesProvider {
 			return version;
 		}
 		catch (ApiException ex) {
-			log.error("Error fetching Kubernetes version: {}", ex.getMessage(), ex);
+			if (log.isErrorEnabled()) {
+				log.error("Error fetching Kubernetes version: {}", ex.getMessage(), ex);
+			}
 			return getStubVersion();
 		}
 	}
@@ -105,12 +119,16 @@ public class KubernetesClientProvider implements KubernetesProvider {
 			// Try to get version as a health check
 			versionApi.getCode().execute();
 			available = true;
-			log.info("Kubernetes API is available");
+			if (log.isInfoEnabled()) {
+				log.info("Kubernetes API is available");
+			}
 			return true;
 		}
 		catch (Exception ex) {
 			available = false;
-			log.warn("Kubernetes API is not available: {}", ex.getMessage());
+			if (log.isWarnEnabled()) {
+				log.warn("Kubernetes API is not available: {}", ex.getMessage());
+			}
 			return false;
 		}
 	}
@@ -134,7 +152,9 @@ public class KubernetesClientProvider implements KubernetesProvider {
 			return fetchAppsV1Resource(kind, namespace, name);
 		}
 
-		log.warn("Unsupported apiVersion: {}", apiVersion);
+		if (log.isWarnEnabled()) {
+			log.warn("Unsupported apiVersion: {}", apiVersion);
+		}
 		return null;
 	}
 
@@ -164,7 +184,9 @@ public class KubernetesClientProvider implements KubernetesProvider {
 					: coreV1Api.readNamespacedServiceAccount(name, namespace);
 
 			default -> {
-				log.warn("Unsupported Core v1 kind: {}", kind);
+				if (log.isWarnEnabled()) {
+					log.warn("Unsupported Core v1 kind: {}", kind);
+				}
 				yield null;
 			}
 		};
@@ -188,7 +210,9 @@ public class KubernetesClientProvider implements KubernetesProvider {
 					: appsV1Api.readNamespacedReplicaSet(name, namespace);
 
 			default -> {
-				log.warn("Unsupported Apps v1 kind: {}", kind);
+				if (log.isWarnEnabled()) {
+					log.warn("Unsupported Apps v1 kind: {}", kind);
+				}
 				yield null;
 			}
 		};
@@ -229,7 +253,9 @@ public class KubernetesClientProvider implements KubernetesProvider {
 
 		}
 		catch (Exception ex) {
-			log.warn("Could not extract metadata from resource: {}", ex.getMessage());
+			if (log.isWarnEnabled()) {
+				log.warn("Could not extract metadata from resource: {}", ex.getMessage());
+			}
 			// Return a simple string representation
 			result.put("value", resource.toString());
 		}

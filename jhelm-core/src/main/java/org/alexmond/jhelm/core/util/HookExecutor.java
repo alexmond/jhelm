@@ -40,8 +40,10 @@ public class HookExecutor {
 					kubeService.delete(namespace, hook.getYaml());
 				}
 				catch (Exception ex) {
-					log.debug("Pre-creation delete of hook {}/{} failed (ignored): {}", hook.getKind(), hook.getName(),
-							ex.getMessage());
+					if (log.isDebugEnabled()) {
+						log.debug("Pre-creation delete of hook {}/{} failed (ignored): {}", hook.getKind(),
+								hook.getName(), ex.getMessage());
+					}
 				}
 			}
 

@@ -106,7 +106,9 @@ public class TestCommand implements Runnable {
 			}
 		}
 		catch (Exception ex) {
-			log.debug("Failed to fetch logs for {}/{}: {}", result.getKind(), result.getName(), ex.getMessage());
+			if (log.isDebugEnabled()) {
+				log.debug("Failed to fetch logs for {}/{}: {}", result.getKind(), result.getName(), ex.getMessage());
+			}
 		}
 	}
 

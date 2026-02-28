@@ -31,8 +31,13 @@
     <!-- TrustManager interface implementations must be public; ignore visibility rule -->
     <suppress checks="SpringMethodVisibility" files="KpsComparisonTest\.java"/>
 
-    <!-- RepoManager has deeply nested YAML parsing logic that is intentional -->
+    <!-- RepoManager has deeply nested YAML parsing logic and many methods that push it over size limits -->
     <suppress checks="NestedIfDepth" files="RepoManager\.java"/>
+    <suppress checks="FileLength" files="RepoManager\.java"/>
+    <suppress checks="MethodLength" files="RepoManager\.java"/>
+
+    <!-- Engine.renderWithSubcharts is slightly over limit due to log guards -->
+    <suppress checks="MethodLength" files="Engine\.java"/>
 
     <!-- Lexer and Parser are state machines — long methods are an inherent property of the pattern -->
     <suppress checks="MethodLength" files="Parser\.java"/>

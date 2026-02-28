@@ -51,7 +51,9 @@ public class ExternalCommandPostRenderer implements PostRenderProcessor {
 		ProcessBuilder pb = new ProcessBuilder(command);
 		pb.redirectErrorStream(false);
 
-		log.debug("Running post-renderer: {}", String.join(" ", command));
+		if (log.isDebugEnabled()) {
+			log.debug("Running post-renderer: {}", String.join(" ", command));
+		}
 
 		Process process = pb.start();
 		try {
@@ -99,7 +101,9 @@ public class ExternalCommandPostRenderer implements PostRenderProcessor {
 				throw stdinError;
 			}
 
-			log.debug("Post-renderer completed successfully");
+			if (log.isDebugEnabled()) {
+				log.debug("Post-renderer completed successfully");
+			}
 			return stdout;
 		}
 		finally {

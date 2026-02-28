@@ -96,7 +96,9 @@ public class RetryableKubeService implements KubeService {
 	private <T> T executeWithRetry(String operation, RetryCallback<T, Exception> callback) throws Exception {
 		return retryTemplate.execute(callback, (ctx) -> {
 			Throwable last = ctx.getLastThrowable();
-			log.error("All retry attempts exhausted for {}", operation, last);
+			if (log.isErrorEnabled()) {
+				log.error("All retry attempts exhausted for {}", operation, last);
+			}
 			if (last instanceof Exception ex) {
 				throw ex;
 			}

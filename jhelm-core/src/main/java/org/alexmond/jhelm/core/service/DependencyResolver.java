@@ -55,7 +55,9 @@ public class DependencyResolver {
 		for (Dependency dep : metadata.getDependencies()) {
 			// Check if dependency should be included based on conditions and tags
 			if (!shouldIncludeDependency(dep, values, enabledTags)) {
-				log.info("Skipping dependency {} due to condition/tag evaluation", dep.getName());
+				if (log.isInfoEnabled()) {
+					log.info("Skipping dependency {} due to condition/tag evaluation", dep.getName());
+				}
 				continue;
 			}
 
@@ -112,7 +114,9 @@ public class DependencyResolver {
 			throw new IOException("No version of " + chartName + " satisfies constraint: " + versionConstraint);
 		}
 
-		log.info("Resolved dependency {}: {} -> {}", chartName, versionConstraint, resolvedVersion);
+		if (log.isInfoEnabled()) {
+			log.info("Resolved dependency {}: {} -> {}", chartName, versionConstraint, resolvedVersion);
+		}
 
 		return LockDependency.builder()
 			.name(chartName)
@@ -141,7 +145,9 @@ public class DependencyResolver {
 					}
 				}
 				catch (Exception ex) {
-					log.debug("Skipping non-semver version: {}", cv.getChartVersion());
+					if (log.isDebugEnabled()) {
+						log.debug("Skipping non-semver version: {}", cv.getChartVersion());
+					}
 				}
 			}
 
@@ -152,7 +158,10 @@ public class DependencyResolver {
 			}
 		}
 		catch (Exception ex) {
-			log.warn("Failed to parse version constraint '{}': {}. Trying exact match.", constraint, ex.getMessage());
+			if (log.isWarnEnabled()) {
+				log.warn("Failed to parse version constraint '{}': {}. Trying exact match.", constraint,
+						ex.getMessage());
+			}
 
 			// Fallback: try exact match
 			for (RepoManager.ChartVersion cv : availableVersions) {
@@ -263,7 +272,9 @@ public class DependencyResolver {
 			return "sha256:" + hexString;
 		}
 		catch (Exception ex) {
-			log.warn("Failed to generate digest: {}", ex.getMessage());
+			if (log.isWarnEnabled()) {
+				log.warn("Failed to generate digest: {}", ex.getMessage());
+			}
 			return "";
 		}
 	}
@@ -279,7 +290,9 @@ public class DependencyResolver {
 		chartsDir.mkdirs();
 
 		for (LockDependency dep : lockDependencies) {
-			log.info("Downloading dependency {}-{} from {}", dep.getName(), dep.getVersion(), dep.getRepository());
+			if (log.isInfoEnabled()) {
+				log.info("Downloading dependency {}-{} from {}", dep.getName(), dep.getVersion(), dep.getRepository());
+			}
 
 			String repoName = dep.getRepository();
 
@@ -297,7 +310,9 @@ public class DependencyResolver {
 				File aliasDir = new File(chartsDir, dep.getAlias());
 				if (extracted.exists() && !aliasDir.exists()) {
 					if (!extracted.renameTo(aliasDir)) {
-						log.warn("Failed to rename {} to alias {}", dep.getName(), dep.getAlias());
+						if (log.isWarnEnabled()) {
+							log.warn("Failed to rename {} to alias {}", dep.getName(), dep.getAlias());
+						}
 					}
 				}
 			}

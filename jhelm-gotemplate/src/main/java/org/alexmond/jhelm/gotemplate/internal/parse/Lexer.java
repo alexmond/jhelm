@@ -778,6 +778,7 @@ public class Lexer {
 		tokens.add(token);
 	}
 
+	@FunctionalInterface
 	private interface State {
 
 		State run();

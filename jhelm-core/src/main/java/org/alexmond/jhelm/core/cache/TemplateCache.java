@@ -48,7 +48,9 @@ public final class TemplateCache {
 	public Map<String, Node> get(String key) {
 		Map<String, Node> cached = cache.get(key);
 		if (cached != null) {
-			log.debug("Template cache hit for key: {}", key);
+			if (log.isDebugEnabled()) {
+				log.debug("Template cache hit for key: {}", key);
+			}
 			if (metrics != null) {
 				metrics.recordCacheHit();
 			}

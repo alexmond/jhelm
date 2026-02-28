@@ -118,7 +118,9 @@ public class RepoManager {
 			// }
 		}
 		catch (Exception ex) {
-			log.error("Failed to initialize HTTP client", ex);
+			if (log.isErrorEnabled()) {
+				log.error("Failed to initialize HTTP client", ex);
+			}
 			httpClient = HttpClients.createDefault();
 		}
 	}
@@ -154,7 +156,9 @@ public class RepoManager {
 			updateRepo(name);
 		}
 		catch (IOException ex) {
-			log.warn("Failed to update repo '{}' immediately after add: {}", name, ex.getMessage());
+			if (log.isWarnEnabled()) {
+				log.warn("Failed to update repo '{}' immediately after add: {}", name, ex.getMessage());
+			}
 		}
 	}
 
@@ -262,7 +266,9 @@ public class RepoManager {
 			throw new IOException(
 					"Digest mismatch for downloaded blob: expected sha256:" + expected + ", got sha256:" + actual);
 		}
-		log.debug("Blob digest verified: sha256:{}", expected);
+		if (log.isDebugEnabled()) {
+			log.debug("Blob digest verified: sha256:{}", expected);
+		}
 	}
 
 	boolean isManifestIndex(JsonNode manifest) {
@@ -308,7 +314,9 @@ public class RepoManager {
 			throw new IOException("Repository not found: " + name);
 		}
 		String indexUrl = repoUrl.endsWith("/") ? repoUrl + "index.yaml" : repoUrl + "/index.yaml";
-		log.info("Updating repository '{}' from {}", name, indexUrl);
+		if (log.isInfoEnabled()) {
+			log.info("Updating repository '{}' from {}", name, indexUrl);
+		}
 
 		HttpGet httpGet = new HttpGet(indexUrl);
 		httpGet.setHeader("User-Agent", "jhelm");
@@ -328,7 +336,9 @@ public class RepoManager {
 			}
 			return null;
 		});
-		log.info("Repository '{}' index updated", name);
+		if (log.isInfoEnabled()) {
+			log.info("Repository '{}' index updated", name);
+		}
 	}
 
 	public void updateAll() throws IOException {
@@ -338,7 +348,9 @@ public class RepoManager {
 				updateRepo(r.getName());
 			}
 			catch (IOException ex) {
-				log.warn("Failed to update repo {}: {}", r.getName(), ex.getMessage());
+				if (log.isWarnEnabled()) {
+					log.warn("Failed to update repo {}: {}", r.getName(), ex.getMessage());
+				}
 			}
 		}
 	}
@@ -359,7 +371,9 @@ public class RepoManager {
 				throw new IOException("Repository name is required to get chart versions. Found: " + repoName);
 			}
 			String indexUrl = repoUrl.endsWith("/") ? repoUrl + "index.yaml" : repoUrl + "/index.yaml";
-			log.info("Downloading index from {} ...", indexUrl);
+			if (log.isInfoEnabled()) {
+				log.info("Downloading index from {} ...", indexUrl);
+			}
 
 			HttpGet httpGet = new HttpGet(indexUrl);
 			httpGet.setHeader("User-Agent", "jhelm");
@@ -484,7 +498,9 @@ public class RepoManager {
 		if (chartDigest != null) {
 			File cached = getChartCacheFile(chartDigest);
 			if (cached.exists()) {
-				log.info("Using cached chart (digest: {})", chartDigest);
+				if (log.isInfoEnabled()) {
+					log.info("Using cached chart (digest: {})", chartDigest);
+				}
 				File destFile = new File(destDir, finalChartName + "-" + version + ".tgz");
 				Files.copy(cached.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 				untar(destFile, new File(destDir));
@@ -549,7 +565,9 @@ public class RepoManager {
 			pullOci(chartUrl, destDir, fileName);
 			return;
 		}
-		log.info("Pulling chart from {} to {}", chartUrl, destDir);
+		if (log.isInfoEnabled()) {
+			log.info("Pulling chart from {} to {}", chartUrl, destDir);
+		}
 
 		File destFile = new File(destDir, fileName);
 		destFile.getParentFile().mkdirs();
@@ -570,14 +588,18 @@ public class RepoManager {
 			}
 			return null;
 		});
-		log.info("Chart pulled successfully to {}", destFile.getAbsolutePath());
+		if (log.isInfoEnabled()) {
+			log.info("Chart pulled successfully to {}", destFile.getAbsolutePath());
+		}
 
 		// Automatically untar regular charts too
 		untar(destFile, new File(destDir));
 	}
 
 	public void pullOci(String ociUrl, String destDir, String fileName) throws IOException {
-		log.info("Pulling OCI chart from {} to {}", ociUrl, destDir);
+		if (log.isInfoEnabled()) {
+			log.info("Pulling OCI chart from {} to {}", ociUrl, destDir);
+		}
 		String[] ociParts = parseOciUrl(ociUrl);
 		String registry = ociParts[0];
 		String path = ociParts[1];
@@ -594,14 +616,18 @@ public class RepoManager {
 			manifest = callOciApi(manifestUrl, token, "application/vnd.oci.image.manifest.v1+json");
 		}
 		catch (IOException ex) {
-			log.warn("Failed to get OCI manifest with v1+json, trying without specific accept header: {}",
-					ex.getMessage());
+			if (log.isWarnEnabled()) {
+				log.warn("Failed to get OCI manifest with v1+json, trying without specific accept header: {}",
+						ex.getMessage());
+			}
 			manifest = callOciApi(manifestUrl, token, null);
 		}
 
 		// 2b. Resolve OCI image index to a specific manifest if needed
 		if (isManifestIndex(manifest)) {
-			log.debug("OCI manifest is an index, resolving to specific manifest");
+			if (log.isDebugEnabled()) {
+				log.debug("OCI manifest is an index, resolving to specific manifest");
+			}
 			String resolvedDigest = resolveDigestFromIndex(manifest);
 			if (resolvedDigest == null) {
 				throw new IOException("No suitable manifest found in OCI index for " + ociUrl);
@@ -630,7 +656,9 @@ public class RepoManager {
 		// 4. Download Layer (blob) — check content cache first
 		File cached = getChartCacheFile(digest);
 		if (cached.exists()) {
-			log.info("Using cached OCI chart (digest: {})", digest);
+			if (log.isInfoEnabled()) {
+				log.info("Using cached OCI chart (digest: {})", digest);
+			}
 			File destFile = new File(destDir, fileName);
 			Files.copy(cached.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 			untar(destFile, new File(destDir));
@@ -692,7 +720,9 @@ public class RepoManager {
 			return httpClient.execute(httpGet, (response) -> {
 				int statusCode = response.getCode();
 				if (statusCode != 200) {
-					log.warn("Failed to fetch OCI token: HTTP {}", statusCode);
+					if (log.isWarnEnabled()) {
+						log.warn("Failed to fetch OCI token: HTTP {}", statusCode);
+					}
 					return null;
 				}
 
@@ -707,7 +737,9 @@ public class RepoManager {
 			});
 		}
 		catch (Exception ex) {
-			log.warn("Failed to parse OCI token: {}", ex.getMessage());
+			if (log.isWarnEnabled()) {
+				log.warn("Failed to parse OCI token: {}", ex.getMessage());
+			}
 			return null;
 		}
 	}
@@ -760,11 +792,15 @@ public class RepoManager {
 			}
 			return null;
 		});
-		log.info("OCI Blob downloaded successfully to {}", destFile.getAbsolutePath());
+		if (log.isInfoEnabled()) {
+			log.info("OCI Blob downloaded successfully to {}", destFile.getAbsolutePath());
+		}
 	}
 
 	public void pushOci(String chartTgzPath, String ociUrl) throws IOException {
-		log.info("Pushing chart {} to {}", chartTgzPath, ociUrl);
+		if (log.isInfoEnabled()) {
+			log.info("Pushing chart {} to {}", chartTgzPath, ociUrl);
+		}
 		String raw = ociUrl.substring(6);
 		int firstSlash = raw.indexOf('/');
 		if (firstSlash == -1) {
@@ -818,7 +854,9 @@ public class RepoManager {
 				}""".formatted(configDigest, configBytes.length, chartDigest, chartBytes.length);
 
 		pushManifest(registry, path, tag, token, manifestJson.getBytes(StandardCharsets.UTF_8));
-		log.info("Chart pushed successfully to {}", ociUrl);
+		if (log.isInfoEnabled()) {
+			log.info("Chart pushed successfully to {}", ociUrl);
+		}
 	}
 
 	private String fetchOciPushToken(String registry, String path, String auth) throws IOException {
@@ -839,7 +877,9 @@ public class RepoManager {
 			return httpClient.execute(httpGet, (response) -> {
 				int statusCode = response.getCode();
 				if (statusCode != 200) {
-					log.warn("Failed to fetch OCI push token: HTTP {}", statusCode);
+					if (log.isWarnEnabled()) {
+						log.warn("Failed to fetch OCI push token: HTTP {}", statusCode);
+					}
 					return null;
 				}
 				HttpEntity entity = response.getEntity();
@@ -856,7 +896,9 @@ public class RepoManager {
 			});
 		}
 		catch (Exception ex) {
-			log.warn("Failed to parse OCI push token: {}", ex.getMessage());
+			if (log.isWarnEnabled()) {
+				log.warn("Failed to parse OCI push token: {}", ex.getMessage());
+			}
 			return null;
 		}
 	}
@@ -871,7 +913,9 @@ public class RepoManager {
 			return httpClient.execute(head, (response) -> response.getCode() == 200);
 		}
 		catch (IOException ex) {
-			log.debug("Blob existence check failed, assuming absent: {}", ex.getMessage());
+			if (log.isDebugEnabled()) {
+				log.debug("Blob existence check failed, assuming absent: {}", ex.getMessage());
+			}
 			return false;
 		}
 	}
@@ -938,13 +982,17 @@ public class RepoManager {
 				httpClient.close();
 			}
 			catch (IOException ex) {
-				log.error("Failed to close HTTP client", ex);
+				if (log.isErrorEnabled()) {
+					log.error("Failed to close HTTP client", ex);
+				}
 			}
 		}
 	}
 
 	public void untar(File tgzFile, File destDir) throws IOException {
-		log.info("Untarring {} to {}", tgzFile.getAbsolutePath(), destDir.getAbsolutePath());
+		if (log.isInfoEnabled()) {
+			log.info("Untarring {} to {}", tgzFile.getAbsolutePath(), destDir.getAbsolutePath());
+		}
 		try (InputStream fi = Files.newInputStream(tgzFile.toPath());
 				InputStream bi = new BufferedInputStream(fi);
 				InputStream gzi = new GzipCompressorInputStream(bi);

@@ -115,7 +115,9 @@ public class DependencyCommand implements Runnable {
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error listing dependencies: " + ex.getMessage()));
-				log.debug("Dependency list error details", ex);
+				if (log.isDebugEnabled()) {
+					log.debug("Dependency list error details", ex);
+				}
 			}
 		}
 
@@ -231,7 +233,9 @@ public class DependencyCommand implements Runnable {
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error updating dependencies: " + ex.getMessage()));
-				log.debug("Dependency update error details", ex);
+				if (log.isDebugEnabled()) {
+					log.debug("Dependency update error details", ex);
+				}
 			}
 		}
 
@@ -254,7 +258,9 @@ public class DependencyCommand implements Runnable {
 				return ValuesLoader.load(valuesFile);
 			}
 			catch (Exception ex) {
-				log.warn("Failed to load values.yaml: {}", ex.getMessage());
+				if (log.isWarnEnabled()) {
+					log.warn("Failed to load values.yaml: {}", ex.getMessage());
+				}
 				return new HashMap<>();
 			}
 		}
@@ -323,7 +329,9 @@ public class DependencyCommand implements Runnable {
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error building dependencies: " + ex.getMessage()));
-				log.debug("Dependency build error details", ex);
+				if (log.isDebugEnabled()) {
+					log.debug("Dependency build error details", ex);
+				}
 			}
 		}
 

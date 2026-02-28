@@ -97,12 +97,17 @@ public class UpgradeAction {
 			return;
 		}
 		try {
-			log.warn("Re-applying previous release {} v{}", previousRelease.getName(), previousRelease.getVersion());
+			if (log.isWarnEnabled()) {
+				log.warn("Re-applying previous release {} v{}", previousRelease.getName(),
+						previousRelease.getVersion());
+			}
 			String regularManifest = HookParser.stripHooks(previousRelease.getManifest());
 			kubeService.apply(previousRelease.getNamespace(), regularManifest);
 		}
 		catch (Exception rollbackEx) {
-			log.error("Failed to re-apply previous release: {}", rollbackEx.getMessage(), rollbackEx);
+			if (log.isErrorEnabled()) {
+				log.error("Failed to re-apply previous release: {}", rollbackEx.getMessage(), rollbackEx);
+			}
 		}
 	}
 

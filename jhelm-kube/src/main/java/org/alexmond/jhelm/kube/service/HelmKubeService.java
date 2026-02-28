@@ -134,7 +134,10 @@ public class HelmKubeService implements KubeService {
 				releases.add(decodeRelease(cm));
 			}
 			catch (ReleaseStorageException ex) {
-				log.warn("Failed to decode release from ConfigMap {}: {}", cm.getMetadata().getName(), ex.getMessage());
+				if (log.isWarnEnabled()) {
+					log.warn("Failed to decode release from ConfigMap {}: {}", cm.getMetadata().getName(),
+							ex.getMessage());
+				}
 			}
 		}
 		return releases;
@@ -216,7 +219,9 @@ public class HelmKubeService implements KubeService {
 		String name = obj.getMetadata().getName();
 		String plural = inferPlural(kind);
 
-		log.info("Applying {} ({}/{}) {} in namespace {}", kind, group, version, name, namespace);
+		if (log.isInfoEnabled()) {
+			log.info("Applying {} ({}/{}) {} in namespace {}", kind, group, version, name, namespace);
+		}
 
 		V1Patch patch = new V1Patch(Yaml.dump(obj));
 		CustomObjectsApi api = new CustomObjectsApi(apiClient);
@@ -263,7 +268,9 @@ public class HelmKubeService implements KubeService {
 		String name = obj.getMetadata().getName();
 		String plural = inferPlural(kind);
 
-		log.info("Deleting {} {} in namespace {}", kind, name, namespace);
+		if (log.isInfoEnabled()) {
+			log.info("Deleting {} {} in namespace {}", kind, name, namespace);
+		}
 
 		CustomObjectsApi api = new CustomObjectsApi(apiClient);
 		try {
@@ -462,19 +469,27 @@ public class HelmKubeService implements KubeService {
 		V1ConfigMap cm = Yaml.loadAs(yamlContent, V1ConfigMap.class);
 
 		try {
-			log.info("Creating ConfigMap {} in {}", cm.getMetadata().getName(), namespace);
+			if (log.isInfoEnabled()) {
+				log.info("Creating ConfigMap {} in {}", cm.getMetadata().getName(), namespace);
+			}
 			api.createNamespacedConfigMap(namespace, cm).execute();
 		}
 		catch (Exception ex) {
 			if (ex instanceof ApiException ae && ae.getCode() == 409) { // Conflict/Already
 																		// exists
-				log.info("ConfigMap already exists, replacing");
+				if (log.isInfoEnabled()) {
+					log.info("ConfigMap already exists, replacing");
+				}
 				api.replaceNamespacedConfigMap(cm.getMetadata().getName(), namespace, cm).execute();
 			}
 			else {
-				log.debug("Error installing ConfigMap: {}", ex.getMessage());
+				if (log.isDebugEnabled()) {
+					log.debug("Error installing ConfigMap: {}", ex.getMessage());
+				}
 				if (ex instanceof ApiException ae) {
-					log.debug("API Response: {}", ae.getResponseBody());
+					if (log.isDebugEnabled()) {
+						log.debug("API Response: {}", ae.getResponseBody());
+					}
 				}
 				throw ex;
 			}
