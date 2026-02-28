@@ -6,11 +6,10 @@ import java.util.Map;
 
 import org.alexmond.jhelm.gotemplate.Function;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
-import org.alexmond.jhelm.gotemplate.helm.functions.ChartFunctions;
 import org.alexmond.jhelm.gotemplate.helm.functions.ConversionFunctions;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesFunctions;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
-import org.alexmond.jhelm.gotemplate.sprig.functions.TemplateFunctions;
+import org.alexmond.jhelm.gotemplate.helm.functions.TemplateFunctions;
 
 /**
  * Coordinator class for all Helm-specific template functions. Organizes functions by
@@ -43,9 +42,6 @@ public final class HelmFunctions {
 		// Kubernetes operations (lookup, kubeVersion) - with provider
 		functions.putAll(KubernetesFunctions.getFunctions(kubernetesProvider));
 
-		// Chart operations (semverCompare, certificate generation)
-		functions.putAll(ChartFunctions.getFunctions());
-
 		return functions;
 	}
 
@@ -72,9 +68,6 @@ public final class HelmFunctions {
 				"fromToml", "mustToYaml", "mustToJson", "mustFromYaml", "mustFromJson", "mustToToml", "mustFromToml"));
 
 		categories.put("Kubernetes", List.of("lookup", "kubeVersion"));
-
-		categories.put("Chart",
-				List.of("semverCompare", "semver", "genPrivateKey", "genCA", "genSignedCert", "genSelfSignedCert"));
 
 		return categories;
 	}

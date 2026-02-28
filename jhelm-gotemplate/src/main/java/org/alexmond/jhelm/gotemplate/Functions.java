@@ -1,6 +1,9 @@
 package org.alexmond.jhelm.gotemplate;
 
 import java.lang.reflect.Array;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -16,16 +19,16 @@ public final class Functions {
 	public static final Map<String, Function> BUILTIN = new LinkedHashMap<>();
 
 	static {
-		BUILTIN.put("call", noop());
-		BUILTIN.put("html", noop());
+		BUILTIN.put("call", call());
+		BUILTIN.put("html", htmlEscape());
 		BUILTIN.put("index", index());
-		BUILTIN.put("slice", noop());
-		BUILTIN.put("js", noop());
+		BUILTIN.put("slice", slice());
+		BUILTIN.put("js", jsEscape());
 		BUILTIN.put("len", len());
 		BUILTIN.put("print", print());
 		BUILTIN.put("printf", printf());
 		BUILTIN.put("println", println());
-		BUILTIN.put("urlquery", noop());
+		BUILTIN.put("urlquery", urlquery());
 
 		// Logical operations
 		BUILTIN.put("and", and());
@@ -261,8 +264,106 @@ public final class Functions {
 		};
 	}
 
-	private static Function noop() {
-		return (args) -> null;
+	private static Function call() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return null;
+			}
+			if (!(args[0] instanceof Function fn)) {
+				throw new RuntimeException("call: first argument must be a function");
+			}
+			Object[] fnArgs = new Object[args.length - 1];
+			System.arraycopy(args, 1, fnArgs, 0, args.length - 1);
+			return fn.invoke(fnArgs);
+		};
+	}
+
+	private static Function htmlEscape() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			String s = String.valueOf(args[0]);
+			StringBuilder sb = new StringBuilder(s.length());
+			for (int i = 0; i < s.length(); i++) {
+				char c = s.charAt(i);
+				switch (c) {
+					case '&' -> sb.append("&amp;");
+					case '<' -> sb.append("&lt;");
+					case '>' -> sb.append("&gt;");
+					case '"' -> sb.append("&#34;");
+					case '\'' -> sb.append("&#39;");
+					default -> sb.append(c);
+				}
+			}
+			return sb.toString();
+		};
+	}
+
+	private static Function jsEscape() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			String s = String.valueOf(args[0]);
+			StringBuilder sb = new StringBuilder(s.length());
+			for (int i = 0; i < s.length(); i++) {
+				char c = s.charAt(i);
+				switch (c) {
+					case '\\' -> sb.append("\\\\");
+					case '\'' -> sb.append("\\'");
+					case '"' -> sb.append("\\\"");
+					case '\n' -> sb.append("\\n");
+					case '\r' -> sb.append("\\r");
+					case '\t' -> sb.append("\\t");
+					case '<' -> sb.append("\\u003C");
+					case '>' -> sb.append("\\u003E");
+					case '&' -> sb.append("\\u0026");
+					case '=' -> sb.append("\\u003D");
+					default -> sb.append(c);
+				}
+			}
+			return sb.toString();
+		};
+	}
+
+	@SuppressWarnings("unchecked")
+	private static Function slice() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return null;
+			}
+			Object container = args[0];
+			int size;
+			if (container instanceof List) {
+				size = ((List<?>) container).size();
+			}
+			else if (container.getClass().isArray()) {
+				size = Array.getLength(container);
+			}
+			else {
+				return null;
+			}
+			int from = (args.length > 1) ? ((Number) args[1]).intValue() : 0;
+			int to = (args.length > 2) ? ((Number) args[2]).intValue() : size;
+			if (container instanceof List) {
+				return new ArrayList<>(((List<Object>) container).subList(from, to));
+			}
+			Object[] result = new Object[to - from];
+			for (int i = from; i < to; i++) {
+				result[i - from] = Array.get(container, i);
+			}
+			return List.of(result);
+		};
+	}
+
+	private static Function urlquery() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			return URLEncoder.encode(String.valueOf(args[0]), StandardCharsets.UTF_8);
+		};
 	}
 
 	private static Function print() {

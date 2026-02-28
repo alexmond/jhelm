@@ -3,13 +3,18 @@ package org.alexmond.jhelm.gotemplate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
-
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FunctionsTest {
@@ -354,6 +359,117 @@ class FunctionsTest {
 	void testPrintln() throws Exception {
 		Function println = Functions.BUILTIN.get("println");
 		assertEquals("a b c\n", println.invoke(new Object[] { "a", "b", "c" }));
+	}
+
+	// --- call function tests ---
+
+	@Test
+	void testCallFunction() {
+		Function call = Functions.BUILTIN.get("call");
+		Function adder = (args) -> ((Number) args[0]).intValue() + ((Number) args[1]).intValue();
+		assertEquals(5, call.invoke(new Object[] { adder, 2, 3 }));
+	}
+
+	@Test
+	void testCallFunctionNoArgs() {
+		Function call = Functions.BUILTIN.get("call");
+		Function greeter = (args) -> "hello";
+		assertEquals("hello", call.invoke(new Object[] { greeter }));
+	}
+
+	@Test
+	void testCallNullReturnsNull() {
+		Function call = Functions.BUILTIN.get("call");
+		assertNull(call.invoke(new Object[] {}));
+		assertNull(call.invoke(new Object[] { null }));
+	}
+
+	// --- html function tests ---
+
+	static Stream<Arguments> htmlEscapeCases() {
+		return Stream.of(Arguments.of("<b>bold</b>", "&lt;b&gt;bold&lt;/b&gt;"),
+				Arguments.of("foo & bar", "foo &amp; bar"),
+				Arguments.of("\"quoted\" 'single'", "&#34;quoted&#34; &#39;single&#39;"),
+				Arguments.of("hello world", "hello world"), Arguments.of("", ""));
+	}
+
+	@ParameterizedTest
+	@MethodSource("htmlEscapeCases")
+	void testHtmlEscape(String input, String expected) {
+		Function html = Functions.BUILTIN.get("html");
+		assertEquals(expected, html.invoke(new Object[] { input }));
+	}
+
+	@Test
+	void testHtmlEscapeNullAndNoArgs() {
+		Function html = Functions.BUILTIN.get("html");
+		assertEquals("", html.invoke(new Object[] {}));
+		assertEquals("", html.invoke(new Object[] { null }));
+	}
+
+	// --- js function tests ---
+
+	static Stream<Arguments> jsEscapeCases() {
+		return Stream.of(Arguments.of("he said \"hello\"", "he said \\\"hello\\\""),
+				Arguments.of("line1\nline2\ttab", "line1\\nline2\\ttab"),
+				Arguments.of("<script>", "\\u003Cscript\\u003E"), Arguments.of("path\\to\\file", "path\\\\to\\\\file"),
+				Arguments.of("a=1&b=2", "a\\u003D1\\u0026b\\u003D2"), Arguments.of("plain", "plain"));
+	}
+
+	@ParameterizedTest
+	@MethodSource("jsEscapeCases")
+	void testJsEscape(String input, String expected) {
+		Function js = Functions.BUILTIN.get("js");
+		assertEquals(expected, js.invoke(new Object[] { input }));
+	}
+
+	@Test
+	void testJsEscapeNullAndNoArgs() {
+		Function js = Functions.BUILTIN.get("js");
+		assertEquals("", js.invoke(new Object[] {}));
+		assertEquals("", js.invoke(new Object[] { null }));
+	}
+
+	// --- slice function tests ---
+	// Note: Sprig's CollectionFunctions.slice() overrides the Go built-in in BUILTIN.
+	// These tests use the Sprig version (which is what templates actually see).
+
+	@Test
+	void testSliceList() {
+		Function slice = Functions.BUILTIN.get("slice");
+		List<String> list = List.of("a", "b", "c", "d", "e");
+		assertEquals(List.of("b", "c", "d"), slice.invoke(new Object[] { list, 1, 4 }));
+	}
+
+	@Test
+	void testSliceListFromOnly() {
+		Function slice = Functions.BUILTIN.get("slice");
+		List<String> list = List.of("a", "b", "c");
+		assertEquals(List.of("b", "c"), slice.invoke(new Object[] { list, 1 }));
+	}
+
+	// --- urlquery function tests ---
+
+	@ParameterizedTest
+	@CsvSource({ "hello world, hello+world", "foo&bar=baz, foo%26bar%3Dbaz", "already-safe, already-safe", "'', ''" })
+	void testUrlquery(String input, String expected) {
+		Function urlquery = Functions.BUILTIN.get("urlquery");
+		assertEquals(expected, urlquery.invoke(new Object[] { input }));
+	}
+
+	@Test
+	void testUrlqueryNullAndNoArgs() {
+		Function urlquery = Functions.BUILTIN.get("urlquery");
+		assertEquals("", urlquery.invoke(new Object[] {}));
+		assertEquals("", urlquery.invoke(new Object[] { null }));
+	}
+
+	// --- call function error case ---
+
+	@Test
+	void testCallNonFunctionThrows() {
+		Function call = Functions.BUILTIN.get("call");
+		assertThrows(RuntimeException.class, () -> call.invoke(new Object[] { "not a function" }));
 	}
 
 	// --- BUILTIN map verification ---
