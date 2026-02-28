@@ -14,7 +14,7 @@ jhelmtest:
       - resource: "*"
         path: "spec.trafficDistribution"
         reason: "Subchart defaults merging exposes values that Helm omits"
-    "prometheus-community/prometheus":
+    "[prometheus-community/prometheus]":
       # Prometheus ConfigMap — JHelm double-quotes regex values
       - resource: "ConfigMap/*"
         path: "data.prometheus.yml"
