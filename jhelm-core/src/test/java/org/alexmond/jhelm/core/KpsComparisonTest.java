@@ -306,9 +306,14 @@ class KpsComparisonTest {
 		var jhelmMap = buildResourceMap(jhelmDocs);
 		var helmMap = buildResourceMap(helmDocs);
 
-		// Check for missing resources
+		// Load ignore rules for this chart (needed for both missing-resource and
+		// diff filtering)
+		List<IgnoreRule> ignoreRules = loadIgnoreRules(chartName);
+
+		// Check for missing resources, filtering out those covered by ignore rules
 		var missingInJhelm = new LinkedHashSet<>(helmMap.keySet());
 		missingInJhelm.removeAll(jhelmMap.keySet());
+		missingInJhelm.removeIf((key) -> isIgnored(key, "*", ignoreRules));
 
 		var extraInJhelm = new LinkedHashSet<>(jhelmMap.keySet());
 		extraInJhelm.removeAll(helmMap.keySet());
@@ -322,9 +327,6 @@ class KpsComparisonTest {
 		if (!extraInJhelm.isEmpty()) {
 			log.warn("{} - Extra resources in JHelm (not in Helm): {}", chartName, extraInJhelm);
 		}
-
-		// Load ignore rules for this chart
-		List<IgnoreRule> ignoreRules = loadIgnoreRules(chartName);
 
 		// Compare each resource — fast-path with equals(), detailed diff only when needed
 		for (String key : helmMap.keySet()) {
