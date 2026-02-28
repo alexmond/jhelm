@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.gotemplate.sprig.functions;
+package org.alexmond.jhelm.gotemplate.helm.functions;
 
 import java.util.Collections;
 import java.util.HashMap;

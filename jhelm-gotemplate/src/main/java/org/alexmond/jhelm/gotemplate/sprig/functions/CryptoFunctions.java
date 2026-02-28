@@ -62,6 +62,7 @@ public final class CryptoFunctions {
 
 		functions.put("genPrivateKey", genPrivateKey());
 
+		functions.put("buildCustomCert", buildCustomCert());
 		functions.put("genCA", genCA());
 		functions.put("genSignedCert", genSignedCert());
 		functions.put("genSelfSignedCert", genSelfSignedCert());
@@ -188,6 +189,22 @@ public final class CryptoFunctions {
 	}
 
 	// ========== Certificate Generation ==========
+
+	/**
+	 * Builds a custom certificate from base64-encoded PEM data. Takes a base64 cert
+	 * string and a base64 private key string, wraps them in PEM headers.
+	 * @return Map with "Cert" (PEM) and "Key" (PEM) fields
+	 */
+	private static Function buildCustomCert() {
+		return (args) -> {
+			String certB64 = (args.length > 0) ? String.valueOf(args[0]) : "";
+			String keyB64 = (args.length > 1) ? String.valueOf(args[1]) : "";
+			Map<String, Object> result = new HashMap<>();
+			result.put("Cert", "-----BEGIN CERTIFICATE-----\n" + certB64 + "\n-----END CERTIFICATE-----");
+			result.put("Key", "-----BEGIN RSA PRIVATE KEY-----\n" + keyB64 + "\n-----END RSA PRIVATE KEY-----");
+			return result;
+		};
+	}
 
 	/**
 	 * Generates a real CA certificate and key using Bouncy Castle.

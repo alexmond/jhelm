@@ -157,11 +157,10 @@ public class Helm4FunctionsTest {
 	public void testHelmFunctionCategories() {
 		Map<String, List<String>> categories = HelmFunctions.getFunctionCategories();
 
-		// Verify categories exist
+		// Verify categories exist (Chart removed — cert functions are Sprig)
 		assertTrue(categories.containsKey("Template"));
 		assertTrue(categories.containsKey("Conversion"));
 		assertTrue(categories.containsKey("Kubernetes"));
-		assertTrue(categories.containsKey("Chart"));
 
 		// Verify Conversion category contains new Helm 4 functions
 		assertTrue(categories.get("Conversion").contains("mustToYaml"));
