@@ -1,51 +1,255 @@
 = Sprig Functions
 
-Sprig functions provide a large library of helper functions for templates.
+Sprig functions are provided by the `jhelm-gotemplate-sprig` module.
+They are auto-discovered via `ServiceLoader` when the module is on the classpath (priority 100).
 
-== Categories & Highlights
+== Categories
 
-=== Strings (`sprig/strings/StringFunctions.java`)
+=== Strings
 
-* *Basic*: `trim`, `trimAll`, `trimPrefix`, `trimSuffix`, `upper`, `lower`, `title`, `untitle`
-* *Manipulation*: `repeat`, `substr`, `trunc`, `abbrev`, `initials`, `wrap`, `replace`
-* *Formatting*: `quote`, `squote`, `cat`, `indent`, `nindent`
-* *Case conversion*: `snakecase`, `camelcase`, `kebabcase`
-* *Regex*: `regexMatch`, `regexFind`, `regexReplaceAll`, `regexSplit` (with `must*` variants)
+[cols="1,2"]
+|===
+| Function | Description
 
-=== Collections (`sprig/collections/CollectionFunctions.java`)
+| `trim`, `trimAll`, `trimPrefix`, `trimSuffix`
+| Whitespace and prefix/suffix trimming
 
-* *Lists*: `list`, `first`, `last`, `rest`, `initial`, `append`, `prepend`, `concat`
-* *Dictionaries*: `dict`, `set`, `unset`, `hasKey`, `pluck`, `merge`, `mustMerge`
-* *Common*: `pick`, `omit`, `keys`, `values`, `sortAlpha`, `reverse`, `compact`, `uniq`, `contains`, `has`
+| `upper`, `lower`, `title`, `untitle`
+| Case conversion
 
-=== Logic (`sprig/logic/LogicFunctions.java`)
+| `repeat`, `substr`, `trunc`, `abbrev`
+| String manipulation
 
-`default`, `empty`, `coalesce`, `ternary`, `and`, `or`, `not`
+| `quote`, `squote`, `cat`
+| Quoting and concatenation
 
-=== Math (`sprig/math/MathFunctions.java`)
+| `indent`, `nindent`
+| Indentation (nindent prepends a newline)
 
-`add`, `sub`, `mul`, `div`, `mod`, `floor`, `ceil`, `round`, `min`, `max`
+| `snakecase`, `camelcase`, `kebabcase`
+| Naming convention conversion
 
-=== Encoding (`sprig/encoding/EncodingFunctions.java`)
+| `replace`, `split`, `splitList`, `join`
+| Split/join/replace operations
 
-`b64enc`, `b64dec`, `b32enc`, `b32dec`, `sha1sum`, `sha256sum`, `adler32sum`
+| `regexMatch`, `regexFind`, `regexFindAll`, `regexReplaceAll`, `regexReplaceAllLiteral`, `regexSplit`
+| Regular expressions (with `must*` variants that throw on error)
 
-=== Crypto (`sprig/crypto/CryptoFunctions.java`)
+| `contains`, `hasPrefix`, `hasSuffix`
+| String predicates
 
-`uuidv4`, `randAlphaNum`, `randAlpha`, `randNumeric`, `randAscii`, `htpasswd`, `encryptAES`, `decryptAES`
+| `nospace`, `initials`, `wrap`, `wrapWith`, `plural`, `swapcase`, `shuffle`
+| Additional string utilities
+|===
 
-=== Date (`sprig/date/DateFunctions.java`)
+=== Collections
 
-`now`, `date`, `dateInZone`, `dateModify`, `unixEpoch`, `htmlDate`, `htmlDateInZone`
+[cols="1,2"]
+|===
+| Function | Description
 
-=== Reflection (`sprig/reflection/ReflectionFunctions.java`)
+| `list`, `tuple`
+| Create new lists
 
-`typeOf`, `kindOf`, `typeIs`, `kindIs`, `deepEqual`, `deepCopy`
+| `first`, `last`, `rest`, `initial`
+| Access list elements
 
-=== Network (`sprig/network/NetworkFunctions.java`)
+| `append`, `prepend`, `concat`
+| Extend lists
 
-`getHostByName`
+| `reverse`, `sortAlpha`, `uniq`, `compact`, `without`
+| List transformations
 
-=== Semver (`sprig/semver/SemverFunctions.java`)
+| `has`, `contains`
+| List predicates
 
-`semver`, `semverCompare`
+| `dict`
+| Create a new map from key-value pairs
+
+| `set`, `unset`
+| Modify maps
+
+| `hasKey`, `get`, `pluck`
+| Map access
+
+| `keys`, `values`
+| Map introspection
+
+| `merge`, `mustMerge`, `mergeOverwrite`, `mustMergeOverwrite`
+| Deep map merging
+
+| `pick`, `omit`
+| Map filtering
+
+| `dig`
+| Deep nested map access
+
+| `chunk`, `slice`
+| List slicing (Sprig's `slice` overrides Go built-in with additional features)
+|===
+
+=== Logic
+
+[cols="1,2"]
+|===
+| Function | Description
+
+| `default`
+| Returns the first non-empty value
+
+| `empty`
+| Returns true if value is empty/zero/nil
+
+| `coalesce`
+| Returns first non-empty argument
+
+| `ternary`
+| `ternary trueVal falseVal condition` — conditional value
+
+| `fail`
+| Unconditionally fails template execution with message
+
+| `required`
+| Validates value is present and non-empty (actually a Helm function, see xref:helm-functions.adoc[Helm Functions])
+|===
+
+=== Math
+
+[cols="1,2"]
+|===
+| Function | Description
+
+| `add`, `add1`, `sub`, `mul`, `div`, `mod`
+| Basic arithmetic
+
+| `floor`, `ceil`, `round`
+| Rounding
+
+| `min`, `max`
+| Min/max selection
+
+| `int`, `int64`, `float64`
+| Numeric type conversion
+|===
+
+=== Encoding
+
+[cols="1,2"]
+|===
+| Function | Description
+
+| `b64enc`, `b64dec`
+| Base64 encoding/decoding
+
+| `b32enc`, `b32dec`
+| Base32 encoding/decoding
+
+| `sha1sum`, `sha256sum`, `adler32sum`
+| Hash functions
+|===
+
+=== Crypto
+
+[cols="1,2"]
+|===
+| Function | Description
+
+| `uuidv4`
+| Generate UUID v4
+
+| `randAlphaNum`, `randAlpha`, `randNumeric`, `randAscii`
+| Random string generation
+
+| `htpasswd`
+| BCrypt password hash (Apache htpasswd format)
+
+| `encryptAES`, `decryptAES`
+| AES encryption/decryption
+
+| `genPrivateKey`
+| Generate RSA/ECDSA private key
+
+| `genCA`
+| Generate self-signed CA certificate
+
+| `genSelfSignedCert`, `genSignedCert`
+| Generate certificates
+
+| `derivePassword`
+| Master Password algorithm
+|===
+
+=== Date
+
+[cols="1,2"]
+|===
+| Function | Description
+
+| `now`
+| Current time
+
+| `date`, `dateInZone`
+| Format date to string
+
+| `dateModify`, `mustDateModify`
+| Add duration to date
+
+| `unixEpoch`
+| Convert to Unix timestamp
+
+| `toDate`, `mustToDate`
+| Parse string to date
+
+| `htmlDate`, `htmlDateInZone`
+| Format for HTML date input
+|===
+
+=== Reflection
+
+[cols="1,2"]
+|===
+| Function | Description
+
+| `typeOf`, `kindOf`
+| Get Java type/kind name
+
+| `typeIs`, `kindIs`
+| Check type/kind
+
+| `deepEqual`
+| Deep equality comparison
+
+| `deepCopy`
+| Deep copy of value
+|===
+
+=== Network
+
+[cols="1,2"]
+|===
+| Function | Description
+
+| `getHostByName`
+| DNS lookup returning IP address
+
+| `urlParse`
+| Parse URL into map (scheme, host, path, etc.)
+|===
+
+=== Semver
+
+[cols="1,2"]
+|===
+| Function | Description
+
+| `semver`
+| Parse semantic version string into object with `.Major`, `.Minor`, `.Patch`
+
+| `semverCompare`
+| Compare version against constraint (e.g., `>=1.2.0`)
+|===
+
+== Reference
+
+* https://masterminds.github.io/sprig/[Sprig Function Documentation]
+* https://helm.sh/docs/chart_template_guide/function_list/[Helm — Sprig Function List]

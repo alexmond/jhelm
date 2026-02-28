@@ -1,0 +1,189 @@
+= Extending Functions
+
+The jhelm template engine supports custom function extensions via the `FunctionProvider` SPI (Service Provider Interface).
+This allows third-party libraries to contribute template functions that are automatically discovered at runtime.
+
+== How It Works
+
+The `GoTemplate` engine loads functions in layers:
+
+[cols="1,1,2"]
+|===
+| Priority | Provider | Functions
+
+| 0
+| Go built-ins
+| `print`, `printf`, `eq`, `len`, `index`, etc. (19 functions)
+
+| 100
+| `SprigFunctionProvider`
+| String, collection, math, crypto, etc. (200+ functions)
+
+| 200
+| `HelmFunctionProvider`
+| `toYaml`, `include`, `lookup`, etc. (20+ functions)
+
+| Custom
+| Your provider
+| Any functions you define
+|===
+
+Higher-priority providers override lower-priority ones on name collision.
+
+== Creating a Custom FunctionProvider
+
+=== 1. Implement the Interface
+
+[source,java]
+----
+package com.example.mylib;
+
+import java.util.Map;
+import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.jhelm.gotemplate.FunctionProvider;
+import org.alexmond.jhelm.gotemplate.GoTemplate;
+
+public class MyFunctionProvider implements FunctionProvider {
+
+    @Override
+    public Map<String, Function> getFunctions(GoTemplate template) {
+        return Map.of(
+            "greet", args -> "Hello, " + args[0] + "!",
+            "shout", args -> String.valueOf(args[0]).toUpperCase()
+        );
+    }
+
+    @Override
+    public int priority() {
+        return 150; // Between Sprig (100) and Helm (200)
+    }
+
+    @Override
+    public String name() {
+        return "MyFunctions";
+    }
+}
+----
+
+=== 2. Register via ServiceLoader
+
+Create the file `src/main/resources/META-INF/services/org.alexmond.jhelm.gotemplate.FunctionProvider`:
+
+[source]
+----
+com.example.mylib.MyFunctionProvider
+----
+
+=== 3. Use It
+
+With auto-discovery (just add your JAR to the classpath):
+
+[source,java]
+----
+// Automatically discovers MyFunctionProvider
+GoTemplate template = new GoTemplate();
+template.parse("test", "{{ greet .name }}");
+----
+
+Or with explicit builder control:
+
+[source,java]
+----
+GoTemplate template = GoTemplate.builder()
+    .withProvider(new MyFunctionProvider())
+    .build();
+----
+
+== FunctionProvider Interface
+
+[source,java]
+----
+public interface FunctionProvider {
+    /**
+     * Return the functions this provider contributes.
+     * @param template the GoTemplate being built (useful for functions
+     *        that need to execute templates, like `include`)
+     */
+    Map<String, Function> getFunctions(GoTemplate template);
+
+    /**
+     * Priority for ordering. Lower values load first; higher values
+     * override on name collision. Default: 0.
+     */
+    default int priority() { return 0; }
+
+    /**
+     * Display name for logging/diagnostics.
+     */
+    default String name() { return getClass().getSimpleName(); }
+}
+----
+
+== GoTemplate.Builder
+
+The builder provides fine-grained control over function loading:
+
+[source,java]
+----
+GoTemplate template = GoTemplate.builder()
+    // Disable ServiceLoader auto-discovery
+    .noAutoDiscovery()
+    // Add specific providers
+    .withProvider(new SprigFunctionProvider())
+    .withProvider(new MyFunctionProvider())
+    // Add raw functions that override everything
+    .withFunctions(Map.of("custom", args -> "value"))
+    .build();
+----
+
+=== Builder Methods
+
+[cols="1,3"]
+|===
+| Method | Description
+
+| `withProvider(FunctionProvider)`
+| Add an explicit provider (applied after auto-discovered ones)
+
+| `withFunctions(Map<String, Function>)`
+| Add raw functions that override all providers
+
+| `noAutoDiscovery()`
+| Disable `ServiceLoader` auto-discovery. Only explicit providers and functions are used.
+|===
+
+== Priority Ordering
+
+Functions are applied in priority order (lowest first, highest last):
+
+1. **Go built-ins** (priority 0) -- always loaded
+2. **Auto-discovered providers** -- sorted by priority, applied in order
+3. **Explicit providers** -- applied after auto-discovered, in registration order
+4. **Raw functions** (`withFunctions`) -- override everything
+
+If two providers define the same function name, the one with higher priority wins.
+
+== Spring Boot Integration
+
+For Spring Boot applications, create an auto-configuration that wires providers:
+
+[source,java]
+----
+@Configuration
+public class MyFunctionAutoConfiguration {
+
+    @Bean
+    public FunctionProvider myFunctionProvider() {
+        return new MyFunctionProvider();
+    }
+}
+----
+
+The `jhelm-kube` module uses this pattern to wire a real `KubernetesProvider` into the `HelmFunctionProvider`.
+
+== Reference
+
+* https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/ServiceLoader.html[Java ServiceLoader]
+* xref:template-engine.adoc[Template Engine]
+* xref:sprig-functions.adoc[Sprig Functions]
+* xref:helm-functions.adoc[Helm Functions]
