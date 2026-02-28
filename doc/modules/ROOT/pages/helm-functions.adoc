@@ -1,44 +1,131 @@
 = Helm Functions
 
-Helm functions are organized into several categories:
+Helm functions are provided by the `jhelm-gotemplate-helm` module.
+They are auto-discovered via `ServiceLoader` when the module is on the classpath (priority 200, overrides Sprig on name collision).
 
-* `HelmFunctions.java` -- Main coordinator for all Helm functions
-* `conversion/ConversionFunctions.java` -- YAML/JSON conversion (`toYaml`, `toJson`, `mustToYaml`, `mustToJson`, etc.)
-* `template/TemplateFunctions.java` -- Template inclusion (`include`, `tpl`, `required`)
-* `kubernetes/KubernetesFunctions.java` -- Kubernetes integration (`lookup`, `kubeVersion`)
-* `chart/ChartFunctions.java` -- Chart utilities (`semverCompare`, certificate generation)
+== Template Functions
 
-== Detailed Function Reference
+[cols="1,2"]
+|===
+| Function | Description
 
-_(Refer to source code for detailed parameter and return type information)_
+| `include`
+| Execute named template and return output as string. Returns empty string on error.
 
-=== Conversion Functions (`helm/conversion/ConversionFunctions.java`)
+| `mustInclude`
+| Execute named template and return output. Throws on error.
 
-* `toYaml` -- Converts an object to a YAML string.
-* `mustToYaml` -- Required version that fails on error.
-* `fromYaml` -- Parses a YAML string into an object.
-* `mustFromYaml` -- Required version that fails on error.
-* `toJson` -- Converts an object to a JSON string.
-* `mustToJson` -- Required version that fails on error.
-* `toPrettyJson` -- Converts an object to a pretty JSON string.
-* `fromJson` -- Parses a JSON string into an object.
-* `mustFromJson` -- Required version that fails on error.
+| `tpl`
+| Evaluate string as template inline. Returns empty string on error.
 
-=== Template Functions (`helm/template/TemplateFunctions.java`)
+| `mustTpl`
+| Evaluate string as template inline. Throws on error.
 
-* `include` -- Execute named template and return output.
-* `mustInclude` -- Required version that fails on error.
-* `tpl` -- Evaluate string as template inline.
-* `mustTpl` -- Required version that fails on error.
-* `required` -- Validate value is present.
+| `required`
+| Validate that a value is present and non-empty. Throws with the provided message if validation fails.
+|===
 
-=== Kubernetes Functions (`helm/kubernetes/KubernetesFunctions.java`)
+.Example: include
+[source,yaml]
+----
+metadata:
+  labels:
+    {{- include "mychart.labels" . | nindent 4 }}
+----
 
-* `lookup` -- Query Kubernetes API for resources.
-* `kubeVersion` -- Get Kubernetes version info.
+.Example: required
+[source,yaml]
+----
+image: {{ required "image.repository is required" .Values.image.repository }}
+----
 
-=== Chart Functions (`helm/chart/ChartFunctions.java`)
+== Conversion Functions
 
-* `semverCompare` -- Compares semantic versions.
-* `semver` -- Parse semantic version string.
-* `genCA`, `genSelfSignedCert`, `genSignedCert`, `genPrivateKey` -- Certificate generation.
+=== YAML
+
+[cols="1,2"]
+|===
+| Function | Description
+
+| `toYaml`
+| Converts object to YAML string. Null fields are omitted, numeric-looking strings are quoted. Returns empty string on error.
+
+| `mustToYaml`
+| Same as `toYaml` but throws on error.
+
+| `fromYaml`
+| Parses YAML string into a Map. Returns empty map on error.
+
+| `mustFromYaml`
+| Same as `fromYaml` but throws on error.
+
+| `fromYamlArray`
+| Parses YAML string into a List. Returns empty list on error.
+
+| `mustFromYamlArray`
+| Same as `fromYamlArray` but throws on error.
+|===
+
+=== JSON
+
+[cols="1,2"]
+|===
+| Function | Description
+
+| `toJson`
+| Converts object to JSON string. Returns `"null"` for null input.
+
+| `mustToJson`
+| Same as `toJson` but throws on error.
+
+| `toPrettyJson`
+| Converts object to pretty-printed JSON. Returns `"null"` for null input.
+
+| `mustToPrettyJson`
+| Same as `toPrettyJson` but throws on error.
+
+| `toRawJson`
+| Converts object to JSON without HTML escaping. Returns `"null"` for null input.
+
+| `mustToRawJson`
+| Same as `toRawJson` but throws on error.
+
+| `fromJson`
+| Parses JSON string into a Map. Returns empty map for null, blank, or `"null"` input.
+
+| `mustFromJson`
+| Same as `fromJson` but throws on error.
+
+| `fromJsonArray`
+| Parses JSON string into a List. Returns empty list for null, blank, or `"null"` input.
+
+| `mustFromJsonArray`
+| Same as `fromJsonArray` but throws on error.
+|===
+
+=== `must*` Variant Pattern
+
+Functions prefixed with `must` throw a `RuntimeException` on error instead of returning empty/default values.
+Use `must*` variants when strict validation is required (e.g., CI pipelines).
+
+== Kubernetes Functions
+
+[cols="1,2"]
+|===
+| Function | Description
+
+| `lookup`
+| Query Kubernetes API for resources. Syntax: `lookup "apiVersion" "kind" "namespace" "name"`. Returns empty map when no `KubernetesProvider` is available.
+
+| `kubeVersion`
+| Returns Kubernetes cluster version info as a Map with keys `Major`, `Minor`, `GitVersion`. Returns stub `v1.28.0` when no provider is available.
+|===
+
+NOTE: Kubernetes functions require a `KubernetesProvider` implementation.
+When using `ServiceLoader` auto-discovery (default), stub implementations are used.
+Wire a real provider via `GoTemplate.Builder` or Spring auto-configuration in `jhelm-kube`.
+
+== Reference
+
+* https://helm.sh/docs/chart_template_guide/functions_and_pipelines/[Helm — Template Functions and Pipelines]
+* https://helm.sh/docs/chart_template_guide/function_list/[Helm — Template Function List]

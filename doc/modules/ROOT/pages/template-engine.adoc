@@ -1,14 +1,191 @@
 = Template Engine
 
-The template engine (`jhelm-gotemplate`) consists of:
+The jhelm template engine (`jhelm-gotemplate`) is a Java implementation of Go's `text/template` package.
+It provides the core lexer, parser, AST, and executor pipeline.
 
-* *Lexer* (`internal/Lexer.java`) -- Tokenizes template strings
-* *Parser* (`internal/Parser.java`) -- Builds AST from tokens
-* *Executor* (`internal/Executor.java`) -- Executes templates against data
-* *AST Nodes* (`internal/ast/*.java`) -- Represents template structure
-* *Functions* -- Category-based function library (Sprig + Helm)
+== Architecture
 
-== Key Classes
+[source]
+----
+Template String → Lexer → Tokens → Parser → AST → Executor → Output
+----
 
-* `GoTemplate.java` -- Core template engine class for parsing and execution
-* `Functions.java` -- Function registry and execution
+=== Modules
+
+[cols="1,3"]
+|===
+| Module | Purpose
+
+| `jhelm-gotemplate`
+| Core engine: lexer, parser, executor, AST nodes, `Function` interface, `FunctionProvider` SPI, Go built-in functions
+
+| `jhelm-gotemplate-sprig`
+| Sprig function library (strings, collections, math, crypto, etc.)
+
+| `jhelm-gotemplate-helm`
+| Helm function library (toYaml, include, lookup, etc.)
+|===
+
+=== Key Classes
+
+* `GoTemplate` -- Entry point for parsing and executing templates
+* `Functions.GO_BUILTINS` -- Immutable map of Go built-in template functions
+* `FunctionProvider` -- SPI interface for extending the function library
+* `GoTemplate.Builder` -- Builder for fine-grained control over function loading
+
+== Go Built-in Functions
+
+These 19 functions are always available, matching Go's `text/template` built-in set.
+They live in `Functions.GO_BUILTINS` within `jhelm-gotemplate`.
+
+=== Output
+
+[cols="1,2,2"]
+|===
+| Function | Signature | Description
+
+| `print`
+| `print arg1 arg2 ...`
+| Concatenates arguments (like Go `fmt.Sprint`)
+
+| `printf`
+| `printf format arg1 ...`
+| Formats string (like Go `fmt.Sprintf`). Translates `%v` → `%s`, `%T` → `%s`
+
+| `println`
+| `println arg1 arg2 ...`
+| Joins arguments with spaces and appends newline
+|===
+
+=== Logic
+
+[cols="1,2,2"]
+|===
+| Function | Signature | Description
+
+| `and`
+| `and x y ...`
+| Returns first falsy argument, or last argument if all truthy
+
+| `or`
+| `or x y ...`
+| Returns first truthy argument, or last argument if all falsy
+
+| `not`
+| `not x`
+| Returns boolean negation of argument
+|===
+
+=== Comparison
+
+[cols="1,2,2"]
+|===
+| Function | Signature | Description
+
+| `eq`
+| `eq x y ...`
+| Returns `true` if all arguments equal the first. Handles mixed numeric types (Integer vs Long vs Double)
+
+| `ne`
+| `ne x y`
+| Returns `true` if arguments are not equal
+
+| `lt`
+| `lt x y`
+| Returns `true` if x < y (numeric or Comparable)
+
+| `le`
+| `le x y`
+| Returns `true` if x \<= y
+
+| `gt`
+| `gt x y`
+| Returns `true` if x > y
+
+| `ge`
+| `ge x y`
+| Returns `true` if x >= y
+|===
+
+=== Collection
+
+[cols="1,2,2"]
+|===
+| Function | Signature | Description
+
+| `index`
+| `index collection key`
+| Retrieves element from Map, List, or array by key/index
+
+| `slice`
+| `slice collection [from] [to]`
+| Returns a sub-list/sub-array. `from` defaults to 0, `to` defaults to length
+
+| `len`
+| `len collection`
+| Returns length of Collection, Map, String, or array
+|===
+
+=== Escaping
+
+[cols="1,2,2"]
+|===
+| Function | Signature | Description
+
+| `html`
+| `html string`
+| HTML-escapes `<`, `>`, `&`, `"`, `'`
+
+| `js`
+| `js string`
+| JavaScript-escapes special characters including `<`, `>`, `&`, `=`
+
+| `urlquery`
+| `urlquery string`
+| URL-encodes using `application/x-www-form-urlencoded`
+|===
+
+=== Other
+
+[cols="1,2,2"]
+|===
+| Function | Signature | Description
+
+| `call`
+| `call function arg1 ...`
+| Invokes a function value with the given arguments
+|===
+
+== Truthiness
+
+Go templates use "truthiness" to evaluate values in conditionals (`if`, `with`, `and`, `or`).
+jhelm implements the same rules:
+
+* `null` → false
+* `Boolean` → its value
+* `String` → false if empty
+* `Number` → false if zero
+* `Collection` → false if empty
+* `Map` → false if empty
+* `Array` → false if length is zero
+* Everything else → true
+
+== Usage
+
+[source,java]
+----
+// Auto-discovery: finds Sprig + Helm providers on classpath
+GoTemplate template = new GoTemplate();
+template.parse("greeting", "Hello {{ .name }}!");
+
+StringWriter writer = new StringWriter();
+template.execute("greeting", Map.of("name", "World"), writer);
+// writer.toString() == "Hello World!"
+----
+
+See xref:extending-functions.adoc[Extending Functions] for custom function providers.
+
+== Reference
+
+* https://pkg.go.dev/text/template[Go text/template documentation]
+* https://pkg.go.dev/text/template#hdr-Functions[Go text/template built-in functions]
