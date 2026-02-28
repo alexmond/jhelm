@@ -8,8 +8,6 @@ import java.util.Map;
 import org.alexmond.jhelm.gotemplate.Function;
 import org.alexmond.jhelm.gotemplate.Functions;
 import org.alexmond.jhelm.gotemplate.TemplateParseException;
-import org.alexmond.jhelm.gotemplate.internal.util.CharUtils;
-import org.alexmond.jhelm.gotemplate.internal.util.Complex;
 import org.alexmond.jhelm.gotemplate.internal.util.StringUtils;
 
 /**
@@ -537,7 +535,7 @@ public class Parser {
 				case CHAR_CONSTANT:
 				case COMPLEX:
 				case NUMBER:
-					node = parseNumber(token);
+					node = NumberParser.parse(token);
 					break;
 				case STRING:
 				case RAW_STRING:
@@ -553,7 +551,7 @@ public class Parser {
 						Token nextToken = lookNextItem(lexer, state);
 						if (nextToken != null
 								&& (nextToken.type() == TokenType.NUMBER || nextToken.type() == TokenType.DOT)) {
-							node = parseNumber(token);
+							node = NumberParser.parse(token);
 							break;
 						}
 					}
@@ -632,12 +630,6 @@ public class Parser {
 		pipeNode.append(commandNode);
 	}
 
-	NumberNode parseNumber(Token token) throws TemplateParseException {
-		NumberNode numberNode = new NumberNode(token.value());
-		parseNumber(numberNode, token);
-		return numberNode;
-	}
-
 	private boolean hasFunction(String name) {
 		return functions.containsKey(name);
 	}
@@ -652,155 +644,6 @@ public class Parser {
 			return lexer.getTokens().get(state.tokenIndex);
 		}
 		return null;
-	}
-
-	private void parseNumber(NumberNode numberNode, Token token) throws TemplateParseException {
-		String text = token.value();
-		TokenType type = token.type();
-		if (type == TokenType.CHAR_CONSTANT) {
-			if (text.charAt(0) != '\'') {
-				throw new TemplateParseException(String.format("malformed character constant: %s", text));
-			}
-
-			int ch;
-			try {
-				ch = CharUtils.unquoteChar(text);
-			}
-			catch (IllegalArgumentException ex) {
-				throw new TemplateParseException("invalid syntax: " + text, ex);
-			}
-
-			numberNode.setIsInt(true);
-			numberNode.setIntValue(ch);
-			numberNode.setIsFloat(true);
-			numberNode.setFloatValue(ch);
-
-			return;
-		}
-
-		if (type == TokenType.COMPLEX) {
-			try {
-				Complex complex = parseComplexValue(text);
-				numberNode.setIsComplex(true);
-				numberNode.setComplex(complex);
-				simplifyComplex(numberNode, complex);
-				return;
-			}
-			catch (NumberFormatException ignored) {
-			}
-		}
-
-		int length = text.length();
-		if (length > 0 && text.charAt(length - 1) == 'i') {
-			try {
-				Complex complex = parseComplexValue(text);
-				numberNode.setIsComplex(true);
-				numberNode.setComplex(complex);
-				simplifyComplex(numberNode, complex);
-				return;
-			}
-			catch (NumberFormatException ignored) {
-			}
-		}
-
-		try {
-			long intValue = parseIntValue(text);
-			numberNode.setIsInt(true);
-			numberNode.setIntValue(intValue);
-			numberNode.setIsFloat(true);
-			numberNode.setFloatValue(intValue);
-		}
-		catch (NumberFormatException ignored) {
-			try {
-				double floatValue = parseFloatValue(text);
-				numberNode.setIsFloat(true);
-				numberNode.setFloatValue(floatValue);
-				simplifyFloat(numberNode, floatValue);
-			}
-			catch (NumberFormatException ignoredAgain) { // NOPMD EmptyCatchBlock - not a
-															// float either; falls through
-															// to validation below
-			}
-		}
-
-		if (!numberNode.isInt() && !numberNode.isFloat() && !numberNode.isComplex()) {
-			throw new TemplateParseException(String.format("illegal number syntax: %s, line: %d, column: %d", text,
-					token.line(), token.column()));
-		}
-	}
-
-	private long parseIntValue(String text) {
-		boolean signed = false;
-		boolean negative = false;
-
-		char firstChar = text.charAt(0);
-		if (firstChar == '+') {
-			signed = true;
-		}
-		if (firstChar == '-') {
-			signed = true;
-			negative = true;
-		}
-
-		// If the first char is a sign, check that the second char is not also a sign
-		if (signed && text.length() > 1) {
-			char secondChar = text.charAt(1);
-			if (secondChar == '+' || secondChar == '-') {
-				throw new NumberFormatException("invalid number: multiple sign characters");
-			}
-		}
-
-		long intValue = parseIntValue(text, signed);
-		return (negative) ? -intValue : intValue;
-	}
-
-	private long parseIntValue(String text, boolean signed) {
-		int offset = (signed) ? 1 : 0;
-		String trimUnderscore = trimUnderscore(text);
-
-		if (text.startsWith("0b", offset) || text.startsWith("0B", offset)) {
-			return Long.parseLong(trimUnderscore.substring(offset + 2), 2);
-		}
-
-		if (text.startsWith("0o", offset) || text.startsWith("0O", offset)) {
-			return Long.parseLong(trimUnderscore.substring(offset + 2), 8);
-		}
-
-		if (text.startsWith("0x", offset) || text.startsWith("0X", offset)) {
-			return Long.parseLong(trimUnderscore.substring(offset + 2), 16);
-		}
-
-		return Long.parseLong(trimUnderscore.substring(offset), 10);
-	}
-
-	private double parseFloatValue(String text) {
-		return Double.parseDouble(trimUnderscore(text));
-	}
-
-	private Complex parseComplexValue(String text) {
-		return Complex.parseComplex(text);
-	}
-
-	private void simplifyComplex(NumberNode numberNode, Complex complex) {
-		if (complex.getImaginary() == 0) {
-			double floatValue = complex.getReal();
-			numberNode.setIsFloat(true);
-			numberNode.setFloatValue(floatValue);
-
-			simplifyFloat(numberNode, floatValue);
-		}
-	}
-
-	private void simplifyFloat(NumberNode numberNode, double floatValue) {
-		long intValue = (long) floatValue;
-		if (floatValue == intValue) {
-			numberNode.setIsInt(true);
-			numberNode.setIntValue(intValue);
-		}
-	}
-
-	private String trimUnderscore(String text) {
-		return text.replace("_", "");
 	}
 
 	/**

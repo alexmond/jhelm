@@ -2,8 +2,6 @@ package org.alexmond.jhelm.core.service;
 
 import org.snakeyaml.engine.v2.api.LoadSettings;
 import tools.jackson.core.StreamReadConstraints;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLFactory;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.dataformat.yaml.YAMLWriteFeature;
@@ -13,14 +11,9 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.classic.methods.HttpHead;
-import org.apache.hc.client5.http.classic.methods.HttpPost;
-import org.apache.hc.client5.http.classic.methods.HttpPut;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
-import org.apache.hc.core5.http.io.entity.ByteArrayEntity;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -42,7 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import org.apache.hc.core5.http.Header;
+import tools.jackson.databind.JsonNode;
 
 import org.alexmond.jhelm.core.model.RepositoryConfig;
 
@@ -51,11 +44,11 @@ public class RepoManager {
 
 	private final YAMLMapper yamlMapper;
 
-	private final JsonMapper jsonMapper = JsonMapper.builder().build();
-
 	private final String configPath;
 
 	private CloseableHttpClient httpClient;
+
+	private OciRegistryClient ociClient;
 
 	@Setter
 	private boolean insecureSkipTlsVerify;
@@ -81,6 +74,7 @@ public class RepoManager {
 
 	void setHttpClientForTest(CloseableHttpClient client) {
 		this.httpClient = client;
+		this.ociClient = new OciRegistryClient(client);
 	}
 
 	private static String resolveDefaultConfigPath() {
@@ -97,25 +91,7 @@ public class RepoManager {
 
 	private void initHttpClient() {
 		try {
-			// if (insecureSkipTlsVerify) {
-			// TrustStrategy acceptingTrustStrategy = (X509Certificate[] chain, String
-			// authType) -> true;
-			// SSLContext sslContext = SSLContextBuilder.create()
-			// .loadTrustMaterial(null, acceptingTrustStrategy)
-			// .build();
-			// TlsConfig tlsConfig = TlsConfig.custom()
-			// .setSslContext(sslContext)
-			// .build();
-			// var connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
-			// .setDefaultTlsConfig(tlsConfig)
-			// .build();
-			// httpClient = HttpClients.custom()
-			// .setConnectionManager(connectionManager)
-			// .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-			// .build();
-			// } else {
 			httpClient = HttpClients.createDefault();
-			// }
 		}
 		catch (Exception ex) {
 			if (log.isErrorEnabled()) {
@@ -123,6 +99,7 @@ public class RepoManager {
 			}
 			httpClient = HttpClients.createDefault();
 		}
+		ociClient = new OciRegistryClient(httpClient);
 	}
 
 	public RepositoryConfig loadConfig() throws IOException {
@@ -150,8 +127,6 @@ public class RepoManager {
 		config.getRepositories().add(repo);
 		config.setGenerated(OffsetDateTime.now().toString());
 		saveConfig(config);
-		// Eagerly update index on add for convenience, like `helm repo add` often
-		// followed by update
 		try {
 			updateRepo(name);
 		}
@@ -221,16 +196,7 @@ public class RepoManager {
 					md.update(buf, 0, n);
 				}
 			}
-			byte[] hash = md.digest();
-			StringBuilder sb = new StringBuilder();
-			for (byte b : hash) {
-				String hex = Integer.toHexString(0xff & b);
-				if (hex.length() == 1) {
-					sb.append('0');
-				}
-				sb.append(hex);
-			}
-			return sb.toString();
+			return hexString(md.digest());
 		}
 		catch (NoSuchAlgorithmException ex) {
 			throw new IOException("SHA-256 not available", ex);
@@ -240,20 +206,23 @@ public class RepoManager {
 	String computeBytesSha256(byte[] bytes) throws IOException {
 		try {
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
-			byte[] hash = md.digest(bytes);
-			StringBuilder sb = new StringBuilder();
-			for (byte b : hash) {
-				String hex = Integer.toHexString(0xff & b);
-				if (hex.length() == 1) {
-					sb.append('0');
-				}
-				sb.append(hex);
-			}
-			return sb.toString();
+			return hexString(md.digest(bytes));
 		}
 		catch (NoSuchAlgorithmException ex) {
 			throw new IOException("SHA-256 not available", ex);
 		}
+	}
+
+	private String hexString(byte[] hash) {
+		StringBuilder sb = new StringBuilder();
+		for (byte b : hash) {
+			String hex = Integer.toHexString(0xff & b);
+			if (hex.length() == 1) {
+				sb.append('0');
+			}
+			sb.append(hex);
+		}
+		return sb.toString();
 	}
 
 	void verifyBlobDigest(File file, String expectedDigest) throws IOException {
@@ -269,43 +238,6 @@ public class RepoManager {
 		if (log.isDebugEnabled()) {
 			log.debug("Blob digest verified: sha256:{}", expected);
 		}
-	}
-
-	boolean isManifestIndex(JsonNode manifest) {
-		if (manifest.has("manifests") && !manifest.has("layers")) {
-			return true;
-		}
-		if (manifest.has("mediaType")) {
-			String mt = manifest.get("mediaType").asString();
-			return mt.contains("index") || mt.contains("manifest.list");
-		}
-		return false;
-	}
-
-	String resolveDigestFromIndex(JsonNode index) {
-		JsonNode manifests = index.get("manifests");
-		if (manifests == null || !manifests.isArray() || manifests.isEmpty()) {
-			return null;
-		}
-		// Prefer entries without a platform restriction (platform-agnostic charts)
-		for (JsonNode m : manifests) {
-			if (!m.has("platform")) {
-				return m.get("digest").asString();
-			}
-		}
-		// Prefer linux/amd64
-		for (JsonNode m : manifests) {
-			if (m.has("platform")) {
-				JsonNode platform = m.get("platform");
-				String os = platform.has("os") ? platform.get("os").asString() : "";
-				String arch = platform.has("architecture") ? platform.get("architecture").asString() : "";
-				if ("linux".equals(os) && "amd64".equals(arch)) {
-					return m.get("digest").asString();
-				}
-			}
-		}
-		// Fallback: first entry
-		return manifests.get(0).get("digest").asString();
 	}
 
 	public void updateRepo(String name) throws IOException {
@@ -356,7 +288,6 @@ public class RepoManager {
 	}
 
 	public List<ChartVersion> getChartVersions(String repoName, String chartName) throws IOException {
-		// Prefer cached index if exists, else fetch live
 		File indexFile = getIndexCacheFile(repoName);
 		InputStream indexIn;
 		if (indexFile.exists()) {
@@ -365,9 +296,6 @@ public class RepoManager {
 		else {
 			String repoUrl = getRepoUrl(repoName);
 			if (repoUrl == null) {
-				// If repoName is null or empty, it might be an absolute URL pull or
-				// something else,
-				// but for getChartVersions we need a repo.
 				throw new IOException("Repository name is required to get chart versions. Found: " + repoName);
 			}
 			String indexUrl = repoUrl.endsWith("/") ? repoUrl + "index.yaml" : repoUrl + "/index.yaml";
@@ -378,7 +306,6 @@ public class RepoManager {
 			HttpGet httpGet = new HttpGet(indexUrl);
 			httpGet.setHeader("User-Agent", "jhelm");
 
-			// Download to byte array to avoid stream lifecycle issues
 			byte[] indexData = httpClient.execute(httpGet, (response) -> {
 				int statusCode = response.getCode();
 				if (statusCode != 200) {
@@ -396,7 +323,6 @@ public class RepoManager {
 		}
 		List<ChartVersion> result = new ArrayList<>();
 		try (InputStream in = indexIn) {
-			// Parse YAML as Map<String,Object>
 			Map<?, ?> root = yamlMapper.readValue(in, Map.class);
 			Object entriesObj = root.get("entries");
 			if (!(entriesObj instanceof Map<?, ?> entries)) {
@@ -415,8 +341,6 @@ public class RepoManager {
 				}
 			}
 		}
-		// Helm shows latest first by default for --versions output, so sort descending
-		// semver-ish (string fallback)
 		result.sort((a, b) -> safeCompareVersions(b.getChartVersion(), a.getChartVersion()));
 		return result;
 	}
@@ -431,7 +355,6 @@ public class RepoManager {
 		if (v2 == null) {
 			return 1;
 		}
-		// simple split by dots, compare numerically when possible, else lexicographically
 		String[] p1 = v1.split("[.-]");
 		String[] p2 = v2.split("[.-]");
 		int n = Math.max(p1.length, p2.length);
@@ -511,7 +434,6 @@ public class RepoManager {
 		String tgzFileName = finalChartName + "-" + version + ".tgz";
 		pullFromUrl(chartUrl, destDir, tgzFileName);
 
-		// Store in content cache after download
 		File downloaded = new File(destDir, tgzFileName);
 		if (downloaded.exists()) {
 			String actualDigest = computeFileSha256(downloaded);
@@ -592,7 +514,6 @@ public class RepoManager {
 			log.info("Chart pulled successfully to {}", destFile.getAbsolutePath());
 		}
 
-		// Automatically untar regular charts too
 		untar(destFile, new File(destDir));
 	}
 
@@ -600,60 +521,41 @@ public class RepoManager {
 		if (log.isInfoEnabled()) {
 			log.info("Pulling OCI chart from {} to {}", ociUrl, destDir);
 		}
-		String[] ociParts = parseOciUrl(ociUrl);
+		String[] ociParts = ociClient.parseOciUrl(ociUrl);
 		String registry = ociParts[0];
 		String path = ociParts[1];
 		String tag = ociParts[2];
 
-		// 1. Get Token
 		String auth = (registryManager != null) ? registryManager.getAuth(registry) : null;
-		String token = fetchOciToken(registry, path, auth);
+		String token = ociClient.fetchToken(registry, path, auth, "pull");
 
-		// 2. Get Manifest
 		String manifestUrl = "https://" + registry + "/v2/" + path + "/manifests/" + tag;
 		JsonNode manifest;
 		try {
-			manifest = callOciApi(manifestUrl, token, "application/vnd.oci.image.manifest.v1+json");
+			manifest = ociClient.getManifest(manifestUrl, token, "application/vnd.oci.image.manifest.v1+json");
 		}
 		catch (IOException ex) {
 			if (log.isWarnEnabled()) {
 				log.warn("Failed to get OCI manifest with v1+json, trying without specific accept header: {}",
 						ex.getMessage());
 			}
-			manifest = callOciApi(manifestUrl, token, null);
+			manifest = ociClient.getManifest(manifestUrl, token, null);
 		}
 
-		// 2b. Resolve OCI image index to a specific manifest if needed
-		if (isManifestIndex(manifest)) {
+		if (ociClient.isManifestIndex(manifest)) {
 			if (log.isDebugEnabled()) {
 				log.debug("OCI manifest is an index, resolving to specific manifest");
 			}
-			String resolvedDigest = resolveDigestFromIndex(manifest);
+			String resolvedDigest = ociClient.resolveDigestFromIndex(manifest);
 			if (resolvedDigest == null) {
 				throw new IOException("No suitable manifest found in OCI index for " + ociUrl);
 			}
 			String specificManifestUrl = "https://" + registry + "/v2/" + path + "/manifests/" + resolvedDigest;
-			manifest = callOciApi(specificManifestUrl, token, "application/vnd.oci.image.manifest.v1+json");
+			manifest = ociClient.getManifest(specificManifestUrl, token, "application/vnd.oci.image.manifest.v1+json");
 		}
 
-		// 3. Find chart layer
-		String digest = null;
-		if (manifest.has("layers")) {
-			for (JsonNode layer : manifest.get("layers")) {
-				String mediaType = layer.get("mediaType").asString();
-				if ("application/vnd.cncf.helm.chart.content.v1.tar+gzip".equals(mediaType)
-						|| "application/vnd.oci.image.layer.v1.tar+gzip".equals(mediaType)) {
-					digest = layer.get("digest").asString();
-					break;
-				}
-			}
-		}
+		String digest = findChartLayerDigest(manifest, ociUrl);
 
-		if (digest == null) {
-			throw new IOException("No chart layer found in OCI manifest for " + ociUrl);
-		}
-
-		// 4. Download Layer (blob) — check content cache first
 		File cached = getChartCacheFile(digest);
 		if (cached.exists()) {
 			if (log.isInfoEnabled()) {
@@ -666,157 +568,31 @@ public class RepoManager {
 		}
 
 		String blobUrl = "https://" + registry + "/v2/" + path + "/blobs/" + digest;
-		downloadBlob(blobUrl, token, destDir, fileName);
+		File destFile = new File(destDir, fileName);
+		ociClient.downloadBlob(blobUrl, token, destFile);
 
-		File downloaded = new File(destDir, fileName);
-		if (downloaded.exists()) {
-			// Verify digest integrity before caching
-			verifyBlobDigest(downloaded, digest);
+		if (destFile.exists()) {
+			verifyBlobDigest(destFile, digest);
 			File cacheTarget = getChartCacheFile(digest);
 			if (!cacheTarget.exists()) {
-				Files.copy(downloaded.toPath(), cacheTarget.toPath());
+				Files.copy(destFile.toPath(), cacheTarget.toPath());
 			}
 		}
 
-		// 5. Untar it automatically to match helm behavior
-		File tgzFile = new File(destDir, fileName);
-		untar(tgzFile, new File(destDir));
-	}
-
-	String[] parseOciUrl(String ociUrl) throws IOException {
-		String raw = ociUrl.substring(6);
-		int firstSlash = raw.indexOf('/');
-		if (firstSlash == -1) {
-			throw new IOException("Invalid OCI URL: " + ociUrl);
-		}
-		String registry = raw.substring(0, firstSlash);
-		String path = raw.substring(firstSlash + 1);
-		String tag = "latest";
-		if (path.contains(":")) {
-			int colon = path.lastIndexOf(':');
-			tag = path.substring(colon + 1);
-			path = path.substring(0, colon);
-		}
-		return new String[] { registry, path, tag };
-	}
-
-	private String fetchOciToken(String registry, String path, String auth) throws IOException {
-		// Standard Docker/OCI bearer token flow.
-		// If it's registry-1.docker.io, use auth.docker.io
-		String tokenService = registry;
-		String tokenUrlPrefix = "https://" + registry + "/v2/token";
-		if ("registry-1.docker.io".equals(registry)) {
-			tokenUrlPrefix = "https://auth.docker.io/token";
-			tokenService = "registry.docker.io";
-		}
-
-		String url = tokenUrlPrefix + "?service=" + tokenService + "&scope=repository:" + path + ":pull";
-		HttpGet httpGet = new HttpGet(url);
-		if (auth != null) {
-			httpGet.setHeader("Authorization", "Basic " + auth);
-		}
-
-		try {
-			return httpClient.execute(httpGet, (response) -> {
-				int statusCode = response.getCode();
-				if (statusCode != 200) {
-					if (log.isWarnEnabled()) {
-						log.warn("Failed to fetch OCI token: HTTP {}", statusCode);
-					}
-					return null;
-				}
-
-				HttpEntity entity = response.getEntity();
-				if (entity != null) {
-					try (InputStream in = entity.getContent()) {
-						JsonNode node = jsonMapper.readTree(in);
-						return node.has("token") ? node.get("token").asString() : node.get("access_token").asString();
-					}
-				}
-				return null;
-			});
-		}
-		catch (Exception ex) {
-			if (log.isWarnEnabled()) {
-				log.warn("Failed to parse OCI token: {}", ex.getMessage());
-			}
-			return null;
-		}
-	}
-
-	private JsonNode callOciApi(String urlStr, String token, String accept) throws IOException {
-		HttpGet httpGet = new HttpGet(urlStr);
-		if (token != null) {
-			httpGet.setHeader("Authorization", "Bearer " + token);
-		}
-		if (accept != null) {
-			httpGet.setHeader("Accept", accept);
-		}
-
-		return httpClient.execute(httpGet, (response) -> {
-			HttpEntity entity = response.getEntity();
-			if (entity != null) {
-				try (InputStream in = entity.getContent()) {
-					return jsonMapper.readTree(in);
-				}
-			}
-			return null;
-		});
-	}
-
-	private void downloadBlob(String urlStr, String token, String destDir, String fileName) throws IOException {
-		File destFile = new File(destDir, fileName);
-		destFile.getParentFile().mkdirs();
-
-		HttpGet httpGet = new HttpGet(urlStr);
-		if (token != null) {
-			httpGet.setHeader("Authorization", "Bearer " + token);
-		}
-
-		httpClient.execute(httpGet, (response) -> {
-			// Handle redirects (common for blobs stored in S3/GCS)
-			int status = response.getCode();
-			if (status == 301 || status == 302 || status == 307 || status == 308) {
-				String newUrl = response.getFirstHeader("Location").getValue();
-				downloadBlob(newUrl, null, destDir, fileName); // Redirection might not
-																// need the same token if
-																// it's a signed URL
-				return null;
-			}
-
-			HttpEntity entity = response.getEntity();
-			if (entity != null) {
-				try (InputStream in = entity.getContent(); FileOutputStream fos = new FileOutputStream(destFile)) {
-					in.transferTo(fos);
-				}
-			}
-			return null;
-		});
-		if (log.isInfoEnabled()) {
-			log.info("OCI Blob downloaded successfully to {}", destFile.getAbsolutePath());
-		}
+		untar(destFile, new File(destDir));
 	}
 
 	public void pushOci(String chartTgzPath, String ociUrl) throws IOException {
 		if (log.isInfoEnabled()) {
 			log.info("Pushing chart {} to {}", chartTgzPath, ociUrl);
 		}
-		String raw = ociUrl.substring(6);
-		int firstSlash = raw.indexOf('/');
-		if (firstSlash == -1) {
-			throw new IOException("Invalid OCI URL: " + ociUrl);
-		}
-		String registry = raw.substring(0, firstSlash);
-		String path = raw.substring(firstSlash + 1);
-		String tag = "latest";
-		if (path.contains(":")) {
-			int colon = path.lastIndexOf(':');
-			tag = path.substring(colon + 1);
-			path = path.substring(0, colon);
-		}
+		String[] ociParts = ociClient.parseOciUrl(ociUrl);
+		String registry = ociParts[0];
+		String path = ociParts[1];
+		String tag = ociParts[2];
 
 		String auth = (registryManager != null) ? registryManager.getAuth(registry) : null;
-		String token = fetchOciPushToken(registry, path, auth);
+		String token = ociClient.fetchToken(registry, path, auth, "push,pull");
 
 		File chartFile = new File(chartTgzPath);
 		if (!chartFile.exists()) {
@@ -830,11 +606,11 @@ public class RepoManager {
 		String configDigestHex = computeBytesSha256(configBytes);
 		String configDigest = "sha256:" + configDigestHex;
 
-		if (!blobExists(registry, path, token, chartDigest)) {
-			uploadBlob(registry, path, token, chartDigest, chartBytes);
+		if (!ociClient.blobExists(registry, path, token, chartDigest)) {
+			ociClient.uploadBlob(registry, path, token, chartDigest, chartBytes);
 		}
-		if (!blobExists(registry, path, token, configDigest)) {
-			uploadBlob(registry, path, token, configDigest, configBytes);
+		if (!ociClient.blobExists(registry, path, token, configDigest)) {
+			ociClient.uploadBlob(registry, path, token, configDigest, configBytes);
 		}
 
 		String manifestJson = """
@@ -853,127 +629,23 @@ public class RepoManager {
 				  }]
 				}""".formatted(configDigest, configBytes.length, chartDigest, chartBytes.length);
 
-		pushManifest(registry, path, tag, token, manifestJson.getBytes(StandardCharsets.UTF_8));
+		ociClient.pushManifest(registry, path, tag, token, manifestJson.getBytes(StandardCharsets.UTF_8));
 		if (log.isInfoEnabled()) {
 			log.info("Chart pushed successfully to {}", ociUrl);
 		}
 	}
 
-	private String fetchOciPushToken(String registry, String path, String auth) throws IOException {
-		String tokenService = registry;
-		String tokenUrlPrefix = "https://" + registry + "/v2/token";
-		if ("registry-1.docker.io".equals(registry)) {
-			tokenUrlPrefix = "https://auth.docker.io/token";
-			tokenService = "registry.docker.io";
-		}
-
-		String url = tokenUrlPrefix + "?service=" + tokenService + "&scope=repository:" + path + ":push,pull";
-		HttpGet httpGet = new HttpGet(url);
-		if (auth != null) {
-			httpGet.setHeader("Authorization", "Basic " + auth);
-		}
-
-		try {
-			return httpClient.execute(httpGet, (response) -> {
-				int statusCode = response.getCode();
-				if (statusCode != 200) {
-					if (log.isWarnEnabled()) {
-						log.warn("Failed to fetch OCI push token: HTTP {}", statusCode);
-					}
-					return null;
+	private String findChartLayerDigest(JsonNode manifest, String ociUrl) throws IOException {
+		if (manifest.has("layers")) {
+			for (JsonNode layer : manifest.get("layers")) {
+				String mediaType = layer.get("mediaType").asString();
+				if ("application/vnd.cncf.helm.chart.content.v1.tar+gzip".equals(mediaType)
+						|| "application/vnd.oci.image.layer.v1.tar+gzip".equals(mediaType)) {
+					return layer.get("digest").asString();
 				}
-				HttpEntity entity = response.getEntity();
-				if (entity != null) {
-					try (InputStream in = entity.getContent()) {
-						JsonNode node = jsonMapper.readTree(in);
-						if (node.has("token")) {
-							return node.get("token").asString();
-						}
-						return node.has("access_token") ? node.get("access_token").asString() : null;
-					}
-				}
-				return null;
-			});
-		}
-		catch (Exception ex) {
-			if (log.isWarnEnabled()) {
-				log.warn("Failed to parse OCI push token: {}", ex.getMessage());
 			}
-			return null;
 		}
-	}
-
-	private boolean blobExists(String registry, String path, String token, String digest) {
-		String url = "https://" + registry + "/v2/" + path + "/blobs/" + digest;
-		HttpHead head = new HttpHead(url);
-		if (token != null) {
-			head.setHeader("Authorization", "Bearer " + token);
-		}
-		try {
-			return httpClient.execute(head, (response) -> response.getCode() == 200);
-		}
-		catch (IOException ex) {
-			if (log.isDebugEnabled()) {
-				log.debug("Blob existence check failed, assuming absent: {}", ex.getMessage());
-			}
-			return false;
-		}
-	}
-
-	private void uploadBlob(String registry, String path, String token, String digest, byte[] content)
-			throws IOException {
-		String initiateUrl = "https://" + registry + "/v2/" + path + "/blobs/uploads/";
-		HttpPost post = new HttpPost(initiateUrl);
-		if (token != null) {
-			post.setHeader("Authorization", "Bearer " + token);
-		}
-
-		String uploadUrl = httpClient.execute(post, (response) -> {
-			int status = response.getCode();
-			if (status != 202) {
-				throw new IOException("Failed to initiate blob upload: HTTP " + status);
-			}
-			Header location = response.getFirstHeader("Location");
-			if (location == null) {
-				throw new IOException("No Location header in upload initiation response");
-			}
-			String loc = location.getValue();
-			return loc.startsWith("http") ? loc : "https://" + registry + loc;
-		});
-
-		String putUrl = uploadUrl.contains("?") ? uploadUrl + "&digest=" + digest : uploadUrl + "?digest=" + digest;
-		HttpPut put = new HttpPut(putUrl);
-		if (token != null) {
-			put.setHeader("Authorization", "Bearer " + token);
-		}
-		put.setEntity(new ByteArrayEntity(content, ContentType.APPLICATION_OCTET_STREAM));
-
-		httpClient.execute(put, (response) -> {
-			int status = response.getCode();
-			if (status != 201) {
-				throw new IOException("Failed to upload blob: HTTP " + status);
-			}
-			return null;
-		});
-	}
-
-	private void pushManifest(String registry, String path, String tag, String token, byte[] manifest)
-			throws IOException {
-		String url = "https://" + registry + "/v2/" + path + "/manifests/" + tag;
-		HttpPut put = new HttpPut(url);
-		if (token != null) {
-			put.setHeader("Authorization", "Bearer " + token);
-		}
-		ContentType manifestType = ContentType.create("application/vnd.oci.image.manifest.v1+json");
-		put.setEntity(new ByteArrayEntity(manifest, manifestType));
-
-		httpClient.execute(put, (response) -> {
-			int status = response.getCode();
-			if (status != 201 && status != 200) {
-				throw new IOException("Failed to push manifest: HTTP " + status);
-			}
-			return null;
-		});
+		throw new IOException("No chart layer found in OCI manifest for " + ociUrl);
 	}
 
 	public void close() {
