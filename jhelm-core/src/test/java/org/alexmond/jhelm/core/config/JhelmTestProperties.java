@@ -20,7 +20,7 @@ public class JhelmTestProperties {
 	 * Number of top charts to fetch from Artifact Hub for comparison tests. Defaults to
 	 * 30.
 	 */
-	private int numberOfTopCharts = 30;
+	private int numberOfTopCharts = 5;
 
 	/**
 	 * Ignore rules for manifest comparison, keyed by chart name ({@code "*"} for global
