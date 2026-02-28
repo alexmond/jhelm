@@ -16,34 +16,48 @@ import org.alexmond.jhelm.gotemplate.sprig.SprigFunctionsRegistry;
 
 public final class Functions {
 
+	/**
+	 * Go built-in template functions only (no Sprig, no Helm).
+	 */
+	public static final Map<String, Function> GO_BUILTINS;
+
+	/**
+	 * Go built-in + Sprig functions. Preserved for backwards compatibility.
+	 * @deprecated Use {@link GoTemplate.Builder} with {@link FunctionProvider} instead
+	 */
+	@Deprecated
 	public static final Map<String, Function> BUILTIN = new LinkedHashMap<>();
 
 	static {
-		BUILTIN.put("call", call());
-		BUILTIN.put("html", htmlEscape());
-		BUILTIN.put("index", index());
-		BUILTIN.put("slice", slice());
-		BUILTIN.put("js", jsEscape());
-		BUILTIN.put("len", len());
-		BUILTIN.put("print", print());
-		BUILTIN.put("printf", printf());
-		BUILTIN.put("println", println());
-		BUILTIN.put("urlquery", urlquery());
+		LinkedHashMap<String, Function> go = new LinkedHashMap<>();
+		go.put("call", call());
+		go.put("html", htmlEscape());
+		go.put("index", index());
+		go.put("slice", slice());
+		go.put("js", jsEscape());
+		go.put("len", len());
+		go.put("print", print());
+		go.put("printf", printf());
+		go.put("println", println());
+		go.put("urlquery", urlquery());
 
 		// Logical operations
-		BUILTIN.put("and", and());
-		BUILTIN.put("or", or());
-		BUILTIN.put("not", not());
+		go.put("and", and());
+		go.put("or", or());
+		go.put("not", not());
 
 		// Comparisons
-		BUILTIN.put("eq", eq());
-		BUILTIN.put("ge", ge());
-		BUILTIN.put("gt", gt());
-		BUILTIN.put("le", le());
-		BUILTIN.put("lt", lt());
-		BUILTIN.put("ne", ne());
+		go.put("eq", eq());
+		go.put("ge", ge());
+		go.put("gt", gt());
+		go.put("le", le());
+		go.put("lt", lt());
+		go.put("ne", ne());
 
-		// Load Sprig functions
+		GO_BUILTINS = Map.copyOf(go);
+
+		// BUILTIN = Go builtins + Sprig (deprecated path)
+		BUILTIN.putAll(go);
 		BUILTIN.putAll(SprigFunctionsRegistry.getAllFunctions());
 	}
 

@@ -5,8 +5,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Writer;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +22,21 @@ import org.alexmond.jhelm.gotemplate.internal.util.IOUtils;
 /**
  * GoTemplate represents a parsed Go template. It can contain multiple named templates
  * (definitions).
+ *
+ * <p>
+ * Create instances via the default constructor (auto-discovers {@link FunctionProvider}s
+ * on classpath) or via the {@link Builder}:
+ *
+ * <pre>{@code
+ * // Auto-discovery (finds SprigFunctionProvider, HelmFunctionProvider, etc.)
+ * GoTemplate t = new GoTemplate();
+ *
+ * // Explicit control
+ * GoTemplate t = GoTemplate.builder()
+ *     .withProvider(new SprigFunctionProvider())
+ *     .withProvider(new HelmFunctionProvider(kubeProvider))
+ *     .build();
+ * }</pre>
  */
 @Slf4j
 @Getter
@@ -30,16 +49,19 @@ public class GoTemplate {
 	private String name;
 
 	/**
-	 * Create a new GoTemplate with default settings
+	 * Create a new GoTemplate with default settings. Uses {@link Functions#BUILTIN} +
+	 * Helm functions (legacy path).
 	 */
 	public GoTemplate() {
 		this(null);
 	}
 
 	/**
-	 * Create a new GoTemplate with custom functions
-	 * @param functions custom functions to add
+	 * Create a new GoTemplate with custom functions. Uses {@link Functions#BUILTIN} +
+	 * Helm functions + custom overrides (legacy path).
+	 * @param functions custom functions to add (may be {@code null})
 	 */
+	@SuppressWarnings("deprecation")
 	public GoTemplate(Map<String, Function> functions) {
 		LinkedHashMap<String, Function> map = new LinkedHashMap<>(Functions.BUILTIN);
 		if (functions != null) {
@@ -48,6 +70,22 @@ public class GoTemplate {
 		this.functions = map;
 		this.functions.putAll(org.alexmond.jhelm.gotemplate.helm.HelmFunctions.getFunctions(this));
 		this.rootNodes = new LinkedHashMap<>();
+	}
+
+	/**
+	 * Internal constructor used by {@link Builder}.
+	 */
+	GoTemplate(Map<String, Function> functions, boolean fromBuilder) {
+		this.functions = new LinkedHashMap<>(functions);
+		this.rootNodes = new LinkedHashMap<>();
+	}
+
+	/**
+	 * Create a new {@link Builder} for fine-grained control over function providers.
+	 * @return a new builder
+	 */
+	public static Builder builder() {
+		return new Builder();
 	}
 
 	/**
@@ -137,6 +175,96 @@ public class GoTemplate {
 	 */
 	public Node root(String name) {
 		return rootNodes.get(name);
+	}
+
+	/**
+	 * Builder for constructing {@link GoTemplate} instances with explicit control over
+	 * function providers. Supports ServiceLoader auto-discovery and/or explicit provider
+	 * registration.
+	 */
+	public static class Builder {
+
+		private final List<FunctionProvider> providers = new ArrayList<>();
+
+		private Map<String, Function> extraFunctions;
+
+		private boolean autoDiscovery = true;
+
+		Builder() {
+		}
+
+		/**
+		 * Add an explicit function provider.
+		 * @param provider the provider to add
+		 * @return this builder
+		 */
+		public Builder withProvider(FunctionProvider provider) {
+			this.providers.add(provider);
+			return this;
+		}
+
+		/**
+		 * Add raw functions that override all providers.
+		 * @param functions the functions to add
+		 * @return this builder
+		 */
+		public Builder withFunctions(Map<String, Function> functions) {
+			this.extraFunctions = functions;
+			return this;
+		}
+
+		/**
+		 * Disable ServiceLoader auto-discovery. Only explicitly added providers and
+		 * functions will be used.
+		 * @return this builder
+		 */
+		public Builder noAutoDiscovery() {
+			this.autoDiscovery = false;
+			return this;
+		}
+
+		/**
+		 * Build the {@link GoTemplate} instance.
+		 * @return a new GoTemplate with configured functions
+		 */
+		public GoTemplate build() {
+			// Start with Go builtins
+			LinkedHashMap<String, Function> allFunctions = new LinkedHashMap<>(Functions.GO_BUILTINS);
+
+			// Collect all providers: auto-discovered + explicit
+			List<FunctionProvider> allProviders = new ArrayList<>();
+			if (autoDiscovery) {
+				ServiceLoader<FunctionProvider> loader = ServiceLoader.load(FunctionProvider.class);
+				for (FunctionProvider discovered : loader) {
+					log.debug("Discovered FunctionProvider: {} (priority={})", discovered.name(),
+							discovered.priority());
+					allProviders.add(discovered);
+				}
+			}
+			allProviders.addAll(providers);
+
+			// Sort by priority (lower first, higher overrides)
+			allProviders.sort(Comparator.comparingInt(FunctionProvider::priority));
+
+			// Build the template first (providers may need the factory ref)
+			GoTemplate template = new GoTemplate(allFunctions, true);
+
+			// Apply providers in priority order
+			for (FunctionProvider provider : allProviders) {
+				Map<String, Function> providerFunctions = provider.getFunctions(template);
+				template.functions.putAll(providerFunctions);
+				log.debug("Loaded {} functions from {} (priority={})", providerFunctions.size(), provider.name(),
+						provider.priority());
+			}
+
+			// Raw functions override everything
+			if (extraFunctions != null) {
+				template.functions.putAll(extraFunctions);
+			}
+
+			return template;
+		}
+
 	}
 
 }
