@@ -44,6 +44,14 @@
             <artifactId>jhelm-gotemplate</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.alexmond</groupId>
+            <artifactId>jhelm-gotemplate-sprig</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.alexmond</groupId>
+            <artifactId>jhelm-gotemplate-helm</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-compress</artifactId>
             <version>1.26.1</version>
