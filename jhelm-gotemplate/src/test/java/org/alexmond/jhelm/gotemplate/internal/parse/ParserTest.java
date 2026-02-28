@@ -499,7 +499,7 @@ class ParserTest {
 	void testParseZero() throws TemplateParseException {
 		Token token = new Token(TokenType.NUMBER, "0", 0, 0, 0);
 		Parser parser = new Parser();
-		NumberNode numberNode = parser.parseNumber(token);
+		NumberNode numberNode = NumberParser.parse(token);
 		assertTrue(numberNode.isInt(), String.format("invalid number: %s", "0"));
 		assertTrue(numberNode.isFloat(), String.format("invalid number: %s", "0"));
 		assertFalse(numberNode.isComplex(), String.format("invalid number: %s", "0"));
@@ -575,7 +575,7 @@ class ParserTest {
 			}
 
 			try {
-				numberNode = parser.parseNumber(new Token(type, text, 0, 0, 0));
+				numberNode = NumberParser.parse(new Token(type, text, 0, 0, 0));
 				assertEquals(test.isInt, numberNode.isInt(), String.format("invalid number: %s", test.text));
 				assertEquals(test.isFloat, numberNode.isFloat(), String.format("invalid number: %s", test.text));
 				assertEquals(test.isComplex, numberNode.isComplex(), String.format("invalid number: %s", test.text));

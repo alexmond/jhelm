@@ -9,7 +9,7 @@
 
     <!-- File length: source files must not exceed 1000 lines -->
     <module name="FileLength">
-        <property name="max" value="1000"/>
+        <property name="max" value="800"/>
     </module>
 
     <module name="TreeWalker">
