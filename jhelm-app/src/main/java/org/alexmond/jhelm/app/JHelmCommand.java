@@ -6,6 +6,7 @@ import org.alexmond.jhelm.app.command.GetCommand;
 import org.alexmond.jhelm.app.command.HistoryCommand;
 import org.alexmond.jhelm.app.command.InstallCommand;
 import org.alexmond.jhelm.app.command.ListCommand;
+import org.alexmond.jhelm.app.command.PackageCommand;
 import org.alexmond.jhelm.app.command.PluginCommand;
 import org.alexmond.jhelm.app.command.PullCommand;
 import org.alexmond.jhelm.app.command.PushCommand;
@@ -18,6 +19,7 @@ import org.alexmond.jhelm.app.command.TemplateCommand;
 import org.alexmond.jhelm.app.command.TestCommand;
 import org.alexmond.jhelm.app.command.UninstallCommand;
 import org.alexmond.jhelm.app.command.UpgradeCommand;
+import org.alexmond.jhelm.app.command.VerifyCommand;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -34,7 +36,8 @@ import picocli.CommandLine;
 		subcommands = { CreateCommand.class, TemplateCommand.class, InstallCommand.class, UpgradeCommand.class,
 				UninstallCommand.class, ListCommand.class, StatusCommand.class, HistoryCommand.class,
 				RollbackCommand.class, ShowCommand.class, GetCommand.class, TestCommand.class, DependencyCommand.class,
-				PullCommand.class, PushCommand.class, RepoCommand.class, RegistryCommand.class, PluginCommand.class })
+				PullCommand.class, PushCommand.class, PackageCommand.class, VerifyCommand.class, RepoCommand.class,
+				RegistryCommand.class, PluginCommand.class })
 public class JHelmCommand implements Runnable {
 
 	@CommandLine.Option(names = { "--no-color" }, description = "Disable colored output",
