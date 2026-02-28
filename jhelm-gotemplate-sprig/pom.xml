@@ -61,21 +61,4 @@
         </dependency>
     </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <configuration>
-                    <!-- Skip coverage check during module split transition.
-                         Both jhelm-gotemplate and jhelm-gotemplate-sprig share the same
-                         package; JaCoCo only instruments the local copy but tests may
-                         resolve classes from the dependency. Coverage will be enforced
-                         once the old code is removed (#105). -->
-                    <skip>true</skip>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-
 </project>
