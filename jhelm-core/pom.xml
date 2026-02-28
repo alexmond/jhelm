@@ -54,14 +54,13 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-compress</artifactId>
-            <version>1.26.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.vdurmont</groupId>
+            <groupId>org.semver4j</groupId>
             <artifactId>semver4j</artifactId>
         </dependency>
         <dependency>

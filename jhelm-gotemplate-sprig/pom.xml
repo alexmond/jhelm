@@ -47,11 +47,10 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpkix-jdk18on</artifactId>
-            <version>${bouncycastle.version}</version>
         </dependency>
         <!-- Semver4j for semantic version parsing and comparison -->
         <dependency>
-            <groupId>com.vdurmont</groupId>
+            <groupId>org.semver4j</groupId>
             <artifactId>semver4j</artifactId>
         </dependency>
         <dependency>

@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.2</version>
+        <version>4.0.3</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>org.alexmond</groupId>
@@ -38,10 +38,11 @@
     <properties>
         <kubernetes-client.version>25.0.0</kubernetes-client.version>
         <picocli.version>4.7.7</picocli.version>
-        <semver4j.version>3.1.0</semver4j.version>
-        <bouncycastle.version>1.80</bouncycastle.version>
+        <semver4j.version>6.0.0</semver4j.version>
+        <bouncycastle.version>1.83</bouncycastle.version>
+        <commons-compress.version>1.26.1</commons-compress.version>
         <chicory.version>1.7.2</chicory.version>
-        <spring-retry.version>2.0.11</spring-retry.version>
+        <spring-retry.version>2.0.12</spring-retry.version>
 
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.10.0</central-publishing-maven-plugin.version>
@@ -49,7 +50,7 @@
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
         <maven-pmd-plugin.version>3.28.0</maven-pmd-plugin.version>
         <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
-        <spring-javaformat.version>0.0.43</spring-javaformat.version>
+        <spring-javaformat.version>0.0.47</spring-javaformat.version>
         <checkstyle.version>9.3</checkstyle.version>
 
         <java.version>21</java.version>
@@ -120,7 +121,7 @@
                 <version>${kubernetes-client.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.vdurmont</groupId>
+                <groupId>org.semver4j</groupId>
                 <artifactId>semver4j</artifactId>
                 <version>${semver4j.version}</version>
             </dependency>
@@ -143,6 +144,16 @@
                 <groupId>org.springframework.retry</groupId>
                 <artifactId>spring-retry</artifactId>
                 <version>${spring-retry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>${commons-compress.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcpkix-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
