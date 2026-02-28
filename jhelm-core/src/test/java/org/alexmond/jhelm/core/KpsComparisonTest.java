@@ -4,9 +4,25 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.config.JhelmTestProperties;
+import org.alexmond.jhelm.core.config.KpsTestConfig;
+import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.model.ChartMetadata;
+import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.Engine;
+import org.alexmond.jhelm.core.service.RepoManager;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvFileSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -20,34 +36,36 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.security.cert.X509Certificate;
-import java.util.Map;
-import java.util.Scanner;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.fail;
-import org.alexmond.jhelm.core.action.InstallAction;
-import org.alexmond.jhelm.core.model.Chart;
-import org.alexmond.jhelm.core.model.ChartMetadata;
-import org.alexmond.jhelm.core.model.Release;
-import org.alexmond.jhelm.core.service.ChartLoader;
-import org.alexmond.jhelm.core.service.Engine;
-import org.alexmond.jhelm.core.service.RepoManager;
 import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @Slf4j
+@SpringBootTest
+@ContextConfiguration(classes = KpsTestConfig.class)
+@ActiveProfiles("test")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KpsComparisonTest {
 
 	private static final YAMLMapper YAML_MAPPER = YAMLMapper.builder().build();
+
+	@Autowired
+	private JhelmTestProperties testProperties;
 
 	private final RepoManager repoManager = createRepoManager();
 
@@ -288,9 +306,14 @@ class KpsComparisonTest {
 		var jhelmMap = buildResourceMap(jhelmDocs);
 		var helmMap = buildResourceMap(helmDocs);
 
-		// Check for missing resources
+		// Load ignore rules for this chart (needed for both missing-resource and
+		// diff filtering)
+		List<IgnoreRule> ignoreRules = loadIgnoreRules(chartName);
+
+		// Check for missing resources, filtering out those covered by ignore rules
 		var missingInJhelm = new LinkedHashSet<>(helmMap.keySet());
 		missingInJhelm.removeAll(jhelmMap.keySet());
+		missingInJhelm.removeIf((key) -> isIgnored(key, "*", ignoreRules));
 
 		var extraInJhelm = new LinkedHashSet<>(jhelmMap.keySet());
 		extraInJhelm.removeAll(helmMap.keySet());
@@ -304,9 +327,6 @@ class KpsComparisonTest {
 		if (!extraInJhelm.isEmpty()) {
 			log.warn("{} - Extra resources in JHelm (not in Helm): {}", chartName, extraInJhelm);
 		}
-
-		// Load ignore rules for this chart
-		List<IgnoreRule> ignoreRules = loadIgnoreRules(chartName);
 
 		// Compare each resource — fast-path with equals(), detailed diff only when needed
 		for (String key : helmMap.keySet()) {
@@ -468,33 +488,21 @@ class KpsComparisonTest {
 	}
 
 	private List<IgnoreRule> loadIgnoreRules(String chartName) {
-		try (InputStream is = getClass().getResourceAsStream("/comparison-ignores.yaml")) {
-			if (is == null) {
-				return Collections.emptyList();
-			}
-			YAMLMapper yamlMapper = YAMLMapper.builder().build();
-			JsonNode root = yamlMapper.readTree(is);
-			if (root == null || root.isNull()) {
-				return Collections.emptyList();
-			}
-			List<IgnoreRule> rules = new ArrayList<>();
-			// Load global rules (key "*") and chart-specific rules
-			for (String key : List.of("*", chartName)) {
-				if (root.has(key)) {
-					for (JsonNode entry : root.get(key)) {
-						String resource = entry.has("resource") ? entry.get("resource").asString() : "*";
-						String path = entry.has("path") ? entry.get("path").asString() : "*";
-						String reason = entry.has("reason") ? entry.get("reason").asString() : "";
-						rules.add(new IgnoreRule(resource, path, reason));
-					}
-				}
-			}
-			return rules;
-		}
-		catch (Exception ex) {
-			log.warn("Failed to load comparison-ignores.yaml: {}", ex.getMessage());
+		Map<String, List<JhelmTestProperties.IgnoreRule>> ignores = testProperties.getComparisonIgnores();
+		if (ignores == null || ignores.isEmpty()) {
 			return Collections.emptyList();
 		}
+		List<IgnoreRule> rules = new ArrayList<>();
+		// Load global rules (key "_global") and chart-specific rules
+		for (String key : List.of("_global", chartName)) {
+			List<JhelmTestProperties.IgnoreRule> entries = ignores.get(key);
+			if (entries != null) {
+				for (JhelmTestProperties.IgnoreRule entry : entries) {
+					rules.add(new IgnoreRule(entry.getResource(), entry.getPath(), entry.getReason()));
+				}
+			}
+		}
+		return rules;
 	}
 
 	private boolean isIgnored(String resourceKey, String diffPath, List<IgnoreRule> rules) {
@@ -683,6 +691,38 @@ class KpsComparisonTest {
 		catch (Exception ex) {
 			log.error("Failed to setup insecure SSL in test", ex);
 		}
+	}
+
+	/**
+	 * Fetches the top N Helm charts from Artifact Hub sorted by relevance, returning them
+	 * as JUnit {@link Arguments} of {@code (chartName, repoId, repoUrl)}. The count is
+	 * controlled by the {@code jhelmtest.number-of-top-charts} property (default 30).
+	 */
+	Stream<Arguments> topCharts() throws Exception {
+		int limit = testProperties.getNumberOfTopCharts();
+		String url = "https://artifacthub.io/api/v1/packages/search?kind=0&sort=relevance&limit=" + limit;
+		JsonMapper mapper = JsonMapper.builder().build();
+		JsonNode result;
+		try (InputStream in = URI.create(url).toURL().openStream()) {
+			result = mapper.readTree(in);
+		}
+		JsonNode packages = result.has("packages") ? result.get("packages") : result;
+
+		List<Arguments> args = new ArrayList<>();
+		for (JsonNode pkg : packages) {
+			String name = pkg.get("name").asString();
+			JsonNode repo = pkg.get("repository");
+			String repoId = repo.get("name").asString();
+			String repoUrl = repo.get("url").asString();
+			args.add(Arguments.of(repoId + "/" + name, repoId, repoUrl));
+		}
+		return args.stream();
+	}
+
+	@ParameterizedTest
+	@MethodSource("topCharts")
+	void compareTopCharts(String chartName, String repoId, String repoUrl) throws Exception {
+		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
 	}
 
 	record Diff(String path, String expected, String actual) {

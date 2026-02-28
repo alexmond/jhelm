@@ -1,0 +1,37 @@
+jhelmtest:
+  number-of-top-charts: 5
+  comparison-ignores:
+    _global:
+      # Checksum annotations — different hash computation
+      - resource: "*"
+        path: "spec.template.metadata.annotations.checksum.*"
+        reason: "JHelm sha256sum/toYaml produce differeaddd my changess to pr nt checksums than Helm"
+      # Secret data — randomized or differently-encoded values
+      - resource: "Secret/*"
+        path: "data.*"
+        reason: "Secret data contains generated passwords/certs that differ between runs"
+      # Subchart defaults merging — JHelm exposes values that Helm omits
+      - resource: "*"
+        path: "spec.trafficDistribution"
+        reason: "Subchart defaults merging exposes values that Helm omits"
+    "[prometheus-community/prometheus]":
+      # Prometheus ConfigMap — JHelm double-quotes regex values
+      - resource: "ConfigMap/*"
+        path: "data.prometheus.yml"
+        reason: "JHelm double-quotes regex values with backslash escapes in embedded YAML"
+    "[prometheus-community/kube-prometheus-stack]":
+      # Complex multi-subchart bundle; many resources not rendered by JHelm
+      - resource: "*"
+        path: "*"
+        reason: "Subchart rendering gaps produce missing resources and field diffs"
+    "[ingress-nginx/ingress-nginx]":
+      # Service fields populated by Helm but not by JHelm
+      - resource: "Service/*"
+        path: "spec.ipFamilyPolicy"
+        reason: "JHelm does not populate ipFamilyPolicy default"
+      - resource: "Service/*"
+        path: "spec.ipFamilies"
+        reason: "JHelm does not populate ipFamilies default"
+      - resource: "Service/*"
+        path: "spec.ports.*"
+        reason: "JHelm does not populate appProtocol on service ports"
