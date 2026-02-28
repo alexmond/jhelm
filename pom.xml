@@ -64,6 +64,7 @@
     </scm>
     <modules>
         <module>jhelm-gotemplate</module>
+        <module>jhelm-gotemplate-sprig</module>
         <module>jhelm-core</module>
         <module>jhelm-kube</module>
         <module>jhelm-plugin</module>
@@ -83,6 +84,11 @@
             <dependency>
                 <groupId>org.alexmond</groupId>
                 <artifactId>jhelm-gotemplate</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.alexmond</groupId>
+                <artifactId>jhelm-gotemplate-sprig</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

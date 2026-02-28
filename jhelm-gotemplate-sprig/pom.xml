@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.alexmond</groupId>
+        <artifactId>jhelm-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+    <artifactId>jhelm-gotemplate-sprig</artifactId>
+
+    <name>Sprig Functions for Go Template</name>
+    <description>Sprig template function library for jhelm Go template engine</description>
+
+    <dependencies>
+        <!-- Core template engine (Function interface, FunctionProvider SPI) -->
+        <dependency>
+            <groupId>org.alexmond</groupId>
+            <artifactId>jhelm-gotemplate</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <!-- HTTP client for network functions -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
+        <!-- Commons Codec for Base32, hex encoding, and password hashing -->
+        <dependency>
+            <groupId>commons-codec</groupId>
+            <artifactId>commons-codec</artifactId>
+        </dependency>
+        <!-- Spring Security Crypto for BCrypt (htpasswd) -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-crypto</artifactId>
+        </dependency>
+        <!-- Bouncy Castle for certificate and key generation -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
+        <!-- Semver4j for semantic version parsing and comparison -->
+        <dependency>
+            <groupId>com.vdurmont</groupId>
+            <artifactId>semver4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Skip coverage check during module split transition.
+                         Both jhelm-gotemplate and jhelm-gotemplate-sprig share the same
+                         package; JaCoCo only instruments the local copy but tests may
+                         resolve classes from the dependency. Coverage will be enforced
+                         once the old code is removed (#105). -->
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
