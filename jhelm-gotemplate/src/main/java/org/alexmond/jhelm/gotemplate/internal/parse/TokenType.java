@@ -165,9 +165,6 @@ public enum TokenType {
 	/**
 	 * with keyword
 	 */
-	WITH;
-
-	TokenType() {
-	}
+	WITH
 
 }

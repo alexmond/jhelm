@@ -16,6 +16,7 @@ import java.util.Map;
  *
  * @see GoTemplate.Builder
  */
+@FunctionalInterface
 public interface FunctionProvider {
 
 	/**

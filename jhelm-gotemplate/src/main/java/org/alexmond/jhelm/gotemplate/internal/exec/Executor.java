@@ -82,7 +82,9 @@ public class Executor {
 				writeNode(writer, listNode, data, beanInfo);
 			}
 			catch (IndexOutOfBoundsException ex) {
-				log.debug("Internal IndexOutOfBounds in '{}': {}", name, ex.getMessage(), ex);
+				if (log.isDebugEnabled()) {
+					log.debug("Internal IndexOutOfBounds in '{}': {}", name, ex.getMessage(), ex);
+				}
 				throw new TemplateExecutionException("Internal IndexOutOfBounds in '" + name + "': " + ex.getMessage(),
 						ex);
 			}
@@ -91,7 +93,9 @@ public class Executor {
 						|| ex instanceof TemplateNotFoundException) {
 					throw ex;
 				}
-				log.debug("Execution failure in template '{}': {}", name, ex.getMessage(), ex);
+				if (log.isDebugEnabled()) {
+					log.debug("Execution failure in template '{}': {}", name, ex.getMessage(), ex);
+				}
 				throw new TemplateExecutionException("Execution error in '" + name + "': " + ex.getMessage(), ex);
 			}
 		}
@@ -112,7 +116,9 @@ public class Executor {
 			writeAction(writer, actionNode, data, beanInfo);
 		}
 		else if (node instanceof CommentNode commentNode) {
-			log.trace("Skipping comment node: {}", commentNode);
+			if (log.isTraceEnabled()) {
+				log.trace("Skipping comment node: {}", commentNode);
+			}
 		}
 		else if (node instanceof IfNode ifNode) {
 			writeIf(writer, ifNode, data, beanInfo);
@@ -143,7 +149,9 @@ public class Executor {
 		if (pipeNode.getVariableCount() > 0) {
 			for (VariableNode variable : pipeNode.getVariables()) {
 				String varName = variable.getIdentifier(0);
-				log.debug("Action assigned variable: {} = {}", varName, value);
+				if (log.isDebugEnabled()) {
+					log.debug("Action assigned variable: {} = {}", varName, value);
+				}
 			}
 		}
 
@@ -363,7 +371,7 @@ public class Executor {
 					return result;
 				}
 			}
-			return executeField(fieldNode, data, beanInfo);
+			return executeField(fieldNode, data);
 		}
 		if (firstArgument instanceof IdentifierNode) {
 			return executeFunction((IdentifierNode) firstArgument, command.getArguments(), data, beanInfo,
@@ -457,7 +465,7 @@ public class Executor {
 		return null;
 	}
 
-	private Object executeField(FieldNode fieldNode, Object data, BeanInfo beanInfo) throws TemplateExecutionException {
+	private Object executeField(FieldNode fieldNode, Object data) throws TemplateExecutionException {
 		String[] identifiers = fieldNode.getIdentifiers();
 		Object current = data;
 		for (String identifier : identifiers) {
@@ -537,8 +545,10 @@ public class Executor {
 					return m.invoke(receiver, args);
 				}
 				catch (IllegalAccessException | InvocationTargetException ex) {
-					log.debug("Method invocation failed: {}.{}(): {}", receiver.getClass().getSimpleName(), methodName,
-							ex.getMessage());
+					if (log.isDebugEnabled()) {
+						log.debug("Method invocation failed: {}.{}(): {}", receiver.getClass().getSimpleName(),
+								methodName, ex.getMessage());
+					}
 				}
 			}
 		}
@@ -624,7 +634,7 @@ public class Executor {
 
 		if (argument instanceof FieldNode) {
 			FieldNode fieldNode = (FieldNode) argument;
-			return executeField(fieldNode, data, beanInfo);
+			return executeField(fieldNode, data);
 		}
 
 		if (argument instanceof ChainNode) {
@@ -692,7 +702,9 @@ public class Executor {
 				return Introspector.getBeanInfo(clazz);
 			}
 			catch (IntrospectionException ex) {
-				log.debug("Failed to introspect class {}: {}", clazz.getName(), ex.getMessage());
+				if (log.isDebugEnabled()) {
+					log.debug("Failed to introspect class {}: {}", clazz.getName(), ex.getMessage());
+				}
 				return null;
 			}
 		});

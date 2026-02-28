@@ -53,7 +53,9 @@ public class PluginManager {
 		Plugin plugin = createAdapter(manifest, instance, sandboxConfig);
 		PluginDescriptor descriptor = PluginDescriptor.builder().manifest(manifest).plugin(plugin).build();
 		registry.register(descriptor);
-		log.info("Installed plugin: {} (type: {})", manifest.getName(), manifest.getType());
+		if (log.isInfoEnabled()) {
+			log.info("Installed plugin: {} (type: {})", manifest.getName(), manifest.getType());
+		}
 		return descriptor;
 	}
 
@@ -68,7 +70,9 @@ public class PluginManager {
 			throw new PluginNotFoundException("Plugin not found: " + pluginName);
 		}
 		descriptor.get().getPlugin().close();
-		log.info("Uninstalled plugin: {}", pluginName);
+		if (log.isInfoEnabled()) {
+			log.info("Uninstalled plugin: {}", pluginName);
+		}
 	}
 
 	/**

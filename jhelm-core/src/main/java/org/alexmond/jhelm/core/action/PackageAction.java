@@ -71,13 +71,17 @@ public class PackageAction {
 		File archiveFile = new File(destDir, archiveName);
 
 		createTgz(new File(chartPath), chart.getMetadata().getName(), archiveFile);
-		log.info("Successfully packaged chart and saved it to: {}", archiveFile.getAbsolutePath());
+		if (log.isInfoEnabled()) {
+			log.info("Successfully packaged chart and saved it to: {}", archiveFile.getAbsolutePath());
+		}
 
 		if (secretKey != null) {
 			String provContent = signatureService.sign(archiveFile, chart.getMetadata(), secretKey, passphrase);
 			File provFile = new File(destDir, archiveName + ".prov");
 			Files.writeString(provFile.toPath(), provContent);
-			log.info("Successfully signed chart and saved provenance to: {}", provFile.getAbsolutePath());
+			if (log.isInfoEnabled()) {
+				log.info("Successfully signed chart and saved provenance to: {}", provFile.getAbsolutePath());
+			}
 		}
 
 		return archiveFile;

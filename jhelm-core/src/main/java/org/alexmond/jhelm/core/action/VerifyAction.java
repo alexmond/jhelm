@@ -37,7 +37,9 @@ public class VerifyAction {
 		PGPPublicKeyRingCollection publicKeys = signatureService.loadPublicKeyring(keyringPath);
 
 		signatureService.verify(chartFile, provContent, publicKeys);
-		log.info("Verification succeeded for {}", chartFile.getName());
+		if (log.isInfoEnabled()) {
+			log.info("Verification succeeded for {}", chartFile.getName());
+		}
 	}
 
 }

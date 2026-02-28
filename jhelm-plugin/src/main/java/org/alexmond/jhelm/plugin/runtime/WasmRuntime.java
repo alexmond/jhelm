@@ -37,7 +37,9 @@ public class WasmRuntime {
 				store.addFunction(hf);
 			}
 			Instance instance = store.instantiate(pluginName, module);
-			log.info("Loaded WASM plugin: {}", pluginName);
+			if (log.isInfoEnabled()) {
+				log.info("Loaded WASM plugin: {}", pluginName);
+			}
 			return new WasmPluginInstance(pluginName, instance);
 		}
 		catch (Exception ex) {

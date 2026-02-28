@@ -46,7 +46,9 @@ public class SchemaValidator {
 			validateNode(schema, valuesNode, "$", errors);
 		}
 		catch (Exception ex) {
-			log.warn("Could not parse values.schema.json for chart {}: {}", chartName, ex.getMessage());
+			if (log.isWarnEnabled()) {
+				log.warn("Could not parse values.schema.json for chart {}: {}", chartName, ex.getMessage());
+			}
 			return;
 		}
 		if (!errors.isEmpty()) {
@@ -117,7 +119,9 @@ public class SchemaValidator {
 					}
 				}
 				catch (PatternSyntaxException ex) {
-					log.warn("Invalid pattern '{}' in schema at {}: {}", patternStr, path, ex.getMessage());
+					if (log.isWarnEnabled()) {
+						log.warn("Invalid pattern '{}' in schema at {}: {}", patternStr, path, ex.getMessage());
+					}
 				}
 			}
 		}

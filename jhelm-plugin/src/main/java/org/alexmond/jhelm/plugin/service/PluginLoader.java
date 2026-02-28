@@ -72,7 +72,9 @@ public class PluginLoader {
 					"Plugin archive missing WASM binary '" + entrypoint + "': " + archiveFile.getName());
 		}
 
-		log.info("Loaded plugin manifest: {} (type: {})", manifest.getName(), manifest.getType());
+		if (log.isInfoEnabled()) {
+			log.info("Loaded plugin manifest: {} (type: {})", manifest.getName(), manifest.getType());
+		}
 		return new LoadResult(manifest, wasmBytes);
 	}
 

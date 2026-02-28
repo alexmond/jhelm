@@ -88,7 +88,9 @@ public class InstallCommand implements Runnable {
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error installing chart: " + ex.getMessage()));
-			log.debug("Install error details", ex);
+			if (log.isDebugEnabled()) {
+				log.debug("Install error details", ex);
+			}
 		}
 	}
 
