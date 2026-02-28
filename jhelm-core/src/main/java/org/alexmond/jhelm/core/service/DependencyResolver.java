@@ -1,7 +1,6 @@
 package org.alexmond.jhelm.core.service;
 
-import com.vdurmont.semver4j.Requirement;
-import com.vdurmont.semver4j.Semver;
+import org.semver4j.Semver;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.model.ChartLock.LockDependency;
 
@@ -132,14 +131,12 @@ public class DependencyResolver {
 	 */
 	private String findBestMatchingVersion(String constraint, List<RepoManager.ChartVersion> availableVersions) {
 		try {
-			Requirement requirement = Requirement.buildNPM(constraint);
-
 			// Find all matching versions
 			List<Semver> matchingVersions = new ArrayList<>();
 			for (RepoManager.ChartVersion cv : availableVersions) {
 				try {
-					Semver semver = new Semver(cv.getChartVersion(), Semver.SemverType.NPM);
-					if (requirement.isSatisfiedBy(semver)) {
+					Semver semver = new Semver(cv.getChartVersion());
+					if (semver.satisfies(constraint)) {
 						matchingVersions.add(semver);
 					}
 				}
@@ -151,7 +148,7 @@ public class DependencyResolver {
 			// Return the highest matching version
 			if (!matchingVersions.isEmpty()) {
 				matchingVersions.sort(Semver::compareTo);
-				return matchingVersions.get(matchingVersions.size() - 1).getValue();
+				return matchingVersions.get(matchingVersions.size() - 1).getVersion();
 			}
 		}
 		catch (Exception ex) {
