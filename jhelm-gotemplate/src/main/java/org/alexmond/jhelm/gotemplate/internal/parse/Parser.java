@@ -21,7 +21,7 @@ public class Parser {
 	private final Map<String, Function> functions;
 
 	public Parser() {
-		this(Functions.BUILTIN);
+		this(Functions.GO_BUILTINS);
 	}
 
 	public Parser(Map<String, Function> functions) {

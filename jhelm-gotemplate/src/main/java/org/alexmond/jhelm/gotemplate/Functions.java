@@ -12,21 +12,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import org.alexmond.jhelm.gotemplate.sprig.SprigFunctionsRegistry;
-
 public final class Functions {
 
 	/**
-	 * Go built-in template functions only (no Sprig, no Helm).
+	 * Go built-in template functions (Go {@code text/template} builtins). Does not
+	 * include Sprig or Helm functions — those are loaded via {@link FunctionProvider}
+	 * implementations.
 	 */
 	public static final Map<String, Function> GO_BUILTINS;
-
-	/**
-	 * Go built-in + Sprig functions. Preserved for backwards compatibility.
-	 * @deprecated Use {@link GoTemplate.Builder} with {@link FunctionProvider} instead
-	 */
-	@Deprecated
-	public static final Map<String, Function> BUILTIN = new LinkedHashMap<>();
 
 	static {
 		LinkedHashMap<String, Function> go = new LinkedHashMap<>();
@@ -55,10 +48,6 @@ public final class Functions {
 		go.put("ne", ne());
 
 		GO_BUILTINS = Map.copyOf(go);
-
-		// BUILTIN = Go builtins + Sprig (deprecated path)
-		BUILTIN.putAll(go);
-		BUILTIN.putAll(SprigFunctionsRegistry.getAllFunctions());
 	}
 
 	private Functions() {

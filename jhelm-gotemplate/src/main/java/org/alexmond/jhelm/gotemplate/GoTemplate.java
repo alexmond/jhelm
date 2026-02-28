@@ -49,27 +49,40 @@ public class GoTemplate {
 	private String name;
 
 	/**
-	 * Create a new GoTemplate with default settings. Uses {@link Functions#BUILTIN} +
-	 * Helm functions (legacy path).
+	 * Create a new GoTemplate with default settings. Auto-discovers
+	 * {@link FunctionProvider} implementations on the classpath via
+	 * {@link java.util.ServiceLoader}.
 	 */
 	public GoTemplate() {
-		this(null);
+		this((Map<String, Function>) null);
 	}
 
 	/**
-	 * Create a new GoTemplate with custom functions. Uses {@link Functions#BUILTIN} +
-	 * Helm functions + custom overrides (legacy path).
-	 * @param functions custom functions to add (may be {@code null})
+	 * Create a new GoTemplate with custom function overrides. Auto-discovers
+	 * {@link FunctionProvider} implementations, then applies custom overrides on top.
+	 * @param functions custom functions to add on top of discovered providers (may be
+	 * {@code null})
 	 */
-	@SuppressWarnings("deprecation")
 	public GoTemplate(Map<String, Function> functions) {
-		LinkedHashMap<String, Function> map = new LinkedHashMap<>(Functions.BUILTIN);
-		if (functions != null) {
-			map.putAll(functions);
-		}
-		this.functions = map;
-		this.functions.putAll(org.alexmond.jhelm.gotemplate.helm.HelmFunctions.getFunctions(this));
+		this.functions = new LinkedHashMap<>(Functions.GO_BUILTINS);
 		this.rootNodes = new LinkedHashMap<>();
+
+		// Discover providers via ServiceLoader, sorted by priority
+		List<FunctionProvider> providers = new ArrayList<>();
+		for (FunctionProvider discovered : ServiceLoader.load(FunctionProvider.class)) {
+			providers.add(discovered);
+		}
+		providers.sort(Comparator.comparingInt(FunctionProvider::priority));
+
+		// Apply providers in priority order, passing this (the actual template)
+		for (FunctionProvider provider : providers) {
+			this.functions.putAll(provider.getFunctions(this));
+		}
+
+		// Custom overrides on top
+		if (functions != null) {
+			this.functions.putAll(functions);
+		}
 	}
 
 	/**

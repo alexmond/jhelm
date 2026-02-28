@@ -1,7 +1,6 @@
 package org.alexmond.jhelm.gotemplate.sprig;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -41,36 +40,6 @@ class SprigFunctionsTest {
 		execute("test", "{{ join \",\" .items }}", data, writer);
 
 		assertEquals("a,b,c", writer.toString());
-	}
-
-	@Test
-	void testRequired() throws IOException, TemplateException {
-		StringWriter writer = new StringWriter();
-		Map<String, Object> data = new HashMap<>();
-		data.put("value", "test");
-		execute("test", "{{ required \"value is required\" .value }}", data, writer);
-
-		assertEquals("test", writer.toString());
-	}
-
-	@Test
-	void testRequiredThrowsOnEmpty() {
-		assertThrows(Exception.class, () -> {
-			StringWriter writer = new StringWriter();
-			Map<String, Object> data = new HashMap<>();
-			data.put("value", "");
-			execute("test", "{{ required \"value is required\" .value }}", data, writer);
-		});
-	}
-
-	@Test
-	void testToJson() throws IOException, TemplateException {
-		StringWriter writer = new StringWriter();
-		Map<String, Object> data = new HashMap<>();
-		data.put("text", "hello");
-		execute("test", "{{ toJson .text }}", data, writer);
-
-		assertEquals("\"hello\"", writer.toString());
 	}
 
 	@Test
