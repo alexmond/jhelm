@@ -290,21 +290,40 @@ public final class StringFunctions {
 
 	private static Function quote() {
 		return (args) -> {
-			if (args.length == 0 || args[0] == null) {
-				return "\"\"";
+			StringBuilder out = new StringBuilder();
+			for (Object arg : args) {
+				if (arg == null) {
+					continue;
+				}
+				if (!out.isEmpty()) {
+					out.append(' ');
+				}
+				String escaped = String.valueOf(arg)
+					.replace("\\", "\\\\")
+					.replace("\"", "\\\"")
+					.replace("\n", "\\n")
+					.replace("\r", "\\r")
+					.replace("\t", "\\t");
+				out.append('"').append(escaped).append('"');
 			}
-			String escaped = String.valueOf(args[0])
-				.replace("\\", "\\\\")
-				.replace("\"", "\\\"")
-				.replace("\n", "\\n")
-				.replace("\r", "\\r")
-				.replace("\t", "\\t");
-			return "\"" + escaped + "\"";
+			return out.toString();
 		};
 	}
 
 	private static Function squote() {
-		return (args) -> (args.length == 0 || args[0] == null) ? "''" : "'" + args[0] + "'";
+		return (args) -> {
+			StringBuilder out = new StringBuilder();
+			for (Object arg : args) {
+				if (arg == null) {
+					continue;
+				}
+				if (!out.isEmpty()) {
+					out.append(' ');
+				}
+				out.append('\'').append(arg).append('\'');
+			}
+			return out.toString();
+		};
 	}
 
 	private static Function cat() {
@@ -431,7 +450,8 @@ public final class StringFunctions {
 	private static Function regexMatch() {
 		return (args) -> {
 			try {
-				return args.length >= 2 && String.valueOf(args[1]).matches(String.valueOf(args[0]));
+				return args.length >= 2
+						&& Pattern.compile(String.valueOf(args[0])).matcher(String.valueOf(args[1])).find();
 			}
 			catch (Exception ex) {
 				return false;
@@ -445,7 +465,7 @@ public final class StringFunctions {
 				throw new RuntimeException("mustRegexMatch: insufficient arguments");
 			}
 			try {
-				return String.valueOf(args[1]).matches(String.valueOf(args[0]));
+				return Pattern.compile(String.valueOf(args[0])).matcher(String.valueOf(args[1])).find();
 			}
 			catch (Exception ex) {
 				throw new RuntimeException("mustRegexMatch: " + ex.getMessage(), ex);

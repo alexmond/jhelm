@@ -35,15 +35,6 @@ jhelmtest:
       - resource: "ClusterRole/*"
         path: "rules.*"
         reason: "BUG: conditional rules render differently — likely values-driven if/range evaluation gap"
-    "[gitlab/gitlab-runner]":
-      # BUG: JHelm renders empty string instead of null for env values
-      - resource: "Deployment/*"
-        path: "spec.template.spec.containers[0].env.*"
-        reason: "BUG: env value/name ordering and null-vs-empty-string differences"
-      # BUG: JHelm emits explicit null for spec.replicas that Helm omits
-      - resource: "Deployment/*"
-        path: "spec.replicas"
-        reason: "BUG: JHelm emits explicit null fields that Helm omits"
     "[apache-airflow/airflow]":
       # BUG: Complex chart with many rendering gaps — worker resources, volumeMount ordering, etc.
       - resource: "*"

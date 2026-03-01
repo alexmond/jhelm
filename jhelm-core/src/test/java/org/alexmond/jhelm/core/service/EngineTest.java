@@ -805,4 +805,81 @@ class EngineTest {
 		assertTrue(result.contains("match=true"), "regexMatch should match 2.0.2-debian-12-r3: " + result);
 	}
 
+	// --- Issue #134: quote null and regexMatch substring ---
+
+	@Test
+	void testQuoteNullOmitsReplicas() {
+		// gitlab-runner pattern: {{- if and (not .Values.hpa) (not (quote
+		// .Values.replicas | empty)) }}
+		String helpers = """
+				{{- define "test.replicas" -}}
+				{{- if and (not .Values.hpa) (not (quote .Values.replicas | empty)) -}}
+				replicas: {{ .Values.replicas }}
+				{{- end -}}
+				{{- end -}}
+				""";
+		String deployment = """
+				spec:
+				  {{ include "test.replicas" . }}
+				  revisionHistoryLimit: 10
+				""";
+		// replicas and hpa not set (null)
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("_helpers.tpl", helpers), tmpl("deployment.yaml", deployment)), Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertFalse(result.contains("replicas:"), "replicas should be omitted when null: " + result);
+		assertTrue(result.contains("revisionHistoryLimit: 10"), "other fields should render: " + result);
+	}
+
+	@Test
+	void testQuoteNullEnvValue() {
+		// gitlab-runner pattern: value: {{ include "gitlab-runner.gitlabUrl" . }}
+		// where gitlabUrl is: {{- .Values.gitlabUrl | quote -}}
+		String helpers = """
+				{{- define "test.url" -}}
+				{{- .Values.gitlabUrl | quote -}}
+				{{- end -}}
+				""";
+		String deployment = """
+				env:
+				- name: CI_SERVER_URL
+				  value: {{ include "test.url" . }}
+				""";
+		// gitlabUrl not set (null)
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("_helpers.tpl", helpers), tmpl("deployment.yaml", deployment)), Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		// With null gitlabUrl, quote returns empty string, so value: has no content after
+		// it
+		assertFalse(result.contains("value: \"\""), "null gitlabUrl should not produce quoted empty: " + result);
+	}
+
+	@Test
+	void testRegexMatchSubstringInConfig() {
+		// gitlab-runner pattern: regexMatch "\\s*namespace\\s*=" .Values.runners.config
+		String helpers = """
+				{{- define "test.env" -}}
+				{{- if not (regexMatch "\\\\s*namespace\\\\s*=" .Values.runners.config) -}}
+				- name: KUBERNETES_NAMESPACE
+				  value: {{ .Release.Namespace | quote }}
+				{{- end -}}
+				{{- end -}}
+				""";
+		String deployment = """
+				env:
+				{{ include "test.env" . }}
+				""";
+		Map<String, Object> values = new HashMap<>();
+		Map<String, Object> runners = new HashMap<>();
+		runners.put("config", "[[runners]]\n  [runners.kubernetes]\n    namespace = \"default\"");
+		values.put("runners", runners);
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("_helpers.tpl", helpers), tmpl("deployment.yaml", deployment)), values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		// namespace = is in config, so regexMatch should be true, and
+		// KUBERNETES_NAMESPACE should be omitted
+		assertFalse(result.contains("KUBERNETES_NAMESPACE"),
+				"KUBERNETES_NAMESPACE should be omitted when namespace is in config: " + result);
+	}
+
 }

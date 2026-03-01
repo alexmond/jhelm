@@ -134,12 +134,34 @@ class StringFunctionsTest {
 	@CsvSource(delimiter = '|',
 			value = { "{{ regexMatch \"^[a-z]+$\" \"hello\" }}       | true",
 					"{{ mustRegexMatch \"^[a-z]+$\" \"hello\" }}   | true",
+					"{{ regexMatch \"[0-9]+\" \"abc123def\" }}      | true",
+					"{{ mustRegexMatch \"[0-9]+\" \"abc123def\" }}  | true",
+					"{{ regexMatch \"xyz\" \"abc123def\" }}          | false",
 					"{{ regexFind \"[0-9]+\" \"abc123def\" }}       | 123",
 					"{{ mustRegexFind \"[0-9]+\" \"abc123def\" }}   | 123",
 					"{{ regexReplaceAll \"[0-9]+\" \"abc123def456\" \"X\" }} | abcXdefX",
 					"{{ mustRegexReplaceAll \"[0-9]+\" \"abc123def\" \"X\" }} | abcXdef" })
 	void testRegexFunction(String template, String expected) throws IOException, TemplateException {
 		assertEquals(expected, exec(template));
+	}
+
+	@Test
+	void testRegexMatchSubstring() throws IOException, TemplateException {
+		// Go's regexMatch finds pattern anywhere in string, not full-string match
+		HashMap<String, Object> data = new HashMap<>();
+		data.put("config", "  [runners.kubernetes]\n    namespace = \"default\"\n    image = \"alpine\"");
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ regexMatch \"\\\\s*namespace\\\\s*=\" .config }}", data, writer);
+		assertEquals("true", writer.toString());
+	}
+
+	@Test
+	void testMustRegexMatchSubstring() throws IOException, TemplateException {
+		HashMap<String, Object> data = new HashMap<>();
+		data.put("config", "  [runners.kubernetes]\n    namespace = \"default\"");
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ mustRegexMatch \"\\\\s*namespace\\\\s*=\" .config }}", data, writer);
+		assertEquals("true", writer.toString());
 	}
 
 	@ParameterizedTest
@@ -160,22 +182,46 @@ class StringFunctionsTest {
 
 	@Test
 	void testQuoteNull() throws IOException, TemplateException {
-		// quote(null) should return empty double-quoted string, matching Go Sprig
+		// Go Sprig quote skips nil values entirely, returning empty string
 		HashMap<String, Object> data = new HashMap<>();
 		data.put("val", null);
 		StringWriter writer = new StringWriter();
 		execute("test", "{{ quote .val }}", data, writer);
-		assertEquals("\"\"", writer.toString());
+		assertEquals("", writer.toString());
 	}
 
 	@Test
 	void testSquoteNull() throws IOException, TemplateException {
-		// squote(null) should return empty single-quoted string, matching Go Sprig
+		// Go Sprig squote skips nil values entirely, returning empty string
 		HashMap<String, Object> data = new HashMap<>();
 		data.put("val", null);
 		StringWriter writer = new StringWriter();
 		execute("test", "{{ squote .val }}", data, writer);
-		assertEquals("''", writer.toString());
+		assertEquals("", writer.toString());
+	}
+
+	@Test
+	void testQuoteMultipleArgs() throws IOException, TemplateException {
+		// Go Sprig quote joins multiple non-nil args with space
+		assertEquals("\"a\" \"b\" \"c\"", exec("{{ quote \"a\" \"b\" \"c\" }}"));
+	}
+
+	@Test
+	void testQuoteMultipleArgsWithNull() throws IOException, TemplateException {
+		// Go Sprig quote skips nil values in multi-arg call
+		HashMap<String, Object> data = new HashMap<>();
+		data.put("a", "hello");
+		data.put("b", null);
+		data.put("c", "world");
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ quote .a .b .c }}", data, writer);
+		assertEquals("\"hello\" \"world\"", writer.toString());
+	}
+
+	@Test
+	void testQuoteEmptyString() throws IOException, TemplateException {
+		// Empty string (not null) should produce quoted empty string
+		assertEquals("\"\"", exec("{{ quote \"\" }}"));
 	}
 
 	@Test
