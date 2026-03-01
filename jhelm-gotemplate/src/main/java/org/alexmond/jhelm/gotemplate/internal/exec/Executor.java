@@ -25,9 +25,11 @@ import org.alexmond.jhelm.gotemplate.TemplateExecutionException;
 import org.alexmond.jhelm.gotemplate.TemplateNotFoundException;
 import org.alexmond.jhelm.gotemplate.internal.parse.ActionNode;
 import org.alexmond.jhelm.gotemplate.internal.parse.BoolNode;
+import org.alexmond.jhelm.gotemplate.internal.parse.BreakNode;
 import org.alexmond.jhelm.gotemplate.internal.parse.ChainNode;
 import org.alexmond.jhelm.gotemplate.internal.parse.CommandNode;
 import org.alexmond.jhelm.gotemplate.internal.parse.CommentNode;
+import org.alexmond.jhelm.gotemplate.internal.parse.ContinueNode;
 import org.alexmond.jhelm.gotemplate.internal.parse.DotNode;
 import org.alexmond.jhelm.gotemplate.internal.parse.FieldNode;
 import org.alexmond.jhelm.gotemplate.internal.parse.IdentifierNode;
@@ -43,7 +45,6 @@ import org.alexmond.jhelm.gotemplate.internal.parse.TemplateNode;
 import org.alexmond.jhelm.gotemplate.internal.parse.TextNode;
 import org.alexmond.jhelm.gotemplate.internal.parse.VariableNode;
 import org.alexmond.jhelm.gotemplate.internal.parse.WithNode;
-import org.alexmond.jhelm.gotemplate.internal.util.StringEscapeUtils;
 
 @Slf4j
 public class Executor {
@@ -135,6 +136,12 @@ public class Executor {
 		else if (node instanceof WithNode withNode) {
 			writeWith(writer, withNode, data, beanInfo);
 		}
+		else if (node instanceof BreakNode) {
+			throw new BreakSignal();
+		}
+		else if (node instanceof ContinueNode) {
+			throw new ContinueSignal();
+		}
 		else {
 			throw new TemplateExecutionException(String.format("unknown node: %s", node.toString()));
 		}
@@ -204,11 +211,19 @@ public class Executor {
 			if (rangeNode.getElseListNode() != null) {
 				writeNode(writer, rangeNode.getElseListNode(), data, beanInfo);
 			}
-			// Restore variables
 			restoreVariables(rangeVars, savedVars);
 			return;
 		}
 
+		iterateRange(writer, rangeNode, rangeVars, arrayOrList, data, beanInfo, savedVars);
+
+		// Restore variables after range
+		restoreVariables(rangeVars, savedVars);
+	}
+
+	private void iterateRange(Writer writer, RangeNode rangeNode, List<VariableNode> rangeVars, Object arrayOrList,
+			Object data, BeanInfo beanInfo, Map<String, Object> savedVars)
+			throws IOException, TemplateExecutionException, TemplateNotFoundException {
 		if (arrayOrList.getClass().isArray()) {
 			int length = Array.getLength(arrayOrList);
 			if (length == 0 && rangeNode.getElseListNode() != null) {
@@ -219,44 +234,59 @@ public class Executor {
 			for (int i = 0; i < length; i++) {
 				Object value = Array.get(arrayOrList, i);
 				setRangeVariables(rangeVars, i, value);
-				writeRangeValue(writer, rangeNode, value);
+				if (writeRangeItem(writer, rangeNode, value)) {
+					return;
+				}
 			}
 		}
 		else if (arrayOrList instanceof Collection<?> collection) {
-			if (collection.isEmpty() && rangeNode.getElseListNode() != null) {
-				writeNode(writer, rangeNode.getElseListNode(), data, beanInfo);
-				restoreVariables(rangeVars, savedVars);
-				return;
-			}
-			int index = 0;
-			for (Object object : collection) {
-				setRangeVariables(rangeVars, index++, object);
-				writeRangeValue(writer, rangeNode, object);
-			}
+			iterateCollection(writer, rangeNode, rangeVars, collection, data, beanInfo, savedVars);
 		}
 		else if (arrayOrList instanceof Map<?, ?> map) {
-			if (map.isEmpty() && rangeNode.getElseListNode() != null) {
-				writeNode(writer, rangeNode.getElseListNode(), data, beanInfo);
-				restoreVariables(rangeVars, savedVars);
-				return;
-			}
-			// Go text/template guarantees sorted-key iteration for maps with
-			// comparable keys
-			List<Map.Entry<?, ?>> sorted = new ArrayList<>(map.entrySet());
-			sorted.sort(Comparator.comparing((e) -> String.valueOf(e.getKey())));
-			for (Map.Entry<?, ?> entry : sorted) {
-				setRangeVariables(rangeVars, entry.getKey(), entry.getValue());
-				writeRangeValue(writer, rangeNode, entry.getValue());
-			}
+			iterateMap(writer, rangeNode, rangeVars, map, data, beanInfo, savedVars);
 		}
 		else {
 			restoreVariables(rangeVars, savedVars);
 			throw new TemplateExecutionException(
 					String.format("can't iterate over %s", arrayOrList.getClass().getName()));
 		}
+	}
 
-		// Restore variables after range
-		restoreVariables(rangeVars, savedVars);
+	private void iterateCollection(Writer writer, RangeNode rangeNode, List<VariableNode> rangeVars,
+			Collection<?> collection, Object data, BeanInfo beanInfo, Map<String, Object> savedVars)
+			throws IOException, TemplateExecutionException, TemplateNotFoundException {
+		if (collection.isEmpty() && rangeNode.getElseListNode() != null) {
+			writeNode(writer, rangeNode.getElseListNode(), data, beanInfo);
+			restoreVariables(rangeVars, savedVars);
+			return;
+		}
+		int index = 0;
+		for (Object object : collection) {
+			setRangeVariables(rangeVars, index++, object);
+			if (writeRangeItem(writer, rangeNode, object)) {
+				return;
+			}
+		}
+	}
+
+	private void iterateMap(Writer writer, RangeNode rangeNode, List<VariableNode> rangeVars, Map<?, ?> map,
+			Object data, BeanInfo beanInfo, Map<String, Object> savedVars)
+			throws IOException, TemplateExecutionException, TemplateNotFoundException {
+		if (map.isEmpty() && rangeNode.getElseListNode() != null) {
+			writeNode(writer, rangeNode.getElseListNode(), data, beanInfo);
+			restoreVariables(rangeVars, savedVars);
+			return;
+		}
+		// Go text/template guarantees sorted-key iteration for maps with
+		// comparable keys
+		List<Map.Entry<?, ?>> sorted = new ArrayList<>(map.entrySet());
+		sorted.sort(Comparator.comparing((e) -> String.valueOf(e.getKey())));
+		for (Map.Entry<?, ?> entry : sorted) {
+			setRangeVariables(rangeVars, entry.getKey(), entry.getValue());
+			if (writeRangeItem(writer, rangeNode, entry.getValue())) {
+				return;
+			}
+		}
 	}
 
 	private void setRangeVariables(List<VariableNode> rangeVars, Object keyOrIndex, Object value) {
@@ -281,6 +311,24 @@ public class Executor {
 				variables.remove(varName);
 			}
 		}
+	}
+
+	/**
+	 * Writes a single range iteration, handling break/continue signals.
+	 * @return {@code true} if a break was signalled and the loop should exit
+	 */
+	private boolean writeRangeItem(Writer writer, RangeNode rangeNode, Object value)
+			throws IOException, TemplateExecutionException, TemplateNotFoundException {
+		try {
+			writeRangeValue(writer, rangeNode, value);
+		}
+		catch (ContinueSignal ex) {
+			return false;
+		}
+		catch (BreakSignal ex) {
+			return true;
+		}
+		return false;
 	}
 
 	private void writeRangeValue(Writer writer, RangeNode rangeNode, Object value)
@@ -734,45 +782,7 @@ public class Executor {
 	}
 
 	private void printValue(Writer writer, Object value) throws IOException {
-		if (value == null) {
-			return;
-		}
-		if (value instanceof String s) {
-			String unescaped = StringEscapeUtils.unescape(s);
-			writer.write(unescaped);
-		}
-		else if (value instanceof Number || value instanceof Boolean) {
-			writer.write(String.valueOf(value));
-		}
-		else if (value instanceof Collection<?> coll) {
-			// Match Go's fmt.Sprint format: [item1 item2 item3]
-			writer.write("[");
-			boolean first = true;
-			for (Object item : coll) {
-				if (!first) {
-					writer.write(" ");
-				}
-				writer.write(String.valueOf(item));
-				first = false;
-			}
-			writer.write("]");
-		}
-		else if (value instanceof Map<?, ?> map) {
-			// Match Go's fmt.Sprint format: map[key1:val1 key2:val2]
-			writer.write("map[");
-			boolean first = true;
-			for (Map.Entry<?, ?> e : map.entrySet()) {
-				if (!first) {
-					writer.write(" ");
-				}
-				writer.write(e.getKey() + ":" + e.getValue());
-				first = false;
-			}
-			writer.write("]");
-		}
-		else {
-			writer.write("[object " + value.getClass().getSimpleName() + "]");
-		}
+		ValuePrinter.printValue(writer, value);
 	}
 
 }

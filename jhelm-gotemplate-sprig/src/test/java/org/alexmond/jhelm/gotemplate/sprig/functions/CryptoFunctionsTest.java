@@ -140,4 +140,14 @@ class CryptoFunctionsTest {
 		assertTrue(writer.toString().contains("BEGIN CERTIFICATE"));
 	}
 
+	// ========== UUID ==========
+
+	@Test
+	void testUuidv4() throws IOException, TemplateException {
+		String result = exec("{{ uuidv4 }}");
+		assertNotNull(result);
+		assertEquals(36, result.length());
+		assertTrue(result.matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"));
+	}
+
 }

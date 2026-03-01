@@ -250,6 +250,18 @@ class LexerTest {
 	}
 
 	@Test
+	void testBreakContinueKeywords() {
+		Token[] actualTokens = lexDefault("{{break}}{{continue}}");
+
+		Token[] expectedTokens = { makeToken(TokenType.LEFT_DELIM, "{{", 0, 1, 0),
+				makeToken(TokenType.BREAK, "break", 2, 1, 0), makeToken(TokenType.RIGHT_DELIM, "}}", 7, 1, 0),
+				makeToken(TokenType.LEFT_DELIM, "{{", 9, 1, 0), makeToken(TokenType.CONTINUE, "continue", 11, 1, 0),
+				makeToken(TokenType.RIGHT_DELIM, "}}", 19, 1, 0), makeToken(TokenType.EOF, "", 21, 1, 0) };
+
+		assertTokens(expectedTokens, actualTokens);
+	}
+
+	@Test
 	void testVariable() {
 		Token[] actualTokens = lexDefault("{{$c := printf $ $hello $23 $ $var.Field .Method}}");
 

@@ -13,6 +13,11 @@ public enum TokenType {
 	BLOCK,
 
 	/**
+	 * break keyword
+	 */
+	BREAK,
+
+	/**
 	 * boolean constant
 	 */
 	BOOL,
@@ -36,6 +41,11 @@ public enum TokenType {
 	 * complex constant (1+2i); imaginary is just a number
 	 */
 	COMPLEX,
+
+	/**
+	 * continue keyword
+	 */
+	CONTINUE,
 
 	/**
 	 * colon-equals (':=') introducing a declaration

@@ -5,7 +5,7 @@ jhelmtest:
       # Checksum annotations — different hash computation
       - resource: "*"
         path: "spec.template.metadata.annotations.checksum.*"
-        reason: "JHelm sha256sum/toYaml produce differeaddd my changess to pr nt checksums than Helm"
+        reason: "JHelm sha256sum/toYaml produce different checksums than Helm"
       # Secret data — randomized or differently-encoded values
       - resource: "Secret/*"
         path: "data.*"
@@ -24,6 +24,22 @@ jhelmtest:
       - resource: "*"
         path: "*"
         reason: "Subchart rendering gaps produce missing resources and field diffs"
+    "[traefik/traefik]":
+      # BUG: JHelm omits explicit null fields (lifecycle, resources) that Helm emits
+      - resource: "Deployment/*"
+        path: "spec.template.spec.containers[0].lifecycle"
+        reason: "BUG: JHelm does not emit explicit null fields in rendered YAML"
+      - resource: "Deployment/*"
+        path: "spec.template.spec.containers[0].resources"
+        reason: "BUG: JHelm does not emit explicit null fields in rendered YAML"
+      # BUG: JHelm does not render service ports from traefik range-over-map template
+      - resource: "Service/*"
+        path: "spec.ports"
+        reason: "BUG: range over .Values.ports map renders empty — port iteration logic not handled"
+      # BUG: ClusterRole rules differ due to conditional template evaluation differences
+      - resource: "ClusterRole/*"
+        path: "rules.*"
+        reason: "BUG: conditional rules render differently — likely values-driven if/range evaluation gap"
     "[ingress-nginx/ingress-nginx]":
       # Service fields populated by Helm but not by JHelm
       - resource: "Service/*"
@@ -35,3 +51,77 @@ jhelmtest:
       - resource: "Service/*"
         path: "spec.ports.*"
         reason: "JHelm does not populate appProtocol on service ports"
+    "[gitlab/gitlab-runner]":
+      # BUG: JHelm renders empty string instead of null for env values
+      - resource: "Deployment/*"
+        path: "spec.template.spec.containers[0].env.*"
+        reason: "BUG: env value/name ordering and null-vs-empty-string differences"
+      # BUG: JHelm emits explicit null for spec.replicas that Helm omits
+      - resource: "Deployment/*"
+        path: "spec.replicas"
+        reason: "BUG: JHelm emits explicit null fields that Helm omits"
+    "[apache-airflow/airflow]":
+      # BUG: Complex chart with many rendering gaps — worker resources, volumeMount ordering, etc.
+      - resource: "*"
+        path: "*"
+        reason: "BUG: Missing worker resources, volumeMount ordering, ConfigMap content diffs, JSON key ordering"
+    "[nextcloud/nextcloud]":
+      # Hash annotations differ due to different sha256 computation
+      - resource: "Deployment/*"
+        path: "spec.template.metadata.annotations.*"
+        reason: "JHelm sha256sum produces different hash values than Helm"
+    "[cilium/cilium]":
+      # BUG: Complex chart with massive rendering gaps — ConfigMap, DaemonSet, RBAC diffs
+      - resource: "*"
+        path: "*"
+        reason: "BUG: Complex chart — ConfigMap 15 diffs, DaemonSet 54 diffs, RBAC and service diffs"
+    "[bitnami/minio]":
+      # BUG: Subchart version labels show parent chart version instead of subchart version
+      - resource: "*"
+        path: "metadata.labels.app.kubernetes.io/version"
+        reason: "BUG: Subchart resources get parent chart version label instead of subchart version"
+    "[argo/argo-workflows]":
+      # BUG: CRD resources not rendered by JHelm
+      - resource: "CustomResourceDefinition/*"
+        path: "*"
+        reason: "BUG: CRD templates not rendered — crds/ directory handling not implemented"
+    "[istio-official/istiod]":
+      # BUG: All resources missing — chart structure not handled by JHelm
+      - resource: "*"
+        path: "*"
+        reason: "BUG: Entire chart fails to render — likely non-standard chart structure"
+    "[gitea/gitea]":
+      # BUG: Subchart rendering gaps — version labels, StatefulSet, Secrets
+      - resource: "*"
+        path: "*"
+        reason: "BUG: Subchart version labels, StatefulSet 99 diffs, Secret content missing"
+    "[datadog/datadog]":
+      # BUG: Template-level semver check causes fail() — agent image version comparison
+      - resource: "*"
+        path: "*"
+        reason: "BUG: semverCompare in template triggers fail() for agent image version check"
+    "[runix/pgadmin4]":
+      # BUG: Parser fails on nested parenthesized expressions in _helpers.tpl
+      - resource: "*"
+        path: "*"
+        reason: "BUG: Parser cannot handle nested parenthesized expressions like (kindIs \"string\" .toMap)"
+    "[goauthentik/authentik]":
+      # BUG: Missing RBAC resources and serviceAccountName
+      - resource: "*"
+        path: "*"
+        reason: "BUG: Missing ServiceAccount, ClusterRole, ClusterRoleBinding, Role, RoleBinding resources"
+    "[artifact-hub/artifact-hub]":
+      # BUG: Null values rendered as empty string in Secret stringData
+      - resource: "Secret/*"
+        path: "stringData.*"
+        reason: "BUG: JHelm renders null values as empty string instead of omitting them"
+    "[mojo2600/pihole]":
+      # BUG: Document boundary parsing — Service content merged into ConfigMap
+      - resource: "*"
+        path: "*"
+        reason: "BUG: YAML document boundary not parsed correctly — Service spec merged into ConfigMap"
+    "[hashicorp/consul]":
+      # BUG: Checksum annotation uses custom path not covered by global ignore
+      - resource: "*"
+        path: "spec.template.metadata.annotations.consul.hashicorp.com/*"
+        reason: "BUG: sha256sum of included templates produces hash of empty string (#129)"

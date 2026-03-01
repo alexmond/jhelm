@@ -156,6 +156,36 @@ They live in `Functions.GO_BUILTINS` within `jhelm-gotemplate`.
 | Invokes a function value with the given arguments
 |===
 
+== Control Flow
+
+The engine supports the following Go template control flow keywords:
+
+[cols="1,3"]
+|===
+| Keyword | Description
+
+| `if` / `else` / `else if`
+| Conditional branching based on truthiness of the pipeline value
+
+| `range`
+| Iterates over arrays, slices, maps, and collections
+
+| `with`
+| Sets the dot (`.`) to the pipeline value if truthy, optionally with an `else` clause
+
+| `define` / `template` / `block`
+| Named template definition and invocation
+
+| `break`
+| Exits the innermost `range` loop early (Go 1.18+)
+
+| `continue`
+| Skips to the next iteration of the innermost `range` loop (Go 1.18+)
+
+| `end`
+| Closes `if`, `range`, `with`, `define`, and `block` constructs
+|===
+
 == Truthiness
 
 Go templates use "truthiness" to evaluate values in conditionals (`if`, `with`, `and`, `or`).

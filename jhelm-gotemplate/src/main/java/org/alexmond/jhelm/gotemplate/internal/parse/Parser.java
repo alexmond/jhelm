@@ -128,6 +128,12 @@ public class Parser {
 			case BLOCK:
 				parseBlock(listNode, lexer, state);
 				break;
+			case BREAK:
+				parseBreak(listNode, lexer, state);
+				break;
+			case CONTINUE:
+				parseContinue(listNode, lexer, state);
+				break;
 			case DEFINE:
 				parseDefinition(lexer, state);
 				break;
@@ -256,6 +262,30 @@ public class Parser {
 			default:
 				throwUnexpectError(String.format("unexpected %s in end", token));
 		}
+	}
+
+	private void parseBreak(ListNode listNode, Lexer lexer, State state) throws TemplateParseException {
+		Token token = moveToNextNonSpaceToken(lexer, state);
+		if (token == null) {
+			throwUnexpectError("missing token");
+		}
+
+		if (token.type() != TokenType.RIGHT_DELIM) {
+			throwUnexpectError(String.format("unexpected %s in break", token));
+		}
+		listNode.append(new BreakNode());
+	}
+
+	private void parseContinue(ListNode listNode, Lexer lexer, State state) throws TemplateParseException {
+		Token token = moveToNextNonSpaceToken(lexer, state);
+		if (token == null) {
+			throwUnexpectError("missing token");
+		}
+
+		if (token.type() != TokenType.RIGHT_DELIM) {
+			throwUnexpectError(String.format("unexpected %s in continue", token));
+		}
+		listNode.append(new ContinueNode());
 	}
 
 	private void parseEnd(ListNode listNode, Lexer lexer, State state) throws TemplateParseException {

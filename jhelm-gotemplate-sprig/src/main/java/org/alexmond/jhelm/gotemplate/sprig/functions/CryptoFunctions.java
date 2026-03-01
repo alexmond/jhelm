@@ -67,7 +67,15 @@ public final class CryptoFunctions {
 		functions.put("genSignedCert", genSignedCert());
 		functions.put("genSelfSignedCert", genSelfSignedCert());
 
+		functions.put("uuidv4", uuidv4());
+
 		return functions;
+	}
+
+	// ========== UUID Generation ==========
+
+	private static Function uuidv4() {
+		return (args) -> java.util.UUID.randomUUID().toString();
 	}
 
 	// ========== Random String Generation ==========
