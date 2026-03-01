@@ -14,11 +14,6 @@ jhelmtest:
       - resource: "*"
         path: "spec.trafficDistribution"
         reason: "Subchart defaults merging exposes values that Helm omits"
-    "[traefik/traefik]":
-      # BUG: semverCompare conditions produce missing ClusterRole rules
-      - resource: "ClusterRole/*"
-        path: "rules.*"
-        reason: "BUG: semverCompare evaluates incorrectly — missing configmaps and pods rules"
     "[prometheus-community/kube-prometheus-stack]":
       # Complex multi-subchart bundle; many resources not rendered by JHelm
       - resource: "*"

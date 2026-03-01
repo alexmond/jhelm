@@ -1052,4 +1052,43 @@ class EngineTest {
 		assertTrue(result.contains("port: 443"), "Should render websecure port 443: " + result);
 	}
 
+	// --- split() return type and Chart.AppVersion access ---
+
+	@Test
+	void testChartAppVersionAccess() {
+		String tmpl = "version: {{ .Chart.AppVersion }}";
+		Map<String, Object> values = new HashMap<>();
+		Chart chart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").appVersion("v3.6.7").build())
+			.templates(List.of(tmpl("test.yaml", tmpl)))
+			.values(values)
+			.build();
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("version: v3.6.7"), "Chart.AppVersion should be accessible: " + result);
+	}
+
+	@Test
+	void testSplitReturnMapWithUnderscoreKeys() {
+		// Sprig split returns map with _0, _1, etc. keys — used in traefik proxyVersion
+		String helpers = """
+				{{- define "getVersion" -}}
+				{{- $t := .Values.image.tag -}}
+				{{- (split "@" (default .Chart.AppVersion $t))._0 -}}
+				{{- end -}}""";
+		String tmpl = """
+				{{- $v := include "getVersion" . -}}
+				version: {{ $v }}
+				gte34: {{ semverCompare ">=v3.4.0-0" $v }}""";
+		Map<String, Object> values = new HashMap<>();
+		values.put("image", Map.of("tag", ""));
+		Chart chart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").appVersion("v3.6.7").build())
+			.templates(List.of(tmpl("_helpers.tpl", helpers), tmpl("test.yaml", tmpl)))
+			.values(values)
+			.build();
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("version: v3.6.7"), "split._0 should extract version: " + result);
+		assertTrue(result.contains("gte34: true"), "semverCompare should work with split result: " + result);
+	}
+
 }
