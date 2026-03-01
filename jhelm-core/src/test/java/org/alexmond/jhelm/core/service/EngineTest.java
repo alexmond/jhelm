@@ -588,6 +588,42 @@ class EngineTest {
 		assertTrue(result.contains("replicas: 1"));
 	}
 
+	// --- include with $.Template.BasePath ---
+
+	@Test
+	void testIncludeWithTemplateBasePath() {
+		// Pattern: include (print $.Template.BasePath "/configmap.yaml") .
+		// This should resolve to "mychart/templates/configmap.yaml" and find the template
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(
+				tmpl("configmap.yaml", "apiVersion: v1\nkind: ConfigMap\ndata:\n  key: value"),
+				tmpl("deploy.yaml",
+						"checksum: {{ include (print $.Template.BasePath \"/configmap.yaml\") . | sha256sum }}")),
+				Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		// Should NOT be the SHA-256 of empty string
+		assertFalse(result.contains("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+				"sha256sum should not hash empty string — include must resolve the template");
+		assertTrue(result.contains("checksum: "));
+	}
+
+	@Test
+	void testTemplateBasePathValue() {
+		// $.Template.BasePath should be chartName/templates
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("test.yaml", "basePath: {{ $.Template.BasePath }}")),
+				Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("basePath: mychart/templates"));
+	}
+
+	@Test
+	void testTemplateNameValue() {
+		// $.Template.Name should be chartName/templates/fileName
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("deploy.yaml", "name: {{ $.Template.Name }}")),
+				Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("name: mychart/templates/deploy.yaml"));
+	}
+
 	@Test
 	void testSubchartWithAliasDefaultsAvailable() {
 		// Subchart with alias should have its defaults under the alias key
