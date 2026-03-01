@@ -32,10 +32,16 @@ class EngineTest {
 	}
 
 	private Chart simpleChart(String name, String version, List<Chart.Template> templates, Map<String, Object> values) {
+		return simpleChartWithFiles(name, version, templates, values, Map.of());
+	}
+
+	private Chart simpleChartWithFiles(String name, String version, List<Chart.Template> templates,
+			Map<String, Object> values, Map<String, String> files) {
 		return Chart.builder()
 			.metadata(ChartMetadata.builder().name(name).version(version).build())
 			.templates(templates)
 			.values(values)
+			.files(new LinkedHashMap<>(files))
 			.build();
 	}
 
@@ -1089,6 +1095,25 @@ class EngineTest {
 		String result = engine.render(chart, Map.of(), releaseInfo());
 		assertTrue(result.contains("version: v3.6.7"), "split._0 should extract version: " + result);
 		assertTrue(result.contains("gte34: true"), "semverCompare should work with split result: " + result);
+	}
+
+	// --- .Files object ---
+
+	@Test
+	void testFilesGetReturnsContent() {
+		Map<String, String> files = Map.of("config.ini", "key=value");
+		Chart chart = simpleChartWithFiles("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "data: {{ .Files.Get \"config.ini\" }}")), Map.of(), files);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("data: key=value"), "Files.Get should return file content: " + result);
+	}
+
+	@Test
+	void testFilesGetMissingReturnsEmpty() {
+		Chart chart = simpleChartWithFiles("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "data: [{{ .Files.Get \"missing.txt\" }}]")), Map.of(), Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("data: []"), "Files.Get for missing file should return empty: " + result);
 	}
 
 }

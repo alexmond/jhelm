@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.model.ChartFiles;
 import org.alexmond.jhelm.core.model.VersionSet;
 
 @Slf4j
@@ -349,6 +350,7 @@ public class Engine {
 				new VersionSet(DEFAULT_API_VERSIONS)));
 		String chartBasePath = chart.getMetadata().getName() + "/templates";
 		context.put("Template", Map.of("Name", "", "BasePath", chartBasePath));
+		context.put("Files", new ChartFiles(chart.getFiles()));
 
 		StringBuilder sb = new StringBuilder();
 

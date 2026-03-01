@@ -5,16 +5,21 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.MalformedInputException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.ChartLoadException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.util.ValuesLoader;
 
+@Slf4j
 @Component
 public class ChartLoader {
 
@@ -49,21 +54,7 @@ public class ChartLoader {
 		}
 
 		// Load dependencies (subcharts)
-		File chartsDir = new File(chartDir, "charts");
-		List<Chart> dependencies = new ArrayList<>();
-		if (chartsDir.exists() && chartsDir.isDirectory()) {
-			File[] subchartDirs = chartsDir.listFiles(File::isDirectory);
-			if (subchartDirs != null) {
-				for (File subchartDir : subchartDirs) {
-					Chart subchart = load(subchartDir);
-					// If the directory name differs from the chart name it is an alias
-					if (!subchartDir.getName().equals(subchart.getMetadata().getName())) {
-						subchart.setAlias(subchartDir.getName());
-					}
-					dependencies.add(subchart);
-				}
-			}
-		}
+		List<Chart> dependencies = loadDependencies(chartDir);
 
 		// Load README
 		String readme = null;
@@ -86,6 +77,10 @@ public class ChartLoader {
 			loadCrdsRecursive(crdsDir, "", crds);
 		}
 
+		// Load non-template files (for .Files object)
+		Map<String, String> chartFiles = new LinkedHashMap<>();
+		loadChartFiles(chartDir, chartFiles);
+
 		return Chart.builder()
 			.metadata(metadata)
 			.values(values)
@@ -94,7 +89,27 @@ public class ChartLoader {
 			.dependencies(dependencies)
 			.readme(readme)
 			.crds(crds)
+			.files(chartFiles)
 			.build();
+	}
+
+	private List<Chart> loadDependencies(File chartDir) throws IOException {
+		File chartsDir = new File(chartDir, "charts");
+		List<Chart> dependencies = new ArrayList<>();
+		if (!chartsDir.exists() || !chartsDir.isDirectory()) {
+			return dependencies;
+		}
+		File[] subchartDirs = chartsDir.listFiles(File::isDirectory);
+		if (subchartDirs != null) {
+			for (File subchartDir : subchartDirs) {
+				Chart subchart = load(subchartDir);
+				if (!subchartDir.getName().equals(subchart.getMetadata().getName())) {
+					subchart.setAlias(subchartDir.getName());
+				}
+				dependencies.add(subchart);
+			}
+		}
+		return dependencies;
 	}
 
 	private void loadTemplatesRecursive(File dir, String path, List<Chart.Template> templates) throws IOException {
@@ -114,6 +129,51 @@ public class ChartLoader {
 					.build();
 				templates.add(template);
 			}
+		}
+	}
+
+	private static final Set<String> EXCLUDED_DIRS = Set.of("templates", "charts", "crds");
+
+	private static final Set<String> EXCLUDED_FILES = Set.of("Chart.yaml", "Chart.lock", "values.yaml",
+			"values.schema.json", "README.md", ".helmignore");
+
+	private void loadChartFiles(File chartDir, Map<String, String> chartFiles) throws IOException {
+		File[] entries = chartDir.listFiles();
+		if (entries == null) {
+			return;
+		}
+		for (File entry : entries) {
+			if (entry.isDirectory() && !EXCLUDED_DIRS.contains(entry.getName())) {
+				loadFilesRecursive(entry, entry.getName(), chartFiles);
+			}
+			else if (entry.isFile() && !EXCLUDED_FILES.contains(entry.getName())) {
+				readTextFile(entry, entry.getName(), chartFiles);
+			}
+		}
+	}
+
+	private void loadFilesRecursive(File dir, String path, Map<String, String> chartFiles) throws IOException {
+		File[] files = dir.listFiles();
+		if (files == null) {
+			return;
+		}
+		for (File file : files) {
+			String name = path + "/" + file.getName();
+			if (file.isDirectory()) {
+				loadFilesRecursive(file, name, chartFiles);
+			}
+			else {
+				readTextFile(file, name, chartFiles);
+			}
+		}
+	}
+
+	private void readTextFile(File file, String name, Map<String, String> chartFiles) throws IOException {
+		try {
+			chartFiles.put(name, Files.readString(file.toPath()));
+		}
+		catch (MalformedInputException ex) {
+			log.debug("Skipping binary file: {}", name);
 		}
 	}
 
