@@ -226,7 +226,7 @@ class EngineTest {
 		Chart chart = simpleChart("mychart", "1.0.0",
 				List.of(tmpl("test.yaml", "kube: {{ .Capabilities.KubeVersion.Version }}")), Map.of());
 		String result = engine.render(chart, Map.of(), releaseInfo());
-		assertTrue(result.contains("kube: v1.31.0"));
+		assertTrue(result.contains("kube: v1.35.0"));
 	}
 
 	// --- Error handling ---
@@ -363,7 +363,7 @@ class EngineTest {
 	// --- Capabilities: KubeVersion fields ---
 
 	@ParameterizedTest(name = "KubeVersion.{0} is accessible")
-	@CsvSource({ "Version, v1.31.0", "GitVersion, v1.31.0", "Major, 1", "Minor, 31" })
+	@CsvSource({ "Version, v1.35.0", "GitVersion, v1.35.0", "Major, 1", "Minor, 35" })
 	void testKubeVersionField(String field, String expected) {
 		Chart chart = simpleChart("mychart", "1.0.0",
 				List.of(tmpl("test.yaml", "val: {{ .Capabilities.KubeVersion." + field + " }}")), Map.of());

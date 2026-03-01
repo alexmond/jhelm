@@ -12,6 +12,7 @@ import org.alexmond.jhelm.gotemplate.sprig.functions.EncodingFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.LogicFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.MathFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.NetworkFunctions;
+import org.alexmond.jhelm.gotemplate.sprig.functions.PathFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.ReflectionFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.SemverFunctions;
 import org.alexmond.jhelm.gotemplate.sprig.functions.StringFunctions;
@@ -69,6 +70,9 @@ public final class SprigFunctionsRegistry {
 		// Network operations
 		functions.putAll(NetworkFunctions.getFunctions());
 
+		// Path operations
+		functions.putAll(PathFunctions.getFunctions());
+
 		// Semantic versioning
 		functions.putAll(SemverFunctions.getFunctions());
 
@@ -107,15 +111,19 @@ public final class SprigFunctionsRegistry {
 		categories.put("Encoding",
 				List.of("b64enc", "b64dec", "b32enc", "b32dec", "sha1sum", "sha256sum", "sha512sum", "adler32sum"));
 
-		categories.put("Crypto", List.of("genPrivateKey", "derivePassword", "genSignedCert", "genSelfSignedCert",
-				"genCA", "buildCustomCert", "htpasswd", "randAlphaNum", "randAlpha", "randNumeric", "randAscii"));
+		categories.put("Crypto",
+				List.of("genPrivateKey", "derivePassword", "genSignedCert", "genSelfSignedCert", "genCA",
+						"buildCustomCert", "htpasswd", "randAlphaNum", "randAlpha", "randNumeric", "randAscii",
+						"uuidv4"));
 
 		categories.put("Date", List.of("now", "date", "dateInZone", "dateModify", "htmlDate", "htmlDateInZone",
 				"durationRound", "unixEpoch", "toDate", "mustToDate"));
 
 		categories.put("Type/Reflection", List.of("typeOf", "kindOf", "typeIs", "kindIs", "typeIsLike", "deepEqual"));
 
-		categories.put("Network", List.of("getHostByName", "urlParse"));
+		categories.put("Network", List.of("getHostByName", "urlParse", "urlJoin"));
+
+		categories.put("Path", List.of("base", "dir", "ext", "clean", "isAbs"));
 
 		categories.put("Semver", List.of("semver", "semverCompare"));
 

@@ -214,6 +214,32 @@ class GoTemplateTest {
 		assertEquals("5672,80,443,", writer.toString());
 	}
 
+	// --- Range break/continue (Go 1.18) ---
+
+	@Test
+	void testRangeBreak() throws TemplateParseException, IOException, TemplateException {
+		GoTemplate template = new GoTemplate();
+		template.parse("main",
+				"{{ range $v := .items }}{{ if eq $v \"stop\" }}{{ break }}{{ end }}[{{ $v }}]{{ end }}");
+
+		StringWriter writer = new StringWriter();
+		template.execute(Map.of("items", List.of("a", "b", "stop", "c")), writer);
+
+		assertEquals("[a][b]", writer.toString().replaceAll("\\s+", ""));
+	}
+
+	@Test
+	void testRangeContinue() throws TemplateParseException, IOException, TemplateException {
+		GoTemplate template = new GoTemplate();
+		template.parse("main",
+				"{{ range $v := .items }}{{ if eq $v \"skip\" }}{{ continue }}{{ end }}[{{ $v }}]{{ end }}");
+
+		StringWriter writer = new StringWriter();
+		template.execute(Map.of("items", List.of("a", "skip", "b", "c")), writer);
+
+		assertEquals("[a][b][c]", writer.toString().replaceAll("\\s+", ""));
+	}
+
 	// --- printValue: Collection rendering (Bug #3 fix) ---
 
 	@Test

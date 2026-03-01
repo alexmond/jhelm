@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.gotemplate.sprig.functions;
 
-import java.util.Locale;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -43,51 +44,37 @@ public final class ReflectionFunctions {
 	// ========== Type Information Functions ==========
 
 	/**
-	 * Returns the full Java type name of the value. Returns "nil" for null values.
+	 * Returns the Go-style type name of the value. Maps Java types to their Go
+	 * equivalents to match Sprig's {@code typeOf} behavior (which uses Go's
+	 * {@code fmt.Sprintf("%T", src)}).
 	 */
 	private static Function typeOf() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				return "nil";
+				return "<nil>";
 			}
-			return args[0].getClass().getName();
+			return goTypeName(args[0]);
 		};
 	}
 
 	/**
-	 * Returns the kind (basic type category) of the value. Kinds: string, number, bool,
-	 * map, slice, struct, invalid
+	 * Returns the kind (basic type category) of the value using Go's {@code reflect.Kind}
+	 * names.
 	 */
 	private static Function kindOf() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
 				return "invalid";
 			}
-			Class<?> c = args[0].getClass();
-
-			if (c == String.class) {
-				return "string";
-			}
-			if (Number.class.isAssignableFrom(c)) {
-				return "number";
-			}
-			if (Boolean.class.isAssignableFrom(c)) {
-				return "bool";
-			}
-			if (Map.class.isAssignableFrom(c)) {
-				return "map";
-			}
-			if (Collection.class.isAssignableFrom(c) || c.isArray()) {
-				return "slice";
-			}
-			return "struct";
+			return goKindName(args[0]);
 		};
 	}
 
 	// ========== Type Checking Functions ==========
 
 	/**
-	 * Checks if the value is of a specific type.
+	 * Checks if the value is of a specific type. Uses exact match against the Go-style
+	 * type name, matching Sprig's {@code typeIs} behavior.
 	 * @return {@code true} if value matches the type
 	 */
 	private static Function typeIs() {
@@ -95,22 +82,16 @@ public final class ReflectionFunctions {
 			if (args.length < 2) {
 				return false;
 			}
-			String type = String.valueOf(args[0]).toLowerCase(Locale.ROOT);
+			String target = String.valueOf(args[0]);
 			Object val = args[1];
-
-			if (val == null) {
-				return "nil".equals(type);
-			}
-
-			String className = val.getClass().getSimpleName().toLowerCase(Locale.ROOT);
-			String fullName = val.getClass().getName().toLowerCase(Locale.ROOT);
-
-			return className.equals(type) || fullName.contains(type);
+			return target.equals(goTypeName(val));
 		};
 	}
 
 	/**
-	 * Checks if the value's type is like a specific type (partial match).
+	 * Checks if the value's type matches a specific type or its pointer variant. In Go,
+	 * {@code typeIsLike} checks
+	 * {@code target == typeOf(src) || "*"+target == typeOf(src)}.
 	 * @return {@code true} if value's type matches the pattern
 	 */
 	private static Function typeIsLike() {
@@ -118,20 +99,15 @@ public final class ReflectionFunctions {
 			if (args.length < 2) {
 				return false;
 			}
-			String typePattern = String.valueOf(args[0]).toLowerCase(Locale.ROOT);
-			Object val = args[1];
-
-			if (val == null) {
-				return "nil".equals(typePattern);
-			}
-
-			String fullName = val.getClass().getName().toLowerCase(Locale.ROOT);
-			return fullName.contains(typePattern);
+			String target = String.valueOf(args[0]);
+			String typeName = goTypeName(args[1]);
+			return target.equals(typeName) || ("*" + target).equals(typeName);
 		};
 	}
 
 	/**
-	 * Checks if the value's kind matches a specific kind.
+	 * Checks if the value's kind matches a specific kind. Matches against Go's
+	 * {@code reflect.Kind} names with additional aliases for numeric types.
 	 * @return {@code true} if value's kind matches
 	 */
 	private static Function kindIs() {
@@ -146,16 +122,89 @@ public final class ReflectionFunctions {
 				return "invalid".equals(kind);
 			}
 
+			String actualKind = goKindName(val);
+			if (kind.equals(actualKind)) {
+				return true;
+			}
+			// Accept aliases: "number" matches any numeric kind, "list" matches "slice"
 			Class<?> c = val.getClass();
 			return switch (kind) {
-				case "string" -> c == String.class;
-				case "number", "int", "float", "float64" -> Number.class.isAssignableFrom(c);
-				case "bool" -> Boolean.class.isAssignableFrom(c);
-				case "map" -> Map.class.isAssignableFrom(c);
-				case "slice", "list" -> Collection.class.isAssignableFrom(c) || c.isArray();
+				case "number" -> Number.class.isAssignableFrom(c);
+				case "list" -> Collection.class.isAssignableFrom(c) || c.isArray();
 				default -> false;
 			};
 		};
+	}
+
+	// ========== Go Type Mapping ==========
+
+	/**
+	 * Maps a Java object to its Go-style type name, matching what Go's
+	 * {@code fmt.Sprintf("%T", src)} would return.
+	 */
+	static String goTypeName(Object obj) {
+		if (obj == null) {
+			return "<nil>";
+		}
+		Class<?> c = obj.getClass();
+		if (c == String.class) {
+			return "string";
+		}
+		if (c == Boolean.class) {
+			return "bool";
+		}
+		if (c == Integer.class || c == Short.class || c == Byte.class) {
+			return "int";
+		}
+		if (c == Long.class || c == BigInteger.class) {
+			return "int64";
+		}
+		if (c == Double.class || c == BigDecimal.class) {
+			return "float64";
+		}
+		if (c == Float.class) {
+			return "float32";
+		}
+		if (Map.class.isAssignableFrom(c)) {
+			return "map[string]interface {}";
+		}
+		if (Collection.class.isAssignableFrom(c) || c.isArray()) {
+			return "[]interface {}";
+		}
+		return c.getName();
+	}
+
+	/**
+	 * Maps a Java object to its Go-style kind name, matching Go's
+	 * {@code reflect.ValueOf(src).Kind().String()}.
+	 */
+	private static String goKindName(Object obj) {
+		Class<?> c = obj.getClass();
+		if (c == String.class) {
+			return "string";
+		}
+		if (c == Boolean.class) {
+			return "bool";
+		}
+		if (c == Integer.class || c == Short.class || c == Byte.class) {
+			return "int";
+		}
+		if (c == Long.class || c == BigInteger.class) {
+			return "int64";
+		}
+		if (c == Double.class || c == BigDecimal.class) {
+			return "float64";
+		}
+		if (c == Float.class) {
+			return "float32";
+		}
+		if (Map.class.isAssignableFrom(c)) {
+			return "map";
+		}
+		if (Collection.class.isAssignableFrom(c) || c.isArray()) {
+			return "slice";
+		}
+		return "struct";
 	}
 
 	// ========== Equality Functions ==========

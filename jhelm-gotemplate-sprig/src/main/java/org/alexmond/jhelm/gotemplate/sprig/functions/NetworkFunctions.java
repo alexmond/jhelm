@@ -25,8 +25,9 @@ public final class NetworkFunctions {
 		// DNS lookup
 		functions.put("getHostByName", getHostByName());
 
-		// URL parsing
+		// URL parsing and building
 		functions.put("urlParse", urlParse());
+		functions.put("urlJoin", urlJoin());
 
 		return functions;
 	}
@@ -70,6 +71,59 @@ public final class NetworkFunctions {
 				return Map.of();
 			}
 		};
+	}
+
+	/**
+	 * Constructs a URL from a dictionary of components. Accepts keys: scheme, host, port,
+	 * path, query, fragment, userinfo.
+	 * @return The constructed URL string
+	 */
+	@SuppressWarnings("unchecked")
+	private static Function urlJoin() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null || !(args[0] instanceof Map)) {
+				return "";
+			}
+			Map<String, Object> components = (Map<String, Object>) args[0];
+			StringBuilder url = new StringBuilder();
+
+			String scheme = getStr(components, "scheme");
+			String host = getStr(components, "host");
+			String port = getStr(components, "port");
+			String path = getStr(components, "path");
+			String query = getStr(components, "query");
+			String fragment = getStr(components, "fragment");
+			String userinfo = getStr(components, "userinfo");
+
+			if (!scheme.isEmpty()) {
+				url.append(scheme).append("://");
+			}
+			if (!userinfo.isEmpty()) {
+				url.append(userinfo).append('@');
+			}
+			url.append(host);
+			if (!port.isEmpty()) {
+				url.append(':').append(port);
+			}
+			if (!path.isEmpty()) {
+				if (!path.startsWith("/") && !host.isEmpty()) {
+					url.append('/');
+				}
+				url.append(path);
+			}
+			if (!query.isEmpty()) {
+				url.append('?').append(query);
+			}
+			if (!fragment.isEmpty()) {
+				url.append('#').append(fragment);
+			}
+			return url.toString();
+		};
+	}
+
+	private static String getStr(Map<String, Object> map, String key) {
+		Object val = map.get(key);
+		return (val != null) ? String.valueOf(val) : "";
 	}
 
 	/**

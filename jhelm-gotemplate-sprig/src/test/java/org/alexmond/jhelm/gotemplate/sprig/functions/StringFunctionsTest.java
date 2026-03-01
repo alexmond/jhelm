@@ -75,6 +75,26 @@ class StringFunctionsTest {
 	}
 
 	@Test
+	void testQuoteEscapesInnerDoubleQuotes() throws IOException, TemplateException {
+		// Longhorn pattern: quote on a JSON string containing double quotes
+		HashMap<String, Object> data = new HashMap<>();
+		data.put("val", "{\"v1\":\"true\"}");
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ quote .val }}", data, writer);
+		assertEquals("\"{\\\"v1\\\":\\\"true\\\"}\"", writer.toString());
+	}
+
+	@Test
+	void testQuoteEscapesNewlines() throws IOException, TemplateException {
+		// oauth2-proxy pattern: multi-line config in quote
+		HashMap<String, Object> data = new HashMap<>();
+		data.put("val", "line1\nline2");
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ quote .val }}", data, writer);
+		assertEquals("\"line1\\nline2\"", writer.toString());
+	}
+
+	@Test
 	void testSquote() throws IOException, TemplateException {
 		assertEquals("'hello'", exec("{{ squote \"hello\" }}"));
 	}
