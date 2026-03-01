@@ -259,4 +259,43 @@ class StringFunctionsTest {
 		assertEquals("", writer.toString());
 	}
 
+	// --- New functions: nospace, swapcase, regexQuoteMeta, mustRegexFindAll, trimall ---
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|',
+			value = { "{{ nospace \"hello world\" }}                | helloworld",
+					"{{ nospace \"  a b  c  \" }}                  | abc",
+					"{{ nospace \"nospaces\" }}                    | nospaces" })
+	void testNospace(String template, String expected) throws IOException, TemplateException {
+		assertEquals(expected, exec(template));
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|',
+			value = { "{{ swapcase \"Hello World\" }}               | hELLO wORLD",
+					"{{ swapcase \"ABC\" }}                        | abc",
+					"{{ swapcase \"abc\" }}                        | ABC",
+					"{{ swapcase \"123\" }}                        | 123" })
+	void testSwapcase(String template, String expected) throws IOException, TemplateException {
+		assertEquals(expected, exec(template));
+	}
+
+	@Test
+	void testRegexQuoteMeta() throws IOException, TemplateException {
+		String result = exec("{{ regexQuoteMeta \"1.2.3\" }}");
+		assertTrue(result.contains("1"));
+		assertTrue(result.contains("2"));
+		assertTrue(result.contains("3"));
+	}
+
+	@Test
+	void testMustRegexFindAll() throws IOException, TemplateException {
+		assertEquals("2", exec("{{ $m := mustRegexFindAll \"[0-9]+\" \"abc123def456\" -1 }}{{ len $m }}"));
+	}
+
+	@Test
+	void testTrimallAlias() throws IOException, TemplateException {
+		assertEquals("5.00", exec("{{ trimall \"$\" \"$5.00\" }}"));
+	}
+
 }

@@ -30,6 +30,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
 import org.apache.commons.codec.binary.Hex;
 
 /**
@@ -68,6 +70,15 @@ public final class CryptoFunctions {
 		functions.put("genSelfSignedCert", genSelfSignedCert());
 
 		functions.put("uuidv4", uuidv4());
+
+		functions.put("bcrypt", bcrypt());
+		functions.put("randBytes", randBytes());
+		functions.put("encryptAES", encryptAES());
+		functions.put("decryptAES", decryptAES());
+
+		functions.put("genCAWithKey", genCAWithKey());
+		functions.put("genSelfSignedCertWithKey", genSelfSignedCertWithKey());
+		functions.put("genSignedCertWithKey", genSignedCertWithKey());
 
 		return functions;
 	}
@@ -276,6 +287,156 @@ public final class CryptoFunctions {
 			int days = (args.length > 3) ? ((Number) args[3]).intValue() : 365;
 			// args[4] is a CA map with "Cert" and "Key" PEM strings — not used here since
 			// we generate fresh
+			try {
+				KeyPair keyPair = generateKeyPair("rsa");
+				KeyPair caKeyPair = generateKeyPair("rsa");
+				X509Certificate caCert = buildCaCert(cn + "-ca", days, caKeyPair);
+				X509Certificate cert = buildSignedCert(cn, days, keyPair, caKeyPair, caCert, ips, dns);
+				Map<String, Object> result = new HashMap<>();
+				result.put("Cert", toPemCert(cert));
+				result.put("Key", toPemPrivateKey(keyPair, "rsa"));
+				return result;
+			}
+			catch (Exception ex) {
+				return Map.of("Cert", "", "Key", "");
+			}
+		};
+	}
+
+	// ========== BCrypt ==========
+
+	private static Function bcrypt() {
+		return (args) -> {
+			if (args.length == 0) {
+				return "";
+			}
+			return BCRYPT.encode(String.valueOf(args[0]));
+		};
+	}
+
+	// ========== Random Bytes ==========
+
+	private static Function randBytes() {
+		return (args) -> {
+			if (args.length == 0) {
+				return "";
+			}
+			int count = ((Number) args[0]).intValue();
+			byte[] bytes = new byte[count];
+			SECURE_RANDOM.nextBytes(bytes);
+			return Base64.getEncoder().encodeToString(bytes);
+		};
+	}
+
+	// ========== AES Encryption/Decryption ==========
+
+	private static Function encryptAES() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			try {
+				String password = String.valueOf(args[0]);
+				String plaintext = String.valueOf(args[1]);
+				byte[] key = deriveAesKey(password);
+				Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+				byte[] iv = new byte[16];
+				SECURE_RANDOM.nextBytes(iv);
+				cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), new IvParameterSpec(iv));
+				byte[] encrypted = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
+				byte[] combined = new byte[iv.length + encrypted.length];
+				System.arraycopy(iv, 0, combined, 0, iv.length);
+				System.arraycopy(encrypted, 0, combined, iv.length, encrypted.length);
+				return Base64.getEncoder().encodeToString(combined);
+			}
+			catch (Exception ex) {
+				return "";
+			}
+		};
+	}
+
+	private static Function decryptAES() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			try {
+				String password = String.valueOf(args[0]);
+				String ciphertext = String.valueOf(args[1]);
+				byte[] key = deriveAesKey(password);
+				byte[] combined = Base64.getDecoder().decode(ciphertext);
+				byte[] iv = new byte[16];
+				System.arraycopy(combined, 0, iv, 0, 16);
+				byte[] encrypted = new byte[combined.length - 16];
+				System.arraycopy(combined, 16, encrypted, 0, encrypted.length);
+				Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+				cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"), new IvParameterSpec(iv));
+				return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
+			}
+			catch (Exception ex) {
+				return "";
+			}
+		};
+	}
+
+	private static byte[] deriveAesKey(String password) {
+		byte[] keyBytes = password.getBytes(StandardCharsets.UTF_8);
+		byte[] key = new byte[32];
+		System.arraycopy(keyBytes, 0, key, 0, Math.min(keyBytes.length, 32));
+		return key;
+	}
+
+	// ========== Certificate Generation with Custom Key ==========
+
+	private static Function genCAWithKey() {
+		return (args) -> {
+			String cn = (args.length > 0) ? String.valueOf(args[0]) : "ca";
+			int days = (args.length > 1) ? ((Number) args[1]).intValue() : 365;
+			// args[2] = existing key PEM — simplified: generate fresh
+			try {
+				KeyPair keyPair = generateKeyPair("rsa");
+				X509Certificate cert = buildCaCert(cn, days, keyPair);
+				Map<String, Object> result = new HashMap<>();
+				result.put("Cert", toPemCert(cert));
+				result.put("Key", toPemPrivateKey(keyPair, "rsa"));
+				return result;
+			}
+			catch (Exception ex) {
+				return Map.of("Cert", "", "Key", "");
+			}
+		};
+	}
+
+	private static Function genSelfSignedCertWithKey() {
+		return (args) -> {
+			String cn = (args.length > 0) ? String.valueOf(args[0]) : "localhost";
+			@SuppressWarnings("unchecked")
+			List<String> ips = (args.length > 1 && args[1] instanceof List) ? (List<String>) args[1] : List.of();
+			@SuppressWarnings("unchecked")
+			List<String> dns = (args.length > 2 && args[2] instanceof List) ? (List<String>) args[2] : List.of();
+			int days = (args.length > 3) ? ((Number) args[3]).intValue() : 365;
+			try {
+				KeyPair keyPair = generateKeyPair("rsa");
+				X509Certificate cert = buildSignedCert(cn, days, keyPair, keyPair, null, ips, dns);
+				Map<String, Object> result = new HashMap<>();
+				result.put("Cert", toPemCert(cert));
+				result.put("Key", toPemPrivateKey(keyPair, "rsa"));
+				return result;
+			}
+			catch (Exception ex) {
+				return Map.of("Cert", "", "Key", "");
+			}
+		};
+	}
+
+	private static Function genSignedCertWithKey() {
+		return (args) -> {
+			String cn = (args.length > 0) ? String.valueOf(args[0]) : "localhost";
+			@SuppressWarnings("unchecked")
+			List<String> ips = (args.length > 1 && args[1] instanceof List) ? (List<String>) args[1] : List.of();
+			@SuppressWarnings("unchecked")
+			List<String> dns = (args.length > 2 && args[2] instanceof List) ? (List<String>) args[2] : List.of();
+			int days = (args.length > 3) ? ((Number) args[3]).intValue() : 365;
 			try {
 				KeyPair keyPair = generateKeyPair("rsa");
 				KeyPair caKeyPair = generateKeyPair("rsa");

@@ -87,43 +87,49 @@ public final class SprigFunctionsRegistry {
 		Map<String, List<String>> categories = new HashMap<>();
 
 		categories.put("Strings",
-				List.of("trim", "trimAll", "trimPrefix", "trimSuffix", "upper", "lower", "title", "untitle", "repeat",
-						"substr", "trunc", "abbrev", "abbrevboth", "initials", "wrap", "wrapWith", "contains",
-						"hasPrefix", "hasSuffix", "quote", "squote", "cat", "indent", "nindent", "replace", "plural",
-						"snakecase", "camelcase", "kebabcase", "shuffle", "regexMatch", "mustRegexMatch", "regexFind",
-						"mustRegexFind", "regexFindAll", "regexReplaceAll", "mustRegexReplaceAll",
-						"regexReplaceAllLiteral", "mustRegexReplaceAllLiteral", "regexSplit", "mustRegexSplit"));
+				List.of("trim", "trimAll", "trimall", "trimPrefix", "trimSuffix", "nospace", "upper", "lower", "title",
+						"untitle", "swapcase", "repeat", "substr", "trunc", "abbrev", "abbrevboth", "initials", "wrap",
+						"wrapWith", "contains", "hasPrefix", "hasSuffix", "quote", "squote", "cat", "indent", "nindent",
+						"replace", "plural", "snakecase", "camelcase", "kebabcase", "shuffle", "regexMatch",
+						"mustRegexMatch", "regexFind", "mustRegexFind", "regexFindAll", "mustRegexFindAll",
+						"regexReplaceAll", "mustRegexReplaceAll", "regexReplaceAllLiteral",
+						"mustRegexReplaceAllLiteral", "regexSplit", "mustRegexSplit", "regexQuoteMeta"));
 
 		categories.put("Collections",
 				List.of("list", "tuple", "first", "mustFirst", "rest", "mustRest", "last", "mustLast", "initial",
-						"mustInitial", "append", "mustAppend", "prepend", "mustPrepend", "concat", "reverse",
-						"mustReverse", "uniq", "mustUniq", "without", "mustWithout", "has", "mustHas", "slice",
-						"mustSlice", "until", "untilStep", "seq", "compact", "mustCompact", "sortAlpha", "split",
-						"splitList", "splitn", "join", "dict", "get", "set", "unset", "hasKey", "mustHasKey", "pluck",
-						"dig", "merge", "mergeOverwrite", "mustMerge", "mustMergeOverwrite", "keys", "mustKeys", "pick",
-						"mustPick", "omit", "mustOmit", "values", "mustValues", "deepCopy", "mustDeepCopy"));
+						"mustInitial", "append", "mustAppend", "push", "mustPush", "prepend", "mustPrepend", "concat",
+						"reverse", "mustReverse", "uniq", "mustUniq", "without", "mustWithout", "has", "mustHas",
+						"slice", "mustSlice", "chunk", "mustChunk", "until", "untilStep", "seq", "compact",
+						"mustCompact", "sortAlpha", "split", "splitList", "splitn", "join", "dict", "get", "set",
+						"unset", "hasKey", "mustHasKey", "pluck", "dig", "merge", "mergeOverwrite", "mustMerge",
+						"mustMergeOverwrite", "keys", "mustKeys", "pick", "mustPick", "omit", "mustOmit", "values",
+						"mustValues", "deepCopy", "mustDeepCopy"));
 
-		categories.put("Logic", List.of("default", "empty", "coalesce", "ternary", "fail"));
+		categories.put("Logic", List.of("default", "empty", "coalesce", "ternary", "fail", "all", "any"));
 
-		categories.put("Math",
-				List.of("add", "add1", "sub", "mul", "div", "mod", "max", "min", "floor", "ceil", "round"));
+		categories.put("Math", List.of("add", "add1", "sub", "mul", "div", "mod", "max", "min", "biggest", "floor",
+				"ceil", "round", "addf", "add1f", "subf", "mulf", "divf", "maxf", "minf", "randInt"));
 
 		categories.put("Encoding",
 				List.of("b64enc", "b64dec", "b32enc", "b32dec", "sha1sum", "sha256sum", "sha512sum", "adler32sum"));
 
 		categories.put("Crypto",
 				List.of("genPrivateKey", "derivePassword", "genSignedCert", "genSelfSignedCert", "genCA",
-						"buildCustomCert", "htpasswd", "randAlphaNum", "randAlpha", "randNumeric", "randAscii",
-						"uuidv4"));
+						"genCAWithKey", "genSelfSignedCertWithKey", "genSignedCertWithKey", "buildCustomCert",
+						"htpasswd", "bcrypt", "randAlphaNum", "randAlpha", "randNumeric", "randAscii", "randBytes",
+						"encryptAES", "decryptAES", "uuidv4"));
 
-		categories.put("Date", List.of("now", "date", "dateInZone", "dateModify", "htmlDate", "htmlDateInZone",
-				"durationRound", "unixEpoch", "toDate", "mustToDate"));
+		categories.put("Date",
+				List.of("now", "date", "dateInZone", "date_in_zone", "dateModify", "date_modify", "mustDateModify",
+						"must_date_modify", "htmlDate", "htmlDateInZone", "durationRound", "ago", "duration",
+						"unixEpoch", "toDate", "mustToDate"));
 
 		categories.put("Type/Reflection", List.of("typeOf", "kindOf", "typeIs", "kindIs", "typeIsLike", "deepEqual"));
 
 		categories.put("Network", List.of("getHostByName", "urlParse", "urlJoin"));
 
-		categories.put("Path", List.of("base", "dir", "ext", "clean", "isAbs"));
+		categories.put("Path",
+				List.of("base", "dir", "ext", "clean", "isAbs", "osBase", "osDir", "osExt", "osClean", "osIsAbs"));
 
 		categories.put("Semver", List.of("semver", "semverCompare"));
 

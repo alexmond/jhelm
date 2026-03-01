@@ -104,4 +104,48 @@ class MathFunctionsTest {
 		assertEquals(0L, fn.invoke(new Object[] { null }));
 	}
 
+	// --- New functions: randInt, add1f, subf, maxf, minf, biggest ---
+
+	@Test
+	void testRandIntRange() throws IOException, TemplateException {
+		Function fn = MathFunctions.getFunctions().get("randInt");
+		for (int i = 0; i < 50; i++) {
+			int result = (int) fn.invoke(new Object[] { 10, 20 });
+			assertTrue(result >= 10 && result < 20, "randInt should be in [10,20): " + result);
+		}
+	}
+
+	@Test
+	void testRandIntInTemplate() throws IOException, TemplateException {
+		String result = exec("{{ randInt 0 100 }}");
+		int value = Integer.parseInt(result);
+		assertTrue(value >= 0 && value < 100);
+	}
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|', value = { "{{ add1f 2.5 }} | 3.5", "{{ add1f 0.0 }} | 1.0" })
+	void testAdd1f(String template, String expected) throws IOException, TemplateException {
+		assertEquals(expected, exec(template));
+	}
+
+	@Test
+	void testSubf() throws IOException, TemplateException {
+		assertEquals("1.5", exec("{{ subf 3.5 2.0 }}"));
+	}
+
+	@Test
+	void testMaxf() throws IOException, TemplateException {
+		assertEquals("5.5", exec("{{ maxf 2.5 5.5 3.0 }}"));
+	}
+
+	@Test
+	void testMinf() throws IOException, TemplateException {
+		assertEquals("2.5", exec("{{ minf 2.5 5.5 3.0 }}"));
+	}
+
+	@Test
+	void testBiggestAlias() throws IOException, TemplateException {
+		assertEquals("5", exec("{{ biggest 2 5 3 }}"));
+	}
+
 }

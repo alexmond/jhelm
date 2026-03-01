@@ -61,6 +61,12 @@ public final class ListFunctions {
 		functions.put("splitList", splitList());
 		functions.put("splitn", splitn());
 		functions.put("join", join());
+		functions.put("chunk", chunk());
+		functions.put("mustChunk", mustChunk());
+
+		// Aliases
+		functions.put("push", append());
+		functions.put("mustPush", mustAppend());
 		return functions;
 	}
 
@@ -557,6 +563,43 @@ public final class ListFunctions {
 				result.put("_" + i, parts[i]);
 			}
 			return result;
+		};
+	}
+
+	private static Function chunk() {
+		return (args) -> {
+			if (args.length < 2) {
+				return Collections.emptyList();
+			}
+			int size = ((Number) args[0]).intValue();
+			if (size <= 0) {
+				return Collections.emptyList();
+			}
+			Object obj = args[1];
+			List<?> list;
+			if (obj instanceof List) {
+				list = (List<?>) obj;
+			}
+			else if (obj instanceof Collection) {
+				list = new ArrayList<>((Collection<?>) obj);
+			}
+			else {
+				return Collections.emptyList();
+			}
+			List<List<?>> chunks = new ArrayList<>();
+			for (int i = 0; i < list.size(); i += size) {
+				chunks.add(list.subList(i, Math.min(i + size, list.size())));
+			}
+			return chunks;
+		};
+	}
+
+	private static Function mustChunk() {
+		return (args) -> {
+			if (args.length < 2) {
+				throw new RuntimeException("mustChunk: insufficient arguments");
+			}
+			return chunk().invoke(args);
 		};
 	}
 

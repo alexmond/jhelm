@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.alexmond.jhelm.gotemplate.Function;
 
@@ -52,6 +53,18 @@ public final class MathFunctions {
 		// Min/Max operations
 		functions.put("max", max());
 		functions.put("min", min());
+		functions.put("maxf", maxf());
+		functions.put("minf", minf());
+
+		// Random
+		functions.put("randInt", randInt());
+
+		// Additional float ops
+		functions.put("add1f", add1f());
+		functions.put("subf", subf());
+
+		// Aliases
+		functions.put("biggest", max());
 
 		return functions;
 	}
@@ -433,11 +446,87 @@ public final class MathFunctions {
 					}
 				}
 			}
-			// Return long if result is whole number, otherwise double
 			if (minVal == Math.floor(minVal) && !Double.isInfinite(minVal)) {
 				return (long) minVal;
 			}
 			return minVal;
+		};
+	}
+
+	private static Function maxf() {
+		return (args) -> {
+			if (args.length == 0) {
+				return 0.0;
+			}
+			double maxVal = Double.NEGATIVE_INFINITY;
+			for (Object arg : args) {
+				if (arg instanceof Number) {
+					double val = ((Number) arg).doubleValue();
+					if (val > maxVal) {
+						maxVal = val;
+					}
+				}
+			}
+			return maxVal;
+		};
+	}
+
+	private static Function minf() {
+		return (args) -> {
+			if (args.length == 0) {
+				return 0.0;
+			}
+			double minVal = Double.POSITIVE_INFINITY;
+			for (Object arg : args) {
+				if (arg instanceof Number) {
+					double val = ((Number) arg).doubleValue();
+					if (val < minVal) {
+						minVal = val;
+					}
+				}
+			}
+			return minVal;
+		};
+	}
+
+	private static Function randInt() {
+		return (args) -> {
+			if (args.length < 2) {
+				return 0;
+			}
+			int min = ((Number) args[0]).intValue();
+			int max = ((Number) args[1]).intValue();
+			if (min >= max) {
+				return min;
+			}
+			return ThreadLocalRandom.current().nextInt(min, max);
+		};
+	}
+
+	private static Function add1f() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return 1.0;
+			}
+			if (args[0] instanceof Number) {
+				return ((Number) args[0]).doubleValue() + 1.0;
+			}
+			return 1.0;
+		};
+	}
+
+	private static Function subf() {
+		return (args) -> {
+			if (args.length < 2) {
+				return 0.0;
+			}
+			double result = ((Number) args[0]).doubleValue();
+			for (int i = 1; i < args.length; i++) {
+				if (args[i] instanceof Number) {
+					result -= ((Number) args[i]).doubleValue();
+				}
+			}
+			return result;
 		};
 	}
 

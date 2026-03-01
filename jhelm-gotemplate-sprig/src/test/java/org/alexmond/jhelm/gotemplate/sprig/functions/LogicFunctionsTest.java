@@ -229,4 +229,43 @@ class LogicFunctionsTest {
 		assertEquals("hello", exec("{{ (ternary .toMap (.toMap | upper) (kindIs \"string\" .toMap)) }}", data));
 	}
 
+	// Test 'all' function
+
+	@Test
+	void testAllTruthyValues() throws IOException, TemplateException {
+		assertEquals("true", exec("{{ all \"a\" 1 true }}", new HashMap<>()));
+	}
+
+	@Test
+	void testAllWithFalsyValue() throws IOException, TemplateException {
+		assertEquals("false", exec("{{ all \"a\" 0 true }}", new HashMap<>()));
+	}
+
+	@Test
+	void testAllWithEmptyString() throws IOException, TemplateException {
+		assertEquals("false", exec("{{ all \"a\" \"\" \"b\" }}", new HashMap<>()));
+	}
+
+	@Test
+	void testAllNoArgs() throws IOException, TemplateException {
+		assertEquals("true", exec("{{ all }}", new HashMap<>()));
+	}
+
+	// Test 'any' function
+
+	@Test
+	void testAnyTruthyValue() throws IOException, TemplateException {
+		assertEquals("true", exec("{{ any \"\" 0 \"hello\" }}", new HashMap<>()));
+	}
+
+	@Test
+	void testAnyAllFalsy() throws IOException, TemplateException {
+		assertEquals("false", exec("{{ any \"\" 0 false }}", new HashMap<>()));
+	}
+
+	@Test
+	void testAnyNoArgs() throws IOException, TemplateException {
+		assertEquals("false", exec("{{ any }}", new HashMap<>()));
+	}
+
 }

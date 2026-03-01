@@ -41,10 +41,18 @@ public final class DateFunctions {
 
 		// Date manipulation
 		functions.put("dateModify", dateModify());
+		functions.put("mustDateModify", mustDateModify());
 		functions.put("durationRound", durationRound());
+		functions.put("ago", ago());
+		functions.put("duration", duration());
 
 		// Unix epoch
 		functions.put("unixEpoch", unixEpoch());
+
+		// Underscore aliases
+		functions.put("date_in_zone", dateInZone());
+		functions.put("date_modify", dateModify());
+		functions.put("must_date_modify", mustDateModify());
 
 		return functions;
 	}
@@ -233,6 +241,61 @@ public final class DateFunctions {
 		};
 	}
 
+	private static Function mustDateModify() {
+		return (args) -> {
+			if (args.length < 2) {
+				throw new RuntimeException("mustDateModify: insufficient arguments");
+			}
+			String modification = String.valueOf(args[0]);
+			Date date = convertToDate(args[1]);
+			if (date == null) {
+				throw new RuntimeException("mustDateModify: invalid date");
+			}
+			try {
+				long millisToAdd = parseDurationToMillis(modification);
+				return new Date(date.getTime() + millisToAdd);
+			}
+			catch (Exception ex) {
+				throw new RuntimeException("mustDateModify: " + ex.getMessage(), ex);
+			}
+		};
+	}
+
+	private static Function ago() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			Date date = convertToDate(args[0]);
+			if (date == null) {
+				return "";
+			}
+			Duration d = Duration.between(date.toInstant(), Instant.now());
+			return formatDuration(d);
+		};
+	}
+
+	private static Function duration() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "0s";
+			}
+			long seconds;
+			if (args[0] instanceof Number) {
+				seconds = ((Number) args[0]).longValue();
+			}
+			else {
+				try {
+					seconds = Long.parseLong(String.valueOf(args[0]).trim());
+				}
+				catch (NumberFormatException ex) {
+					return "0s";
+				}
+			}
+			return formatDuration(Duration.ofSeconds(seconds));
+		};
+	}
+
 	/**
 	 * Rounds a duration to the nearest unit.
 	 * <p>
@@ -317,6 +380,30 @@ public final class DateFunctions {
 			return Date.from((Instant) dateObj);
 		}
 		return null;
+	}
+
+	private static String formatDuration(Duration d) {
+		long totalSeconds = Math.abs(d.getSeconds());
+		if (totalSeconds == 0) {
+			return "0s";
+		}
+		StringBuilder sb = new StringBuilder();
+		if (d.isNegative()) {
+			sb.append('-');
+		}
+		long hours = totalSeconds / 3600;
+		long minutes = (totalSeconds % 3600) / 60;
+		long seconds = totalSeconds % 60;
+		if (hours > 0) {
+			sb.append(hours).append('h');
+		}
+		if (minutes > 0) {
+			sb.append(minutes).append('m');
+		}
+		if (seconds > 0) {
+			sb.append(seconds).append('s');
+		}
+		return sb.toString();
 	}
 
 	/**
