@@ -20,13 +20,6 @@ jhelmtest:
         path: "*"
         reason: "Subchart rendering gaps produce missing resources and field diffs"
     "[traefik/traefik]":
-      # BUG: JHelm omits explicit null fields (lifecycle, resources) that Helm emits
-      - resource: "Deployment/*"
-        path: "spec.template.spec.containers[0].lifecycle"
-        reason: "BUG: JHelm does not emit explicit null fields in rendered YAML"
-      - resource: "Deployment/*"
-        path: "spec.template.spec.containers[0].resources"
-        reason: "BUG: JHelm does not emit explicit null fields in rendered YAML"
       # BUG: JHelm does not render service ports from traefik range-over-map template
       - resource: "Service/*"
         path: "spec.ports"

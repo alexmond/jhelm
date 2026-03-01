@@ -125,7 +125,8 @@ class ConversionFunctionsTest {
 
 	@ParameterizedTest
 	@CsvSource({ "toYaml", "mustToYaml" })
-	void testYamlNullSuppression(String func) throws IOException, TemplateException {
+	void testYamlNullPreservation(String func) throws IOException, TemplateException {
+		// Go yaml.Marshal preserves nil map entries as "null" (no omitempty on maps)
 		Map<String, Object> obj = new HashMap<>();
 		obj.put("name", "myapp");
 		obj.put("replicas", 3);
@@ -138,8 +139,8 @@ class ConversionFunctionsTest {
 		String result = execWithData("{{ " + func + " .obj }}", data);
 		assertTrue(result.contains("name: myapp"), "non-null string field should be present");
 		assertTrue(result.contains("replicas: 3"), "non-null integer field should be present");
-		assertFalse(result.contains("revisionHistoryLimit"), "null field should be omitted");
-		assertFalse(result.contains("dnsPolicy"), "null field should be omitted");
+		assertTrue(result.contains("revisionHistoryLimit: null"), "null field should be rendered as null");
+		assertTrue(result.contains("dnsPolicy: null"), "null field should be rendered as null");
 	}
 
 	// --- Direct function invocation tests for edge cases ---
