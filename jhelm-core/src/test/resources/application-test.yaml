@@ -59,11 +59,6 @@ jhelmtest:
       - resource: "*"
         path: "*"
         reason: "BUG: Complex chart — ConfigMap 15 diffs, DaemonSet 54 diffs, RBAC and service diffs"
-    "[bitnami/minio]":
-      # BUG: Subchart version labels show parent chart version instead of subchart version
-      - resource: "*"
-        path: "metadata.labels.app.kubernetes.io/version"
-        reason: "BUG: Subchart resources get parent chart version label instead of subchart version"
     "[argo/argo-workflows]":
       # BUG: CRD resources not rendered by JHelm
       - resource: "CustomResourceDefinition/*"
@@ -74,16 +69,6 @@ jhelmtest:
       - resource: "*"
         path: "*"
         reason: "BUG: Entire chart fails to render — likely non-standard chart structure"
-    "[gitea/gitea]":
-      # BUG: Subchart rendering gaps — version labels, StatefulSet, Secrets
-      - resource: "*"
-        path: "*"
-        reason: "BUG: Subchart version labels, StatefulSet 99 diffs, Secret content missing"
-    "[goauthentik/authentik]":
-      # BUG: Missing RBAC resources and serviceAccountName
-      - resource: "*"
-        path: "*"
-        reason: "BUG: Missing ServiceAccount, ClusterRole, ClusterRoleBinding, Role, RoleBinding resources"
     "[artifact-hub/artifact-hub]":
       # BUG: Null values rendered as empty string in Secret stringData
       - resource: "Secret/*"

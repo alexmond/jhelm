@@ -756,4 +756,53 @@ class EngineTest {
 		assertTrue(result.contains("apiVersion: apps/v1"), "deployment.apiVersion should render: " + result);
 	}
 
+	// --- Issue #135: subchart version labels ---
+
+	@Test
+	void testCommonImagesVersionWithSemverTag() {
+		// bitnami/minio common.images.version pattern with backtick regex
+		String helpers = """
+				{{- define "common.images.version" -}}
+				{{- $imageTag := .imageRoot.tag | toString -}}
+				{{- if regexMatch `^([0-9]+)(\\.[0-9]+)?(\\.[0-9]+)?(-([0-9A-Za-z\\-]+(\\.[0-9A-Za-z\\-]+)*))?(\\+([0-9A-Za-z\\-]+(\\.[0-9A-Za-z\\-]+)*))?$` $imageTag -}}
+				    {{- $version := semver $imageTag -}}
+				    {{- printf "%d.%d.%d" $version.Major $version.Minor $version.Patch -}}
+				{{- else -}}
+				    {{- print .chart.AppVersion -}}
+				{{- end -}}
+				{{- end -}}
+				""";
+		String deployment = """
+				version: {{ include "common.images.version" (dict "imageRoot" (dict "tag" "2.0.2-debian-12-r3") "chart" .Chart) }}
+				""";
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("_helpers.tpl", helpers), tmpl("deployment.yaml", deployment)), Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("version: 2.0.2"),
+				"Should extract semver 2.0.2 from tag 2.0.2-debian-12-r3: " + result);
+	}
+
+	@Test
+	void testCommonImagesVersionDebug() {
+		// Test each step individually to find where it fails
+		String helpers = """
+				{{- define "test.debug" -}}
+				tag={{ .imageRoot.tag }}|toString={{ .imageRoot.tag | toString }}|match={{ regexMatch `^([0-9]+)(\\.[0-9]+)?(\\.[0-9]+)?(-([0-9A-Za-z\\-]+(\\.[0-9A-Za-z\\-]+)*))?(\\+([0-9A-Za-z\\-]+(\\.[0-9A-Za-z\\-]+)*))?$` (.imageRoot.tag | toString) }}
+				{{- end -}}
+				""";
+		Map<String, Object> consoleImage = new HashMap<>();
+		consoleImage.put("tag", "2.0.2-debian-12-r3");
+		Map<String, Object> values = new HashMap<>();
+		values.put("console", Map.of("image", consoleImage));
+
+		String deployment = """
+				{{ include "test.debug" (dict "imageRoot" .Values.console.image "chart" .Chart) }}
+				""";
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("_helpers.tpl", helpers), tmpl("deployment.yaml", deployment)), values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		// Check that regexMatch returns true
+		assertTrue(result.contains("match=true"), "regexMatch should match 2.0.2-debian-12-r3: " + result);
+	}
+
 }
