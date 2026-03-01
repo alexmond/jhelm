@@ -441,4 +441,19 @@ class GoTemplateTest {
 		assertFalse(t2.hasTemplate("only-in-t1"));
 	}
 
+	@Test
+	void testWithSkippedPreservesKey() throws Exception {
+		// When 'with' is falsy, the preceding key text should be preserved
+		GoTemplate template = new GoTemplate();
+		String tmpl = "key:\n  {{- with .val }}\n  {{- print . }}\n  {{- end }}\nnext:";
+		template.parse("test", tmpl);
+		Map<String, Object> data = new HashMap<>();
+		data.put("val", null);
+		StringWriter writer = new StringWriter();
+		template.execute("test", data, writer);
+		String result = writer.toString();
+		assertTrue(result.contains("key:"), "key: should be preserved when with is skipped");
+		assertTrue(result.contains("next:"), "next: should follow after skipped with");
+	}
+
 }

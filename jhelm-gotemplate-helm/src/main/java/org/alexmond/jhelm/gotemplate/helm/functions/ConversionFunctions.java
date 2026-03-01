@@ -9,7 +9,6 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import org.alexmond.jhelm.gotemplate.Function;
 import tools.jackson.core.json.JsonWriteFeature;
 import tools.jackson.databind.SerializationFeature;
@@ -34,9 +33,6 @@ public final class ConversionFunctions {
 		.enable(YAMLWriteFeature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS)
 		// Sort keys alphabetically for consistent, predictable output
 		.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
-		// Omit null-valued fields/entries to match Helm's Go yaml.Marshal behavior
-		.changeDefaultPropertyInclusion((v) -> v.withValueInclusion(JsonInclude.Include.NON_NULL)
-			.withContentInclusion(JsonInclude.Include.NON_NULL))
 		.build());
 
 	/** Pattern matching a YAML line with a double-quoted scalar value. */

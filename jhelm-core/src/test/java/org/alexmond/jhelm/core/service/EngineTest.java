@@ -548,11 +548,11 @@ class EngineTest {
 		assertTrue(result.contains("containers: []"));
 	}
 
-	// --- toYaml null suppression ---
+	// --- toYaml null preservation ---
 
 	@Test
-	void testToYamlOmitsNullValues() {
-		// toYaml should omit null-valued map entries to match Helm's Go yaml.Marshal
+	void testToYamlPreservesNullValues() {
+		// Go yaml.Marshal preserves nil map entries as "null" (no omitempty on maps)
 		Map<String, Object> spec = new HashMap<>();
 		spec.put("replicas", 3);
 		spec.put("revisionHistoryLimit", null);
@@ -563,7 +563,7 @@ class EngineTest {
 		String result = engine.render(chart, Map.of(), releaseInfo());
 		assertTrue(result.contains("replicas: 3"), "non-null field should be present");
 		assertTrue(result.contains("selector: app=test"), "non-null field should be present");
-		assertFalse(result.contains("revisionHistoryLimit"), "null field should be omitted by toYaml");
+		assertTrue(result.contains("revisionHistoryLimit: null"), "null field should be rendered as null by toYaml");
 	}
 
 	// --- quote null-guard pattern (cert-manager) ---
@@ -880,6 +880,63 @@ class EngineTest {
 		// KUBERNETES_NAMESPACE should be omitted
 		assertFalse(result.contains("KUBERNETES_NAMESPACE"),
 				"KUBERNETES_NAMESPACE should be omitted when namespace is in config: " + result);
+	}
+
+	// --- Issue #130: explicit null fields via fromYaml | toYaml ---
+
+	@Test
+	void testNullFieldPreservedInFromYamlToYamlPipeline() {
+		// Traefik pattern: include template | fromYaml | toYaml preserves null fields
+		// When lifecycle:{} is passed through with(empty) → key: with no value → fromYaml
+		// parses as null → toYaml should serialize as "lifecycle: null"
+		String helpers = """
+				{{- define "pod" -}}
+				lifecycle:
+				  {{- with .Values.deployment.lifecycle }}
+				  {{- toYaml . | nindent 2 }}
+				  {{- end }}
+				ports:
+				- containerPort: 80
+				{{- end -}}""";
+		String deploy = """
+				spec:
+				  {{ include "pod" . | fromYaml | toYaml | nindent 2 }}""";
+		Map<String, Object> values = new HashMap<>();
+		Map<String, Object> deployment = new HashMap<>();
+		deployment.put("lifecycle", new HashMap<>());
+		values.put("deployment", deployment);
+
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("_helpers.tpl", helpers), tmpl("deploy.yaml", deploy)), values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("lifecycle: null"),
+				"lifecycle: null should be preserved through fromYaml | toYaml: " + result);
+	}
+
+	@Test
+	void testNullFieldPreservedWithNullValue() {
+		// When lifecycle value is null (not empty map), same behavior expected
+		String helpers = """
+				{{- define "pod" -}}
+				lifecycle:
+				  {{- with .Values.deployment.lifecycle }}
+				  {{- toYaml . | nindent 2 }}
+				  {{- end }}
+				name: test
+				{{- end -}}""";
+		String deploy = """
+				spec:
+				  {{ include "pod" . | fromYaml | toYaml | nindent 2 }}""";
+		Map<String, Object> values = new HashMap<>();
+		Map<String, Object> deployment = new HashMap<>();
+		deployment.put("lifecycle", null);
+		values.put("deployment", deployment);
+
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("_helpers.tpl", helpers), tmpl("deploy.yaml", deploy)), values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("lifecycle: null"),
+				"lifecycle: null should be preserved when value is null: " + result);
 	}
 
 }
