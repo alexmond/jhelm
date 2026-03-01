@@ -456,4 +456,46 @@ class GoTemplateTest {
 		assertTrue(result.contains("next:"), "next: should follow after skipped with");
 	}
 
+	@Test
+	void testVariableFieldChaining() throws Exception {
+		// $var.field should resolve the field on the variable value
+		GoTemplate template = new GoTemplate();
+		String tmpl = "{{ range $k, $v := .items }}{{ $v.name }}:{{ $v.count }} {{ end }}";
+		template.parse("test", tmpl);
+
+		Map<String, Object> item1 = new HashMap<>();
+		item1.put("name", "apple");
+		item1.put("count", 3);
+		Map<String, Object> item2 = new HashMap<>();
+		item2.put("name", "banana");
+		item2.put("count", 5);
+		Map<String, Object> items = new LinkedHashMap<>();
+		items.put("a", item1);
+		items.put("b", item2);
+
+		StringWriter writer = new StringWriter();
+		template.execute("test", Map.of("items", items), writer);
+		String result = writer.toString();
+		assertTrue(result.contains("apple:3"), "Should resolve $v.name and $v.count: " + result);
+		assertTrue(result.contains("banana:5"), "Should resolve $v.name and $v.count: " + result);
+	}
+
+	@Test
+	void testVariableDeepFieldChaining() throws Exception {
+		// $var.field.nested should chain multiple field accesses
+		GoTemplate template = new GoTemplate();
+		String tmpl = "{{ range $k, $v := .items }}{{ $v.meta.label }} {{ end }}";
+		template.parse("test", tmpl);
+
+		Map<String, Object> meta = new HashMap<>();
+		meta.put("label", "important");
+		Map<String, Object> item = new HashMap<>();
+		item.put("meta", meta);
+
+		StringWriter writer = new StringWriter();
+		template.execute("test", Map.of("items", Map.of("x", item)), writer);
+		String result = writer.toString();
+		assertTrue(result.contains("important"), "Should resolve $v.meta.label: " + result);
+	}
+
 }

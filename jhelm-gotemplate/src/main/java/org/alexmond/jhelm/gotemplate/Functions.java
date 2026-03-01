@@ -61,6 +61,9 @@ public final class Functions {
 			Object container = args[0];
 			Object key = args[1];
 			if (container instanceof Map) {
+				if (key == null) {
+					return null;
+				}
 				return ((Map<?, ?>) container).get(key);
 			}
 			if (container instanceof List) {
