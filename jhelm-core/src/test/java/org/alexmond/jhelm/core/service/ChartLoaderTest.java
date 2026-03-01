@@ -309,6 +309,62 @@ class ChartLoaderTest {
 	}
 
 	@Test
+	void testLoadChartWithFiles() throws Exception {
+		Path chartDir = tempDir.resolve("chart-with-files");
+		Files.createDirectories(chartDir);
+		Files.writeString(chartDir.resolve("Chart.yaml"), """
+				apiVersion: v2
+				name: chart-with-files
+				version: 1.0.0
+				""");
+		Files.writeString(chartDir.resolve("values.yaml"), "{}");
+		Files.createDirectories(chartDir.resolve("templates"));
+
+		// Create non-template files
+		Path filesDir = chartDir.resolve("config");
+		Files.createDirectories(filesDir);
+		Files.writeString(filesDir.resolve("app.conf"), "port=8080");
+		Files.writeString(chartDir.resolve("extra.txt"), "extra content");
+
+		Chart chart = chartLoader.load(chartDir.toFile());
+
+		assertNotNull(chart.getFiles());
+		assertFalse(chart.getFiles().isEmpty());
+		assertEquals("port=8080", chart.getFiles().get("config/app.conf"));
+		assertEquals("extra content", chart.getFiles().get("extra.txt"));
+	}
+
+	@Test
+	void testLoadChartFilesExcludesSpecialDirsAndFiles() throws Exception {
+		Path chartDir = tempDir.resolve("chart-exclusions");
+		Files.createDirectories(chartDir);
+		Files.writeString(chartDir.resolve("Chart.yaml"), """
+				apiVersion: v2
+				name: chart-exclusions
+				version: 1.0.0
+				""");
+		Files.writeString(chartDir.resolve("values.yaml"), "{}");
+		Files.createDirectories(chartDir.resolve("templates"));
+		Files.createDirectories(chartDir.resolve("charts"));
+		Files.createDirectories(chartDir.resolve("crds"));
+
+		// Files that should be excluded
+		Files.writeString(chartDir.resolve(".helmignore"), "*.bak");
+		Files.writeString(chartDir.resolve("Chart.lock"), "lock content");
+
+		// File that should be included
+		Files.writeString(chartDir.resolve("LICENSE"), "MIT");
+
+		Chart chart = chartLoader.load(chartDir.toFile());
+
+		assertTrue(chart.getFiles().containsKey("LICENSE"));
+		assertFalse(chart.getFiles().containsKey("Chart.yaml"));
+		assertFalse(chart.getFiles().containsKey("Chart.lock"));
+		assertFalse(chart.getFiles().containsKey("values.yaml"));
+		assertFalse(chart.getFiles().containsKey(".helmignore"));
+	}
+
+	@Test
 	void testLoadChartWithValuesSchema() throws Exception {
 		Path chartDir = tempDir.resolve("chart-with-schema");
 		Files.createDirectories(chartDir);

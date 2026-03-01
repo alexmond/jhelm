@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.core.model;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +40,10 @@ public class Chart {
 
 	@Builder.Default
 	private List<Crd> crds = new ArrayList<>();
+
+	/** Non-template files from the chart archive (relative path to content). */
+	@Builder.Default
+	private Map<String, String> files = new LinkedHashMap<>();
 
 	@Data
 	@Builder
