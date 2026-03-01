@@ -104,8 +104,8 @@ jhelmtest:
       - resource: "*"
         path: "*"
         reason: "BUG: YAML document boundary not parsed correctly — Service spec merged into ConfigMap"
-    "[hashicorp/consul]":
-      # BUG: Checksum annotation uses custom path not covered by global ignore
+    "[datadog/datadog]":
+      # BUG: Complex chart — missing operator resources, random UUIDs, label diffs
       - resource: "*"
-        path: "spec.template.metadata.annotations.consul.hashicorp.com/*"
-        reason: "BUG: sha256sum of included templates produces hash of empty string (#129)"
+        path: "*"
+        reason: "BUG: Missing CRD/operator resources, random install_id UUID, instance label differences"

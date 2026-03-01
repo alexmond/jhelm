@@ -289,11 +289,11 @@ public class Engine {
 		String chartName = chart.getMetadata().getName();
 
 		for (Chart.Template t : chart.getTemplates()) {
-			// Use chart-prefixed key to avoid collisions between charts with same
-			// template names
-			String uniqueKey = chartName + ":" + t.getName();
-			templates.put(uniqueKey, t.getData());
-			templateToChartName.put(uniqueKey, chartName);
+			// Use Helm-style path (chartName/templates/fileName) to match the names
+			// that charts use with $.Template.BasePath in include calls
+			String helmStyleKey = chartName + "/templates/" + t.getName();
+			templates.put(helmStyleKey, t.getData());
+			templateToChartName.put(helmStyleKey, chartName);
 		}
 
 		for (Chart subchart : chart.getDependencies()) {
@@ -347,7 +347,8 @@ public class Engine {
 				Map.of("Version", "v1.35.0", "Major", "1", "Minor", "35", "GitVersion", "v1.35.0"), "HelmVersion",
 				Map.of("Version", "v3.16.0", "GitCommit", "", "GitTreeState", "", "GoVersion", ""), "APIVersions",
 				new VersionSet(DEFAULT_API_VERSIONS)));
-		context.put("Template", Map.of("Name", "", "BasePath", "templates"));
+		String chartBasePath = chart.getMetadata().getName() + "/templates";
+		context.put("Template", Map.of("Name", "", "BasePath", chartBasePath));
 
 		StringBuilder sb = new StringBuilder();
 
@@ -398,16 +399,17 @@ public class Engine {
 				continue;
 			}
 			try {
-				parseWithCache(t.getName(), t.getData());
+				String helmStyleName = chart.getMetadata().getName() + "/templates/" + t.getName();
+				parseWithCache(helmStyleName, t.getData());
 				StringWriter writer = new StringWriter();
 
 				@SuppressWarnings("unchecked")
 				Map<String, Object> templateMap = new HashMap<>((Map<String, Object>) context.get("Template"));
-				templateMap.put("Name", chart.getMetadata().getName() + "/templates/" + t.getName());
+				templateMap.put("Name", helmStyleName);
 				Map<String, Object> currentContext = new HashMap<>(context);
 				currentContext.put("Template", templateMap);
 
-				factory.execute(t.getName(), currentContext, writer);
+				factory.execute(helmStyleName, currentContext, writer);
 				String rendered = writer.toString();
 				if (rendered != null && !rendered.isBlank()) {
 					if (!rendered.trim().endsWith("---")) {
