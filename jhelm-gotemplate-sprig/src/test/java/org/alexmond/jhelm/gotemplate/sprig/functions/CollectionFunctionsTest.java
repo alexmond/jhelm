@@ -440,9 +440,11 @@ class CollectionFunctionsTest {
 
 	@ParameterizedTest
 	@CsvSource(delimiter = '|',
-			value = { "{{ $s := split \",\" \"a,b,c\" }}{{ index $s 1 }}        | b",
-					"{{ $s := splitList \",\" \"a,b,c\" }}{{ len $s }}        | 3",
-					"{{ $s := splitn \",\" 2 \"a,b,c\" }}{{ len $s }}         | 2" })
+			value = { "{{ $s := split \",\" \"a,b,c\" }}{{ $s._1 }}            | b",
+					"{{ $s := split \",\" \"a,b,c\" }}{{ $s._0 }}              | a",
+					"{{ $s := splitList \",\" \"a,b,c\" }}{{ len $s }}          | 3",
+					"{{ $s := splitn \",\" 2 \"a,b,c\" }}{{ $s._0 }}           | a",
+					"{{ $s := splitn \",\" 2 \"a,b,c\" }}{{ $s._1 }}           | b,c" })
 	void testSplitFunctions(String template, String expected) throws IOException, TemplateException {
 		assertEquals(expected, exec(template));
 	}

@@ -244,6 +244,24 @@ class SemverFunctionsTest {
 		assertEquals("false", writer.toString());
 	}
 
+	// --- traefik pattern: semverCompare with v-prefix in constraint ---
+
+	@Test
+	void testSemverCompareTraefikPattern() throws IOException, TemplateException {
+		// traefik clusterrole.yaml: semverCompare ">=v3.4.0-0" $version
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ semverCompare \">=v3.4.0-0\" \"v3.6.7\" }}", new HashMap<>(), writer);
+		assertEquals("true", writer.toString());
+	}
+
+	@Test
+	void testSemverCompareTraefikLessThanPattern() throws IOException, TemplateException {
+		// traefik: semverCompare "<v3.1.0-0" "v3.6.7" should be false
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ semverCompare \"<v3.1.0-0\" \"v3.6.7\" }}", new HashMap<>(), writer);
+		assertEquals("false", writer.toString());
+	}
+
 	// --- ingress-nginx pattern: semverCompare with v-prefix ---
 
 	@Test

@@ -518,11 +518,17 @@ public final class ListFunctions {
 	}
 
 	private static Function split() {
+		// Sprig split returns map[string]string with keys "_0", "_1", etc.
 		return (args) -> {
 			if (args.length < 2) {
-				return new String[0];
+				return Map.of();
 			}
-			return String.valueOf(args[1]).split(Pattern.quote(String.valueOf(args[0])));
+			String[] parts = String.valueOf(args[1]).split(Pattern.quote(String.valueOf(args[0])));
+			Map<String, String> result = new HashMap<>();
+			for (int i = 0; i < parts.length; i++) {
+				result.put("_" + i, parts[i]);
+			}
+			return result;
 		};
 	}
 
@@ -538,14 +544,19 @@ public final class ListFunctions {
 	}
 
 	private static Function splitn() {
+		// Sprig splitn returns map[string]string with keys "_0", "_1", etc.
 		return (args) -> {
 			if (args.length < 3) {
-				return Collections.emptyList();
+				return Map.of();
 			}
 			String sep = String.valueOf(args[0]);
 			int n = ((Number) args[1]).intValue();
-			String s = String.valueOf(args[2]);
-			return Arrays.asList(s.split(Pattern.quote(sep), n));
+			String[] parts = String.valueOf(args[2]).split(Pattern.quote(sep), n);
+			Map<String, String> result = new HashMap<>();
+			for (int i = 0; i < parts.length; i++) {
+				result.put("_" + i, parts[i]);
+			}
+			return result;
 		};
 	}
 
