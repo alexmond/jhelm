@@ -251,6 +251,72 @@ class CollectionFunctionsTest {
 		assertEquals("1.0,test", exec(template));
 	}
 
+	@Test
+	void testMergeMultipleSources() throws IOException, TemplateException {
+		// merge with 3 args: dst wins over all sources, earlier sources win over later
+		String template = """
+				{{ $d1 := dict "a" 1 }}\
+				{{ $d2 := dict "a" 2 "b" 20 }}\
+				{{ $d3 := dict "a" 3 "b" 30 "c" 300 }}\
+				{{ $m := merge $d1 $d2 $d3 }}\
+				{{ get $m "a" }},{{ get $m "b" }},{{ get $m "c" }}""";
+		assertEquals("1,20,300", exec(template));
+	}
+
+	@Test
+	void testMergeOverwriteMultipleSources() throws IOException, TemplateException {
+		// mergeOverwrite with 3 args: later sources overwrite earlier
+		String template = """
+				{{ $d1 := dict "a" 1 }}\
+				{{ $d2 := dict "a" 2 "b" 20 }}\
+				{{ $d3 := dict "a" 3 "b" 30 "c" 300 }}\
+				{{ $m := mergeOverwrite $d1 $d2 $d3 }}\
+				{{ get $m "a" }},{{ get $m "b" }},{{ get $m "c" }}""";
+		assertEquals("3,30,300", exec(template));
+	}
+
+	@Test
+	void testMergeEmptyDestination() throws IOException, TemplateException {
+		// merge into empty dict should copy all source keys
+		String template = """
+				{{ $dst := dict }}\
+				{{ $src := dict "a" 1 "b" 2 }}\
+				{{ $m := merge $dst $src }}\
+				{{ get $m "a" }},{{ get $m "b" }}""";
+		assertEquals("1,2", exec(template));
+	}
+
+	@Test
+	void testMergeMutatesDestination() throws IOException, TemplateException {
+		// Go's merge mutates the destination in place
+		String template = """
+				{{ $d1 := dict "a" 1 }}\
+				{{ $d2 := dict "b" 2 }}\
+				{{ $_ := merge $d1 $d2 }}\
+				{{ get $d1 "b" }}""";
+		assertEquals("2", exec(template));
+	}
+
+	@Test
+	void testMustMergeDeepNested() throws IOException, TemplateException {
+		String template = """
+				{{ $d1 := dict "outer" (dict "a" 1 "b" 2) }}\
+				{{ $d2 := dict "outer" (dict "a" 99 "c" 3) }}\
+				{{ $m := mustMerge $d1 $d2 }}\
+				{{ (get (get $m "outer") "a") }},{{ (get (get $m "outer") "c") }}""";
+		assertEquals("1,3", exec(template));
+	}
+
+	@Test
+	void testMustMergeOverwriteDeepNested() throws IOException, TemplateException {
+		String template = """
+				{{ $d1 := dict "outer" (dict "a" 1 "b" 2) }}\
+				{{ $d2 := dict "outer" (dict "a" 99 "c" 3) }}\
+				{{ $m := mustMergeOverwrite $d1 $d2 }}\
+				{{ (get (get $m "outer") "a") }},{{ (get (get $m "outer") "c") }}""";
+		assertEquals("99,3", exec(template));
+	}
+
 	// Standalone tests for operations without must* variants
 
 	@Test
