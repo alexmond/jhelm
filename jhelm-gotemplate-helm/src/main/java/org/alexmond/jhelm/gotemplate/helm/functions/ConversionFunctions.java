@@ -3,7 +3,11 @@ package org.alexmond.jhelm.gotemplate.helm.functions;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import org.alexmond.jhelm.gotemplate.Function;
@@ -34,6 +38,16 @@ public final class ConversionFunctions {
 		.changeDefaultPropertyInclusion((v) -> v.withValueInclusion(JsonInclude.Include.NON_NULL)
 			.withContentInclusion(JsonInclude.Include.NON_NULL))
 		.build());
+
+	/** Pattern matching a YAML line with a double-quoted scalar value. */
+	private static final Pattern QUOTED_VALUE = Pattern.compile("^(\\s*\\S+:\\s+)\"((?:[^\"\\\\]|\\\\.)*)\"\\s*$");
+
+	/** YAML boolean and null literals that must remain quoted. */
+	private static final Set<String> YAML_KEYWORDS = Set.of("true", "false", "yes", "no", "on", "off", "null", "~");
+
+	/** Pattern matching numeric values (integer, float, hex, octal, infinity, NaN). */
+	private static final Pattern NUMERIC = Pattern
+		.compile("^[+-]?(\\d[\\d_]*(\\.[\\d_]*)?([eE][+-]?\\d+)?|\\.inf|\\.nan|0x[\\da-fA-F]+|0o[0-7]+)$");
 
 	private static final ThreadLocal<JsonMapper> JSON_MAPPER = ThreadLocal
 		.withInitial(() -> JsonMapper.builder().build());
@@ -83,7 +97,7 @@ public final class ConversionFunctions {
 				if (yaml.startsWith("---\n")) {
 					yaml = yaml.substring(4);
 				}
-				return yaml.trim();
+				return removeUnnecessaryQuotes(yaml.trim());
 			}
 			catch (Exception ex) {
 				return "";
@@ -106,7 +120,7 @@ public final class ConversionFunctions {
 				if (yaml.startsWith("---\n")) {
 					yaml = yaml.substring(4);
 				}
-				return yaml.trim();
+				return removeUnnecessaryQuotes(yaml.trim());
 			}
 			catch (Exception ex) {
 				throw new RuntimeException("mustToYaml: failed to convert to YAML: " + ex.getMessage(), ex);
@@ -397,6 +411,97 @@ public final class ConversionFunctions {
 				throw new RuntimeException("mustFromJsonArray: failed to parse JSON array: " + ex.getMessage(), ex);
 			}
 		};
+	}
+
+	/**
+	 * Removes unnecessary double-quoting from YAML scalar values.
+	 * Jackson/snakeyaml-engine over-quotes strings containing flow indicators
+	 * ({@code {}[]}) even when they appear mid-string and are valid in YAML plain style.
+	 * Go's yaml.Marshal uses plain style in these cases.
+	 */
+	static String removeUnnecessaryQuotes(String yaml) {
+		StringBuilder sb = new StringBuilder();
+		for (String line : yaml.split("\n", -1)) {
+			Matcher m = QUOTED_VALUE.matcher(line);
+			if (m.matches()) {
+				String prefix = m.group(1);
+				String escaped = m.group(2);
+				String unescaped = yamlUnescape(escaped);
+				if (canBePlainScalar(unescaped)) {
+					sb.append(prefix).append(unescaped);
+				}
+				else {
+					sb.append(line);
+				}
+			}
+			else {
+				sb.append(line);
+			}
+			sb.append('\n');
+		}
+		// Remove trailing newline added by loop
+		if (sb.length() > 0 && sb.charAt(sb.length() - 1) == '\n') {
+			sb.setLength(sb.length() - 1);
+		}
+		return sb.toString();
+	}
+
+	private static String yamlUnescape(String s) {
+		StringBuilder sb = new StringBuilder(s.length());
+		for (int i = 0; i < s.length(); i++) {
+			if (s.charAt(i) == '\\' && i + 1 < s.length()) {
+				char next = s.charAt(i + 1);
+				switch (next) {
+					case '\\' -> sb.append('\\');
+					case '"' -> sb.append('"');
+					case 'n' -> sb.append('\n');
+					case 't' -> sb.append('\t');
+					case 'r' -> sb.append('\r');
+					default -> {
+						sb.append('\\');
+						sb.append(next);
+					}
+				}
+				i++;
+			}
+			else {
+				sb.append(s.charAt(i));
+			}
+		}
+		return sb.toString();
+	}
+
+	private static boolean canBePlainScalar(String s) {
+		if (s.isEmpty() || s.contains("\n")) {
+			return false;
+		}
+		// Must not start or end with whitespace
+		if (Character.isWhitespace(s.charAt(0)) || Character.isWhitespace(s.charAt(s.length() - 1))) {
+			return false;
+		}
+		char first = s.charAt(0);
+		// Must not start with YAML indicators
+		if (first == '[' || first == '{' || first == '!' || first == '&' || first == '*' || first == '|' || first == '>'
+				|| first == '%' || first == '@' || first == '`' || first == '\'' || first == '"') {
+			return false;
+		}
+		// Must not start with - or ? followed by space
+		if ((first == '-' || first == '?') && s.length() > 1 && s.charAt(1) == ' ') {
+			return false;
+		}
+		// Must not contain ": " (mapping indicator) or " #" (comment indicator)
+		if (s.contains(": ") || s.contains(" #")) {
+			return false;
+		}
+		// Must not be a YAML boolean/null keyword
+		if (YAML_KEYWORDS.contains(s.toLowerCase(Locale.ROOT))) {
+			return false;
+		}
+		// Must not look like a number (would lose string type)
+		if (NUMERIC.matcher(s).matches()) {
+			return false;
+		}
+		return true;
 	}
 
 }
