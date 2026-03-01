@@ -299,4 +299,44 @@ class ConversionFunctionsTest {
 		assertEquals(3, ((List<?>) result).size());
 	}
 
+	// --- toYaml with regex values (backslash handling) ---
+
+	@Test
+	void testToYamlRegexValueUnquoted() {
+		// Go yaml.Marshal outputs regex values as plain (unquoted) YAML
+		Function toYaml = functions().get("toYaml");
+		Map<String, String> data = Map.of("regex", "\\d+");
+		String result = (String) toYaml.invoke(new Object[] { data });
+		// Should be: regex: \d+ (not: regex: "\\d+")
+		assertEquals("regex: \\d+", result);
+	}
+
+	@Test
+	void testToYamlComplexRegexUnquoted() {
+		// Prometheus pattern with complex regex — should NOT be double-quoted
+		Function toYaml = functions().get("toYaml");
+		String regex = "(\\d+);(([A-Fa-f0-9]{1,4}::?){1,7}[A-Fa-f0-9]{1,4})";
+		Map<String, String> data = Map.of("regex", regex);
+		String result = (String) toYaml.invoke(new Object[] { data });
+		assertEquals("regex: " + regex, result);
+	}
+
+	@Test
+	void testToYamlPreservesQuotesWhenNeeded() {
+		// Values starting with flow indicators must stay quoted
+		Function toYaml = functions().get("toYaml");
+		Map<String, String> data = Map.of("val", "{flow}");
+		String result = (String) toYaml.invoke(new Object[] { data });
+		assertTrue(result.contains("\""), "values starting with { must stay quoted");
+	}
+
+	@Test
+	void testToYamlPreservesBooleanQuotes() {
+		// Boolean-like strings must stay quoted
+		Function toYaml = functions().get("toYaml");
+		Map<String, String> data = Map.of("val", "true");
+		String result = (String) toYaml.invoke(new Object[] { data });
+		assertTrue(result.contains("\"true\""), "boolean-like strings must stay quoted");
+	}
+
 }
