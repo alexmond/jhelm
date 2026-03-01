@@ -14,20 +14,16 @@ jhelmtest:
       - resource: "*"
         path: "spec.trafficDistribution"
         reason: "Subchart defaults merging exposes values that Helm omits"
+    "[traefik/traefik]":
+      # BUG: semverCompare conditions produce missing ClusterRole rules
+      - resource: "ClusterRole/*"
+        path: "rules.*"
+        reason: "BUG: semverCompare evaluates incorrectly — missing configmaps and pods rules"
     "[prometheus-community/kube-prometheus-stack]":
       # Complex multi-subchart bundle; many resources not rendered by JHelm
       - resource: "*"
         path: "*"
         reason: "Subchart rendering gaps produce missing resources and field diffs"
-    "[traefik/traefik]":
-      # BUG: JHelm does not render service ports from traefik range-over-map template
-      - resource: "Service/*"
-        path: "spec.ports"
-        reason: "BUG: range over .Values.ports map renders empty — port iteration logic not handled"
-      # BUG: ClusterRole rules differ due to conditional template evaluation differences
-      - resource: "ClusterRole/*"
-        path: "rules.*"
-        reason: "BUG: conditional rules render differently — likely values-driven if/range evaluation gap"
     "[apache-airflow/airflow]":
       # BUG: Complex chart with many rendering gaps — worker resources, volumeMount ordering, etc.
       - resource: "*"

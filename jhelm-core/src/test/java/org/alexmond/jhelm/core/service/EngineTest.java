@@ -939,4 +939,117 @@ class EngineTest {
 				"lifecycle: null should be preserved when value is null: " + result);
 	}
 
+	// --- Issue #132: Range over map with variable field access ---
+
+	@Test
+	void testRangeSetMutatesDictInOuterScope() {
+		// Traefik service.yaml pattern: set mutates dict from inner range, used in outer
+		// scope
+		String template = """
+				{{- $ports := dict -}}
+				{{- range $name, $config := .Values.items -}}
+				  {{- $_ := set $ports $name $config -}}
+				{{- end -}}
+				{{- range $k, $v := $ports }}
+				{{ $k }}: {{ $v }}
+				{{- end }}""";
+		Map<String, Object> values = new HashMap<>();
+		Map<String, Object> items = new LinkedHashMap<>();
+		items.put("a", "alpha");
+		items.put("b", "beta");
+		values.put("items", items);
+
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("test.yaml", template)), values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("a: alpha"), "Ports populated by set should be visible: " + result);
+		assertTrue(result.contains("b: beta"), "Ports populated by set should be visible: " + result);
+	}
+
+	@Test
+	void testRangeOverMapVariableFieldAccess() {
+		// Traefik service-ports pattern: range over map, access fields on loop var
+		String helpers = """
+				{{- define "ports" -}}
+				{{- range $name, $config := .ports }}
+				{{- if (index (default dict $config.expose) $.serviceName) }}
+				- port: {{ default $config.port $config.exposedPort }}
+				  name: {{ $name }}
+				{{- end }}
+				{{- end }}
+				{{- end -}}""";
+		String svc = """
+				ports:
+				{{ include "ports" .Values.svcContext }}""";
+
+		Map<String, Object> web = new HashMap<>();
+		web.put("port", 8000);
+		web.put("expose", Map.of("default", true));
+		web.put("exposedPort", 80);
+		Map<String, Object> websecure = new HashMap<>();
+		websecure.put("port", 8443);
+		websecure.put("expose", Map.of("default", true));
+		websecure.put("exposedPort", 443);
+		Map<String, Object> ports = new LinkedHashMap<>();
+		ports.put("web", web);
+		ports.put("websecure", websecure);
+
+		Map<String, Object> svcContext = new HashMap<>();
+		svcContext.put("ports", ports);
+		svcContext.put("serviceName", "default");
+		Map<String, Object> values = Map.of("svcContext", svcContext);
+
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("_helpers.tpl", helpers), tmpl("svc.yaml", svc)),
+				values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("port: 80"), "Should render web port 80: " + result);
+		assertTrue(result.contains("port: 443"), "Should render websecure port 443: " + result);
+	}
+
+	@Test
+	void testTraefikServiceNestedRangePattern() {
+		// Full traefik service.yaml pattern: outer range over services, inner range over
+		// ports with $config.protocol field access and set to build $tcpPorts
+		String helpers = """
+				{{- define "svc-ports" -}}
+				{{- range $portName, $config := .ports }}
+				{{- if (index (default dict $config.expose) $.serviceName) }}
+				- port: {{ default $config.port $config.exposedPort }}
+				  name: {{ $portName }}
+				{{- end }}
+				{{- end }}
+				{{- end -}}""";
+		String svc = """
+				{{- $tcpPorts := dict -}}
+				{{- range $portName, $config := .Values.ports -}}
+				  {{- if $config -}}
+				    {{- if eq (toString (default "TCP" $config.protocol)) "TCP" -}}
+				      {{- $_ := set $tcpPorts $portName $config -}}
+				    {{- end -}}
+				  {{- end -}}
+				{{- end -}}
+				ports:
+				{{- template "svc-ports" (dict "ports" $tcpPorts "serviceName" "default") }}""";
+		Map<String, Object> web = new HashMap<>();
+		web.put("port", 8000);
+		web.put("expose", Map.of("default", true));
+		web.put("exposedPort", 80);
+		web.put("protocol", "TCP");
+		Map<String, Object> websecure = new HashMap<>();
+		websecure.put("port", 8443);
+		websecure.put("expose", Map.of("default", true));
+		websecure.put("exposedPort", 443);
+		websecure.put("protocol", "TCP");
+
+		Map<String, Object> ports = new LinkedHashMap<>();
+		ports.put("web", web);
+		ports.put("websecure", websecure);
+		Map<String, Object> values = Map.of("ports", ports);
+
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("_helpers.tpl", helpers), tmpl("svc.yaml", svc)),
+				values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("port: 80"), "Should render web port 80: " + result);
+		assertTrue(result.contains("port: 443"), "Should render websecure port 443: " + result);
+	}
+
 }

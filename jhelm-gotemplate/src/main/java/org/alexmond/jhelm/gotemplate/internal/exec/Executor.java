@@ -367,7 +367,17 @@ public class Executor {
 
 		Object value = executePipe(templateNode.getPipeNode(), data, beanInfo);
 		BeanInfo valueBeanInfo = (value != null) ? getBeanInfo(value) : null;
-		writeNode(writer, listNode, value, valueBeanInfo);
+		// Go resets $ and clears outer variables when entering a nested template
+		Map<String, Object> savedVariables = new HashMap<>(this.variables);
+		this.variables.clear();
+		this.variables.put("$", value);
+		try {
+			writeNode(writer, listNode, value, valueBeanInfo);
+		}
+		finally {
+			this.variables.clear();
+			this.variables.putAll(savedVariables);
+		}
 	}
 
 	private Object executePipe(PipeNode pipeNode, Object data, BeanInfo beanInfo) throws TemplateExecutionException {
@@ -481,13 +491,11 @@ public class Executor {
 		if (current == null) {
 			return null;
 		}
-
 		if (current instanceof Map<?, ?> rawMap) {
 			@SuppressWarnings("unchecked")
 			Map<String, Object> map = (Map<String, Object>) rawMap;
 			return map.get(identifier);
 		}
-
 		BeanInfo currentBeanInfo = getBeanInfo(current);
 		PropertyDescriptor[] propertyDescriptors = currentBeanInfo.getPropertyDescriptors();
 		for (PropertyDescriptor propertyDescriptor : propertyDescriptors) {
@@ -514,12 +522,10 @@ public class Executor {
 	}
 
 	private Object executeField(FieldNode fieldNode, Object data) throws TemplateExecutionException {
-		String[] identifiers = fieldNode.getIdentifiers();
 		Object current = data;
-		for (String identifier : identifiers) {
+		for (String identifier : fieldNode.getIdentifiers()) {
 			current = getFieldValue(current, identifier);
 		}
-
 		return current;
 	}
 
@@ -727,7 +733,13 @@ public class Executor {
 		if (!variables.containsKey(varName)) {
 			throw new TemplateExecutionException(String.format("undefined variable: %s", varName));
 		}
-		return variables.get(varName);
+		Object current = variables.get(varName);
+		// Chain through remaining identifiers (e.g., $config.expose.nested)
+		String[] identifiers = variableNode.getIdentifiers();
+		for (int i = 1; i < identifiers.length; i++) {
+			current = getFieldValue(current, identifiers[i]);
+		}
+		return current;
 	}
 
 	/**
