@@ -220,4 +220,37 @@ class SemverFunctionsTest {
 		assertEquals("true", writer.toString());
 	}
 
+	// --- Datadog pattern: caret + OR + pre-release suffix ---
+
+	@Test
+	void testSemverCompareCaretOrWithPrerelease() throws IOException, TemplateException {
+		// datadog/datadog pattern: semverCompare "^6.36.0-0 || ^7.36.0-0" "7.76.1"
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ semverCompare \"^6.36.0-0 || ^7.36.0-0\" \"7.76.1\" }}", new HashMap<>(), writer);
+		assertEquals("true", writer.toString());
+	}
+
+	@Test
+	void testSemverCompareCaretOrFirstBranch() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ semverCompare \"^6.36.0-0 || ^7.36.0-0\" \"6.50.0\" }}", new HashMap<>(), writer);
+		assertEquals("true", writer.toString());
+	}
+
+	@Test
+	void testSemverCompareCaretOrNeitherMatch() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ semverCompare \"^6.36.0-0 || ^7.36.0-0\" \"5.0.0\" }}", new HashMap<>(), writer);
+		assertEquals("false", writer.toString());
+	}
+
+	// --- ingress-nginx pattern: semverCompare with v-prefix ---
+
+	@Test
+	void testSemverCompareWithVPrefix() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ semverCompare \">=1.21.0-0\" \"v1.35.0\" }}", new HashMap<>(), writer);
+		assertEquals("true", writer.toString());
+	}
+
 }

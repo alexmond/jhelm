@@ -40,17 +40,6 @@ jhelmtest:
       - resource: "ClusterRole/*"
         path: "rules.*"
         reason: "BUG: conditional rules render differently — likely values-driven if/range evaluation gap"
-    "[ingress-nginx/ingress-nginx]":
-      # Service fields populated by Helm but not by JHelm
-      - resource: "Service/*"
-        path: "spec.ipFamilyPolicy"
-        reason: "JHelm does not populate ipFamilyPolicy default"
-      - resource: "Service/*"
-        path: "spec.ipFamilies"
-        reason: "JHelm does not populate ipFamilies default"
-      - resource: "Service/*"
-        path: "spec.ports.*"
-        reason: "JHelm does not populate appProtocol on service ports"
     "[gitlab/gitlab-runner]":
       # BUG: JHelm renders empty string instead of null for env values
       - resource: "Deployment/*"
@@ -95,11 +84,6 @@ jhelmtest:
       - resource: "*"
         path: "*"
         reason: "BUG: Subchart version labels, StatefulSet 99 diffs, Secret content missing"
-    "[datadog/datadog]":
-      # BUG: Template-level semver check causes fail() — agent image version comparison
-      - resource: "*"
-        path: "*"
-        reason: "BUG: semverCompare in template triggers fail() for agent image version check"
     "[runix/pgadmin4]":
       # BUG: Parser fails on nested parenthesized expressions in _helpers.tpl
       - resource: "*"

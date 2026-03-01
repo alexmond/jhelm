@@ -103,7 +103,8 @@ public final class SemverFunctions {
 	 * accepts 2-part versions like "1.13-0" (meaning 1.13.0-0), but semver4j requires
 	 * strict 3-part versions. This adds the missing ".0" patch component.
 	 */
-	private static final Pattern TWO_PART_VERSION = Pattern.compile("(?<!\\d\\.)(\\d+\\.\\d+)(-\\S+)?(?=\\s|$|\\|)");
+	private static final Pattern TWO_PART_VERSION = Pattern
+		.compile("(?<![.\\d])(\\d+\\.\\d+)(?!\\.\\d)(-\\S+)?(?=\\s|$|\\|)");
 
 	private static String normalizeConstraint(String constraint) {
 		Matcher m = TWO_PART_VERSION.matcher(constraint);
@@ -111,10 +112,7 @@ public final class SemverFunctions {
 		while (m.find()) {
 			String majorMinor = m.group(1);
 			String suffix = (m.group(2) != null) ? m.group(2) : "";
-			// Only add .0 if there's no third part already
-			if (!majorMinor.matches(".*\\.\\d+\\.\\d+.*")) {
-				m.appendReplacement(sb, majorMinor + ".0" + suffix);
-			}
+			m.appendReplacement(sb, Matcher.quoteReplacement(majorMinor + ".0" + suffix));
 		}
 		m.appendTail(sb);
 		return sb.toString();
