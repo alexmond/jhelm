@@ -23,6 +23,8 @@ public final class LogicFunctions {
 		functions.put("coalesce", coalesce());
 		functions.put("ternary", ternary());
 		functions.put("fail", fail());
+		functions.put("all", all());
+		functions.put("any", any());
 
 		return functions;
 	}
@@ -65,6 +67,28 @@ public final class LogicFunctions {
 	private static Function fail() {
 		return (args) -> {
 			throw new RuntimeException((args.length > 0) ? String.valueOf(args[0]) : "fail");
+		};
+	}
+
+	private static Function all() {
+		return (args) -> {
+			for (Object arg : args) {
+				if (!isTruthy(arg)) {
+					return false;
+				}
+			}
+			return true;
+		};
+	}
+
+	private static Function any() {
+		return (args) -> {
+			for (Object arg : args) {
+				if (isTruthy(arg)) {
+					return true;
+				}
+			}
+			return false;
 		};
 	}
 

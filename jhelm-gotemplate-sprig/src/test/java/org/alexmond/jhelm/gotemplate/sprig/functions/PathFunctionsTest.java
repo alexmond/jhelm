@@ -80,4 +80,31 @@ class PathFunctionsTest {
 		assertEquals("false", eval("{{ isAbs \"path\" }}"));
 	}
 
+	// --- OS path aliases ---
+
+	@Test
+	void testOsBase() throws IOException, TemplateException {
+		assertEquals("file.txt", eval("{{ osBase \"path/to/file.txt\" }}"));
+	}
+
+	@Test
+	void testOsDir() throws IOException, TemplateException {
+		assertEquals("path/to", eval("{{ osDir \"path/to/file.txt\" }}"));
+	}
+
+	@Test
+	void testOsExt() throws IOException, TemplateException {
+		assertEquals(".txt", eval("{{ osExt \"file.txt\" }}"));
+	}
+
+	@Test
+	void testOsClean() throws IOException, TemplateException {
+		assertEquals("a/b/c", eval("{{ osClean \"a//b/../b/c\" }}"));
+	}
+
+	@Test
+	void testOsIsAbs() throws IOException, TemplateException {
+		assertEquals("true", eval("{{ osIsAbs \"/path\" }}"));
+	}
+
 }

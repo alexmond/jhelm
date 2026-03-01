@@ -150,4 +150,66 @@ class CryptoFunctionsTest {
 		assertTrue(result.matches("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"));
 	}
 
+	// --- New functions: bcrypt, randBytes, encryptAES/decryptAES, *WithKey ---
+
+	@Test
+	void testBcrypt() throws IOException, TemplateException {
+		String result = exec("{{ bcrypt \"mysecret\" }}");
+		assertTrue(result.startsWith("$2"));
+		assertTrue(result.length() > 50);
+	}
+
+	@Test
+	void testRandBytes() throws IOException, TemplateException {
+		String result = exec("{{ randBytes 16 }}");
+		assertNotNull(result);
+		assertFalse(result.isEmpty());
+		// Base64-encoded 16 bytes = 24 chars
+		assertEquals(24, result.length());
+	}
+
+	@Test
+	void testEncryptDecryptAES() throws IOException, TemplateException {
+		// We can't test round-trip in a single template since each execution
+		// generates a random IV, so test them separately
+		String encrypted = exec("{{ encryptAES \"mySecretPassword12345678\" \"hello world\" }}");
+		assertNotNull(encrypted);
+		assertFalse(encrypted.isEmpty());
+
+		// Decrypt the encrypted value
+		Map<String, Object> data = new HashMap<>();
+		data.put("encrypted", encrypted);
+		StringWriter writer = new StringWriter();
+		GoTemplate t = new GoTemplate();
+		t.parse("test", "{{ decryptAES \"mySecretPassword12345678\" .encrypted }}");
+		t.execute("test", data, writer);
+		assertEquals("hello world", writer.toString());
+	}
+
+	@Test
+	void testGenCAWithKey() throws IOException, TemplateException {
+		String result = exec("{{ $ca := genCAWithKey \"myCA\" 365 \"\" }}{{ $ca.Cert }}");
+		assertTrue(result.contains("BEGIN CERTIFICATE"));
+	}
+
+	@Test
+	void testGenSelfSignedCertWithKey() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		GoTemplate t = new GoTemplate();
+		t.parse("test",
+				"{{ $cert := genSelfSignedCertWithKey \"localhost\" (list) (list \"localhost\") 365 \"\" }}{{ $cert.Cert }}");
+		t.execute("test", new HashMap<>(), writer);
+		assertTrue(writer.toString().contains("BEGIN CERTIFICATE"));
+	}
+
+	@Test
+	void testGenSignedCertWithKey() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		GoTemplate t = new GoTemplate();
+		t.parse("test",
+				"{{ $ca := genCA \"myCA\" 365 }}{{ $cert := genSignedCertWithKey \"myhost\" (list) (list \"myhost\") 365 $ca \"\" }}{{ $cert.Cert }}");
+		t.execute("test", new HashMap<>(), writer);
+		assertTrue(writer.toString().contains("BEGIN CERTIFICATE"));
+	}
+
 }

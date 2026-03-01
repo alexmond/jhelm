@@ -460,4 +460,38 @@ class CollectionFunctionsTest {
 		assertEquals("2", exec("{{ $l := list \"a\" \"b\" }}{{ $c := deepCopy $l }}{{ len $c }}"));
 	}
 
+	// --- New functions: chunk, mustChunk, push, mustPush ---
+
+	@Test
+	void testChunk() throws IOException, TemplateException {
+		assertEquals("3", exec("{{ $chunks := chunk 2 (list \"a\" \"b\" \"c\" \"d\" \"e\") }}{{ len $chunks }}"));
+	}
+
+	@Test
+	void testChunkFirstElement() throws IOException, TemplateException {
+		assertEquals("2", exec("{{ $chunks := chunk 2 (list \"a\" \"b\" \"c\") }}{{ len (index $chunks 0) }}"));
+	}
+
+	@Test
+	void testChunkLastPartial() throws IOException, TemplateException {
+		assertEquals("1", exec("{{ $chunks := chunk 2 (list \"a\" \"b\" \"c\") }}{{ len (index $chunks 1) }}"));
+	}
+
+	@Test
+	void testMustChunk() throws IOException, TemplateException {
+		assertEquals("3", exec("{{ $chunks := mustChunk 1 (list \"a\" \"b\" \"c\") }}{{ len $chunks }}"));
+	}
+
+	@Test
+	void testPushAlias() throws IOException, TemplateException {
+		Map<String, Object> data = Map.of("items", new ArrayList<>(Arrays.asList("a", "b")));
+		assertEquals("3", execWithData("{{ $r := push .items \"c\" }}{{ len $r }}", data));
+	}
+
+	@Test
+	void testMustPushAlias() throws IOException, TemplateException {
+		Map<String, Object> data = Map.of("items", new ArrayList<>(Arrays.asList("a", "b")));
+		assertEquals("3", execWithData("{{ $r := mustPush .items \"c\" }}{{ len $r }}", data));
+	}
+
 }

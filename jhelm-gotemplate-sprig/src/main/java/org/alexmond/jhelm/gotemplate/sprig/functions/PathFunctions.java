@@ -23,6 +23,12 @@ public final class PathFunctions {
 		functions.put("ext", ext());
 		functions.put("clean", clean());
 		functions.put("isAbs", isAbs());
+		// OS-specific path aliases (in Helm charts, these behave the same as POSIX)
+		functions.put("osBase", base());
+		functions.put("osDir", dir());
+		functions.put("osExt", ext());
+		functions.put("osClean", clean());
+		functions.put("osIsAbs", isAbs());
 		return functions;
 	}
 

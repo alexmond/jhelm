@@ -57,10 +57,17 @@ public final class StringFunctions {
 		functions.put("kebabcase", kebabcase());
 		functions.put("shuffle", shuffle());
 
+		functions.put("nospace", nospace());
+		functions.put("swapcase", swapcase());
+
+		// Aliases
+		functions.put("trimall", trimAll());
+
 		// Regex functions
 		functions.put("regexMatch", regexMatch());
 		functions.put("mustRegexMatch", mustRegexMatch());
 		functions.put("regexFindAll", regexFindAll());
+		functions.put("mustRegexFindAll", mustRegexFindAll());
 		functions.put("regexFind", regexFind());
 		functions.put("mustRegexFind", mustRegexFind());
 		functions.put("regexReplaceAll", regexReplaceAll());
@@ -69,6 +76,7 @@ public final class StringFunctions {
 		functions.put("mustRegexReplaceAllLiteral", mustRegexReplaceAllLiteral());
 		functions.put("regexSplit", regexSplit());
 		functions.put("mustRegexSplit", mustRegexSplit());
+		functions.put("regexQuoteMeta", regexQuoteMeta());
 
 		return functions;
 	}
@@ -446,6 +454,37 @@ public final class StringFunctions {
 		};
 	}
 
+	private static Function nospace() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			return String.valueOf(args[0]).replaceAll("\\s+", "");
+		};
+	}
+
+	private static Function swapcase() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			String s = String.valueOf(args[0]);
+			StringBuilder sb = new StringBuilder(s.length());
+			for (char c : s.toCharArray()) {
+				if (Character.isUpperCase(c)) {
+					sb.append(Character.toLowerCase(c));
+				}
+				else if (Character.isLowerCase(c)) {
+					sb.append(Character.toUpperCase(c));
+				}
+				else {
+					sb.append(c);
+				}
+			}
+			return sb.toString();
+		};
+	}
+
 	// Regex functions
 	private static Function regexMatch() {
 		return (args) -> {
@@ -528,6 +567,38 @@ public final class StringFunctions {
 			catch (Exception ex) {
 				return Collections.emptyList();
 			}
+		};
+	}
+
+	private static Function mustRegexFindAll() {
+		return (args) -> {
+			if (args.length < 3) {
+				throw new RuntimeException("mustRegexFindAll: insufficient arguments");
+			}
+			try {
+				String regex = String.valueOf(args[0]);
+				String text = String.valueOf(args[1]);
+				int n = ((Number) args[2]).intValue();
+				Pattern pattern = Pattern.compile(regex);
+				Matcher matcher = pattern.matcher(text);
+				List<String> results = new ArrayList<>();
+				while (matcher.find() && (n < 0 || results.size() < n)) {
+					results.add(matcher.group());
+				}
+				return results;
+			}
+			catch (Exception ex) {
+				throw new RuntimeException("mustRegexFindAll: " + ex.getMessage(), ex);
+			}
+		};
+	}
+
+	private static Function regexQuoteMeta() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			return Pattern.quote(String.valueOf(args[0]));
 		};
 	}
 

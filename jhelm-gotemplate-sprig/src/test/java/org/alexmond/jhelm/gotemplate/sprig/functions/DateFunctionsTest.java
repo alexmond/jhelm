@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.gotemplate.sprig.functions;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -122,6 +123,58 @@ class DateFunctionsTest {
 	void testUnixEpochWithPipechain() throws IOException, TemplateException {
 		StringWriter writer = new StringWriter();
 		execute("test", "{{ now | dateModify \"1h\" | unixEpoch }}", new HashMap<>(), writer);
+		assertTrue(writer.toString().matches("\\d+"));
+	}
+
+	// --- New functions: ago, duration, mustDateModify, aliases ---
+
+	@Test
+	void testAgo() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		// ago on now should produce 0s or a very small duration
+		execute("test", "{{ now | ago }}", new HashMap<>(), writer);
+		assertFalse(writer.toString().isEmpty());
+	}
+
+	@Test
+	void testDurationFromSeconds() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ duration 3661 }}", new HashMap<>(), writer);
+		assertEquals("1h1m1s", writer.toString());
+	}
+
+	@Test
+	void testDurationZero() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ duration 0 }}", new HashMap<>(), writer);
+		assertEquals("0s", writer.toString());
+	}
+
+	@Test
+	void testDurationHoursOnly() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ duration 7200 }}", new HashMap<>(), writer);
+		assertEquals("2h", writer.toString());
+	}
+
+	@Test
+	void testMustDateModify() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ now | mustDateModify \"1h\" | unixEpoch }}", new HashMap<>(), writer);
+		assertTrue(writer.toString().matches("\\d+"));
+	}
+
+	@Test
+	void testDateInZoneAlias() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ date_in_zone \"2006-01-02\" now \"UTC\" }}", new HashMap<>(), writer);
+		assertTrue(writer.toString().matches("\\d{4}-\\d{2}-\\d{2}"));
+	}
+
+	@Test
+	void testDateModifyAlias() throws IOException, TemplateException {
+		StringWriter writer = new StringWriter();
+		execute("test", "{{ now | date_modify \"1h\" | unixEpoch }}", new HashMap<>(), writer);
 		assertTrue(writer.toString().matches("\\d+"));
 	}
 
