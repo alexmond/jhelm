@@ -79,11 +79,6 @@ jhelmtest:
       - resource: "*"
         path: "*"
         reason: "BUG: Subchart version labels, StatefulSet 99 diffs, Secret content missing"
-    "[runix/pgadmin4]":
-      # BUG: Parser fails on nested parenthesized expressions in _helpers.tpl
-      - resource: "*"
-        path: "*"
-        reason: "BUG: Parser cannot handle nested parenthesized expressions like (kindIs \"string\" .toMap)"
     "[goauthentik/authentik]":
       # BUG: Missing RBAC resources and serviceAccountName
       - resource: "*"
