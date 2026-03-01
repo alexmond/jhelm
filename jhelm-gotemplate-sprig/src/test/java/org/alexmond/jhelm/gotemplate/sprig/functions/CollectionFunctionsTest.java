@@ -207,12 +207,48 @@ class CollectionFunctionsTest {
 	@CsvSource(delimiter = '|', value = {
 			"{{ $d1 := dict \"a\" 1 }}{{ $d2 := dict \"b\" 2 }}{{ $m := merge $d1 $d2 }}{{ len $m }}                         | 2",
 			"{{ $d1 := dict \"a\" 1 }}{{ $d2 := dict \"b\" 2 }}{{ $m := mustMerge $d1 $d2 }}{{ len $m }}                     | 2",
+			"{{ $d1 := dict \"a\" 1 }}{{ $d2 := dict \"a\" 2 }}{{ $m := merge $d1 $d2 }}{{ get $m \"a\" }}                    | 1",
+			"{{ $d1 := dict \"a\" 1 }}{{ $d2 := dict \"a\" 2 }}{{ $m := mustMerge $d1 $d2 }}{{ get $m \"a\" }}                | 1",
 			"{{ $d1 := dict \"a\" 1 }}{{ $d2 := dict \"a\" 2 }}{{ $m := mergeOverwrite $d1 $d2 }}{{ get $m \"a\" }}          | 2",
 			"{{ $d1 := dict \"a\" 1 }}{{ $d2 := dict \"a\" 2 }}{{ $m := mustMergeOverwrite $d1 $d2 }}{{ get $m \"a\" }}      | 2",
 			"{{ $d := dict \"a\" 1 }}{{ $c := deepCopy $d }}{{ get $c \"a\" }}                                                | 1",
 			"{{ $d := dict \"a\" 1 }}{{ $c := mustDeepCopy $d }}{{ get $c \"a\" }}                                            | 1" })
 	void testMergeAndCopy(String template, String expected) throws IOException, TemplateException {
 		assertEquals(expected, exec(template));
+	}
+
+	@Test
+	void testMergeDeepNested() throws IOException, TemplateException {
+		// Deep merge: nested maps should be merged recursively, dst values preserved
+		String template = """
+				{{ $d1 := dict "outer" (dict "a" 1 "b" 2) }}\
+				{{ $d2 := dict "outer" (dict "a" 99 "c" 3) }}\
+				{{ $m := merge $d1 $d2 }}\
+				{{ (get (get $m "outer") "a") }},{{ (get (get $m "outer") "b") }},{{ (get (get $m "outer") "c") }}""";
+		assertEquals("1,2,3", exec(template));
+	}
+
+	@Test
+	void testMergeOverwriteDeepNested() throws IOException, TemplateException {
+		// mergeOverwrite: source values should overwrite destination values
+		String template = """
+				{{ $d1 := dict "outer" (dict "a" 1 "b" 2) }}\
+				{{ $d2 := dict "outer" (dict "a" 99 "c" 3) }}\
+				{{ $m := mergeOverwrite $d1 $d2 }}\
+				{{ (get (get $m "outer") "a") }},{{ (get (get $m "outer") "b") }},{{ (get (get $m "outer") "c") }}""";
+		assertEquals("99,2,3", exec(template));
+	}
+
+	@Test
+	void testMergePipelineDestinationWins() throws IOException, TemplateException {
+		// Simulates the Helm pattern: pipeline value | merge $dst
+		// In this pattern, $dst is the first arg, pipeline value is the source
+		String template = """
+				{{ $dst := dict "version" "1.0" }}\
+				{{ $src := dict "version" "2.0" "name" "test" }}\
+				{{ $dst = merge $dst $src }}\
+				{{ get $dst "version" }},{{ get $dst "name" }}""";
+		assertEquals("1.0,test", exec(template));
 	}
 
 	// Standalone tests for operations without must* variants

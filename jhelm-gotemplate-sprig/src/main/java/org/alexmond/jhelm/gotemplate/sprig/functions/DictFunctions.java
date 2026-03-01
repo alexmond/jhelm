@@ -169,18 +169,53 @@ public final class DictFunctions {
 	@SuppressWarnings("unchecked")
 	private static Function merge() {
 		return (args) -> {
-			Map<String, Object> result = new LinkedHashMap<>();
-			for (Object arg : args) {
-				if (arg instanceof Map) {
-					result.putAll((Map<String, Object>) arg);
+			if (args.length == 0) {
+				return new LinkedHashMap<>();
+			}
+			Map<String, Object> dst = (args[0] instanceof Map) ? (Map<String, Object>) args[0] : new LinkedHashMap<>();
+			for (int i = 1; i < args.length; i++) {
+				if (args[i] instanceof Map) {
+					deepMerge(dst, (Map<String, Object>) args[i], false);
 				}
 			}
-			return result;
+			return dst;
 		};
 	}
 
+	@SuppressWarnings("unchecked")
 	private static Function mergeOverwrite() {
-		return merge(); // Same behavior in simple implementation
+		return (args) -> {
+			if (args.length == 0) {
+				return new LinkedHashMap<>();
+			}
+			Map<String, Object> dst = (args[0] instanceof Map) ? (Map<String, Object>) args[0] : new LinkedHashMap<>();
+			for (int i = 1; i < args.length; i++) {
+				if (args[i] instanceof Map) {
+					deepMerge(dst, (Map<String, Object>) args[i], true);
+				}
+			}
+			return dst;
+		};
+	}
+
+	@SuppressWarnings("unchecked")
+	private static void deepMerge(Map<String, Object> dst, Map<String, Object> src, boolean overwrite) {
+		for (Map.Entry<String, Object> entry : src.entrySet()) {
+			String key = entry.getKey();
+			Object srcVal = entry.getValue();
+			if (dst.containsKey(key)) {
+				Object dstVal = dst.get(key);
+				if (dstVal instanceof Map && srcVal instanceof Map) {
+					deepMerge((Map<String, Object>) dstVal, (Map<String, Object>) srcVal, overwrite);
+				}
+				else if (overwrite) {
+					dst.put(key, srcVal);
+				}
+			}
+			else {
+				dst.put(key, srcVal);
+			}
+		}
 	}
 
 	private static Function mustMerge() {
