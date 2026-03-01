@@ -645,4 +645,115 @@ class EngineTest {
 		assertTrue(result.contains("cache-port: 6379"));
 	}
 
+	// --- Issue #137: nested parenthesized expressions ---
+
+	@Test
+	void testNestedParenthesizedExpressionsWithTernary() {
+		// pgadmin4 pattern: tpl (ternary .toMap (.toMap | toYaml) (kindIs "string"
+		// .toMap)) .context
+		String helpers = """
+				{{- define "mychart.tplToMap" -}}
+				{{- tpl (ternary .toMap (.toMap | toYaml) (kindIs "string" .toMap)) .context -}}
+				{{- end -}}
+				""";
+		String deployment = """
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: test
+				  labels:
+				    {{ include "mychart.tplToMap" (dict "toMap" "app: myapp" "context" $) }}
+				""";
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("_helpers.tpl", helpers), tmpl("configmap.yaml", deployment)), Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("app: myapp"), "tplToMap should resolve string input: " + result);
+	}
+
+	@Test
+	void testNestedParenthesizedExpressionsWithMapInput() {
+		// When input is a map, kindIs "string" → false, so (.toMap | toYaml) branch is
+		// chosen
+		String helpers = """
+				{{- define "mychart.tplToMap" -}}
+				{{- tpl (ternary .toMap (.toMap | toYaml) (kindIs "string" .toMap)) .context -}}
+				{{- end -}}
+				""";
+		String deployment = """
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: test
+				  labels:
+				    {{ include "mychart.tplToMap" (dict "toMap" (dict "app" "myapp") "context" $) }}
+				""";
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("_helpers.tpl", helpers), tmpl("configmap.yaml", deployment)), Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("app: myapp"), "tplToMap should resolve map input via toYaml: " + result);
+	}
+
+	@Test
+	void testPgadmin4HelpersFullParse() {
+		// Test parsing the full pgadmin4 _helpers.tpl patterns
+		String helpers = """
+				{{- define "pgadmin.name" -}}
+				{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+				{{- end -}}
+
+				{{- define "pgadmin.fullname" -}}
+				{{- if .Values.fullnameOverride -}}
+				{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+				{{- else -}}
+				{{- $name := default .Chart.Name .Values.nameOverride -}}
+				{{- if contains $name .Release.Name -}}
+				{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+				{{- else -}}
+				{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+				{{- end -}}
+				{{- end -}}
+				{{- end -}}
+
+				{{- define "pgadmin.tplToMap" -}}
+				{{- tpl (ternary .toMap (.toMap | toYaml) (kindIs "string" .toMap)) .context -}}
+				{{- end -}}
+
+				{{- define "pgadmin.ingress.apiVersion" -}}
+				{{- if and ($.Capabilities.APIVersions.Has "networking.k8s.io/v1") (semverCompare ">= 1.19-0" .Capabilities.KubeVersion.Version) }}
+				{{- print "networking.k8s.io/v1" }}
+				{{- else if $.Capabilities.APIVersions.Has "networking.k8s.io/v1beta1" }}
+				{{- print "networking.k8s.io/v1beta1" }}
+				{{- else }}
+				{{- print "extensions/v1beta1" }}
+				{{- end }}
+				{{- end }}
+
+				{{- define "deployment.apiVersion" -}}
+				{{- print "apps/v1" -}}
+				{{- end -}}
+
+				{{- define "pgadmin.validateValues" -}}
+				{{- $problems := list -}}
+				{{- $_ := set $.Values "serverDefinitions" (default (dict) $.Values.serverDefinitions) -}}
+				{{- $type := default "" $.Values.serverDefinitions.resourceType -}}
+				{{- if and $.Values.serverDefinitions.enabled (not (or (eq $type "ConfigMap") (eq $type "Secret"))) -}}
+				{{- $problems = append $problems "serverDefinitions.resourceType must be 'ConfigMap' or 'Secret'" -}}
+				{{- end -}}
+				{{- if gt (len $problems) 0 -}}
+				{{- fail (printf "VALIDATION: %s" (join ", " $problems)) -}}
+				{{- end -}}
+				{{- end -}}
+				""";
+		String deployment = """
+				apiVersion: {{ template "deployment.apiVersion" . }}
+				kind: Deployment
+				metadata:
+				  name: {{ include "pgadmin.fullname" . }}
+				""";
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("_helpers.tpl", helpers), tmpl("deployment.yaml", deployment)), Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("apiVersion: apps/v1"), "deployment.apiVersion should render: " + result);
+	}
+
 }

@@ -1,6 +1,9 @@
 package org.alexmond.jhelm.gotemplate.sprig.functions;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.alexmond.jhelm.gotemplate.Function;
@@ -23,7 +26,10 @@ public final class MathFunctions {
 		functions.put("int", toInt());
 		functions.put("int64", toInt64());
 		functions.put("float64", toFloat64());
+		functions.put("atoi", atoi());
 		functions.put("toString", toStringFunc());
+		functions.put("toStrings", toStrings());
+		functions.put("toDecimal", toDecimal());
 
 		// Basic arithmetic
 		functions.put("add", add());
@@ -105,6 +111,52 @@ public final class MathFunctions {
 
 	private static Function toStringFunc() {
 		return (args) -> (args.length == 0) ? "" : String.valueOf(args[0]);
+	}
+
+	private static Function atoi() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return 0;
+			}
+			try {
+				return Integer.parseInt(String.valueOf(args[0]).trim());
+			}
+			catch (NumberFormatException ex) {
+				return 0;
+			}
+		};
+	}
+
+	private static Function toStrings() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return List.of();
+			}
+			Object arg = args[0];
+			if (arg instanceof Collection<?> coll) {
+				List<String> result = new ArrayList<>(coll.size());
+				for (Object item : coll) {
+					result.add(String.valueOf(item));
+				}
+				return result;
+			}
+			return List.of(String.valueOf(arg));
+		};
+	}
+
+	private static Function toDecimal() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return 0L;
+			}
+			String s = String.valueOf(args[0]).trim();
+			try {
+				return Long.parseLong(s, 8);
+			}
+			catch (NumberFormatException ex) {
+				return 0L;
+			}
+		};
 	}
 
 	// ========== Basic Arithmetic Functions ==========

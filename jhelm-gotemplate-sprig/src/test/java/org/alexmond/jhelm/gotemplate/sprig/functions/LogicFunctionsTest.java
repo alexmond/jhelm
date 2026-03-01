@@ -197,4 +197,36 @@ class LogicFunctionsTest {
 		assertNotEquals("fallback", result);
 	}
 
+	// Issue #137: nested parenthesized function calls as arguments
+
+	@Test
+	void testTernaryWithParenthesizedFunctionArg() throws IOException, TemplateException {
+		// kindIs "string" "hello" → true, so ternary returns first arg "a"
+		assertEquals("a", exec("{{ ternary \"a\" \"b\" (kindIs \"string\" \"hello\") }}", new HashMap<>()));
+	}
+
+	@Test
+	void testTernaryWithParenthesizedPipeline() throws IOException, TemplateException {
+		// (.value | upper) → "HELLO", so ternary returns first arg "yes"
+		Map<String, Object> data = new HashMap<>();
+		data.put("value", "hello");
+		assertEquals("yes", exec("{{ ternary \"yes\" \"no\" (.value | upper) }}", data));
+	}
+
+	@Test
+	void testTernaryWithMultipleParenthesizedArgs() throws IOException, TemplateException {
+		// Full pgadmin4-style: tpl (ternary arg1 arg2 (kindIs ...))
+		Map<String, Object> data = new HashMap<>();
+		data.put("toMap", "hello");
+		assertEquals("hello", exec("{{ ternary .toMap (.toMap | upper) (kindIs \"string\" .toMap) }}", data));
+	}
+
+	@Test
+	void testNestedParensInsideParens() throws IOException, TemplateException {
+		// Issue #137: parens inside parens — (ternary X (Y | Z) (kindIs ...))
+		Map<String, Object> data = new HashMap<>();
+		data.put("toMap", "hello");
+		assertEquals("hello", exec("{{ (ternary .toMap (.toMap | upper) (kindIs \"string\" .toMap)) }}", data));
+	}
+
 }
