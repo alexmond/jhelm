@@ -306,12 +306,12 @@ class EngineTest {
 
 	@Test
 	void testSetDollarValuesPropagatesAcrossTemplates() {
-		// Reproduces istiod pattern: first template mutates $.Values via set,
-		// second template should see the mutation
+		// Helm 4 executes templates in reverse alphabetical order, so
+		// zzz_setup.yaml runs FIRST and aaa_consumer.yaml runs LAST
 		Chart chart = simpleChart("istiod", "1.0.0",
-				List.of(tmpl("aaa_setup.yaml",
+				List.of(tmpl("zzz_setup.yaml",
 						"{{ $_ := set $ \"Values\" (merge .Values (dict \"injected\" \"fromSetup\")) }}"),
-						tmpl("zzz_consumer.yaml", "injected: {{ .Values.injected }}")),
+						tmpl("aaa_consumer.yaml", "injected: {{ .Values.injected }}")),
 				Map.of());
 		String result = engine.render(chart, Map.of(), releaseInfo());
 		assertTrue(result.contains("injected: fromSetup"), "set $ Values mutation should propagate: " + result);
@@ -1348,6 +1348,44 @@ class EngineTest {
 		String result = engine.render(parent, Map.of(), releaseInfo());
 		assertTrue(result.contains("name: lib-value"),
 				"Library chart helpers should be available to parent: " + result);
+	}
+
+	@Test
+	void testReverseAlphabeticalExecutionOrder() {
+		// Helm 4 renders templates in reverse alphabetical order so that
+		// zzz_profile.yaml (which merges _internal_defaults) runs before
+		// deployment.yaml and others that depend on the merged values
+		String setup = """
+				{{- $defaults := $.Values._internal_defaults }}
+				{{- $_ := set $ "Values" (mustMergeOverwrite $defaults $.Values) }}""";
+		String consumer = "scope: {{ .Values.global.scope }}";
+		Map<String, Object> defaults = new HashMap<>();
+		defaults.put("global", new HashMap<>(Map.of("scope", "all")));
+		Map<String, Object> values = new HashMap<>();
+		values.put("_internal_defaults", defaults);
+		Chart chart = simpleChart("istiod", "1.0.0",
+				List.of(tmpl("deployment.yaml", consumer), tmpl("zzz_profile.yaml", setup)), values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("scope: all"), "zzz_profile.yaml should run first and set up .Values: " + result);
+	}
+
+	@Test
+	void testNestedOrEqConditionalRendersContent() {
+		// Reproduces the istiod pattern: or (eq ...) (eq ...)
+		String template = """
+				{{- if or (eq .Values.global.scope "all") (eq .Values.global.scope "ns") }}
+				{{- if or (not .Values.remote.enabled) .Values.global.configCluster }}
+				apiVersion: rbac.authorization.k8s.io/v1
+				kind: Role
+				metadata:
+				  name: test-role
+				{{- end }}
+				{{- end }}""";
+		Map<String, Object> values = Map.of("global", Map.of("scope", "all", "configCluster", false), "remote",
+				Map.of("enabled", false));
+		Chart chart = simpleChart("istiod-test", "1.0.0", List.of(tmpl("role.yaml", template)), values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("kind: Role"), "Nested or/eq conditional should render: " + result);
 	}
 
 }

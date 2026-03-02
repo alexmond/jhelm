@@ -11,6 +11,7 @@ import org.alexmond.jhelm.gotemplate.internal.parse.Node;
 
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -420,7 +421,12 @@ public class Engine {
 		if ("library".equals(chart.getMetadata().getType())) {
 			return;
 		}
-		for (Chart.Template t : chart.getTemplates()) {
+		// Helm 4 executes templates in reverse alphabetical order so that
+		// zzz_*.yaml setup templates (e.g. istiod's zzz_profile.yaml which
+		// merges _internal_defaults into .Values) run before other templates.
+		List<Chart.Template> sorted = new ArrayList<>(chart.getTemplates());
+		sorted.sort(Comparator.comparing(Chart.Template::getName, Comparator.reverseOrder()));
+		for (Chart.Template t : sorted) {
 			if (!t.getName().endsWith(".yaml")) {
 				continue;
 			}
