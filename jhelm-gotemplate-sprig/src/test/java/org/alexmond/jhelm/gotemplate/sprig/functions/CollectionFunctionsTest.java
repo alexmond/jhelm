@@ -494,4 +494,12 @@ class CollectionFunctionsTest {
 		assertEquals("3", execWithData("{{ $r := mustPush .items \"c\" }}{{ len $r }}", data));
 	}
 
+	@Test
+	void testJoinNull() throws IOException, TemplateException {
+		// join on null should return "" not "null"
+		Map<String, Object> data = new HashMap<>();
+		data.put("items", null);
+		assertEquals("", execWithData("{{ join \",\" .items }}", data));
+	}
+
 }

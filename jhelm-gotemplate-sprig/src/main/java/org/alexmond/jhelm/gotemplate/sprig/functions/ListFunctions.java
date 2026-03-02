@@ -608,12 +608,15 @@ public final class ListFunctions {
 			if (args.length < 2) {
 				return "";
 			}
-			String sep = String.valueOf(args[0]);
 			Object listObj = args[1];
+			if (listObj == null) {
+				return "";
+			}
+			String sep = String.valueOf(args[0]);
 			if (listObj instanceof Collection) {
 				return ((Collection<?>) listObj).stream().map(String::valueOf).collect(Collectors.joining(sep));
 			}
-			else if (listObj != null && listObj.getClass().isArray()) {
+			else if (listObj.getClass().isArray()) {
 				int len = Array.getLength(listObj);
 				List<String> strs = new ArrayList<>();
 				for (int i = 0; i < len; i++) {
