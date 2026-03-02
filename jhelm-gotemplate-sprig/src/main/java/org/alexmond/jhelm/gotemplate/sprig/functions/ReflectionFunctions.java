@@ -177,6 +177,12 @@ public final class ReflectionFunctions {
 	/**
 	 * Maps a Java object to its Go-style kind name, matching Go's
 	 * {@code reflect.ValueOf(src).Kind().String()}.
+	 * <p>
+	 * Go's YAML parser unmarshals all numbers (integer or decimal) as {@code float64}.
+	 * Java's YAML parser uses {@code Integer} for whole numbers and {@code Double} for
+	 * decimals. To match Go behavior, all numeric types are mapped to {@code "float64"}
+	 * so that templates using {@code kindIs "float64"} work correctly for YAML-parsed
+	 * numbers.
 	 */
 	private static String goKindName(Object obj) {
 		Class<?> c = obj.getClass();
@@ -186,17 +192,8 @@ public final class ReflectionFunctions {
 		if (c == Boolean.class) {
 			return "bool";
 		}
-		if (c == Integer.class || c == Short.class || c == Byte.class) {
-			return "int";
-		}
-		if (c == Long.class || c == BigInteger.class) {
-			return "int64";
-		}
-		if (c == Double.class || c == BigDecimal.class) {
+		if (Number.class.isAssignableFrom(c)) {
 			return "float64";
-		}
-		if (c == Float.class) {
-			return "float32";
 		}
 		if (Map.class.isAssignableFrom(c)) {
 			return "map";
