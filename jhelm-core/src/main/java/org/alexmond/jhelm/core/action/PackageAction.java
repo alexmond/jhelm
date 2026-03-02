@@ -4,8 +4,13 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
 
 import lombok.RequiredArgsConstructor;
@@ -88,24 +93,31 @@ public class PackageAction {
 	}
 
 	private void createTgz(File chartDir, String chartName, File outputFile) throws IOException {
+		List<PathMatcher> ignoreMatchers = loadHelmIgnore(chartDir);
 		try (OutputStream fos = Files.newOutputStream(outputFile.toPath());
 				BufferedOutputStream bos = new BufferedOutputStream(fos);
 				GzipCompressorOutputStream gzos = new GzipCompressorOutputStream(bos);
 				TarArchiveOutputStream taos = new TarArchiveOutputStream(gzos)) {
 			taos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
-			addDirectory(taos, chartDir, chartName);
+			addDirectory(taos, chartDir, chartName, ignoreMatchers);
 		}
 	}
 
-	private void addDirectory(TarArchiveOutputStream taos, File dir, String entryBase) throws IOException {
-		try (Stream<Path> paths = Files.walk(dir.toPath())) {
+	private void addDirectory(TarArchiveOutputStream taos, File dir, String entryBase, List<PathMatcher> ignoreMatchers)
+			throws IOException {
+		Path dirPath = dir.toPath();
+		try (Stream<Path> paths = Files.walk(dirPath)) {
 			paths.forEach((path) -> {
 				try {
 					File file = path.toFile();
-					String entryName = entryBase + "/" + dir.toPath().relativize(path);
 					if (file.isDirectory()) {
 						return;
 					}
+					Path relativePath = dirPath.relativize(path);
+					if (isIgnored(relativePath, ignoreMatchers)) {
+						return;
+					}
+					String entryName = entryBase + "/" + relativePath;
 					TarArchiveEntry entry = new TarArchiveEntry(file, entryName);
 					taos.putArchiveEntry(entry);
 					Files.copy(path, taos);
@@ -119,6 +131,48 @@ public class PackageAction {
 		catch (UncheckedIOException ex) {
 			throw ex.getCause();
 		}
+	}
+
+	static List<PathMatcher> loadHelmIgnore(File chartDir) {
+		File ignoreFile = new File(chartDir, ".helmignore");
+		if (!ignoreFile.exists()) {
+			return List.of();
+		}
+		List<PathMatcher> matchers = new ArrayList<>();
+		FileSystem fs = FileSystems.getDefault();
+		try {
+			List<String> lines = Files.readAllLines(ignoreFile.toPath());
+			for (String line : lines) {
+				String trimmed = line.trim();
+				if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+					continue;
+				}
+				// Remove trailing slashes (directory markers) for matching
+				if (trimmed.endsWith("/")) {
+					trimmed = trimmed.substring(0, trimmed.length() - 1);
+				}
+				// Convert to glob: match anywhere in the path
+				String glob = "glob:**/" + trimmed;
+				matchers.add(fs.getPathMatcher(glob));
+				// Also match at the root (no leading directory)
+				matchers.add(fs.getPathMatcher("glob:" + trimmed));
+			}
+		}
+		catch (IOException ex) {
+			if (log.isWarnEnabled()) {
+				log.warn("Failed to read .helmignore: {}", ex.getMessage());
+			}
+		}
+		return matchers;
+	}
+
+	private static boolean isIgnored(Path relativePath, List<PathMatcher> matchers) {
+		for (PathMatcher matcher : matchers) {
+			if (matcher.matches(relativePath)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static class UncheckedIOException extends RuntimeException {
