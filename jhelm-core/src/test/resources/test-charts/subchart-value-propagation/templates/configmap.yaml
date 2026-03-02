@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+data:
+  # Direct subchart value access (parent reads subchart defaults)
+  db-host: {{ index .Values "database" "service" "host" | default "unknown" }}
+  db-port: {{ index .Values "database" "service" "port" | default "0" | quote }}
+  db-password: {{ .Values.database.auth.password }}
+  cache-port: {{ index .Values "cache" "service" "port" | default "0" | quote }}
+  # Computed connection strings using helpers
+  database-url: {{ include "app.database.host" . }}
+  cache-url: {{ include "app.cache.host" . }}
+  # Global value access
+  environment: {{ .Values.global.env }}

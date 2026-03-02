@@ -1,0 +1,12 @@
+apiVersion: v2
+name: subchart-value-propagation
+description: Test chart for subchart value propagation patterns
+version: 1.0.0
+appVersion: "1.0"
+dependencies:
+  - name: database
+    version: 1.0.0
+    condition: database.enabled
+  - name: cache
+    version: 1.0.0
+    condition: cache.enabled

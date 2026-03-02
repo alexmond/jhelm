@@ -1,0 +1,10 @@
+# Database subchart defaults
+enabled: true
+service:
+  host: localhost
+  port: 5432
+  type: ClusterIP
+auth:
+  username: postgres
+  password: default-password
+  database: mydb
