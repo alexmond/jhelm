@@ -421,6 +421,19 @@ class ConversionFunctionsTest {
 	}
 
 	@Test
+	void testToYamlDoesNotSplitLongLines() {
+		Function toYaml = functions().get("toYaml");
+		// String longer than 80 chars containing Go template expressions
+		String longValue = "{{ if .Values.webserver.defaultUser }}{{ .Values.webserver.defaultUser.role }}"
+				+ "{{ else }}{{ .Values.createUserJob.defaultUser.role }}{{ end }}";
+		Map<String, Object> data = Map.of("arg", longValue);
+		String yaml = (String) toYaml.invoke(new Object[] { data });
+		// Must NOT contain backslash line continuation that would break tpl() parsing
+		assertFalse(yaml.contains("\\\n"), "toYaml should not split lines with \\ continuation");
+		assertTrue(yaml.contains(longValue) || yaml.contains("\"" + longValue + "\""));
+	}
+
+	@Test
 	@SuppressWarnings("unchecked")
 	void testTomlRoundTrip() {
 		Function toToml = functions().get("toToml");
