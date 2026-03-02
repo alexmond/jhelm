@@ -204,6 +204,45 @@ class EngineTest {
 		assertFalse(result.contains("name: redis-svc"));
 	}
 
+	// --- .Subcharts context ---
+
+	@Test
+	void testSubchartsContextAvailable() {
+		Chart subchart = simpleChart("prometheus-node-exporter", "4.0.0", List.of(tmpl("svc.yaml", "kind: Service")),
+				Map.of());
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder().name("kube-prometheus-stack").version("1.0.0").build())
+			.templates(List
+				.of(tmpl("test.yaml", "name: {{ (index .Subcharts \"prometheus-node-exporter\").Chart.Name }}")))
+			.values(Map.of())
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("name: prometheus-node-exporter"));
+	}
+
+	@Test
+	void testSubchartsContextWithAlias() {
+		Chart subchart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("redis").version("17.0.0").build())
+			.templates(List.of(tmpl("svc.yaml", "kind: Service")))
+			.values(Map.of())
+			.alias("cache")
+			.build();
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder().name("parent").version("1.0.0").build())
+			.templates(List.of(tmpl("test.yaml", "version: {{ .Subcharts.cache.Chart.Version }}")))
+			.values(Map.of())
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("version: 17.0.0"));
+	}
+
 	// --- Global values ---
 
 	@Test
