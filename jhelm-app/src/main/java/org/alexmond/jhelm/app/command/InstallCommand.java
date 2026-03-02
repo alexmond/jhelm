@@ -8,6 +8,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
@@ -24,6 +25,8 @@ import picocli.CommandLine.Option;
 public class InstallCommand implements Runnable {
 
 	private final InstallAction installAction;
+
+	private final UninstallAction uninstallAction;
 
 	private final KubeService kubeService;
 
@@ -53,11 +56,16 @@ public class InstallCommand implements Runnable {
 	@Option(names = { "--timeout" }, defaultValue = "300", description = "timeout in seconds for --wait (default 300)")
 	private int timeout;
 
+	@Option(names = { "--atomic" }, description = "uninstall on failure (implies --wait)")
+	private boolean atomic;
+
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
 
-	public InstallCommand(InstallAction installAction, KubeService kubeService, ChartLoader chartLoader) {
+	public InstallCommand(InstallAction installAction, UninstallAction uninstallAction, KubeService kubeService,
+			ChartLoader chartLoader) {
 		this.installAction = installAction;
+		this.uninstallAction = uninstallAction;
 		this.kubeService = kubeService;
 		this.chartLoader = chartLoader;
 	}
@@ -81,13 +89,26 @@ public class InstallCommand implements Runnable {
 			}
 			else {
 				CliOutput.println(CliOutput.success("Release \"" + name + "\" has been installed."));
-				if (wait) {
+				if (wait || atomic) {
 					kubeService.waitForReady(namespace, release.getManifest(), timeout);
 				}
 			}
 		}
 		catch (Exception ex) {
-			CliOutput.errPrintln(CliOutput.error("Error installing chart: " + ex.getMessage()));
+			if (atomic) {
+				CliOutput
+					.errPrintln(CliOutput.error("Install failed, performing atomic uninstall: " + ex.getMessage()));
+				try {
+					uninstallAction.uninstall(name, namespace);
+					CliOutput.println("Atomic uninstall of \"" + name + "\" complete.");
+				}
+				catch (Exception rollbackEx) {
+					CliOutput.errPrintln(CliOutput.error("Atomic uninstall failed: " + rollbackEx.getMessage()));
+				}
+			}
+			else {
+				CliOutput.errPrintln(CliOutput.error("Error installing chart: " + ex.getMessage()));
+			}
 			if (log.isDebugEnabled()) {
 				log.debug("Install error details", ex);
 			}

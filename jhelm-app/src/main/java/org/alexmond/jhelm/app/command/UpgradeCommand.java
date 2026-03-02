@@ -9,6 +9,8 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
@@ -29,7 +31,11 @@ public class UpgradeCommand implements Runnable {
 
 	private final InstallAction installAction;
 
+	private final UninstallAction uninstallAction;
+
 	private final UpgradeAction upgradeAction;
+
+	private final RollbackAction rollbackAction;
 
 	private final ChartLoader chartLoader;
 
@@ -60,19 +66,26 @@ public class UpgradeCommand implements Runnable {
 	@Option(names = { "--timeout" }, defaultValue = "300", description = "timeout in seconds for --wait (default 300)")
 	private int timeout;
 
+	@Option(names = { "--atomic" }, description = "rollback on failure (implies --wait)")
+	private boolean atomic;
+
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
 
-	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UpgradeAction upgradeAction,
-			ChartLoader chartLoader) {
+	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UninstallAction uninstallAction,
+			UpgradeAction upgradeAction, RollbackAction rollbackAction, ChartLoader chartLoader) {
 		this.kubeService = kubeService;
 		this.installAction = installAction;
+		this.uninstallAction = uninstallAction;
 		this.upgradeAction = upgradeAction;
+		this.rollbackAction = rollbackAction;
 		this.chartLoader = chartLoader;
 	}
 
 	@Override
 	public void run() {
+		int previousVersion = -1;
+		boolean wasInstall = false;
 		try {
 			Optional<Release> currentReleaseOpt = kubeService.getRelease(name, namespace);
 			Chart chart = chartLoader.load(new File(chartPath));
@@ -80,6 +93,7 @@ public class UpgradeCommand implements Runnable {
 
 			if (currentReleaseOpt.isEmpty()) {
 				if (install) {
+					wasInstall = true;
 					Release release = installAction.install(chart, name, namespace, overrides, 1, dryRun);
 					applyCliPostRenderers(release);
 					if (dryRun) {
@@ -88,7 +102,7 @@ public class UpgradeCommand implements Runnable {
 					else {
 						CliOutput
 							.println(CliOutput.success("Release \"" + name + "\" does not exist. Installing it now."));
-						if (wait) {
+						if (wait || atomic) {
 							kubeService.waitForReady(namespace, release.getManifest(), timeout);
 						}
 					}
@@ -99,6 +113,7 @@ public class UpgradeCommand implements Runnable {
 				return;
 			}
 
+			previousVersion = currentReleaseOpt.get().getVersion();
 			Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, overrides, dryRun);
 			applyCliPostRenderers(upgradedRelease);
 
@@ -107,13 +122,31 @@ public class UpgradeCommand implements Runnable {
 			}
 			else {
 				CliOutput.println(CliOutput.success("Release \"" + name + "\" has been upgraded. Happy Helming!"));
-				if (wait) {
+				if (wait || atomic) {
 					kubeService.waitForReady(namespace, upgradedRelease.getManifest(), timeout);
 				}
 			}
 		}
 		catch (Exception ex) {
-			CliOutput.errPrintln(CliOutput.error("Error upgrading release: " + ex.getMessage()));
+			if (atomic) {
+				CliOutput.errPrintln(CliOutput.error("Upgrade failed, performing atomic rollback: " + ex.getMessage()));
+				try {
+					if (wasInstall || previousVersion < 0) {
+						uninstallAction.uninstall(name, namespace);
+						CliOutput.println("Atomic uninstall of \"" + name + "\" complete.");
+					}
+					else {
+						rollbackAction.rollback(name, namespace, previousVersion);
+						CliOutput.println("Atomic rollback of \"" + name + "\" complete.");
+					}
+				}
+				catch (Exception rollbackEx) {
+					CliOutput.errPrintln(CliOutput.error("Atomic rollback failed: " + rollbackEx.getMessage()));
+				}
+			}
+			else {
+				CliOutput.errPrintln(CliOutput.error("Error upgrading release: " + ex.getMessage()));
+			}
 			if (log.isDebugEnabled()) {
 				log.debug("Upgrade error details", ex);
 			}
