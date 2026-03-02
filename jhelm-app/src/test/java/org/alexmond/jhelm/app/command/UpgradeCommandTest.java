@@ -6,6 +6,8 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 
 import java.util.HashMap;
@@ -38,7 +40,13 @@ class UpgradeCommandTest {
 	private InstallAction installAction;
 
 	@Mock
+	private UninstallAction uninstallAction;
+
+	@Mock
 	private UpgradeAction upgradeAction;
+
+	@Mock
+	private RollbackAction rollbackAction;
 
 	@Mock
 	private ChartLoader chartLoader;
@@ -56,7 +64,8 @@ class UpgradeCommandTest {
 			.values(new HashMap<>())
 			.build();
 		when(chartLoader.load(any(File.class))).thenReturn(defaultChart);
-		upgradeCommand = new UpgradeCommand(kubeService, installAction, upgradeAction, chartLoader);
+		upgradeCommand = new UpgradeCommand(kubeService, installAction, uninstallAction, upgradeAction, rollbackAction,
+				chartLoader);
 	}
 
 	@Test
@@ -179,6 +188,21 @@ class UpgradeCommandTest {
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--install", "--dry-run");
 
 		verify(installAction).install(any(Chart.class), eq("my-release"), eq("default"), anyMap(), eq(1), eq(true));
+	}
+
+	@Test
+	void testUpgradeCommandAtomicRollsBackOnFailure() throws Exception {
+		File chartDir = createMockChart();
+		Release existingRelease = createMockRelease("my-release", 3);
+
+		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
+		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), anyBoolean()))
+			.thenThrow(new RuntimeException("upgrade failed"));
+
+		CommandLine cmd = new CommandLine(upgradeCommand);
+		cmd.execute("my-release", chartDir.getAbsolutePath(), "--atomic");
+
+		verify(rollbackAction).rollback("my-release", "default", 3);
 	}
 
 	private Release createMockRelease(String name, int version) {

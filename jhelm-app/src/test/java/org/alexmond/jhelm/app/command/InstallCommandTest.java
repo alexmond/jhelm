@@ -6,6 +6,7 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.UninstallAction;
 
 import java.util.HashMap;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,9 @@ class InstallCommandTest {
 	private InstallAction installAction;
 
 	@Mock
+	private UninstallAction uninstallAction;
+
+	@Mock
 	private KubeService kubeService;
 
 	@Mock
@@ -52,7 +56,7 @@ class InstallCommandTest {
 			.values(new HashMap<>())
 			.build();
 		when(chartLoader.load(any(File.class))).thenReturn(defaultChart);
-		installCommand = new InstallCommand(installAction, kubeService, chartLoader);
+		installCommand = new InstallCommand(installAction, uninstallAction, kubeService, chartLoader);
 	}
 
 	@Test
@@ -117,6 +121,19 @@ class InstallCommandTest {
 
 		// waitForReady should NOT be called when --dry-run is active
 		verify(kubeService, Mockito.never()).waitForReady(anyString(), anyString(), anyInt());
+	}
+
+	@Test
+	void testInstallCommandAtomicUninstallsOnFailure() throws Exception {
+		File chartDir = createMockChart();
+
+		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean()))
+			.thenThrow(new RuntimeException("deploy failed"));
+
+		CommandLine cmd = new CommandLine(installCommand);
+		cmd.execute("my-release", chartDir.getAbsolutePath(), "--atomic");
+
+		verify(uninstallAction).uninstall("my-release", "default");
 	}
 
 	private File createMockChart() throws Exception {
