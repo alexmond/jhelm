@@ -15,47 +15,45 @@ jhelmtest:
         path: "spec.trafficDistribution"
         reason: "Subchart defaults merging exposes values that Helm omits"
     "[prometheus-community/kube-prometheus-stack]":
-      # Complex multi-subchart bundle; many resources not rendered by JHelm
-      - resource: "*"
+      # 4 PrometheusRule resources missing + ConfigMap JSON key ordering diffs
+      - resource: "PrometheusRule/*"
         path: "*"
-        reason: "Subchart rendering gaps produce missing resources and field diffs"
+        reason: "BUG: 4 PrometheusRule resources missing in JHelm rendering"
+      - resource: "ConfigMap/*"
+        path: "data.*"
+        reason: "JSON key ordering differences in Grafana dashboard ConfigMaps"
     "[apache-airflow/airflow]":
-      # BUG: Complex chart with many rendering gaps — worker resources, volumeMount ordering, etc.
+      # Worker resources missing + Job args null + ConfigMap content diffs
       - resource: "*"
         path: "*"
-        reason: "BUG: Missing worker resources, volumeMount ordering, ConfigMap content diffs, JSON key ordering"
+        reason: "BUG: Missing worker resources (SA, StatefulSet, Service), Job args, ConfigMap content"
     "[nextcloud/nextcloud]":
-      # Hash annotations differ due to different sha256 computation
+      # Hash annotation differs due to different sha256 computation
       - resource: "Deployment/*"
         path: "spec.template.metadata.annotations.*"
         reason: "JHelm sha256sum produces different hash values than Helm"
     "[cilium/cilium]":
-      # BUG: Complex chart with massive rendering gaps — ConfigMap, DaemonSet, RBAC diffs
-      - resource: "*"
-        path: "*"
-        reason: "BUG: Complex chart — ConfigMap 15 diffs, DaemonSet 54 diffs, RBAC and service diffs"
-    "[argo/argo-workflows]":
-      # BUG: CRD resources not rendered by JHelm
-      - resource: "CustomResourceDefinition/*"
-        path: "*"
-        reason: "BUG: CRD templates not rendered — crds/ directory handling not implemented"
+      # ConfigMap value rendering — null as string and missing duration suffix
+      - resource: "ConfigMap/*"
+        path: "data.*"
+        reason: "BUG: null rendered as string 'null', duration '15s' rendered as '15'"
     "[istio-official/istiod]":
-      # BUG: All resources missing — chart structure not handled by JHelm
+      # 16 resources missing — library chart rendering gap
       - resource: "*"
         path: "*"
-        reason: "BUG: Entire chart fails to render — likely non-standard chart structure"
-    "[artifact-hub/artifact-hub]":
-      # BUG: Null values rendered as empty string in Secret stringData
-      - resource: "Secret/*"
-        path: "stringData.*"
-        reason: "BUG: JHelm renders null values as empty string instead of omitting them"
-    "[mojo2600/pihole]":
-      # BUG: Document boundary parsing — Service content merged into ConfigMap
+        reason: "BUG: Resources missing — library chart rendering gap"
+    "[fluent/fluent-bit]":
+      # Image tag missing — .Chart.AppVersion not appended
+      - resource: "DaemonSet/*"
+        path: "spec.template.spec.containers.*"
+        reason: "BUG: Image tag missing — Chart.AppVersion not appended to image reference"
+    "[gitea/gitea]":
+      # Subchart value propagation — postgresql-ha and valkey subcharts receive wrong values
       - resource: "*"
         path: "*"
-        reason: "BUG: YAML document boundary not parsed correctly — Service spec merged into ConfigMap"
+        reason: "BUG: Subchart value merging propagates wrong defaults to postgresql-ha and valkey subcharts"
     "[datadog/datadog]":
-      # BUG: Complex chart — missing operator resources, random UUIDs, label diffs
+      # Missing operator resources + random install_id UUID
       - resource: "*"
         path: "*"
-        reason: "BUG: Missing CRD/operator resources, random install_id UUID, instance label differences"
+        reason: "BUG: Missing CRD/operator resources, random install_id UUID"
