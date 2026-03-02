@@ -480,6 +480,43 @@ class CollectionFunctionsTest {
 		assertEquals("2", exec("{{ $l := list \"a\" \"b\" }}{{ $c := deepCopy $l }}{{ len $c }}"));
 	}
 
+	@Test
+	void testDeepCopyNestedMapIsIndependent() throws IOException, TemplateException {
+		// Mutating the copy's nested map must NOT affect the original
+		String template = """
+				{{ $orig := dict "inner" (dict "key" "original") }}\
+				{{ $copy := deepCopy $orig }}\
+				{{ $_ := set (get $copy "inner") "key" "mutated" }}\
+				{{ get (get $orig "inner") "key" }}""";
+		assertEquals("original", exec(template));
+	}
+
+	@Test
+	void testDeepCopyNestedListIsIndependent() throws IOException, TemplateException {
+		// Mutating the copy's nested list must NOT affect the original
+		String template = """
+				{{ $inner := list "a" "b" }}\
+				{{ $orig := dict "items" $inner }}\
+				{{ $copy := deepCopy $orig }}\
+				{{ $_ := set $copy "items" (append (get $copy "items") "c") }}\
+				{{ len (get $orig "items") }}""";
+		assertEquals("2", exec(template));
+	}
+
+	@Test
+	void testDeepCopyContextSetDoesNotMutateOriginal() throws IOException, TemplateException {
+		// Reproduces the airflow pattern: deepCopy context, set Values, verify original
+		Map<String, Object> inner = new HashMap<>();
+		inner.put("key", "original");
+		Map<String, Object> data = new HashMap<>();
+		data.put("Values", new HashMap<>(Map.of("config", inner)));
+		String template = """
+				{{ $globals := deepCopy . }}\
+				{{ $_ := set $globals.Values "extra" "added" }}\
+				{{ hasKey .Values "extra" }}""";
+		assertEquals("false", execWithData(template, data));
+	}
+
 	// --- New functions: chunk, mustChunk, push, mustPush ---
 
 	@Test

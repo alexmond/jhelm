@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.alexmond.jhelm.gotemplate.Function;
@@ -131,7 +132,7 @@ public final class DictFunctions {
 				return Collections.emptyList();
 			}
 			String key = String.valueOf(args[0]);
-			java.util.List<Object> result = new ArrayList<>();
+			List<Object> result = new ArrayList<>();
 			for (int i = 1; i < args.length; i++) {
 				if (args[i] instanceof Map) {
 					Object val = ((Map<?, ?>) args[i]).get(key);
@@ -314,25 +315,36 @@ public final class DictFunctions {
 		};
 	}
 
-	@SuppressWarnings("unchecked")
 	private static Function deepCopy() {
 		return (args) -> {
 			if (args.length == 0) {
 				return null;
 			}
-			Object obj = args[0];
-			if (obj instanceof Map) {
-				Map<String, Object> copy = new LinkedHashMap<>();
-				for (Map.Entry<String, Object> entry : ((Map<String, Object>) obj).entrySet()) {
-					copy.put(entry.getKey(), entry.getValue()); // Shallow copy for now
-				}
-				return copy;
-			}
-			else if (obj instanceof Collection) {
-				return new ArrayList<>((Collection<?>) obj);
-			}
-			return obj;
+			return recursiveDeepCopy(args[0]);
 		};
+	}
+
+	@SuppressWarnings("unchecked")
+	private static Object recursiveDeepCopy(Object obj) {
+		if (obj == null) {
+			return null;
+		}
+		if (obj instanceof Map) {
+			Map<String, Object> copy = new LinkedHashMap<>();
+			for (Map.Entry<String, Object> entry : ((Map<String, Object>) obj).entrySet()) {
+				copy.put(entry.getKey(), recursiveDeepCopy(entry.getValue()));
+			}
+			return copy;
+		}
+		if (obj instanceof Collection) {
+			List<Object> copy = new ArrayList<>();
+			for (Object item : (Collection<?>) obj) {
+				copy.add(recursiveDeepCopy(item));
+			}
+			return copy;
+		}
+		// Primitives (String, Number, Boolean) are immutable — no copy needed
+		return obj;
 	}
 
 	private static Function mustDeepCopy() {
