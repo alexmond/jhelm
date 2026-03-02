@@ -1,0 +1,5 @@
+apiVersion: v2
+name: cache
+description: Mock cache subchart for testing value propagation
+version: 1.0.0
+appVersion: "1.0"

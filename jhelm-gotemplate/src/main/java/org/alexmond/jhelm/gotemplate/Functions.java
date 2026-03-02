@@ -58,21 +58,26 @@ public final class Functions {
 			if (args.length < 2) {
 				return null;
 			}
-			Object container = args[0];
-			Object key = args[1];
-			if (container instanceof Map) {
-				if (key == null) {
+			Object result = args[0];
+			for (int i = 1; i < args.length; i++) {
+				Object key = args[i];
+				if (result instanceof Map) {
+					if (key == null) {
+						return null;
+					}
+					result = ((Map<?, ?>) result).get(key);
+				}
+				else if (result instanceof List) {
+					result = ((List<?>) result).get(((Number) key).intValue());
+				}
+				else if (result != null && result.getClass().isArray()) {
+					result = Array.get(result, ((Number) key).intValue());
+				}
+				else {
 					return null;
 				}
-				return ((Map<?, ?>) container).get(key);
 			}
-			if (container instanceof List) {
-				return ((List<?>) container).get(((Number) key).intValue());
-			}
-			if (container != null && container.getClass().isArray()) {
-				return Array.get(container, ((Number) key).intValue());
-			}
-			return null;
+			return result;
 		};
 	}
 

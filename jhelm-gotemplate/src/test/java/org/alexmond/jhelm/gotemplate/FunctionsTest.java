@@ -112,6 +112,29 @@ class FunctionsTest {
 		assertNull(index.invoke(new Object[] { Map.of("a", 1) }));
 	}
 
+	@Test
+	void testIndexMultipleKeysChainsIntoNestedMaps() throws Exception {
+		Function index = Functions.GO_BUILTINS.get("index");
+		Map<String, Object> nested = Map.of("service", Map.of("host", "localhost", "port", 5432));
+		Map<String, Object> root = Map.of("database", nested);
+		assertEquals("localhost", index.invoke(new Object[] { root, "database", "service", "host" }));
+		assertEquals(5432, index.invoke(new Object[] { root, "database", "service", "port" }));
+	}
+
+	@Test
+	void testIndexMultipleKeysReturnsNullOnMissingIntermediateKey() throws Exception {
+		Function index = Functions.GO_BUILTINS.get("index");
+		Map<String, Object> root = Map.of("database", Map.of("port", 5432));
+		assertNull(index.invoke(new Object[] { root, "database", "missing", "port" }));
+	}
+
+	@Test
+	void testIndexChainsIntoNestedList() throws Exception {
+		Function index = Functions.GO_BUILTINS.get("index");
+		List<List<String>> nested = List.of(List.of("a", "b"), List.of("c", "d"));
+		assertEquals("d", index.invoke(new Object[] { nested, 1, 1 }));
+	}
+
 	// --- len function tests ---
 
 	@Test

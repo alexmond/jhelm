@@ -1,0 +1,6 @@
+# Cache subchart defaults
+enabled: true
+service:
+  host: localhost
+  port: 6379
+  type: ClusterIP

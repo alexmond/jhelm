@@ -1,0 +1,15 @@
+# Parent chart values
+appName: myapp
+
+# Subchart overrides — parent can override subchart defaults
+database:
+  enabled: true
+  auth:
+    password: "secret123"
+
+cache:
+  enabled: true
+
+# Global values propagated to all subcharts
+global:
+  env: production
