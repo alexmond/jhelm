@@ -410,6 +410,11 @@ public class Engine {
 	}
 
 	private void renderChartTemplates(Chart chart, Map<String, Object> context, StringBuilder sb) {
+		// Library charts only provide named templates via include — do not render
+		// their .yaml files as standalone resources
+		if ("library".equals(chart.getMetadata().getType())) {
+			return;
+		}
 		for (Chart.Template t : chart.getTemplates()) {
 			if (!t.getName().endsWith(".yaml")) {
 				continue;

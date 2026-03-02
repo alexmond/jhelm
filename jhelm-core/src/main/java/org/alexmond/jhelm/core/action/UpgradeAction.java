@@ -35,6 +35,10 @@ public class UpgradeAction {
 
 	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues, boolean dryRun)
 			throws Exception {
+		if ("library".equals(newChart.getMetadata().getType())) {
+			throw new IllegalArgumentException(
+					"chart '" + newChart.getMetadata().getName() + "' is a library chart and cannot be upgraded");
+		}
 		Map<String, Object> values = new HashMap<>(newChart.getValues());
 		if (overrideValues != null) {
 			values.putAll(overrideValues);

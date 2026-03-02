@@ -154,4 +154,13 @@ class InstallActionTest {
 		verify(kubeService).delete("default", HookParser.stripHooks(manifest));
 	}
 
+	@Test
+	void testInstallRejectsLibraryChart() {
+		ChartMetadata metadata = ChartMetadata.builder().name("mylib").version("1.0.0").type("library").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		assertThrows(IllegalArgumentException.class,
+				() -> installAction.install(chart, "my-release", "default", null, 1, false));
+	}
+
 }

@@ -35,6 +35,10 @@ public class InstallAction {
 
 	public Release install(Chart chart, String releaseName, String namespace, Map<String, Object> overrideValues,
 			int version, boolean dryRun) throws Exception {
+		if ("library".equals(chart.getMetadata().getType())) {
+			throw new IllegalArgumentException(
+					"chart '" + chart.getMetadata().getName() + "' is a library chart and cannot be installed");
+		}
 		Map<String, Object> values = new HashMap<>(chart.getValues());
 		if (overrideValues != null) {
 			values.putAll(overrideValues);
