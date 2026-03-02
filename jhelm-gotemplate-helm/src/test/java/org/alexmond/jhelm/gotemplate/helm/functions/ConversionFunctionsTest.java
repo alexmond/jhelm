@@ -164,6 +164,21 @@ class ConversionFunctionsTest {
 	}
 
 	@Test
+	void testToJsonWholeNumberDoubleRenderedAsInteger() {
+		Function toJson = functions().get("toJson");
+		// Go's json.Marshal normalizes float64(1.0) to 1
+		Map<String, Object> data = new java.util.LinkedHashMap<>();
+		data.put("traceSampling", 1.0);
+		data.put("rate", 100.0);
+		data.put("ratio", 0.5);
+		String json = (String) toJson.invoke(new Object[] { data });
+		assertTrue(json.contains("\"traceSampling\":1,") || json.contains("\"traceSampling\":1}"),
+				"1.0 should render as 1: " + json);
+		assertTrue(json.contains("\"rate\":100"), "100.0 should render as 100: " + json);
+		assertTrue(json.contains("\"ratio\":0.5"), "0.5 should remain as 0.5: " + json);
+	}
+
+	@Test
 	void testToRawJsonNullReturnsNullString() {
 		Function toRawJson = functions().get("toRawJson");
 		assertEquals("null", toRawJson.invoke(new Object[] {}));
