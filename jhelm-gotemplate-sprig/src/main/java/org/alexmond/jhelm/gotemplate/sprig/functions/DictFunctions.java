@@ -208,7 +208,7 @@ public final class DictFunctions {
 				if (dstVal instanceof Map && srcVal instanceof Map) {
 					deepMerge((Map<String, Object>) dstVal, (Map<String, Object>) srcVal, overwrite);
 				}
-				else if (overwrite) {
+				else if (overwrite || dstVal == null) {
 					dst.put(key, srcVal);
 				}
 			}
