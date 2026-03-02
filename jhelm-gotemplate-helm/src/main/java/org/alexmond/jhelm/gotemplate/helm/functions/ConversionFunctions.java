@@ -34,6 +34,9 @@ public final class ConversionFunctions {
 
 	private static final ThreadLocal<YAMLMapper> YAML_MAPPER = ThreadLocal.withInitial(() -> YAMLMapper.builder()
 		.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
+		// Go's yaml.Marshal never wraps long lines; Jackson defaults to 80-char width
+		// which inserts \ line continuations that break tpl(toYaml ...) patterns (#203)
+		.disable(YAMLWriteFeature.SPLIT_LINES)
 		.enable(YAMLWriteFeature.MINIMIZE_QUOTES)
 		// Keep quotes on numeric-looking strings to match Go yaml.Marshal behavior
 		.enable(YAMLWriteFeature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS)

@@ -14,11 +14,6 @@ jhelmtest:
       - resource: "Service/*"
         path: "spec.trafficDistribution"
         reason: "trafficDistribution field rendered by JHelm but absent in Helm output"
-    "[apache-airflow/airflow]":
-      # Job container args rendered as null — tpl(toYaml) with embedded Go templates
-      - resource: "Job/*"
-        path: "spec.template.spec.containers.*"
-        reason: "Job container args with embedded Go templates via tpl(toYaml) evaluate to null (#203)"
     "[nextcloud/nextcloud]":
       # Hash annotation computed differently (not checksum.* pattern)
       - resource: "Deployment/*"
