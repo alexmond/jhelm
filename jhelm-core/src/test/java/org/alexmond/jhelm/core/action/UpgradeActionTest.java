@@ -290,4 +290,20 @@ class UpgradeActionTest {
 		verify(kubeService, times(2)).apply(eq("default"), anyString());
 	}
 
+	@Test
+	void testUpgradeRejectsLibraryChart() {
+		ChartMetadata metadata = ChartMetadata.builder().name("mylib").version("1.0.0").type("library").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.info(Release.ReleaseInfo.builder().status("deployed").build())
+			.build();
+
+		assertThrows(IllegalArgumentException.class, () -> upgradeAction.upgrade(currentRelease, chart, null, false));
+	}
+
 }

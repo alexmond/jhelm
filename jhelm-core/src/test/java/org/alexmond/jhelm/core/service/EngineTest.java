@@ -1197,4 +1197,35 @@ class EngineTest {
 		assertTrue(result.contains("data: []"), "Files.Get for missing file should return empty: " + result);
 	}
 
+	// --- library chart ---
+
+	@Test
+	void testLibraryChartTemplatesNotRendered() {
+		Chart library = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mylib").version("1.0.0").type("library").build())
+			.templates(List.of(tmpl("configmap.yaml", "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: lib-cm")))
+			.values(Map.of())
+			.build();
+		String result = engine.render(library, Map.of(), releaseInfo());
+		assertFalse(result.contains("lib-cm"), "Library chart .yaml templates should not be rendered: " + result);
+	}
+
+	@Test
+	void testLibraryChartHelpersAvailableToParent() {
+		Chart library = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mylib").version("1.0.0").type("library").build())
+			.templates(List.of(tmpl("_helpers.tpl", "{{- define \"mylib.name\" -}}lib-value{{- end -}}")))
+			.values(Map.of())
+			.build();
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder().name("myapp").version("1.0.0").build())
+			.templates(List.of(tmpl("configmap.yaml", "name: {{ include \"mylib.name\" . }}")))
+			.values(Map.of())
+			.dependencies(List.of(library))
+			.build();
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("name: lib-value"),
+				"Library chart helpers should be available to parent: " + result);
+	}
+
 }
