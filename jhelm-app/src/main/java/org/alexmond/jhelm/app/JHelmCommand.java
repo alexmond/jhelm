@@ -5,6 +5,7 @@ import org.alexmond.jhelm.app.command.DependencyCommand;
 import org.alexmond.jhelm.app.command.GetCommand;
 import org.alexmond.jhelm.app.command.HistoryCommand;
 import org.alexmond.jhelm.app.command.InstallCommand;
+import org.alexmond.jhelm.app.command.LintCommand;
 import org.alexmond.jhelm.app.command.ListCommand;
 import org.alexmond.jhelm.app.command.PackageCommand;
 import org.alexmond.jhelm.app.command.PluginCommand;
@@ -36,8 +37,8 @@ import picocli.CommandLine;
 		subcommands = { CreateCommand.class, TemplateCommand.class, InstallCommand.class, UpgradeCommand.class,
 				UninstallCommand.class, ListCommand.class, StatusCommand.class, HistoryCommand.class,
 				RollbackCommand.class, ShowCommand.class, GetCommand.class, TestCommand.class, DependencyCommand.class,
-				PullCommand.class, PushCommand.class, PackageCommand.class, VerifyCommand.class, RepoCommand.class,
-				RegistryCommand.class, PluginCommand.class })
+				PullCommand.class, PushCommand.class, PackageCommand.class, VerifyCommand.class, LintCommand.class,
+				RepoCommand.class, RegistryCommand.class, PluginCommand.class })
 public class JHelmCommand implements Runnable {
 
 	@CommandLine.Option(names = { "--no-color" }, description = "Disable colored output",

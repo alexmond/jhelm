@@ -16,6 +16,7 @@ import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.LintAction;
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.action.PackageAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
@@ -112,6 +113,12 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnMissingBean
 	public ShowAction showAction(ChartLoader chartLoader) {
 		return new ShowAction(chartLoader);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	public LintAction lintAction(ChartLoader chartLoader, Engine engine, SchemaValidator schemaValidator) {
+		return new LintAction(chartLoader, engine, schemaValidator);
 	}
 
 	@Bean
