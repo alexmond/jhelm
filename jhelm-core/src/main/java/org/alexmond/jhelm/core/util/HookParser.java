@@ -120,4 +120,34 @@ public final class HookParser {
 		return result.toString();
 	}
 
+	/**
+	 * Strips resources annotated with {@code helm.sh/resource-policy: keep} from the
+	 * manifest. These resources should be preserved during uninstall.
+	 * @param manifest the YAML manifest (may be null or blank)
+	 * @return manifest with kept resources removed
+	 */
+	public static String stripKeptResources(String manifest) {
+		if (manifest == null) {
+			return "";
+		}
+		if (manifest.isBlank()) {
+			return manifest;
+		}
+
+		String[] docs = manifest.split("---");
+		StringBuilder result = new StringBuilder();
+
+		for (String doc : docs) {
+			if (doc.isBlank()) {
+				continue;
+			}
+			if (doc.contains("helm.sh/resource-policy") && doc.contains("keep")) {
+				continue;
+			}
+			result.append("---\n").append(doc.trim()).append('\n');
+		}
+
+		return result.toString();
+	}
+
 }

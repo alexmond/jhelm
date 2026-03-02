@@ -88,6 +88,34 @@ class UninstallActionTest {
 	}
 
 	@Test
+	void testUninstallSkipsResourcesWithKeepPolicy() throws Exception {
+		String keepYaml = """
+				apiVersion: v1
+				kind: PersistentVolumeClaim
+				metadata:
+				  name: myapp-data
+				  annotations:
+				    helm.sh/resource-policy: keep
+				spec:
+				  accessModes: [ReadWriteOnce]
+				""";
+		String regularYaml = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: myapp-cfg\n";
+		String fullManifest = "---\n" + keepYaml + regularYaml;
+
+		Release release = Release.builder().name("myapp").namespace("default").manifest(fullManifest).build();
+
+		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(release));
+		doNothing().when(kubeService).delete(anyString(), anyString());
+		doNothing().when(kubeService).deleteReleaseHistory(anyString(), anyString());
+
+		uninstallAction.uninstall("myapp", "default");
+
+		// Only ConfigMap should be deleted — PVC with resource-policy: keep is preserved
+		String deletedManifest = HookParser.stripKeptResources(HookParser.stripHooks(fullManifest));
+		verify(kubeService).delete("default", deletedManifest);
+	}
+
+	@Test
 	void testUninstallThrowsWhenReleaseNotFound() throws Exception {
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.empty());
 
