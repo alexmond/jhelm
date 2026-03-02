@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.GetAction;
+import org.alexmond.jhelm.core.action.SearchHubAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.LintAction;
@@ -45,6 +46,7 @@ class JhelmCoreAutoConfigurationTest {
 			assertNotNull(ctx.getBean(CreateAction.class));
 			assertNotNull(ctx.getBean(TemplateAction.class));
 			assertNotNull(ctx.getBean(LintAction.class));
+			assertNotNull(ctx.getBean(SearchHubAction.class));
 		});
 	}
 
