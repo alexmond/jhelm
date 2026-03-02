@@ -155,6 +155,28 @@ class InstallActionTest {
 	}
 
 	@Test
+	void testInstallAppliesCrdsBeforeManifest() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		String crdYaml = "apiVersion: apiextensions.k8s.io/v1\nkind: CustomResourceDefinition\nmetadata:\n  name: foos.example.com\n";
+		Chart chart = Chart.builder()
+			.metadata(metadata)
+			.values(new HashMap<>())
+			.crds(List.of(Chart.Crd.builder().name("foos.yaml").data(crdYaml).build()))
+			.build();
+
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("---\nkind: ConfigMap\n");
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		installAction.install(chart, "my-release", "default", null, 1, false);
+
+		// CRD should be applied before the regular manifest
+		org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(kubeService);
+		inOrder.verify(kubeService).apply("default", crdYaml);
+		inOrder.verify(kubeService).apply("default", "---\nkind: ConfigMap\n");
+	}
+
+	@Test
 	void testInstallRejectsLibraryChart() {
 		ChartMetadata metadata = ChartMetadata.builder().name("mylib").version("1.0.0").type("library").build();
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
