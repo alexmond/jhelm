@@ -10,9 +10,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonGenerator;
 import tools.jackson.core.json.JsonWriteFeature;
+import tools.jackson.databind.SerializationContext;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.module.SimpleModule;
+import tools.jackson.databind.ser.std.StdSerializer;
 import tools.jackson.dataformat.toml.TomlMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.dataformat.yaml.YAMLWriteFeature;
@@ -47,13 +52,34 @@ public final class ConversionFunctions {
 		.compile("^[+-]?(\\d[\\d_]*(\\.[\\d_]*)?([eE][+-]?\\d+)?|\\.inf|\\.nan|0x[\\da-fA-F]+|0o[0-7]+)$");
 
 	private static final ThreadLocal<JsonMapper> JSON_MAPPER = ThreadLocal
-		.withInitial(() -> JsonMapper.builder().build());
+		.withInitial(() -> JsonMapper.builder().addModule(goNumberModule()).build());
 
-	private static final ThreadLocal<JsonMapper> RAW_JSON_MAPPER = ThreadLocal
-		.withInitial(() -> JsonMapper.builder().disable(JsonWriteFeature.ESCAPE_NON_ASCII).build());
+	private static final ThreadLocal<JsonMapper> RAW_JSON_MAPPER = ThreadLocal.withInitial(
+			() -> JsonMapper.builder().disable(JsonWriteFeature.ESCAPE_NON_ASCII).addModule(goNumberModule()).build());
 
 	private static final ThreadLocal<TomlMapper> TOML_MAPPER = ThreadLocal
 		.withInitial(() -> TomlMapper.builder().build());
+
+	/**
+	 * Go's json.Marshal normalizes whole-number float64 values to integer representation
+	 * (1.0 → 1). This module replicates that behavior.
+	 */
+	private static SimpleModule goNumberModule() {
+		SimpleModule module = new SimpleModule("GoNumberModule");
+		module.addSerializer(Double.class, new StdSerializer<>(Double.class) {
+			@Override
+			public void serialize(Double value, JsonGenerator gen, SerializationContext ctxt) throws JacksonException {
+				if (value == Math.floor(value) && !Double.isInfinite(value) && !Double.isNaN(value)
+						&& value >= Long.MIN_VALUE && value <= Long.MAX_VALUE) {
+					gen.writeNumber(value.longValue());
+				}
+				else {
+					gen.writeNumber(value);
+				}
+			}
+		});
+		return module;
+	}
 
 	public static Map<String, Function> getFunctions() {
 		Map<String, Function> functions = new HashMap<>();
