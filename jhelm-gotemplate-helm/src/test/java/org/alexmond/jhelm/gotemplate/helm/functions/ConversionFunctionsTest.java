@@ -278,7 +278,8 @@ class ConversionFunctionsTest {
 		Map<String, Function> fns = functions();
 		List<String> expected = List.of("toYaml", "mustToYaml", "fromYaml", "mustFromYaml", "fromYamlArray",
 				"mustFromYamlArray", "toJson", "mustToJson", "toPrettyJson", "mustToPrettyJson", "toRawJson",
-				"mustToRawJson", "fromJson", "mustFromJson", "fromJsonArray", "mustFromJsonArray");
+				"mustToRawJson", "fromJson", "mustFromJson", "fromJsonArray", "mustFromJsonArray", "toToml",
+				"mustToToml", "fromToml", "mustFromToml");
 		for (String name : expected) {
 			assertTrue(fns.containsKey(name), "missing function: " + name);
 		}
@@ -338,6 +339,70 @@ class ConversionFunctionsTest {
 		Map<String, String> data = Map.of("val", "true");
 		String result = (String) toYaml.invoke(new Object[] { data });
 		assertTrue(result.contains("\"true\""), "boolean-like strings must stay quoted");
+	}
+
+	// --- TOML functions ---
+
+	@Test
+	void testToToml() {
+		Function fn = functions().get("toToml");
+		Map<String, Object> data = new HashMap<>();
+		data.put("name", "myapp");
+		data.put("port", 8080);
+		String result = (String) fn.invoke(new Object[] { data });
+		assertTrue(result.contains("myapp"), "toToml should serialize string: " + result);
+		assertTrue(result.contains("port = 8080"), "toToml should serialize integer: " + result);
+	}
+
+	@Test
+	void testToTomlNullReturnsEmpty() {
+		Function fn = functions().get("toToml");
+		assertEquals("", fn.invoke(new Object[] { null }));
+		assertEquals("", fn.invoke(new Object[] {}));
+	}
+
+	@Test
+	void testMustToTomlThrowsOnNull() {
+		Function fn = functions().get("mustToToml");
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { null }));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testFromToml() {
+		Function fn = functions().get("fromToml");
+		String toml = "name = \"myapp\"\nport = 8080\n";
+		Map<String, Object> result = (Map<String, Object>) fn.invoke(new Object[] { toml });
+		assertEquals("myapp", result.get("name"));
+		assertEquals(8080, ((Number) result.get("port")).intValue());
+	}
+
+	@Test
+	void testFromTomlNullReturnsEmptyMap() {
+		Function fn = functions().get("fromToml");
+		assertEquals(Map.of(), fn.invoke(new Object[] { null }));
+		assertEquals(Map.of(), fn.invoke(new Object[] { "" }));
+	}
+
+	@Test
+	void testMustFromTomlThrowsOnNull() {
+		Function fn = functions().get("mustFromToml");
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { null }));
+		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { "  " }));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testTomlRoundTrip() {
+		Function toToml = functions().get("toToml");
+		Function fromToml = functions().get("fromToml");
+		Map<String, Object> original = new HashMap<>();
+		original.put("key", "value");
+		original.put("count", 42);
+		String toml = (String) toToml.invoke(new Object[] { original });
+		Map<String, Object> parsed = (Map<String, Object>) fromToml.invoke(new Object[] { toml });
+		assertEquals("value", parsed.get("key"));
+		assertEquals(42, ((Number) parsed.get("count")).intValue());
 	}
 
 }

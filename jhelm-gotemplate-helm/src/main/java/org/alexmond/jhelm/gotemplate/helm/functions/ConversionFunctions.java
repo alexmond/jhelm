@@ -13,6 +13,7 @@ import org.alexmond.jhelm.gotemplate.Function;
 import tools.jackson.core.json.JsonWriteFeature;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.dataformat.toml.TomlMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 
@@ -51,6 +52,9 @@ public final class ConversionFunctions {
 	private static final ThreadLocal<JsonMapper> RAW_JSON_MAPPER = ThreadLocal
 		.withInitial(() -> JsonMapper.builder().disable(JsonWriteFeature.ESCAPE_NON_ASCII).build());
 
+	private static final ThreadLocal<TomlMapper> TOML_MAPPER = ThreadLocal
+		.withInitial(() -> TomlMapper.builder().build());
+
 	public static Map<String, Function> getFunctions() {
 		Map<String, Function> functions = new HashMap<>();
 
@@ -73,6 +77,12 @@ public final class ConversionFunctions {
 		functions.put("mustFromJson", mustFromJson());
 		functions.put("fromJsonArray", fromJsonArray());
 		functions.put("mustFromJsonArray", mustFromJsonArray());
+
+		// TOML functions
+		functions.put("toToml", toToml());
+		functions.put("mustToToml", mustToToml());
+		functions.put("fromToml", fromToml());
+		functions.put("mustFromToml", mustFromToml());
 
 		return functions;
 	}
@@ -408,6 +418,74 @@ public final class ConversionFunctions {
 			}
 		};
 	}
+
+	// ===== TOML Functions =====
+
+	private static Function toToml() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			try {
+				return TOML_MAPPER.get().writeValueAsString(args[0]);
+			}
+			catch (Exception ex) {
+				return "";
+			}
+		};
+	}
+
+	private static Function mustToToml() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				throw new RuntimeException("mustToToml: no value provided");
+			}
+			try {
+				return TOML_MAPPER.get().writeValueAsString(args[0]);
+			}
+			catch (Exception ex) {
+				throw new RuntimeException("mustToToml: failed to convert to TOML: " + ex.getMessage(), ex);
+			}
+		};
+	}
+
+	private static Function fromToml() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return Map.of();
+			}
+			try {
+				String toml = String.valueOf(args[0]);
+				if (toml.isBlank()) {
+					return Map.of();
+				}
+				return TOML_MAPPER.get().readValue(toml, Map.class);
+			}
+			catch (Exception ex) {
+				return Map.of();
+			}
+		};
+	}
+
+	private static Function mustFromToml() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				throw new RuntimeException("mustFromToml: no TOML string provided");
+			}
+			try {
+				String toml = String.valueOf(args[0]);
+				if (toml.isBlank()) {
+					throw new RuntimeException("mustFromToml: empty TOML string");
+				}
+				return TOML_MAPPER.get().readValue(toml, Map.class);
+			}
+			catch (Exception ex) {
+				throw new RuntimeException("mustFromToml: failed to parse TOML: " + ex.getMessage(), ex);
+			}
+		};
+	}
+
+	// ===== YAML Helpers =====
 
 	/**
 	 * Removes unnecessary double-quoting from YAML scalar values.
