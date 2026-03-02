@@ -419,13 +419,15 @@ public class Engine {
 				parseWithCache(helmStyleName, t.getData());
 				StringWriter writer = new StringWriter();
 
+				// Share context across all template executions within a chart so that
+				// cross-template mutations via set $ "Values" propagate (Go Helm
+				// behavior)
 				@SuppressWarnings("unchecked")
 				Map<String, Object> templateMap = new HashMap<>((Map<String, Object>) context.get("Template"));
 				templateMap.put("Name", helmStyleName);
-				Map<String, Object> currentContext = new HashMap<>(context);
-				currentContext.put("Template", templateMap);
+				context.put("Template", templateMap);
 
-				factory.execute(helmStyleName, currentContext, writer);
+				factory.execute(helmStyleName, context, writer);
 				String rendered = writer.toString();
 				if (rendered != null && !rendered.isBlank()) {
 					if (!rendered.trim().endsWith("---")) {
