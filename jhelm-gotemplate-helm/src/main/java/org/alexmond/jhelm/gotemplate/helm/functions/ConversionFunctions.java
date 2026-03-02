@@ -51,11 +51,16 @@ public final class ConversionFunctions {
 	private static final Pattern NUMERIC = Pattern
 		.compile("^[+-]?(\\d[\\d_]*(\\.[\\d_]*)?([eE][+-]?\\d+)?|\\.inf|\\.nan|0x[\\da-fA-F]+|0o[0-7]+)$");
 
-	private static final ThreadLocal<JsonMapper> JSON_MAPPER = ThreadLocal
-		.withInitial(() -> JsonMapper.builder().addModule(goNumberModule()).build());
+	private static final ThreadLocal<JsonMapper> JSON_MAPPER = ThreadLocal.withInitial(() -> JsonMapper.builder()
+		.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+		.addModule(goNumberModule())
+		.build());
 
-	private static final ThreadLocal<JsonMapper> RAW_JSON_MAPPER = ThreadLocal.withInitial(
-			() -> JsonMapper.builder().disable(JsonWriteFeature.ESCAPE_NON_ASCII).addModule(goNumberModule()).build());
+	private static final ThreadLocal<JsonMapper> RAW_JSON_MAPPER = ThreadLocal.withInitial(() -> JsonMapper.builder()
+		.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+		.disable(JsonWriteFeature.ESCAPE_NON_ASCII)
+		.addModule(goNumberModule())
+		.build());
 
 	private static final ThreadLocal<TomlMapper> TOML_MAPPER = ThreadLocal
 		.withInitial(() -> TomlMapper.builder().build());

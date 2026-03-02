@@ -179,6 +179,20 @@ class ConversionFunctionsTest {
 	}
 
 	@Test
+	void testToJsonSortsKeysAlphabetically() {
+		Function toJson = functions().get("toJson");
+		// Go's json.Marshal sorts map keys alphabetically
+		Map<String, Object> data = new HashMap<>();
+		data.put("name", "dags-folder");
+		data.put("classpath", "airflow.LocalDagBundle");
+		data.put("kwargs", Map.of());
+		String json = (String) toJson.invoke(new Object[] { data });
+		// Keys should be in alphabetical order: classpath, kwargs, name
+		assertTrue(json.indexOf("classpath") < json.indexOf("kwargs"), "classpath should come before kwargs: " + json);
+		assertTrue(json.indexOf("kwargs") < json.indexOf("name"), "kwargs should come before name: " + json);
+	}
+
+	@Test
 	void testToRawJsonNullReturnsNullString() {
 		Function toRawJson = functions().get("toRawJson");
 		assertEquals("null", toRawJson.invoke(new Object[] {}));
