@@ -15,45 +15,43 @@ jhelmtest:
         path: "spec.trafficDistribution"
         reason: "Subchart defaults merging exposes values that Helm omits"
     "[prometheus-community/kube-prometheus-stack]":
-      # 4 PrometheusRule resources missing + ConfigMap JSON key ordering diffs
+      # 4 PrometheusRule subchart resources not rendered
       - resource: "PrometheusRule/*"
         path: "*"
-        reason: "BUG: 4 PrometheusRule resources missing in JHelm rendering"
+        reason: "4 PrometheusRule subchart resources missing — subchart rendering gap"
+      # JSON key ordering in Grafana dashboard ConfigMaps
       - resource: "ConfigMap/*"
         path: "data.*"
         reason: "JSON key ordering differences in Grafana dashboard ConfigMaps"
     "[apache-airflow/airflow]":
-      # Worker resources missing + Job args null + ConfigMap content diffs
-      - resource: "*"
-        path: "*"
-        reason: "BUG: Missing worker resources (SA, StatefulSet, Service), Job args, ConfigMap content"
+      # Job container args rendered as null instead of array
+      - resource: "Job/*"
+        path: "spec.template.spec.containers.*"
+        reason: "Job container args template evaluates to null instead of expected array"
+      # ConfigMap JSON key ordering differences
+      - resource: "ConfigMap/*"
+        path: "data.*"
+        reason: "JSON key ordering differences in dag_bundle_config_list"
     "[nextcloud/nextcloud]":
-      # Hash annotation differs due to different sha256 computation
+      # Hash annotation computed differently
       - resource: "Deployment/*"
         path: "spec.template.metadata.annotations.*"
         reason: "JHelm sha256sum produces different hash values than Helm"
-    "[cilium/cilium]":
-      # ConfigMap value rendering — null as string and missing duration suffix
-      - resource: "ConfigMap/*"
-        path: "data.*"
-        reason: "BUG: null rendered as string 'null', duration '15s' rendered as '15'"
     "[istio-official/istiod]":
-      # 16 resources missing — library chart rendering gap
+      # Library chart pattern — 5 resources not rendered
       - resource: "*"
         path: "*"
-        reason: "BUG: Resources missing — library chart rendering gap"
-    "[fluent/fluent-bit]":
-      # Image tag missing — .Chart.AppVersion not appended
-      - resource: "DaemonSet/*"
-        path: "spec.template.spec.containers.*"
-        reason: "BUG: Image tag missing — Chart.AppVersion not appended to image reference"
+        reason: "Library chart rendering gap — 5 resources missing"
     "[gitea/gitea]":
-      # Subchart value propagation — postgresql-ha and valkey subcharts receive wrong values
-      - resource: "*"
-        path: "*"
-        reason: "BUG: Subchart value merging propagates wrong defaults to postgresql-ha and valkey subcharts"
+      # Subchart value propagation — postgresql-ha and valkey connection strings empty
+      - resource: "Secret/*"
+        path: "stringData.*"
+        reason: "Subchart value propagation gap — connection strings and scripts empty or missing"
+      - resource: "Service/*"
+        path: "spec.ports.*"
+        reason: "Service targetPort rendered as 3000 instead of null"
     "[datadog/datadog]":
-      # Missing operator resources + random install_id UUID
+      # Operator subchart resources missing + random UUID
       - resource: "*"
         path: "*"
-        reason: "BUG: Missing CRD/operator resources, random install_id UUID"
+        reason: "9 operator subchart resources missing + random install_id UUID"
