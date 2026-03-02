@@ -718,7 +718,9 @@ class KpsComparisonTest {
 		String url = "https://artifacthub.io/api/v1/packages/search?kind=0&sort=relevance&limit=" + limit;
 		JsonMapper mapper = JsonMapper.builder().build();
 		JsonNode result;
-		try (InputStream in = URI.create(url).toURL().openStream()) {
+		HttpsURLConnection conn = (HttpsURLConnection) URI.create(url).toURL().openConnection();
+		setupInsecureSsl(conn);
+		try (InputStream in = conn.getInputStream()) {
 			result = mapper.readTree(in);
 		}
 		JsonNode packages = result.has("packages") ? result.get("packages") : result;
