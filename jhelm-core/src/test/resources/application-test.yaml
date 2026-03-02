@@ -10,6 +10,11 @@ jhelmtest:
       - resource: "Secret/*"
         path: "data.*"
         reason: "Secret data contains generated passwords/certs that differ between runs"
+    "[bitnami/rabbitmq]":
+      # Subchart defaults merging exposes trafficDistribution that Helm omits
+      - resource: "Service/*"
+        path: "spec.trafficDistribution"
+        reason: "Subchart defaults merging exposes values that Helm omits (#205)"
     "[prometheus-community/kube-prometheus-stack]":
       # 4 PrometheusRule subchart resources not rendered
       - resource: "PrometheusRule/*"
