@@ -40,9 +40,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
+
 import org.alexmond.jhelm.core.model.RepositoryConfig;
+
 import java.net.URL;
+import java.util.Base64;
 
 @SuppressWarnings("unchecked")
 class RepoManagerTest {
@@ -364,6 +369,76 @@ class RepoManagerTest {
 		when(mockClient.execute(isA(HttpPut.class), any(HttpClientResponseHandler.class)))
 			.thenAnswer(httpAnswer(201, null));
 		rm.pushOci(chartFile.getAbsolutePath(), "oci://test.registry.io/myorg/mychart:1.0.0");
+	}
+
+	@Test
+	void testUpdateRepoSendsBasicAuth() throws IOException {
+		RepoManager rm = new RepoManager(tempDir.resolve("repos.yaml").toString());
+		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
+		rm.setHttpClientForTest(mockClient);
+		rm.saveConfig(RepositoryConfig.builder()
+			.repositories(new ArrayList<>(List.of(RepositoryConfig.Repository.builder()
+				.name("authrepo")
+				.url("https://private.example.com")
+				.username("admin")
+				.password("secret")
+				.build())))
+			.build());
+		byte[] indexContent = "apiVersion: v1\nentries: {}\n".getBytes(StandardCharsets.UTF_8);
+		when(mockClient.execute(isA(HttpGet.class), any(HttpClientResponseHandler.class)))
+			.thenAnswer(httpAnswer(200, indexContent));
+		rm.updateRepo("authrepo");
+		var captor = ArgumentCaptor.forClass(HttpGet.class);
+		verify(mockClient).execute(captor.capture(), any(HttpClientResponseHandler.class));
+		String authHeader = captor.getValue().getFirstHeader("Authorization").getValue();
+		String expected = "Basic "
+				+ Base64.getEncoder().encodeToString("admin:secret".getBytes(StandardCharsets.UTF_8));
+		assertEquals(expected, authHeader);
+	}
+
+	@Test
+	void testPullFromUrlWithAuthSendsHeader() throws Exception {
+		RepoManager rm = new RepoManager(tempDir.resolve("repos.yaml").toString());
+		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
+		rm.setHttpClientForTest(mockClient);
+		rm.saveConfig(RepositoryConfig.builder()
+			.repositories(new ArrayList<>(List.of(RepositoryConfig.Repository.builder()
+				.name("authrepo")
+				.url("https://private.example.com")
+				.username("user")
+				.password("pass")
+				.build())))
+			.build());
+		byte[] tgz = createMinimalTgz();
+		when(mockClient.execute(isA(HttpGet.class), any(HttpClientResponseHandler.class)))
+			.thenAnswer(httpAnswer(200, tgz));
+		RepositoryConfig.Repository repo = rm.getRepository("authrepo");
+		rm.pullFromUrl("https://private.example.com/mychart-1.0.0.tgz", tempDir.toString(), "mychart-1.0.0.tgz", repo);
+		var captor = ArgumentCaptor.forClass(HttpGet.class);
+		verify(mockClient).execute(captor.capture(), any(HttpClientResponseHandler.class));
+		assertNotNull(captor.getValue().getFirstHeader("Authorization"));
+	}
+
+	@Test
+	void testGetRepositoryFound() throws IOException {
+		RepoManager rm = new RepoManager(tempDir.resolve("repos.yaml").toString());
+		rm.saveConfig(RepositoryConfig.builder()
+			.repositories(new ArrayList<>(List.of(RepositoryConfig.Repository.builder()
+				.name("myrepo")
+				.url("https://charts.example.com")
+				.username("user1")
+				.build())))
+			.build());
+		RepositoryConfig.Repository repo = rm.getRepository("myrepo");
+		assertNotNull(repo);
+		assertEquals("user1", repo.getUsername());
+	}
+
+	@Test
+	void testGetRepositoryNotFound() throws IOException {
+		RepoManager rm = new RepoManager(tempDir.resolve("repos.yaml").toString());
+		rm.saveConfig(RepositoryConfig.builder().repositories(new ArrayList<>()).build());
+		assertNull(rm.getRepository("missing"));
 	}
 
 	@Test
