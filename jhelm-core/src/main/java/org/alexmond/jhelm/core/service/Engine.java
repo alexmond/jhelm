@@ -125,6 +125,11 @@ public class Engine {
 		namedTemplates.clear();
 		// Create a new template for each render to avoid accumulation
 		this.factory = new GoTemplate();
+
+		// Apply aliases from dependency metadata before collecting templates, so that
+		// subchart .Chart.Name and template registration keys use the alias consistently.
+		applyAliasesFromMetadata(chart);
+
 		// Collect all named templates (define blocks) first
 		collectNamedTemplates(chart);
 
@@ -372,10 +377,25 @@ public class Engine {
 		renderChartTemplates(chart, context, sb);
 
 		// Render subcharts
+		List<Dependency> parentDepMeta = (chart.getMetadata() != null) ? chart.getMetadata().getDependencies() : null;
 		for (Chart subchart : chart.getDependencies()) {
 			// Use alias as lookup key when set (alias takes precedence over chart name)
 			String subchartName = (subchart.getAlias() != null) ? subchart.getAlias()
 					: subchart.getMetadata().getName();
+
+			// Evaluate dependency condition from Chart.yaml/requirements.yaml (e.g.
+			// "datadog.operator.enabled"). Condition paths are checked against the
+			// PARENT chart's merged values. If the condition evaluates to false the
+			// subchart is skipped.
+			Dependency depMeta = findDependencyMetadata(parentDepMeta, subchart);
+			if (depMeta != null && depMeta.getCondition() != null && !depMeta.getCondition().isEmpty()) {
+				if (!evaluateDependencyCondition(depMeta.getCondition(), mergedValues)) {
+					if (log.isDebugEnabled()) {
+						log.debug("Subchart {} disabled by condition '{}'", subchartName, depMeta.getCondition());
+					}
+					continue;
+				}
+			}
 
 			// Subcharts are only rendered if enabled in Values
 			@SuppressWarnings("unchecked")
@@ -584,6 +604,84 @@ public class Engine {
 		}
 		String lastKey = parts[parts.length - 1];
 		current.putIfAbsent(lastKey, value);
+	}
+
+	/**
+	 * Apply aliases from dependency metadata to subchart Chart objects. In Helm, when a
+	 * dependency declares {@code alias: operator}, the subchart's {@code .Chart.Name}
+	 * becomes the alias. This must be applied before template collection so that template
+	 * keys and rendering context use the alias consistently.
+	 */
+	private void applyAliasesFromMetadata(Chart chart) {
+		List<Dependency> depMeta = (chart.getMetadata() != null) ? chart.getMetadata().getDependencies() : null;
+		if (depMeta == null) {
+			return;
+		}
+		for (Chart subchart : chart.getDependencies()) {
+			Dependency dep = findDependencyMetadata(depMeta, subchart);
+			if (dep != null && dep.getAlias() != null && !dep.getAlias().isEmpty()) {
+				subchart.setAlias(dep.getAlias());
+				subchart.getMetadata().setName(dep.getAlias());
+			}
+			// Recurse into nested subcharts
+			applyAliasesFromMetadata(subchart);
+		}
+	}
+
+	/**
+	 * Find the {@link Dependency} metadata entry that corresponds to the given subchart.
+	 */
+	private Dependency findDependencyMetadata(List<Dependency> deps, Chart subchart) {
+		if (deps == null) {
+			return null;
+		}
+		String chartName = subchart.getMetadata().getName();
+		String chartAlias = subchart.getAlias();
+		for (Dependency dep : deps) {
+			if (dep.getAlias() != null && dep.getAlias().equals(chartAlias)) {
+				return dep;
+			}
+			if (dep.getName().equals(chartName)) {
+				return dep;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Evaluate a dependency condition expression against chart values. Condition is a
+	 * comma-separated list of dot-separated value paths. The first path that resolves to
+	 * a boolean value wins. If no path resolves, the dependency is included by default.
+	 */
+	private boolean evaluateDependencyCondition(String condition, Map<String, Object> values) {
+		String[] paths = condition.split(",");
+		for (String path : paths) {
+			path = path.trim();
+			String[] parts = path.split("\\.");
+			Object current = values;
+			boolean found = true;
+			for (String part : parts) {
+				if (!(current instanceof Map<?, ?>)) {
+					found = false;
+					break;
+				}
+				current = ((Map<?, ?>) current).get(part);
+				if (current == null) {
+					found = false;
+					break;
+				}
+			}
+			if (found) {
+				if (current instanceof Boolean b) {
+					return b;
+				}
+				if (current instanceof String s) {
+					return Boolean.parseBoolean(s);
+				}
+			}
+		}
+		// No condition path resolved — include by default
+		return true;
 	}
 
 	private Map<String, Object> mergeValues(Map<String, Object> defaults, Map<String, Object> overrides) {

@@ -39,6 +39,19 @@ public class ChartLoader {
 		}
 		ChartMetadata metadata = yamlMapper.readValue(metadataFile, ChartMetadata.class);
 
+		// For apiVersion v1 charts, dependencies live in requirements.yaml rather than
+		// Chart.yaml. Load them so that condition/alias metadata is available during
+		// rendering.
+		if (metadata.getDependencies() == null || metadata.getDependencies().isEmpty()) {
+			File requirementsFile = new File(chartDir, "requirements.yaml");
+			if (requirementsFile.exists()) {
+				ChartMetadata reqMeta = yamlMapper.readValue(requirementsFile, ChartMetadata.class);
+				if (reqMeta.getDependencies() != null) {
+					metadata.setDependencies(reqMeta.getDependencies());
+				}
+			}
+		}
+
 		// Load values.yaml (supports multi-document files separated by ---)
 		File valuesFile = new File(chartDir, "values.yaml");
 		Map<String, Object> values = new LinkedHashMap<>();

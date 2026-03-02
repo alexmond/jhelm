@@ -408,4 +408,75 @@ class ChartLoaderTest {
 		assertNull(chart.getValuesSchema());
 	}
 
+	@Test
+	void testLoadV1ChartWithRequirementsYaml() throws Exception {
+		// v1 charts store dependencies in requirements.yaml, not Chart.yaml
+		Path chartDir = tempDir.resolve("v1-chart");
+		Files.createDirectories(chartDir);
+		Files.writeString(chartDir.resolve("Chart.yaml"), """
+				apiVersion: v1
+				name: v1-chart
+				version: 3.0.0
+				""");
+		Files.writeString(chartDir.resolve("values.yaml"), "{}");
+		Files.writeString(chartDir.resolve("requirements.yaml"), """
+				dependencies:
+				  - name: my-operator
+				    version: 2.0.0
+				    repository: https://example.com
+				    condition: app.operator.enabled
+				    alias: operator
+				  - name: kube-state-metrics
+				    version: 1.0.0
+				    repository: https://example.com
+				    condition: monitoring.enabled
+				""");
+		Files.createDirectories(chartDir.resolve("templates"));
+
+		Chart chart = chartLoader.load(chartDir.toFile());
+
+		assertNotNull(chart.getMetadata().getDependencies());
+		assertEquals(2, chart.getMetadata().getDependencies().size());
+
+		var op = chart.getMetadata().getDependencies().get(0);
+		assertEquals("my-operator", op.getName());
+		assertEquals("operator", op.getAlias());
+		assertEquals("app.operator.enabled", op.getCondition());
+
+		var ksm = chart.getMetadata().getDependencies().get(1);
+		assertEquals("kube-state-metrics", ksm.getName());
+		assertEquals("monitoring.enabled", ksm.getCondition());
+		assertNull(ksm.getAlias());
+	}
+
+	@Test
+	void testLoadV2ChartIgnoresRequirementsYaml() throws Exception {
+		// v2 charts with dependencies in Chart.yaml should not load requirements.yaml
+		Path chartDir = tempDir.resolve("v2-chart");
+		Files.createDirectories(chartDir);
+		Files.writeString(chartDir.resolve("Chart.yaml"), """
+				apiVersion: v2
+				name: v2-chart
+				version: 1.0.0
+				dependencies:
+				  - name: redis
+				    version: "17.0.0"
+				    repository: https://charts.bitnami.com/bitnami
+				""");
+		Files.writeString(chartDir.resolve("values.yaml"), "{}");
+		// This requirements.yaml should be ignored since Chart.yaml has dependencies
+		Files.writeString(chartDir.resolve("requirements.yaml"), """
+				dependencies:
+				  - name: stale-dep
+				    version: 0.0.1
+				    repository: https://old.example.com
+				""");
+		Files.createDirectories(chartDir.resolve("templates"));
+
+		Chart chart = chartLoader.load(chartDir.toFile());
+
+		assertEquals(1, chart.getMetadata().getDependencies().size());
+		assertEquals("redis", chart.getMetadata().getDependencies().get(0).getName());
+	}
+
 }
