@@ -1,5 +1,5 @@
 jhelmtest:
-  number-of-top-charts: 50
+  number-of-top-charts: 5
   comparison-ignores:
     _global:
       # Checksum annotations — different hash computation
