@@ -29,7 +29,8 @@ public class UninstallAction {
 		String regularManifest = HookParser.stripHooks(release.getManifest());
 		HookExecutor hookExecutor = new HookExecutor(kubeService);
 		hookExecutor.run(namespace, hooks, "pre-delete", 300);
-		kubeService.delete(namespace, regularManifest);
+		String deletableManifest = HookParser.stripKeptResources(regularManifest);
+		kubeService.delete(namespace, deletableManifest);
 		hookExecutor.run(namespace, hooks, "post-delete", 300);
 		kubeService.deleteReleaseHistory(releaseName, namespace);
 	}

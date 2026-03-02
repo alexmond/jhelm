@@ -211,4 +211,36 @@ class HookParserTest {
 		assertTrue(stripped.isBlank() || stripped.equals(""));
 	}
 
+	// --- stripKeptResources ---
+
+	@Test
+	void testStripKeptResourcesRemovesAnnotated() {
+		String keptDoc = """
+				apiVersion: v1
+				kind: PersistentVolumeClaim
+				metadata:
+				  name: myapp-data
+				  annotations:
+				    helm.sh/resource-policy: keep
+				spec:
+				  accessModes: [ReadWriteOnce]
+				""";
+		String manifest = "---\n" + keptDoc + "---\n" + REGULAR_DOC;
+		String result = HookParser.stripKeptResources(manifest);
+		assertFalse(result.contains("myapp-data"), "Kept resource should be removed: " + result);
+		assertTrue(result.contains("my-config"), "Regular resource should remain: " + result);
+	}
+
+	@Test
+	void testStripKeptResourcesPreservesNonAnnotated() {
+		String manifest = "---\n" + REGULAR_DOC;
+		String result = HookParser.stripKeptResources(manifest);
+		assertTrue(result.contains("my-config"));
+	}
+
+	@Test
+	void testStripKeptResourcesReturnsEmptyForNull() {
+		assertEquals("", HookParser.stripKeptResources(null));
+	}
+
 }
