@@ -389,9 +389,15 @@ public class Engine {
 				continue;
 			}
 
-			// In Helm, global values are shared
+			// In Helm, global values are deep-merged: parent globals override subchart
+			// globals
 			if (mergedValues.containsKey("global")) {
-				subchartOverrides.put("global", mergedValues.get("global"));
+				@SuppressWarnings("unchecked")
+				Map<String, Object> parentGlobal = (Map<String, Object>) mergedValues.get("global");
+				@SuppressWarnings("unchecked")
+				Map<String, Object> subGlobal = (Map<String, Object>) subchartOverrides.getOrDefault("global",
+						new HashMap<>());
+				subchartOverrides.put("global", mergeValues(subGlobal, parentGlobal));
 			}
 
 			if (log.isDebugEnabled()) {

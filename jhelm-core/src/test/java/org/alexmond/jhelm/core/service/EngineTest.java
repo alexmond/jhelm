@@ -264,6 +264,33 @@ class EngineTest {
 		assertTrue(result.contains("env: production"));
 	}
 
+	@Test
+	void testGlobalValuesDeepMergedWithSubchartGlobals() {
+		// Subchart has its own global defaults; parent global should deep-merge, not
+		// replace
+		Chart subchart = simpleChart("postgresql-ha", "11.0.0", List.of(tmpl("cm.yaml",
+				"storageClass: {{ .Values.global.storageClass }}\nregistry: {{ .Values.global.imageRegistry }}")),
+				Map.of("global", new HashMap<>(Map.of("storageClass", "default-sc", "imageRegistry", "docker.io"))));
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder().name("gitea").version("1.0.0").build())
+			.templates(List.of(tmpl("deploy.yaml", "kind: Deployment")))
+			.values(Map.of())
+			.dependencies(List.of(subchart))
+			.build();
+
+		// Parent only overrides imageRegistry, not storageClass
+		Map<String, Object> vals = new HashMap<>();
+		vals.put("global", new HashMap<>(Map.of("imageRegistry", "gcr.io")));
+
+		String result = engine.render(parent, vals, releaseInfo());
+		// Parent override should win
+		assertTrue(result.contains("registry: gcr.io"), "parent global should override: " + result);
+		// Subchart default should be preserved (deep-merged, not replaced)
+		assertTrue(result.contains("storageClass: default-sc"),
+				"subchart global default should be preserved: " + result);
+	}
+
 	// --- Capabilities ---
 
 	@Test
