@@ -25,6 +25,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.util.HashSet;
+import java.util.Set;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -106,6 +113,36 @@ class PackageActionTest {
 		assertTrue(archive.exists());
 		File provFile = new File(archive.getAbsolutePath() + ".prov");
 		assertTrue(!provFile.exists());
+	}
+
+	@Test
+	void testPackageChartRespectsHelmignore() throws Exception {
+		Path chartDir = createMinimalChart("ignore-chart", "1.0.0");
+		// Add files that should be ignored
+		Files.writeString(chartDir.resolve(".git"), "gitdir");
+		Files.writeString(chartDir.resolve("notes.txt"), "dev notes");
+		Files.writeString(chartDir.resolve(".helmignore"), ".git\nnotes.txt\n");
+
+		packageAction.setDestination(tempDir.toFile());
+		File archive = packageAction.packageChart(chartDir.toString());
+
+		Set<String> entries = listTgzEntries(archive);
+		assertTrue(entries.stream().anyMatch((e) -> e.contains("Chart.yaml")), "Chart.yaml should be included");
+		assertFalse(entries.stream().anyMatch((e) -> e.contains(".git")), ".git should be excluded");
+		assertFalse(entries.stream().anyMatch((e) -> e.contains("notes.txt")), "notes.txt should be excluded");
+	}
+
+	private Set<String> listTgzEntries(File tgzFile) throws Exception {
+		Set<String> names = new HashSet<>();
+		try (var fis = Files.newInputStream(tgzFile.toPath());
+				var gis = new GzipCompressorInputStream(fis);
+				var tis = new TarArchiveInputStream(gis)) {
+			TarArchiveEntry entry;
+			while ((entry = tis.getNextEntry()) != null) {
+				names.add(entry.getName());
+			}
+		}
+		return names;
 	}
 
 	private Path createMinimalChart(String name, String version) throws Exception {
