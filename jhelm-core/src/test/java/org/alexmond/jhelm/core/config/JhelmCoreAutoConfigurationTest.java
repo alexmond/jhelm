@@ -16,6 +16,7 @@ import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.LintAction;
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.StatusAction;
@@ -43,6 +44,7 @@ class JhelmCoreAutoConfigurationTest {
 			assertNotNull(ctx.getBean(RegistryManager.class));
 			assertNotNull(ctx.getBean(CreateAction.class));
 			assertNotNull(ctx.getBean(TemplateAction.class));
+			assertNotNull(ctx.getBean(LintAction.class));
 		});
 	}
 
