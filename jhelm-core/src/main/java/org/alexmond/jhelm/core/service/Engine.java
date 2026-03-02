@@ -352,6 +352,14 @@ public class Engine {
 		context.put("Template", Map.of("Name", "", "BasePath", chartBasePath));
 		context.put("Files", new ChartFiles(chart.getFiles()));
 
+		// Build .Subcharts map: subchart name/alias → { Chart: metadata }
+		Map<String, Object> subcharts = new HashMap<>();
+		for (Chart dep : chart.getDependencies()) {
+			String depKey = (dep.getAlias() != null) ? dep.getAlias() : dep.getMetadata().getName();
+			subcharts.put(depKey, Map.of("Chart", dep.getMetadata()));
+		}
+		context.put("Subcharts", subcharts);
+
 		StringBuilder sb = new StringBuilder();
 
 		// Render current chart templates
