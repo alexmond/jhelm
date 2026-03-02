@@ -10,12 +10,13 @@ import io.kubernetes.client.openapi.apis.BatchV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
-import io.kubernetes.client.openapi.models.V1ConfigMapList;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1Job;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.V1Secret;
+import io.kubernetes.client.openapi.models.V1SecretList;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.util.PatchUtils;
 import io.kubernetes.client.util.Yaml;
@@ -27,8 +28,12 @@ import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,7 +52,7 @@ public class HelmKubeService implements KubeService {
 	private ResourcePluralizer pluralizer;
 
 	/**
-	 * Stores a release as a ConfigMap in Kubernetes.
+	 * Stores a release as a Secret in Kubernetes, matching Helm's storage format.
 	 */
 	@Override
 	public void storeRelease(Release release) throws ReleaseStorageException {
@@ -55,24 +60,24 @@ public class HelmKubeService implements KubeService {
 		String name = "sh.helm.release.v1." + release.getName() + ".v" + release.getVersion();
 
 		try {
-			byte[] releaseJson = objectMapper.writeValueAsBytes(release);
-			String encoded = Base64.getEncoder().encodeToString(releaseJson);
+			byte[] encoded = encodeRelease(release);
 
-			V1ConfigMap configMap = new V1ConfigMap()
+			V1Secret secret = new V1Secret()
 				.metadata(new V1ObjectMeta().name(name)
 					.namespace(release.getNamespace())
 					.putLabelsItem("owner", "helm")
 					.putLabelsItem("name", release.getName())
 					.putLabelsItem("status", release.getInfo().getStatus())
 					.putLabelsItem("version", String.valueOf(release.getVersion())))
+				.type("helm.sh/release.v1")
 				.putDataItem("release", encoded);
 
 			try {
-				api.createNamespacedConfigMap(release.getNamespace(), configMap).execute();
+				api.createNamespacedSecret(release.getNamespace(), secret).execute();
 			}
 			catch (Exception ex) {
 				if (ex instanceof ApiException ae && ae.getCode() == 409) {
-					api.replaceNamespacedConfigMap(name, release.getNamespace(), configMap).execute();
+					api.replaceNamespacedSecret(name, release.getNamespace(), secret).execute();
 				}
 				else {
 					throw ex;
@@ -92,9 +97,9 @@ public class HelmKubeService implements KubeService {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm,name=" + name;
 
-		V1ConfigMapList list = api.listNamespacedConfigMap(namespace).labelSelector(labelSelector).execute();
+		V1SecretList list = api.listNamespacedSecret(namespace).labelSelector(labelSelector).execute();
 
-		Optional<V1ConfigMap> latest = list.getItems().stream().sorted((s1, s2) -> {
+		Optional<V1Secret> latest = list.getItems().stream().sorted((s1, s2) -> {
 			int v1 = Integer.parseInt(s1.getMetadata().getLabels().get("version"));
 			int v2 = Integer.parseInt(s2.getMetadata().getLabels().get("version"));
 			return Integer.compare(v2, v1); // Descending
@@ -114,29 +119,29 @@ public class HelmKubeService implements KubeService {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm";
 
-		V1ConfigMapList list = api.listNamespacedConfigMap(namespace).labelSelector(labelSelector).execute();
+		V1SecretList list = api.listNamespacedSecret(namespace).labelSelector(labelSelector).execute();
 
 		// Group by name and pick the highest version for each
-		Map<String, List<V1ConfigMap>> grouped = list.getItems()
+		Map<String, List<V1Secret>> grouped = list.getItems()
 			.stream()
-			.collect(Collectors.groupingBy((cm) -> cm.getMetadata().getLabels().get("name")));
+			.collect(Collectors.groupingBy((s) -> s.getMetadata().getLabels().get("name")));
 
-		List<V1ConfigMap> latestPerName = grouped.values()
+		List<V1Secret> latestPerName = grouped.values()
 			.stream()
-			.map((cms) -> cms.stream()
-				.max(Comparator.comparingInt((cm) -> Integer.parseInt(cm.getMetadata().getLabels().get("version"))))
+			.map((secrets) -> secrets.stream()
+				.max(Comparator.comparingInt((s) -> Integer.parseInt(s.getMetadata().getLabels().get("version"))))
 				.orElse(null))
 			.filter(Objects::nonNull)
 			.toList();
 
 		List<Release> releases = new ArrayList<>();
-		for (V1ConfigMap cm : latestPerName) {
+		for (V1Secret secret : latestPerName) {
 			try {
-				releases.add(decodeRelease(cm));
+				releases.add(decodeRelease(secret));
 			}
 			catch (ReleaseStorageException ex) {
 				if (log.isWarnEnabled()) {
-					log.warn("Failed to decode release from ConfigMap {}: {}", cm.getMetadata().getName(),
+					log.warn("Failed to decode release from Secret {}: {}", secret.getMetadata().getName(),
 							ex.getMessage());
 				}
 			}
@@ -152,18 +157,18 @@ public class HelmKubeService implements KubeService {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm,name=" + name;
 
-		V1ConfigMapList list = api.listNamespacedConfigMap(namespace).labelSelector(labelSelector).execute();
+		V1SecretList list = api.listNamespacedSecret(namespace).labelSelector(labelSelector).execute();
 
-		List<V1ConfigMap> sorted = list.getItems()
+		List<V1Secret> sorted = list.getItems()
 			.stream()
 			.sorted(Comparator
-				.comparingInt((V1ConfigMap cm) -> Integer.parseInt(cm.getMetadata().getLabels().get("version")))
+				.comparingInt((V1Secret s) -> Integer.parseInt(s.getMetadata().getLabels().get("version")))
 				.reversed())
 			.toList();
 
 		List<Release> history = new ArrayList<>();
-		for (V1ConfigMap cm : sorted) {
-			history.add(decodeRelease(cm));
+		for (V1Secret secret : sorted) {
+			history.add(decodeRelease(secret));
 		}
 		return history;
 	}
@@ -175,9 +180,9 @@ public class HelmKubeService implements KubeService {
 	public void deleteReleaseHistory(String name, String namespace) throws ApiException {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm,name=" + name;
-		V1ConfigMapList list = api.listNamespacedConfigMap(namespace).labelSelector(labelSelector).execute();
-		for (V1ConfigMap cm : list.getItems()) {
-			api.deleteNamespacedConfigMap(cm.getMetadata().getName(), namespace).execute();
+		V1SecretList list = api.listNamespacedSecret(namespace).labelSelector(labelSelector).execute();
+		for (V1Secret secret : list.getItems()) {
+			api.deleteNamespacedSecret(secret.getMetadata().getName(), namespace).execute();
 		}
 	}
 
@@ -441,14 +446,39 @@ public class HelmKubeService implements KubeService {
 		}
 	}
 
-	private Release decodeRelease(V1ConfigMap cm) throws ReleaseStorageException {
+	private Release decodeRelease(V1Secret secret) throws ReleaseStorageException {
 		try {
-			byte[] decoded = Base64.getDecoder().decode(cm.getData().get("release"));
-			return objectMapper.readValue(decoded, Release.class);
+			byte[] raw = secret.getData().get("release");
+			// Helm stores release as: JSON → gzip → base64, then k8s base64-encodes again
+			// The k8s client auto-decodes the outer base64, so raw is the inner base64
+			byte[] gzipped = Base64.getDecoder().decode(raw);
+			byte[] json = gunzip(gzipped);
+			return objectMapper.readValue(json, Release.class);
 		}
 		catch (Exception ex) {
-			throw new ReleaseStorageException("Failed to decode release from ConfigMap: " + cm.getMetadata().getName(),
+			throw new ReleaseStorageException("Failed to decode release from Secret: " + secret.getMetadata().getName(),
 					ex);
+		}
+	}
+
+	private byte[] encodeRelease(Release release) throws Exception {
+		byte[] json = objectMapper.writeValueAsBytes(release);
+		byte[] gzipped = gzip(json);
+		String b64 = Base64.getEncoder().encodeToString(gzipped);
+		return b64.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+	}
+
+	private byte[] gzip(byte[] data) throws Exception {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		try (GZIPOutputStream gz = new GZIPOutputStream(bos)) {
+			gz.write(data);
+		}
+		return bos.toByteArray();
+	}
+
+	private byte[] gunzip(byte[] data) throws Exception {
+		try (ByteArrayInputStream bis = new ByteArrayInputStream(data); GZIPInputStream gz = new GZIPInputStream(bis)) {
+			return gz.readAllBytes();
 		}
 	}
 

@@ -3,19 +3,19 @@ package org.alexmond.jhelm.kube.service;
 import tools.jackson.databind.json.JsonMapper;
 import io.kubernetes.client.custom.V1Patch;
 import io.kubernetes.client.openapi.ApiClient;
-import java.util.Base64;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
-import io.kubernetes.client.openapi.models.V1ConfigMapList;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1DeploymentSpec;
 import io.kubernetes.client.openapi.models.V1DeploymentStatus;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.V1Secret;
+import io.kubernetes.client.openapi.models.V1SecretList;
 import io.kubernetes.client.util.PatchUtils;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
@@ -33,9 +33,13 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
+import java.util.zip.GZIPOutputStream;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -112,25 +116,35 @@ class HelmKubeServiceTest {
 			.build();
 	}
 
-	private V1ConfigMap createConfigMapForRelease(Release release) throws Exception {
+	private V1Secret createSecretForRelease(Release release) throws Exception {
 		byte[] releaseJson = objectMapper.writeValueAsBytes(release);
-		String encoded = Base64.getEncoder().encodeToString(releaseJson);
+		byte[] gzipped = gzip(releaseJson);
+		String b64 = Base64.getEncoder().encodeToString(gzipped);
 
-		return new V1ConfigMap()
+		return new V1Secret()
 			.metadata(new V1ObjectMeta().name("sh.helm.release.v1." + release.getName() + ".v" + release.getVersion())
 				.namespace(release.getNamespace())
 				.putLabelsItem("owner", "helm")
 				.putLabelsItem("name", release.getName())
 				.putLabelsItem("status", release.getInfo().getStatus())
 				.putLabelsItem("version", String.valueOf(release.getVersion())))
-			.putDataItem("release", encoded);
+			.type("helm.sh/release.v1")
+			.putDataItem("release", b64.getBytes(StandardCharsets.UTF_8));
 	}
 
-	private void setupListRequest(CoreV1Api mock, V1ConfigMapList list) throws Exception {
-		var listReq = mock(CoreV1Api.APIlistNamespacedConfigMapRequest.class);
+	private byte[] gzip(byte[] data) throws Exception {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		try (GZIPOutputStream gz = new GZIPOutputStream(bos)) {
+			gz.write(data);
+		}
+		return bos.toByteArray();
+	}
+
+	private void setupListRequest(CoreV1Api mock, V1SecretList list) throws Exception {
+		var listReq = mock(CoreV1Api.APIlistNamespacedSecretRequest.class);
 		when(listReq.labelSelector(anyString())).thenReturn(listReq);
 		when(listReq.execute()).thenReturn(list);
-		when(mock.listNamespacedConfigMap(anyString())).thenReturn(listReq);
+		when(mock.listNamespacedSecret(anyString())).thenReturn(listReq);
 	}
 
 	private void setupSsaMock() {
@@ -162,18 +176,18 @@ class HelmKubeServiceTest {
 	// --- storeRelease ---
 
 	@Test
-	void testStoreReleaseCreatesConfigMap() throws Exception {
+	void testStoreReleaseCreatesSecret() throws Exception {
 		Release release = createTestRelease("myapp", "default", 1, "deployed");
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
 			mockCoreV1Api = mock;
-			var req = mock(CoreV1Api.APIcreateNamespacedConfigMapRequest.class);
-			when(req.execute()).thenReturn(new V1ConfigMap());
-			when(mock.createNamespacedConfigMap(eq("default"), any(V1ConfigMap.class))).thenReturn(req);
+			var req = mock(CoreV1Api.APIcreateNamespacedSecretRequest.class);
+			when(req.execute()).thenReturn(new V1Secret());
+			when(mock.createNamespacedSecret(eq("default"), any(V1Secret.class))).thenReturn(req);
 		});
 
 		kubeService.storeRelease(release);
-		verify(mockCoreV1Api).createNamespacedConfigMap(eq("default"), any(V1ConfigMap.class));
+		verify(mockCoreV1Api).createNamespacedSecret(eq("default"), any(V1Secret.class));
 	}
 
 	@Test
@@ -182,19 +196,18 @@ class HelmKubeServiceTest {
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
 			mockCoreV1Api = mock;
-			var createReq = mock(CoreV1Api.APIcreateNamespacedConfigMapRequest.class);
+			var createReq = mock(CoreV1Api.APIcreateNamespacedSecretRequest.class);
 			when(createReq.execute()).thenThrow(new ApiException(409, "Conflict"));
-			when(mock.createNamespacedConfigMap(eq("default"), any(V1ConfigMap.class))).thenReturn(createReq);
+			when(mock.createNamespacedSecret(eq("default"), any(V1Secret.class))).thenReturn(createReq);
 
-			var replaceReq = mock(CoreV1Api.APIreplaceNamespacedConfigMapRequest.class);
-			when(replaceReq.execute()).thenReturn(new V1ConfigMap());
-			when(mock.replaceNamespacedConfigMap(anyString(), eq("default"), any(V1ConfigMap.class)))
-				.thenReturn(replaceReq);
+			var replaceReq = mock(CoreV1Api.APIreplaceNamespacedSecretRequest.class);
+			when(replaceReq.execute()).thenReturn(new V1Secret());
+			when(mock.replaceNamespacedSecret(anyString(), eq("default"), any(V1Secret.class))).thenReturn(replaceReq);
 		});
 
 		kubeService.storeRelease(release);
-		verify(mockCoreV1Api).replaceNamespacedConfigMap(eq("sh.helm.release.v1.myapp.v1"), eq("default"),
-				any(V1ConfigMap.class));
+		verify(mockCoreV1Api).replaceNamespacedSecret(eq("sh.helm.release.v1.myapp.v1"), eq("default"),
+				any(V1Secret.class));
 	}
 
 	@Test
@@ -202,9 +215,9 @@ class HelmKubeServiceTest {
 		Release release = createTestRelease("myapp", "default", 1, "deployed");
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
-			var createReq = mock(CoreV1Api.APIcreateNamespacedConfigMapRequest.class);
+			var createReq = mock(CoreV1Api.APIcreateNamespacedSecretRequest.class);
 			when(createReq.execute()).thenThrow(new ApiException(500, "Internal error"));
-			when(mock.createNamespacedConfigMap(eq("default"), any(V1ConfigMap.class))).thenReturn(createReq);
+			when(mock.createNamespacedSecret(eq("default"), any(V1Secret.class))).thenReturn(createReq);
 		});
 
 		assertThrows(ReleaseStorageException.class, () -> kubeService.storeRelease(release));
@@ -216,8 +229,7 @@ class HelmKubeServiceTest {
 	void testGetReleaseReturnsLatestVersion() throws Exception {
 		Release r1 = createTestRelease("myapp", "default", 1, "superseded");
 		Release r2 = createTestRelease("myapp", "default", 2, "deployed");
-		V1ConfigMapList list = new V1ConfigMapList()
-			.items(List.of(createConfigMapForRelease(r1), createConfigMapForRelease(r2)));
+		V1SecretList list = new V1SecretList().items(List.of(createSecretForRelease(r1), createSecretForRelease(r2)));
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListRequest(mock, list));
 
@@ -228,7 +240,7 @@ class HelmKubeServiceTest {
 
 	@Test
 	void testGetReleaseReturnsEmptyWhenNone() throws Exception {
-		V1ConfigMapList list = new V1ConfigMapList().items(List.of());
+		V1SecretList list = new V1SecretList().items(List.of());
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListRequest(mock, list));
 
@@ -237,14 +249,14 @@ class HelmKubeServiceTest {
 
 	@Test
 	void testGetReleaseThrowsOnDecodeError() throws Exception {
-		// ConfigMap with invalid base64 data
-		V1ConfigMap badCm = new V1ConfigMap()
+		// Secret with invalid data
+		V1Secret badSecret = new V1Secret()
 			.metadata(new V1ObjectMeta().name("sh.helm.release.v1.myapp.v1")
 				.putLabelsItem("version", "1")
 				.putLabelsItem("name", "myapp"))
-			.putDataItem("release", "not-valid-base64!!!");
+			.putDataItem("release", "not-valid-base64!!!".getBytes(StandardCharsets.UTF_8));
 
-		V1ConfigMapList list = new V1ConfigMapList().items(List.of(badCm));
+		V1SecretList list = new V1SecretList().items(List.of(badSecret));
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListRequest(mock, list));
 
@@ -259,8 +271,8 @@ class HelmKubeServiceTest {
 		Release app1v2 = createTestRelease("app1", "default", 2, "deployed");
 		Release app2v1 = createTestRelease("app2", "default", 1, "deployed");
 
-		V1ConfigMapList list = new V1ConfigMapList().items(List.of(createConfigMapForRelease(app1v1),
-				createConfigMapForRelease(app1v2), createConfigMapForRelease(app2v1)));
+		V1SecretList list = new V1SecretList().items(List.of(createSecretForRelease(app1v1),
+				createSecretForRelease(app1v2), createSecretForRelease(app2v1)));
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListRequest(mock, list));
 
@@ -273,15 +285,15 @@ class HelmKubeServiceTest {
 
 	@Test
 	void testListReleasesHandlesDecodeError() throws Exception {
-		// Mix of good and bad ConfigMaps
+		// Mix of good and bad Secrets
 		Release good = createTestRelease("good-app", "default", 1, "deployed");
-		V1ConfigMap badCm = new V1ConfigMap()
+		V1Secret badSecret = new V1Secret()
 			.metadata(new V1ObjectMeta().name("sh.helm.release.v1.bad-app.v1")
 				.putLabelsItem("version", "1")
 				.putLabelsItem("name", "bad-app"))
-			.putDataItem("release", "invalid-base64");
+			.putDataItem("release", "invalid-data".getBytes(StandardCharsets.UTF_8));
 
-		V1ConfigMapList list = new V1ConfigMapList().items(List.of(createConfigMapForRelease(good), badCm));
+		V1SecretList list = new V1SecretList().items(List.of(createSecretForRelease(good), badSecret));
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListRequest(mock, list));
 
@@ -293,7 +305,7 @@ class HelmKubeServiceTest {
 
 	@Test
 	void testListReleasesReturnsEmptyWhenNone() throws Exception {
-		V1ConfigMapList list = new V1ConfigMapList().items(List.of());
+		V1SecretList list = new V1SecretList().items(List.of());
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListRequest(mock, list));
 
@@ -308,8 +320,8 @@ class HelmKubeServiceTest {
 		Release r2 = createTestRelease("myapp", "default", 2, "superseded");
 		Release r3 = createTestRelease("myapp", "default", 3, "deployed");
 
-		V1ConfigMapList list = new V1ConfigMapList().items(
-				List.of(createConfigMapForRelease(r1), createConfigMapForRelease(r3), createConfigMapForRelease(r2)));
+		V1SecretList list = new V1SecretList()
+			.items(List.of(createSecretForRelease(r1), createSecretForRelease(r3), createSecretForRelease(r2)));
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListRequest(mock, list));
 
@@ -322,13 +334,13 @@ class HelmKubeServiceTest {
 
 	@Test
 	void testGetReleaseHistoryThrowsOnDecodeError() throws Exception {
-		V1ConfigMap badCm = new V1ConfigMap()
+		V1Secret badSecret = new V1Secret()
 			.metadata(new V1ObjectMeta().name("sh.helm.release.v1.myapp.v1")
 				.putLabelsItem("version", "1")
 				.putLabelsItem("name", "myapp"))
-			.putDataItem("release", "bad-data");
+			.putDataItem("release", "bad-data".getBytes(StandardCharsets.UTF_8));
 
-		V1ConfigMapList list = new V1ConfigMapList().items(List.of(badCm));
+		V1SecretList list = new V1SecretList().items(List.of(badSecret));
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListRequest(mock, list));
 
@@ -342,21 +354,20 @@ class HelmKubeServiceTest {
 		Release r1 = createTestRelease("myapp", "default", 1, "superseded");
 		Release r2 = createTestRelease("myapp", "default", 2, "deployed");
 
-		V1ConfigMapList list = new V1ConfigMapList()
-			.items(List.of(createConfigMapForRelease(r1), createConfigMapForRelease(r2)));
+		V1SecretList list = new V1SecretList().items(List.of(createSecretForRelease(r1), createSecretForRelease(r2)));
 
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
 			mockCoreV1Api = mock;
 			setupListRequest(mock, list);
 
-			var deleteReq = mock(CoreV1Api.APIdeleteNamespacedConfigMapRequest.class);
+			var deleteReq = mock(CoreV1Api.APIdeleteNamespacedSecretRequest.class);
 			when(deleteReq.execute()).thenReturn(null);
-			when(mock.deleteNamespacedConfigMap(anyString(), eq("default"))).thenReturn(deleteReq);
+			when(mock.deleteNamespacedSecret(anyString(), eq("default"))).thenReturn(deleteReq);
 		});
 
 		kubeService.deleteReleaseHistory("myapp", "default");
-		verify(mockCoreV1Api).deleteNamespacedConfigMap("sh.helm.release.v1.myapp.v1", "default");
-		verify(mockCoreV1Api).deleteNamespacedConfigMap("sh.helm.release.v1.myapp.v2", "default");
+		verify(mockCoreV1Api).deleteNamespacedSecret("sh.helm.release.v1.myapp.v1", "default");
+		verify(mockCoreV1Api).deleteNamespacedSecret("sh.helm.release.v1.myapp.v2", "default");
 	}
 
 	// --- listPods ---
@@ -791,17 +802,18 @@ class HelmKubeServiceTest {
 		assertEquals(expected, method.invoke(kubeService, kind));
 	}
 
-	// --- ConfigMap naming convention ---
+	// --- Secret naming convention ---
 
 	@ParameterizedTest
 	@ValueSource(ints = { 1, 2, 5, 10, 100 })
-	void testConfigMapNamingConvention(int version) throws Exception {
+	void testSecretNamingConvention(int version) throws Exception {
 		Release release = createTestRelease("app", "default", version, "deployed");
-		V1ConfigMap cm = createConfigMapForRelease(release);
+		V1Secret secret = createSecretForRelease(release);
 
-		assertEquals("sh.helm.release.v1.app.v" + version, cm.getMetadata().getName());
-		assertEquals(String.valueOf(version), cm.getMetadata().getLabels().get("version"));
-		assertEquals("helm", cm.getMetadata().getLabels().get("owner"));
+		assertEquals("sh.helm.release.v1.app.v" + version, secret.getMetadata().getName());
+		assertEquals(String.valueOf(version), secret.getMetadata().getLabels().get("version"));
+		assertEquals("helm", secret.getMetadata().getLabels().get("owner"));
+		assertEquals("helm.sh/release.v1", secret.getType());
 	}
 
 }
