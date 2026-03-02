@@ -10,44 +10,26 @@ jhelmtest:
       - resource: "Secret/*"
         path: "data.*"
         reason: "Secret data contains generated passwords/certs that differ between runs"
-    "[bitnami/rabbitmq]":
-      # Subchart defaults merging exposes trafficDistribution that Helm omits
-      - resource: "Service/*"
-        path: "spec.trafficDistribution"
-        reason: "Subchart defaults merging exposes values that Helm omits (#205)"
-    "[prometheus-community/kube-prometheus-stack]":
-      # 4 PrometheusRule subchart resources not rendered
-      - resource: "PrometheusRule/*"
-        path: "*"
-        reason: "4 PrometheusRule subchart resources missing — subchart rendering gap"
-      # JSON key ordering in Grafana dashboard ConfigMaps
-      - resource: "ConfigMap/*"
-        path: "data.*"
-        reason: "JSON key ordering differences in Grafana dashboard ConfigMaps"
     "[apache-airflow/airflow]":
-      # Job container args rendered as null instead of array
+      # Job container args rendered as null — tpl(toYaml) with embedded Go templates
       - resource: "Job/*"
         path: "spec.template.spec.containers.*"
-        reason: "Job container args template evaluates to null instead of expected array"
-      # ConfigMap JSON key ordering differences
-      - resource: "ConfigMap/*"
-        path: "data.*"
-        reason: "JSON key ordering differences in dag_bundle_config_list"
+        reason: "Job container args with embedded Go templates via tpl(toYaml) evaluate to null (#203)"
     "[nextcloud/nextcloud]":
-      # Hash annotation computed differently
+      # Hash annotation computed differently (not checksum.* pattern)
       - resource: "Deployment/*"
         path: "spec.template.metadata.annotations.*"
-        reason: "JHelm sha256sum produces different hash values than Helm"
+        reason: "nextcloud-config-hash uses sha256sum with different intermediate output"
     "[istio-official/istiod]":
       # Library chart pattern — 5 resources not rendered
       - resource: "*"
         path: "*"
-        reason: "Library chart rendering gap — 5 resources missing"
+        reason: "Library chart rendering gap — 5 resources missing (#200)"
     "[gitea/gitea]":
-      # Subchart value propagation — postgresql-ha and valkey connection strings empty
+      # Subchart value propagation — connection strings still empty
       - resource: "Secret/*"
         path: "stringData.*"
-        reason: "Subchart value propagation gap — connection strings and scripts empty or missing"
+        reason: "Subchart value propagation gap — tpl-based connection strings empty (#201)"
       - resource: "Service/*"
         path: "spec.ports.*"
         reason: "Service targetPort rendered as 3000 instead of null"
@@ -55,4 +37,4 @@ jhelmtest:
       # Operator subchart resources missing + random UUID
       - resource: "*"
         path: "*"
-        reason: "9 operator subchart resources missing + random install_id UUID"
+        reason: "9 operator subchart resources missing + random install_id UUID (#202)"
