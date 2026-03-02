@@ -104,7 +104,9 @@ class ReflectionFunctionsTest {
 
 	@Test
 	void testKindOfInt() throws IOException, TemplateException {
-		assertEquals("int", eval("{{ kindOf .value }}", Map.of("value", 123)));
+		// Go YAML unmarshals all numbers as float64; kindOf maps all numeric types to
+		// float64
+		assertEquals("float64", eval("{{ kindOf .value }}", Map.of("value", 123)));
 	}
 
 	@Test
@@ -177,7 +179,8 @@ class ReflectionFunctionsTest {
 
 	@Test
 	void testKindIsInt() throws IOException, TemplateException {
-		assertEquals("true", eval("{{ kindIs \"int\" .value }}", Map.of("value", 42)));
+		// Go YAML unmarshals all numbers as float64, so kindIs "int" returns false
+		assertEquals("false", eval("{{ kindIs \"int\" .value }}", Map.of("value", 42)));
 	}
 
 	@Test
@@ -193,6 +196,17 @@ class ReflectionFunctionsTest {
 	@Test
 	void testKindIsSlice() throws IOException, TemplateException {
 		assertEquals("true", eval("{{ kindIs \"slice\" .value }}", Map.of("value", Arrays.asList(1))));
+	}
+
+	@Test
+	void testKindIsFloat64ForInteger() throws IOException, TemplateException {
+		// Go YAML unmarshals 15 as float64 — kindIs "float64" must match Java Integer
+		assertEquals("true", eval("{{ kindIs \"float64\" .value }}", Map.of("value", 15)));
+	}
+
+	@Test
+	void testKindIsFloat64ForLong() throws IOException, TemplateException {
+		assertEquals("true", eval("{{ kindIs \"float64\" .value }}", Map.of("value", 42L)));
 	}
 
 	@Test
