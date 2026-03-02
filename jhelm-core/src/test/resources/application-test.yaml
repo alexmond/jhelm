@@ -20,10 +20,10 @@ jhelmtest:
         path: "spec.template.metadata.annotations.*"
         reason: "nextcloud-config-hash uses sha256sum with different intermediate output"
     "[istio-official/istiod]":
-      # Library chart pattern — 5 resources not rendered
-      - resource: "*"
-        path: "*"
-        reason: "Library chart rendering gap — 5 resources missing (#200)"
+      # Go formats float64(1.0) as "1", Java Double as "1.0"
+      - resource: "Deployment/*"
+        path: "spec.template.spec.containers.*.env.*"
+        reason: "traceSampling 1.0 rendered as '1.0' instead of '1' — Go float64 formatting"
     "[gitea/gitea]":
       # Subchart value propagation — connection strings still empty
       - resource: "Secret/*"
