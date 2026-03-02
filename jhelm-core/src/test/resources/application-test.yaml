@@ -33,7 +33,7 @@ jhelmtest:
         path: "spec.ports.*"
         reason: "Service targetPort rendered as 3000 instead of null"
     "[datadog/datadog]":
-      # Operator subchart resources missing + random UUID
-      - resource: "*"
-        path: "*"
-        reason: "9 operator subchart resources missing + random install_id UUID (#202)"
+      # Random UUID generated per render — always different between Helm and JHelm
+      - resource: "ConfigMap/*"
+        path: "data.install_id"
+        reason: "install_id is a random UUID generated per render"

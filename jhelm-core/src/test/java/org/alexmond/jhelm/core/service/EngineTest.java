@@ -1388,4 +1388,121 @@ class EngineTest {
 		assertTrue(result.contains("kind: Role"), "Nested or/eq conditional should render: " + result);
 	}
 
+	// --- Issue #202: dependency condition evaluation and alias propagation ---
+
+	@Test
+	void testDependencyConditionDisablesSubchart() {
+		// Subchart with condition=false should not render
+		Chart subchart = simpleChart("kube-state-metrics", "2.0.0", List.of(tmpl("svc.yaml", "kind: Service")),
+				Map.of());
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder()
+					.name("kube-state-metrics")
+					.condition("monitoring.kubeStateMetricsEnabled")
+					.build()))
+				.build())
+			.templates(List.of(tmpl("cm.yaml", "kind: ConfigMap")))
+			.values(new HashMap<>(Map.of("monitoring", new HashMap<>(Map.of("kubeStateMetricsEnabled", false)))))
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("kind: ConfigMap"), "Parent template should render: " + result);
+		assertFalse(result.contains("kind: Service"), "Disabled subchart should not render: " + result);
+	}
+
+	@Test
+	void testDependencyConditionEnablesSubchart() {
+		// Subchart with condition=true should render
+		Chart subchart = simpleChart("operator", "1.0.0",
+				List.of(tmpl("deploy.yaml", "kind: Deployment\nname: operator")), Map.of());
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("operator").condition("app.operator.enabled").build()))
+				.build())
+			.templates(List.of(tmpl("cm.yaml", "kind: ConfigMap")))
+			.values(new HashMap<>(
+					Map.of("app", new HashMap<>(Map.of("operator", new HashMap<>(Map.of("enabled", true)))))))
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("kind: ConfigMap"), "Parent should render: " + result);
+		assertTrue(result.contains("kind: Deployment"), "Enabled subchart should render: " + result);
+	}
+
+	@Test
+	void testDependencyConditionCommaPathFirstTruthy() {
+		// Comma-separated condition paths: first truthy value wins
+		Chart subchart = simpleChart("crds", "1.0.0", List.of(tmpl("crd.yaml", "kind: CRD")), Map.of());
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(
+						List.of(Dependency.builder().name("crds").condition("first.enabled,second.enabled").build()))
+				.build())
+			.templates(List.of(tmpl("cm.yaml", "kind: ConfigMap")))
+			.values(new HashMap<>(Map.of("second", new HashMap<>(Map.of("enabled", true)))))
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("kind: CRD"), "Second condition path should enable subchart: " + result);
+	}
+
+	@Test
+	void testDependencyAliasFromMetadataOverridesChartName() {
+		// When metadata has alias, .Chart.Name should reflect alias
+		Chart subchart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("my-operator").version("2.0.0").build())
+			.templates(List.of(tmpl("deploy.yaml", "chart: {{ .Chart.Name }}")))
+			.values(Map.of())
+			.build();
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("my-operator").alias("operator").build()))
+				.build())
+			.templates(List.of(tmpl("cm.yaml", "kind: ConfigMap")))
+			.values(new HashMap<>())
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("chart: operator"), ".Chart.Name should be the alias 'operator': " + result);
+	}
+
+	@Test
+	void testDependencyConditionMissingPathDefaultsToEnabled() {
+		// When condition path doesn't exist in values, subchart is enabled by default
+		Chart subchart = simpleChart("extras", "1.0.0", List.of(tmpl("svc.yaml", "kind: Service")), Map.of());
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(
+						List.of(Dependency.builder().name("extras").condition("nonexistent.path.enabled").build()))
+				.build())
+			.templates(List.of(tmpl("cm.yaml", "kind: ConfigMap")))
+			.values(new HashMap<>())
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("kind: Service"),
+				"Subchart with missing condition path should render by default: " + result);
+	}
+
 }
