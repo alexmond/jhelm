@@ -8,6 +8,7 @@ import java.util.Map;
 import org.alexmond.jhelm.core.exception.TemplateRenderException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
+import org.alexmond.jhelm.core.model.Dependency;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -730,6 +731,127 @@ class EngineTest {
 
 		String result = engine.render(parent, Map.of(), releaseInfo());
 		assertTrue(result.contains("cache-port: 6379"));
+	}
+
+	// --- Issue #173: dependency import-values ---
+
+	@Test
+	void testImportValuesStringForm() {
+		// String form: import from subchart's exports.<value> into parent root
+		Chart subchart = simpleChart("mydb", "1.0.0", List.of(tmpl("svc.yaml", "kind: Service")),
+				Map.of("exports", Map.of("data", Map.of("dbhost", "localhost", "dbport", 5432))));
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("mydb").importValues(List.of("data")).build()))
+				.build())
+			.templates(List.of(tmpl("cm.yaml", "host: {{ .Values.dbhost }}\nport: {{ .Values.dbport }}")))
+			.values(new HashMap<>())
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("host: localhost"), "imported dbhost: " + result);
+		assertTrue(result.contains("port: 5432"), "imported dbport: " + result);
+	}
+
+	@Test
+	void testImportValuesMapForm() {
+		// Map form: {child: "path.in.sub", parent: "path.in.parent"}
+		Chart subchart = simpleChart("mydb", "1.0.0", List.of(tmpl("svc.yaml", "kind: Service")),
+				Map.of("default", Map.of("data", Map.of("dbhost", "db.local", "dbport", 3306))));
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder()
+					.name("mydb")
+					.importValues(List.of(Map.of("child", "default.data", "parent", "myimports")))
+					.build()))
+				.build())
+			.templates(List
+				.of(tmpl("cm.yaml", "host: {{ .Values.myimports.dbhost }}\nport: {{ .Values.myimports.dbport }}")))
+			.values(new HashMap<>())
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("host: db.local"), "imported via map form: " + result);
+		assertTrue(result.contains("port: 3306"), "imported via map form: " + result);
+	}
+
+	@Test
+	void testImportValuesUserOverrideTakesPrecedence() {
+		// User-provided values should override imported defaults
+		Chart subchart = simpleChart("mydb", "1.0.0", List.of(tmpl("svc.yaml", "kind: Service")),
+				Map.of("exports", Map.of("data", Map.of("dbhost", "localhost", "dbport", 5432))));
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("mydb").importValues(List.of("data")).build()))
+				.build())
+			.templates(List.of(tmpl("cm.yaml", "host: {{ .Values.dbhost }}")))
+			.values(new HashMap<>())
+			.dependencies(List.of(subchart))
+			.build();
+
+		Map<String, Object> overrides = new HashMap<>();
+		overrides.put("dbhost", "prod-db.example.com");
+
+		String result = engine.render(parent, overrides, releaseInfo());
+		assertTrue(result.contains("host: prod-db.example.com"), "user override should win: " + result);
+	}
+
+	@Test
+	void testImportValuesWithAlias() {
+		// import-values with aliased dependency
+		Chart subchart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("redis").version("17.0.0").build())
+			.templates(List.of(tmpl("svc.yaml", "kind: Service")))
+			.values(Map.of("exports", Map.of("config", Map.of("cacheHost", "redis-master", "cachePort", 6379))))
+			.alias("cache")
+			.build();
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(List
+					.of(Dependency.builder().name("redis").alias("cache").importValues(List.of("config")).build()))
+				.build())
+			.templates(List.of(tmpl("cm.yaml", "cacheHost: {{ .Values.cacheHost }}")))
+			.values(new HashMap<>())
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("cacheHost: redis-master"), "import with alias: " + result);
+	}
+
+	@Test
+	void testImportValuesNoImportWhenEmpty() {
+		// No import-values directive should not affect behavior
+		Chart subchart = simpleChart("redis", "17.0.0", List.of(tmpl("svc.yaml", "kind: Service")),
+				Map.of("exports", Map.of("data", Map.of("key", "val"))));
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("redis").build()))
+				.build())
+			.templates(List.of(tmpl("cm.yaml", "kind: ConfigMap")))
+			.values(new HashMap<>())
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertFalse(result.contains("key: val"), "no import should occur without directive: " + result);
 	}
 
 	// --- Issue #137: nested parenthesized expressions ---

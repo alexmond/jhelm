@@ -20,6 +20,7 @@ import java.util.Set;
 
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartFiles;
+import org.alexmond.jhelm.core.model.Dependency;
 import org.alexmond.jhelm.core.model.VersionSet;
 
 @Slf4j
@@ -319,8 +320,12 @@ public class Engine {
 		}
 		renderedCharts.add(chartKey);
 
+		// Process import-values to enrich chart defaults from subchart values
+		Map<String, Object> chartValues = (chart.getValues() != null) ? new HashMap<>(chart.getValues())
+				: new HashMap<>();
+		processImportValues(chart, chartValues);
+
 		// Merge chart default values with provided values
-		Map<String, Object> chartValues = (chart.getValues() != null) ? chart.getValues() : new HashMap<>();
 		Map<String, Object> mergedValues = mergeValues(chartValues, values);
 
 		// Helm makes subchart defaults available to parent templates via
@@ -479,6 +484,100 @@ public class Engine {
 				mergedValues.put(depKey, merged);
 			}
 		}
+	}
+
+	/**
+	 * Process {@code import-values} directives from chart dependency metadata. For each
+	 * dependency that declares {@code import-values}, values are extracted from the
+	 * subchart's defaults and placed into the parent chart's defaults.
+	 *
+	 * <p>
+	 * Two forms are supported:
+	 * <ul>
+	 * <li>String: imports from subchart's {@code exports.<value>} into parent root</li>
+	 * <li>Map with {@code child}/{@code parent}: imports from subchart path to parent
+	 * path</li>
+	 * </ul>
+	 */
+	@SuppressWarnings("unchecked")
+	private void processImportValues(Chart chart, Map<String, Object> chartValues) {
+		List<Dependency> depMetadata = (chart.getMetadata() != null) ? chart.getMetadata().getDependencies() : null;
+		if (depMetadata == null || depMetadata.isEmpty()) {
+			return;
+		}
+		for (Dependency dep : depMetadata) {
+			if (dep.getImportValues() == null || dep.getImportValues().isEmpty()) {
+				continue;
+			}
+			String depKey = (dep.getAlias() != null && !dep.getAlias().isEmpty()) ? dep.getAlias() : dep.getName();
+			Chart subchart = findSubchart(chart, depKey);
+			if (subchart == null) {
+				continue;
+			}
+			Map<String, Object> subValues = (subchart.getValues() != null) ? subchart.getValues() : Map.of();
+			for (Object iv : dep.getImportValues()) {
+				if (iv instanceof Map<?, ?> m) {
+					String child = String.valueOf(m.get("child"));
+					String parent = String.valueOf(m.get("parent"));
+					Object value = getNestedValue(subValues, child);
+					if (value != null) {
+						setNestedValue(chartValues, parent, value);
+					}
+				}
+				else if (iv instanceof String s) {
+					Object value = getNestedValue(subValues, "exports." + s);
+					if (value instanceof Map<?, ?> exportedMap) {
+						for (Map.Entry<?, ?> entry : exportedMap.entrySet()) {
+							chartValues.putIfAbsent(String.valueOf(entry.getKey()), entry.getValue());
+						}
+					}
+				}
+			}
+		}
+	}
+
+	private Chart findSubchart(Chart chart, String key) {
+		for (Chart dep : chart.getDependencies()) {
+			String name = (dep.getAlias() != null) ? dep.getAlias() : dep.getMetadata().getName();
+			if (key.equals(name)) {
+				return dep;
+			}
+		}
+		return null;
+	}
+
+	private Object getNestedValue(Map<String, Object> map, String path) {
+		String[] parts = path.split("\\.");
+		Object current = map;
+		for (String part : parts) {
+			if (!(current instanceof Map<?, ?>)) {
+				return null;
+			}
+			current = ((Map<?, ?>) current).get(part);
+			if (current == null) {
+				return null;
+			}
+		}
+		return current;
+	}
+
+	@SuppressWarnings("unchecked")
+	private void setNestedValue(Map<String, Object> map, String path, Object value) {
+		String[] parts = path.split("\\.");
+		Map<String, Object> current = map;
+		for (int i = 0; i < parts.length - 1; i++) {
+			Object next = current.get(parts[i]);
+			if (!(next instanceof Map<?, ?>)) {
+				Map<String, Object> newMap = new HashMap<>();
+				current.put(parts[i], newMap);
+				current = newMap;
+			}
+			else {
+				current = (Map<String, Object>) next;
+			}
+		}
+		String lastKey = parts[parts.length - 1];
+		current.putIfAbsent(lastKey, value);
 	}
 
 	private Map<String, Object> mergeValues(Map<String, Object> defaults, Map<String, Object> overrides) {
