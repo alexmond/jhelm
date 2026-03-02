@@ -35,7 +35,6 @@ import java.util.Optional;
 import java.util.Objects;
 import java.util.Comparator;
 import java.util.stream.Collectors;
-import java.util.Locale;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -44,6 +43,8 @@ public class HelmKubeService implements KubeService {
 	private final ApiClient apiClient;
 
 	private final JsonMapper objectMapper = JsonMapper.builder().build();
+
+	private ResourcePluralizer pluralizer;
 
 	/**
 	 * Stores a release as a ConfigMap in Kubernetes.
@@ -452,13 +453,10 @@ public class HelmKubeService implements KubeService {
 	}
 
 	private String inferPlural(String kind) {
-		// Very basic pluralization logic. In real Helm/Kubectl, this is done via
-		// discovery.
-		String plural = kind.toLowerCase(Locale.ROOT) + "s";
-		if (kind.endsWith("y")) {
-			plural = kind.toLowerCase(Locale.ROOT).substring(0, kind.length() - 1) + "ies";
+		if (pluralizer == null) {
+			pluralizer = new ResourcePluralizer(apiClient);
 		}
-		return plural;
+		return pluralizer.toPlural(kind);
 	}
 
 	/**
