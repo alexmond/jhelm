@@ -76,6 +76,7 @@ public class InstallAction {
 		release.setManifest(manifest);
 
 		if (kubeService != null && !dryRun) {
+			applyCrds(chart, namespace);
 			fireLifecycleEvent("pre-install", releaseName, namespace);
 			List<HelmHook> hooks = HookParser.parseHooks(manifest);
 			String regularManifest = HookParser.stripHooks(manifest);
@@ -95,6 +96,18 @@ public class InstallAction {
 		}
 
 		return release;
+	}
+
+	private void applyCrds(Chart chart, String namespace) throws Exception {
+		if (chart.getCrds() == null || chart.getCrds().isEmpty()) {
+			return;
+		}
+		for (Chart.Crd crd : chart.getCrds()) {
+			if (log.isInfoEnabled()) {
+				log.info("Installing CRD: {}", crd.getName());
+			}
+			kubeService.apply(namespace, crd.getData());
+		}
 	}
 
 	private void rollbackAppliedResources(String namespace, String manifest) {
