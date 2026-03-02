@@ -48,6 +48,8 @@ public class RepoManager {
 
 	private CloseableHttpClient httpClient;
 
+	private RepoHttpClientFactory httpClientFactory;
+
 	private OciRegistryClient ociClient;
 
 	@Setter
@@ -74,6 +76,7 @@ public class RepoManager {
 
 	void setHttpClientForTest(CloseableHttpClient client) {
 		this.httpClient = client;
+		this.httpClientFactory = new RepoHttpClientFactory(client, insecureSkipTlsVerify);
 		this.ociClient = new OciRegistryClient(client);
 	}
 
@@ -99,7 +102,13 @@ public class RepoManager {
 			}
 			httpClient = HttpClients.createDefault();
 		}
+		httpClientFactory = new RepoHttpClientFactory(httpClient, insecureSkipTlsVerify);
 		ociClient = new OciRegistryClient(httpClient);
+	}
+
+	RepositoryConfig.Repository getRepository(String name) throws IOException {
+		RepositoryConfig config = loadConfig();
+		return config.getRepositories().stream().filter((r) -> r.getName().equals(name)).findFirst().orElse(null);
 	}
 
 	public RepositoryConfig loadConfig() throws IOException {
@@ -241,7 +250,8 @@ public class RepoManager {
 	}
 
 	public void updateRepo(String name) throws IOException {
-		String repoUrl = getRepoUrl(name);
+		RepositoryConfig.Repository repo = getRepository(name);
+		String repoUrl = (repo != null) ? repo.getUrl() : null;
 		if (repoUrl == null) {
 			throw new IOException("Repository not found: " + name);
 		}
@@ -253,7 +263,7 @@ public class RepoManager {
 		HttpGet httpGet = new HttpGet(indexUrl);
 		httpGet.setHeader("User-Agent", "jhelm");
 
-		httpClient.execute(httpGet, (response) -> {
+		httpClientFactory.executeGet(httpGet, repo, (response) -> {
 			int statusCode = response.getCode();
 			if (statusCode != 200) {
 				throw new IOException("Failed to download index from " + indexUrl + ": " + statusCode + " "
@@ -294,7 +304,8 @@ public class RepoManager {
 			indexIn = new FileInputStream(indexFile);
 		}
 		else {
-			String repoUrl = getRepoUrl(repoName);
+			RepositoryConfig.Repository repo = getRepository(repoName);
+			String repoUrl = (repo != null) ? repo.getUrl() : null;
 			if (repoUrl == null) {
 				throw new IOException("Repository name is required to get chart versions. Found: " + repoName);
 			}
@@ -306,7 +317,7 @@ public class RepoManager {
 			HttpGet httpGet = new HttpGet(indexUrl);
 			httpGet.setHeader("User-Agent", "jhelm");
 
-			byte[] indexData = httpClient.execute(httpGet, (response) -> {
+			byte[] indexData = httpClientFactory.executeGet(httpGet, repo, (response) -> {
 				int statusCode = response.getCode();
 				if (statusCode != 200) {
 					throw new IOException("Failed to download index from " + indexUrl + ": " + statusCode);
@@ -432,7 +443,7 @@ public class RepoManager {
 		}
 
 		String tgzFileName = finalChartName + "-" + version + ".tgz";
-		pullFromUrl(chartUrl, destDir, tgzFileName);
+		pullFromUrl(chartUrl, destDir, tgzFileName, repo);
 
 		File downloaded = new File(destDir, tgzFileName);
 		if (downloaded.exists()) {
@@ -483,6 +494,11 @@ public class RepoManager {
 	}
 
 	public void pullFromUrl(String chartUrl, String destDir, String fileName) throws IOException {
+		pullFromUrl(chartUrl, destDir, fileName, null);
+	}
+
+	void pullFromUrl(String chartUrl, String destDir, String fileName, RepositoryConfig.Repository repo)
+			throws IOException {
 		if (chartUrl.startsWith("oci://")) {
 			pullOci(chartUrl, destDir, fileName);
 			return;
@@ -497,7 +513,7 @@ public class RepoManager {
 		HttpGet httpGet = new HttpGet(chartUrl);
 		httpGet.setHeader("User-Agent", "jhelm");
 
-		httpClient.execute(httpGet, (response) -> {
+		httpClientFactory.executeGet(httpGet, repo, (response) -> {
 			int statusCode = response.getCode();
 			if (statusCode != 200) {
 				throw new IOException("Failed to download chart from " + chartUrl + ": " + statusCode);
