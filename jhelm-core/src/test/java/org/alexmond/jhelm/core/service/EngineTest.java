@@ -301,6 +301,21 @@ class EngineTest {
 		assertTrue(result.contains("kube: v1.35.0"));
 	}
 
+	// --- Cross-template context mutations ---
+
+	@Test
+	void testSetDollarValuesPropagatesAcrossTemplates() {
+		// Reproduces istiod pattern: first template mutates $.Values via set,
+		// second template should see the mutation
+		Chart chart = simpleChart("istiod", "1.0.0",
+				List.of(tmpl("aaa_setup.yaml",
+						"{{ $_ := set $ \"Values\" (merge .Values (dict \"injected\" \"fromSetup\")) }}"),
+						tmpl("zzz_consumer.yaml", "injected: {{ .Values.injected }}")),
+				Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("injected: fromSetup"), "set $ Values mutation should propagate: " + result);
+	}
+
 	// --- Error handling ---
 
 	@Test
