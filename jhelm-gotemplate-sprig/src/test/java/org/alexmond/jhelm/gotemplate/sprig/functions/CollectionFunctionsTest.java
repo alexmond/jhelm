@@ -298,6 +298,26 @@ class CollectionFunctionsTest {
 	}
 
 	@Test
+	void testMergeOverwritesNullValues() throws IOException, TemplateException {
+		// In Go's sprig, merge treats nil/zero values in dst as absent
+		Map<String, Object> data = new HashMap<>();
+		Map<String, Object> dst = new HashMap<>();
+		dst.put("tag", null);
+		data.put("dst", dst);
+		data.put("src", Map.of("tag", "latest"));
+		assertEquals("latest", execWithData("{{ $m := merge .dst .src }}{{ get $m \"tag\" }}", data));
+	}
+
+	@Test
+	void testMergePreservesNonNullValues() throws IOException, TemplateException {
+		// merge should NOT overwrite non-null dst values
+		Map<String, Object> data = new HashMap<>();
+		data.put("dst", new HashMap<>(Map.of("tag", "v1")));
+		data.put("src", Map.of("tag", "v2"));
+		assertEquals("v1", execWithData("{{ $m := merge .dst .src }}{{ get $m \"tag\" }}", data));
+	}
+
+	@Test
 	void testMustMergeDeepNested() throws IOException, TemplateException {
 		String template = """
 				{{ $d1 := dict "outer" (dict "a" 1 "b" 2) }}\
