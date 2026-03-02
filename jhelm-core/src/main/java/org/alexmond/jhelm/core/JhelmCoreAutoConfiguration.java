@@ -20,6 +20,7 @@ import org.alexmond.jhelm.core.action.LintAction;
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.action.PackageAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.SearchHubAction;
 import org.alexmond.jhelm.core.action.ShowAction;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.StatusAction;
@@ -36,6 +37,7 @@ import org.alexmond.jhelm.core.service.RegistryManager;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.core.service.SchemaValidator;
 import org.alexmond.jhelm.core.service.SignatureService;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
 
 /**
  * Auto-configuration for the jhelm core module. Registers all core Helm beans. Beans that
@@ -222,6 +224,12 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnMissingBean
 	public VerifyAction verifyAction(SignatureService signatureService) {
 		return new VerifyAction(signatureService);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	public SearchHubAction searchHubAction() {
+		return new SearchHubAction(HttpClients.createDefault());
 	}
 
 }
