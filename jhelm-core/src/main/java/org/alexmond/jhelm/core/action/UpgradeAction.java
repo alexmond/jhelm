@@ -61,6 +61,7 @@ public class UpgradeAction {
 		releaseData.put("Service", "Helm");
 		releaseData.put("IsInstall", false);
 		releaseData.put("IsUpgrade", true);
+		releaseData.put("Revision", newRelease.getVersion());
 
 		String manifest = engine.render(newChart, values, releaseData);
 

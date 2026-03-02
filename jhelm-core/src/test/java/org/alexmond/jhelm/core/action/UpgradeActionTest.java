@@ -107,6 +107,7 @@ class UpgradeActionTest {
 		assertEquals("default", releaseData.get("Namespace"));
 		assertEquals(false, releaseData.get("IsInstall"));
 		assertEquals(true, releaseData.get("IsUpgrade"));
+		assertEquals(2, releaseData.get("Revision"));
 	}
 
 	@Test
