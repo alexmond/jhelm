@@ -18,7 +18,7 @@ final class ValuePrinter {
 			writer.write(s);
 		}
 		else if (value instanceof Number || value instanceof Boolean) {
-			writer.write(String.valueOf(value));
+			writer.write(formatScalar(value));
 		}
 		else if (value instanceof Collection<?> coll) {
 			printCollection(writer, coll);
@@ -39,7 +39,7 @@ final class ValuePrinter {
 			if (!first) {
 				writer.write(" ");
 			}
-			writer.write(String.valueOf(item));
+			writer.write(formatScalar(item));
 			first = false;
 		}
 		writer.write("]");
@@ -53,10 +53,26 @@ final class ValuePrinter {
 			if (!first) {
 				writer.write(" ");
 			}
-			writer.write(e.getKey() + ":" + e.getValue());
+			writer.write(formatScalar(e.getKey()) + ":" + formatScalar(e.getValue()));
 			first = false;
 		}
 		writer.write("]");
+	}
+
+	/**
+	 * Format a value to match Go's fmt.Sprint behavior. Whole-number floating-point
+	 * values are rendered without a decimal point (e.g. 1.0 → "1").
+	 */
+	private static String formatScalar(Object value) {
+		if (value instanceof Double d && d == Math.floor(d) && !Double.isInfinite(d) && d >= Long.MIN_VALUE
+				&& d <= Long.MAX_VALUE) {
+			return String.valueOf(d.longValue());
+		}
+		if (value instanceof Float f && f == Math.floor(f) && !Float.isInfinite(f) && f >= Long.MIN_VALUE
+				&& f <= Long.MAX_VALUE) {
+			return String.valueOf(f.longValue());
+		}
+		return String.valueOf(value);
 	}
 
 }
