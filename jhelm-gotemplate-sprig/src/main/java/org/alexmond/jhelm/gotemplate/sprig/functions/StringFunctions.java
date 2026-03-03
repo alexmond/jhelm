@@ -82,7 +82,7 @@ public final class StringFunctions {
 	}
 
 	private static Function trim() {
-		return (args) -> (args.length == 0) ? "" : String.valueOf(args[0]).trim();
+		return (args) -> (args.length == 0 || args[0] == null) ? "" : String.valueOf(args[0]).trim();
 	}
 
 	private static Function trimAll() {
@@ -119,16 +119,16 @@ public final class StringFunctions {
 	}
 
 	private static Function upper() {
-		return (args) -> (args.length == 0) ? "" : String.valueOf(args[0]).toUpperCase(Locale.ROOT);
+		return (args) -> (args.length == 0 || args[0] == null) ? "" : String.valueOf(args[0]).toUpperCase(Locale.ROOT);
 	}
 
 	private static Function lower() {
-		return (args) -> (args.length == 0) ? "" : String.valueOf(args[0]).toLowerCase(Locale.ROOT);
+		return (args) -> (args.length == 0 || args[0] == null) ? "" : String.valueOf(args[0]).toLowerCase(Locale.ROOT);
 	}
 
 	private static Function title() {
 		return (args) -> {
-			if (args.length == 0) {
+			if (args.length == 0 || args[0] == null) {
 				return "";
 			}
 			String s = String.valueOf(args[0]);
@@ -144,7 +144,7 @@ public final class StringFunctions {
 
 	private static Function untitle() {
 		return (args) -> {
-			if (args.length == 0) {
+			if (args.length == 0 || args[0] == null) {
 				return "";
 			}
 			String s = String.valueOf(args[0]);
@@ -229,7 +229,7 @@ public final class StringFunctions {
 
 	private static Function initials() {
 		return (args) -> {
-			if (args.length == 0) {
+			if (args.length == 0 || args[0] == null) {
 				return "";
 			}
 			String s = String.valueOf(args[0]);
@@ -335,7 +335,11 @@ public final class StringFunctions {
 	}
 
 	private static Function cat() {
-		return (args) -> Arrays.stream(args).map(String::valueOf).collect(Collectors.joining(" "));
+		return (args) -> Arrays.stream(args)
+			.filter((arg) -> arg != null)
+			.map(String::valueOf)
+			.filter((s) -> !s.isEmpty())
+			.collect(Collectors.joining(" "));
 	}
 
 	private static Function indent() {
@@ -402,7 +406,7 @@ public final class StringFunctions {
 
 	private static Function snakecase() {
 		return (args) -> {
-			if (args.length == 0) {
+			if (args.length == 0 || args[0] == null) {
 				return "";
 			}
 			String s = String.valueOf(args[0]);
@@ -412,7 +416,7 @@ public final class StringFunctions {
 
 	private static Function camelcase() {
 		return (args) -> {
-			if (args.length == 0) {
+			if (args.length == 0 || args[0] == null) {
 				return "";
 			}
 			String s = String.valueOf(args[0]);
@@ -427,7 +431,7 @@ public final class StringFunctions {
 
 	private static Function kebabcase() {
 		return (args) -> {
-			if (args.length == 0) {
+			if (args.length == 0 || args[0] == null) {
 				return "";
 			}
 			String s = String.valueOf(args[0]);

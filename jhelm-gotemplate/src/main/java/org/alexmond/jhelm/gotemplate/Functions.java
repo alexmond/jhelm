@@ -384,7 +384,7 @@ public final class Functions {
 		// NOTE: This fixes grafana/grafana but may cause issues with charts using Bitnami
 		// common helpers
 		// that rely on specific print behavior with regexReplaceAll
-		return (args) -> Arrays.stream(args).map(String::valueOf).collect(Collectors.joining(""));
+		return (args) -> Arrays.stream(args).map(Functions::sprintValue).collect(Collectors.joining(""));
 	}
 
 	private static Function printf() {
@@ -395,34 +395,35 @@ public final class Functions {
 			String format = String.valueOf(args[0]);
 
 			// Translate Go format verbs to Java equivalents
-			// %(v) -> %s (default format)
-			// %#(v) -> %s (Go-syntax representation, simplified to string)
-			// %(T) -> %s (type, simplified to string representation)
-			// %(t) -> %b (boolean)
-			// %(b) -> %s (binary, not directly supported, use string)
-			// %(c) -> %c (character - keep as is)
-			// %d, %o, %x, %(X) -> keep as is (integer formats)
-			// %e, %E, %f, %F, %g, %(G) -> keep as is (float formats)
-			// %(s) -> %s (string - keep as is)
-			// %(q) -> %s (quoted string, simplified)
-			// %(p) -> %s (pointer, simplified)
 			format = format.replaceAll("%#?v", "%s"); // %v and %#(v) -> %s
 			format = format.replaceAll("%T", "%s"); // %(T) -> %s
 			format = format.replaceAll("%q", "%s"); // %(q) -> %s
 			format = format.replaceAll("%p", "%s"); // %(p) -> %s
 
 			Object[] realArgs = new Object[args.length - 1];
-			System.arraycopy(args, 1, realArgs, 0, args.length - 1);
+			for (int i = 0; i < realArgs.length; i++) {
+				// Java's String.format renders null as "null"; Go uses "" for nil
+				realArgs[i] = (args[i + 1] != null) ? args[i + 1] : "";
+			}
 			return String.format(format, realArgs);
 		};
 	}
 
 	private static Function println() {
-		return (args) -> Arrays.stream(args).map(String::valueOf).collect(Collectors.joining(" ")) + "\n";
+		return (args) -> Arrays.stream(args).map(Functions::sprintValue).collect(Collectors.joining(" ")) + "\n";
 	}
 
 	private static Function not() {
 		return (args) -> args.length > 0 && !isTrue(args[0]);
+	}
+
+	/**
+	 * Convert a value to its string representation for print/println. Null values produce
+	 * an empty string to match Go template behavior where nil values are omitted from
+	 * output.
+	 */
+	static String sprintValue(Object value) {
+		return (value != null) ? String.valueOf(value) : "";
 	}
 
 	public static boolean isTrue(Object arg) {
