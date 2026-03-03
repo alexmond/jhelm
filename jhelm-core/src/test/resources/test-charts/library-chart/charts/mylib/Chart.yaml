@@ -1,0 +1,5 @@
+apiVersion: v2
+name: mylib
+description: Library chart providing shared helper templates
+type: library
+version: 1.0.0

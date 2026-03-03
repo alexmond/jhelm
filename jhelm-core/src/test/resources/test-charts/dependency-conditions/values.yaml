@@ -1,0 +1,7 @@
+app:
+  backend:
+    enabled: true
+  monitoring:
+    enabled: false
+
+appName: dependency-conditions-app

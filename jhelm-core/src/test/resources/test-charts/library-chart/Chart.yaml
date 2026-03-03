@@ -1,0 +1,8 @@
+apiVersion: v2
+name: library-chart
+description: Tests library chart pattern - helpers available but .yaml templates not rendered
+type: application
+version: 1.0.0
+dependencies:
+  - name: mylib
+    version: "1.0.0"

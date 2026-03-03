@@ -1,0 +1,3 @@
+_internal_defaults:
+  global:
+    scope: all

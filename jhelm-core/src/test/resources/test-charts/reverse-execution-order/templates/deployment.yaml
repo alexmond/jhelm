@@ -1,0 +1,9 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-app
+spec:
+  template:
+    metadata:
+      labels:
+        scope: {{ .Values.global.scope }}

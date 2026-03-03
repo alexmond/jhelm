@@ -1,0 +1,8 @@
+dependencies:
+  - name: backend
+    version: "1.0.0"
+    condition: app.backend.enabled
+    alias: api
+  - name: monitoring
+    version: "1.0.0"
+    condition: app.monitoring.enabled
