@@ -11,7 +11,7 @@ Produce a detailed, approvable implementation plan before writing any code.
 
 ---
 
-### Step 1: Read the issue
+### Step 1: Read the issue and announce work started
 
 ```bash
 gh issue view $ARGUMENTS
@@ -21,6 +21,11 @@ Extract:
 - Goal / user-facing behaviour
 - Explicit requirements and acceptance criteria
 - Any referenced files, classes, or issues
+
+Then post a comment to announce work has started:
+```bash
+gh issue comment $ARGUMENTS --body "🔧 **Work started** — exploring the codebase and drafting an implementation plan."
+```
 
 ---
 
@@ -78,7 +83,16 @@ Flag any ambiguities or decisions that need the user's input before proceeding.
 
 ---
 
-### Step 4: Present and seek approval
+### Step 4: Post the plan as an issue comment
+
+Post the plan contents to the issue so it's tracked on GitHub:
+```bash
+gh issue comment $ARGUMENTS --body "$(cat /tmp/plan-$ARGUMENTS.md)"
+```
+
+---
+
+### Step 5: Present and seek approval
 
 Call `ExitPlanMode` to show the plan to the user for approval.
 
