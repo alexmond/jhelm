@@ -1,0 +1,4 @@
+apiVersion: v2
+name: monitoring
+description: Monitoring subchart for dependency condition testing
+version: 1.0.0

@@ -1,0 +1,4 @@
+apiVersion: v1
+name: dependency-conditions
+description: Tests dependency condition evaluation and alias propagation (datadog pattern)
+version: 1.0.0

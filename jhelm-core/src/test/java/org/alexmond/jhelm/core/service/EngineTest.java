@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.service;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EngineTest {
 
 	private Engine engine;
+
+	private final ChartLoader chartLoader = new ChartLoader();
 
 	@BeforeEach
 	void setUp() {
@@ -1503,6 +1506,45 @@ class EngineTest {
 		String result = engine.render(parent, Map.of(), releaseInfo());
 		assertTrue(result.contains("kind: Service"),
 				"Subchart with missing condition path should render by default: " + result);
+	}
+
+	// --- regression test charts loaded from disk ---
+
+	@Test
+	void testReverseExecutionOrderChart() throws Exception {
+		// Loads the reverse-execution-order test chart from disk and verifies
+		// that zzz_profile.yaml runs before deployment.yaml (Helm 4 order)
+		Chart chart = chartLoader.load(new File("src/test/resources/test-charts/reverse-execution-order"));
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("scope: all"),
+				"zzz_profile.yaml should merge _internal_defaults before deployment.yaml reads .Values.global.scope: "
+						+ result);
+	}
+
+	@Test
+	void testLibraryChartFromDisk() throws Exception {
+		// Loads the library-chart test chart from disk and verifies that library
+		// helpers are available but library .yaml templates are not rendered
+		Chart chart = chartLoader.load(new File("src/test/resources/test-charts/library-chart"));
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("myapp-app"),
+				"Library chart helper 'mylib.fullname' should produce 'myapp-app': " + result);
+		assertFalse(result.contains("ShouldNotExist"), "Library chart .yaml templates should not render: " + result);
+	}
+
+	@Test
+	void testHooksTestChart() throws Exception {
+		// Loads the hooks-test chart from disk and verifies hook annotations render
+		Chart chart = chartLoader.load(new File("src/test/resources/test-charts/hooks-test"));
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("\"helm.sh/hook\": pre-install"),
+				"Pre-install hook annotation should be rendered: " + result);
+		assertTrue(result.contains("\"helm.sh/hook\": post-install"),
+				"Post-install hook annotation should be rendered: " + result);
+		assertTrue(result.contains("\"helm.sh/hook-weight\": \"10\""),
+				"Hook weight annotation should be rendered: " + result);
+		assertTrue(result.contains("name: test-release-config"),
+				"Non-hook ConfigMap should also be rendered: " + result);
 	}
 
 }

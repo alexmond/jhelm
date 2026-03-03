@@ -1,0 +1,4 @@
+apiVersion: v2
+name: backend
+description: Backend subchart for dependency condition testing
+version: 1.0.0
