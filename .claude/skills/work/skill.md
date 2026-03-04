@@ -16,13 +16,24 @@ Sort issues by estimated complexity (simplest first):
 
 ### 2. For each issue (simplest to hardest):
 
-#### a. Plan
-- Read the issue: `gh issue view <N>`
-- Explore the codebase to understand the scope
-- Enter plan mode if non-trivial (`EnterPlanMode`)
-- Get user approval on the plan
+#### a. Triage complexity
 
-#### b. Implement
+**Trivial / simple** (single-file fix, small bug, straightforward feature):
+- Implement directly, push, merge, move on.
+
+**Non-trivial** (multi-file, requires design decisions):
+- Enter plan mode, write a plan.
+- Post the plan as a comment on the issue for user approval.
+- **Do NOT wait** — immediately move to the next issue.
+- Come back to implement after the user approves.
+
+**Epic-level** (large feature, new module, multi-phase):
+- Create sub-issues breaking the work into smaller deliverables.
+- Post the breakdown as a comment on the parent issue.
+- Process sub-issues individually (simplest first).
+- **Do NOT wait** — move to the next issue after posting the plan.
+
+#### b. Implement (when approved or trivial)
 - Create a feature branch and implement the fix/feature
 - Run `./mvnw spring-javaformat:apply` after code changes
 - Run `./mvnw validate` to check PMD/checkstyle
@@ -36,7 +47,7 @@ Sort issues by estimated complexity (simplest first):
 - If checks fail, fix and push again
 
 #### d. Next issue
-- After merge, immediately pick the next simplest open issue
+- After merge (or after posting plan for non-trivial), pick the next issue
 - Repeat from step 2a
 
 ### 3. Stop when
