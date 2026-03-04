@@ -215,6 +215,27 @@ class ConversionFunctionsTest {
 	}
 
 	@Test
+	void testFromYamlBlockScalarAtEof() {
+		// Reproduces #215: include returns YAML ending with block scalar indicator |-
+		// at EOF with no trailing newline, causing Jackson to fail
+		Function fromYaml = functions().get("fromYaml");
+		String yaml = "data:\n  users.acl: |-";
+		@SuppressWarnings("unchecked")
+		Map<String, Object> result = (Map<String, Object>) fromYaml.invoke(new Object[] { yaml });
+		assertTrue(result.containsKey("data"), "Should parse YAML with block scalar at EOF: " + result);
+	}
+
+	@Test
+	void testFromYamlTrailingContent() {
+		// Go's yaml.Unmarshal reads only the first document — trailing content ignored
+		Function fromYaml = functions().get("fromYaml");
+		String yaml = "name: test\n---\nother: doc\n";
+		@SuppressWarnings("unchecked")
+		Map<String, Object> result = (Map<String, Object>) fromYaml.invoke(new Object[] { yaml });
+		assertEquals("test", result.get("name"));
+	}
+
+	@Test
 	void testFromJsonNullAndEmpty() {
 		Function fromJson = functions().get("fromJson");
 		assertEquals(Map.of(), fromJson.invoke(new Object[] {}));

@@ -14,6 +14,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonGenerator;
 import tools.jackson.core.json.JsonWriteFeature;
 import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.module.SimpleModule;
@@ -43,6 +44,14 @@ public final class ConversionFunctions {
 		// Sort keys alphabetically for consistent, predictable output
 		.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
 		.build());
+
+	/**
+	 * Read-only YAML mapper for fromYaml/fromYamlArray. Go's yaml.Unmarshal reads only
+	 * the first document and ignores trailing content; Jackson 3 rejects trailing tokens
+	 * by default, so we disable that check to match Go behaviour.
+	 */
+	private static final ThreadLocal<YAMLMapper> YAML_READ_MAPPER = ThreadLocal
+		.withInitial(() -> YAMLMapper.builder().disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build());
 
 	/** Pattern matching a YAML line with a double-quoted scalar value. */
 	private static final Pattern QUOTED_VALUE = Pattern.compile("^(\\s*\\S+:\\s+)\"((?:[^\"\\\\]|\\\\.)*)\"\\s*$");
@@ -181,7 +190,8 @@ public final class ConversionFunctions {
 				if (yaml.isBlank()) {
 					return Map.of();
 				}
-				return YAML_MAPPER.get().readValue(yaml, Map.class);
+				Map result = YAML_READ_MAPPER.get().readValue(normaliseYamlInput(yaml), Map.class);
+				return (result != null) ? result : Map.of();
 			}
 			catch (Exception ex) {
 				return Map.of();
@@ -203,7 +213,7 @@ public final class ConversionFunctions {
 				if (yaml.isBlank()) {
 					throw new RuntimeException("mustFromYaml: empty YAML string");
 				}
-				return YAML_MAPPER.get().readValue(yaml, Map.class);
+				return YAML_READ_MAPPER.get().readValue(normaliseYamlInput(yaml), Map.class);
 			}
 			catch (Exception ex) {
 				throw new RuntimeException("mustFromYaml: failed to parse YAML: " + ex.getMessage(), ex);
@@ -224,7 +234,7 @@ public final class ConversionFunctions {
 				if (yaml.isBlank()) {
 					return Collections.emptyList();
 				}
-				return YAML_MAPPER.get().readValue(yaml, List.class);
+				return YAML_READ_MAPPER.get().readValue(normaliseYamlInput(yaml), List.class);
 			}
 			catch (Exception ex) {
 				return Collections.emptyList();
@@ -245,12 +255,22 @@ public final class ConversionFunctions {
 				if (yaml.isBlank()) {
 					throw new RuntimeException("mustFromYamlArray: empty YAML string");
 				}
-				return YAML_MAPPER.get().readValue(yaml, List.class);
+				return YAML_READ_MAPPER.get().readValue(normaliseYamlInput(yaml), List.class);
 			}
 			catch (Exception ex) {
 				throw new RuntimeException("mustFromYamlArray: failed to parse YAML array: " + ex.getMessage(), ex);
 			}
 		};
+	}
+
+	/**
+	 * Normalises YAML input for Jackson parsing. Go's yaml.Unmarshal parses {@code |-} at
+	 * EOF (no trailing newline) as an empty block scalar, but Jackson's SnakeYAML Engine
+	 * scanner chokes if a trailing newline is present after the indicator without
+	 * content. Stripping trailing whitespace makes EOF terminate the scanner cleanly.
+	 */
+	private static String normaliseYamlInput(String yaml) {
+		return yaml.stripTrailing();
 	}
 
 	// ===== JSON Functions =====
