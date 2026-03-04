@@ -247,6 +247,85 @@ class EngineTest {
 		assertTrue(result.contains("version: 17.0.0"));
 	}
 
+	@Test
+	void testSubchartsContextIncludesValuesAndRelease() {
+		// Mimics goauthentik/authentik pattern: parent template uses
+		// include "subchart.fullname" .Subcharts.serviceAccount
+		// The subchart fullname template needs .Values.fullnameOverride and
+		// .Release.Name
+		String subchartHelper = """
+				{{- define "remote-cluster.fullname" -}}
+				{{- if .Values.fullnameOverride -}}
+				{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+				{{- else -}}
+				{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
+				{{- end -}}
+				{{- end -}}
+				""";
+		Chart subchart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("remote-cluster").version("2.1.0").build())
+			.templates(List.of(tmpl("_helpers.tpl", subchartHelper)))
+			.values(Map.of())
+			.alias("serviceAccount")
+			.build();
+
+		String parentTemplate = """
+				serviceAccountName: {{ include "remote-cluster.fullname" .Subcharts.serviceAccount }}
+				""";
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("myapp")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("remote-cluster").alias("serviceAccount").build()))
+				.build())
+			.templates(List.of(tmpl("deploy.yaml", parentTemplate)))
+			.values(new HashMap<>(Map.of("serviceAccount", new HashMap<>(Map.of("fullnameOverride", "myapp")))))
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("serviceAccountName: myapp"),
+				"Subchart fullname should use fullnameOverride from values: " + result);
+	}
+
+	@Test
+	void testSubchartsContextFallsBackToReleaseName() {
+		// When no fullnameOverride, the subchart fullname should use Release.Name
+		String subchartHelper = """
+				{{- define "remote-cluster.fullname" -}}
+				{{- if .Values.fullnameOverride -}}
+				{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+				{{- else -}}
+				{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
+				{{- end -}}
+				{{- end -}}
+				""";
+		Chart subchart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("remote-cluster").version("2.1.0").build())
+			.templates(List.of(tmpl("_helpers.tpl", subchartHelper)))
+			.values(Map.of())
+			.alias("serviceAccount")
+			.build();
+
+		String parentTemplate = """
+				serviceAccountName: {{ include "remote-cluster.fullname" .Subcharts.serviceAccount }}
+				""";
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("myapp")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("remote-cluster").alias("serviceAccount").build()))
+				.build())
+			.templates(List.of(tmpl("deploy.yaml", parentTemplate)))
+			.values(new HashMap<>(Map.of("serviceAccount", new HashMap<>())))
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("serviceAccountName: test-release-serviceAccount"),
+				"Subchart fullname should use Release.Name + alias: " + result);
+	}
+
 	// --- Global values ---
 
 	@Test

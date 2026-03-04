@@ -45,18 +45,25 @@ public class PluginManager {
 	 * @return the plugin descriptor
 	 * @throws PluginException if installation fails
 	 */
+	@SuppressWarnings("PMD.CloseResource") // ownership transferred to registry
 	public PluginDescriptor install(File pluginArchive) throws PluginException {
 		PluginLoader.LoadResult result = loader.load(pluginArchive);
 		PluginManifest manifest = result.manifest();
 		WasmPluginInstance instance = wasmRuntime.load(manifest.getName(), result.wasmBytes());
-		SandboxConfig sandboxConfig = buildSandboxConfig(manifest);
-		Plugin plugin = createAdapter(manifest, instance, sandboxConfig);
-		PluginDescriptor descriptor = PluginDescriptor.builder().manifest(manifest).plugin(plugin).build();
-		registry.register(descriptor);
-		if (log.isInfoEnabled()) {
-			log.info("Installed plugin: {} (type: {})", manifest.getName(), manifest.getType());
+		try {
+			SandboxConfig sandboxConfig = buildSandboxConfig(manifest);
+			Plugin plugin = createAdapter(manifest, instance, sandboxConfig);
+			PluginDescriptor descriptor = PluginDescriptor.builder().manifest(manifest).plugin(plugin).build();
+			registry.register(descriptor);
+			if (log.isInfoEnabled()) {
+				log.info("Installed plugin: {} (type: {})", manifest.getName(), manifest.getType());
+			}
+			return descriptor;
 		}
-		return descriptor;
+		catch (Exception ex) {
+			instance.close();
+			throw ex;
+		}
 	}
 
 	/**

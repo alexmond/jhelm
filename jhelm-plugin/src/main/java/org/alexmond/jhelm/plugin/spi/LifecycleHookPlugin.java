@@ -7,8 +7,6 @@ import org.alexmond.jhelm.plugin.model.PluginEvent;
  * Plugin that executes custom logic at lifecycle points (pre-install, post-install,
  * etc.).
  */
-@SuppressWarnings("PMD.ImplicitFunctionalInterface") // extends Plugin which has multiple
-														// abstract methods
 public interface LifecycleHookPlugin extends Plugin {
 
 	/**
