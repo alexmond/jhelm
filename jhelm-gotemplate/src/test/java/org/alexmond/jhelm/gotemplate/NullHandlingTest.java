@@ -24,10 +24,11 @@ class NullHandlingTest {
 	}
 
 	@Test
-	void testNullInPrintProducesEmpty() throws Exception {
+	void testNullInPrintMatchesGoFmtSprint() throws Exception {
+		// Go's fmt.Sprint(nil) returns "<nil>", not ""
 		Map<String, Object> data = new HashMap<>();
 		data.put("val", null);
-		assertEquals("hello", render("{{ print \"hello\" .val }}", data));
+		assertEquals("hello<nil>", render("{{ print \"hello\" .val }}", data));
 	}
 
 	@Test
@@ -38,10 +39,11 @@ class NullHandlingTest {
 	}
 
 	@Test
-	void testNullInPrintlnProducesEmpty() throws Exception {
+	void testNullInPrintlnMatchesGoFmtSprintln() throws Exception {
+		// Go's fmt.Sprintln("hello", nil) returns "hello <nil>\n"
 		Map<String, Object> data = new HashMap<>();
 		data.put("val", null);
-		assertEquals("hello \n", render("{{ println \"hello\" .val }}", data));
+		assertEquals("hello <nil>\n", render("{{ println \"hello\" .val }}", data));
 	}
 
 	@Test

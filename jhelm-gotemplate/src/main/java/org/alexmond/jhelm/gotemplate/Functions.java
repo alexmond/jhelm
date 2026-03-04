@@ -418,12 +418,11 @@ public final class Functions {
 	}
 
 	/**
-	 * Convert a value to its string representation for print/println. Null values produce
-	 * an empty string to match Go template behavior where nil values are omitted from
-	 * output.
+	 * Convert a value to its string representation for print/println. Matches Go's
+	 * {@code fmt.Sprint(nil)} which produces {@code "<nil>"} for nil values.
 	 */
 	static String sprintValue(Object value) {
-		return (value != null) ? String.valueOf(value) : "";
+		return (value != null) ? String.valueOf(value) : "<nil>";
 	}
 
 	public static boolean isTrue(Object arg) {

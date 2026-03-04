@@ -19,6 +19,13 @@ jhelmtest:
       - resource: "*"
         path: "spec.template.metadata.annotations.checksum/clusteragent*"
         reason: "Cluster agent tokens are generated per render"
+      # Generated TLS certificates (genCA/genSignedCert) differ between runs
+      - resource: "ValidatingWebhookConfiguration/*"
+        path: "webhooks.*"
+        reason: "TLS certificates are generated per render via genCA/genSignedCert"
+      - resource: "MutatingWebhookConfiguration/*"
+        path: "webhooks.*"
+        reason: "TLS certificates are generated per render via genCA/genSignedCert"
     "[bitnami/rabbitmq]":
       - resource: "Service/*"
         path: "spec.trafficDistribution"

@@ -5,8 +5,6 @@
 # --- Code bugs ---
 # Subchart label propagation — labels null instead of expected values
 superset/superset,superset,http://apache.github.io/superset/
-# ClusterRole rules ordering — 112 diffs in rule array ordering
-kong/kong,kong,https://charts.konghq.com
 # --- toYaml serialization diffs (configmap checksums) ---
 # toYaml produces different output than Go yaml.Marshal
 harbor/harbor,harbor,https://helm.goharbor.io
