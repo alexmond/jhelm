@@ -7,8 +7,6 @@
 goauthentik/authentik,goauthentik,https://charts.goauthentik.io/
 # String cannot be cast to Number — type coercion in template
 grafana/mimir-distributed,grafana,https://grafana.github.io/helm-charts
-# $SERVER_NAME rendered as << $SERVER_NAME >> — variable interpolation
-nats/nats,nats,https://nats-io.github.io/k8s/helm/charts/
 # Subchart label propagation — labels null instead of expected values
 superset/superset,superset,http://apache.github.io/superset/
 # ClusterRole rules ordering — 112 diffs in rule array ordering
