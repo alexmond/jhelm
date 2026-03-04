@@ -20,6 +20,7 @@
         <exclude name="NonExhaustiveSwitch"/> <!-- Parser switch intentionally handles known token types only (moved from codestyle in PMD 7) -->
         <exclude name="PreserveStackTrace"/> <!-- ExecutionException unwrapping uses getCause() intentionally (moved from errorprone in PMD 7) -->
         <exclude name="RelianceOnDefaultCharset"/> <!-- GoTemplate API mirrors Go behavior; charset is not configurable -->
+        <exclude name="GuardLogStatement"/> <!-- SLF4J parameterized logging avoids the cost this rule guards against -->
     </rule>
 
     <!-- Code Style -->

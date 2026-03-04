@@ -5,7 +5,7 @@
 # --- Code bugs ---
 # serviceAccountName rendering — template expression evaluated incorrectly
 goauthentik/authentik,goauthentik,https://charts.goauthentik.io/
-# String cannot be cast to Number — type coercion in template
+# Release name missing in s3.endpoint template expression
 grafana/mimir-distributed,grafana,https://grafana.github.io/helm-charts
 # Subchart label propagation — labels null instead of expected values
 superset/superset,superset,http://apache.github.io/superset/

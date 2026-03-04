@@ -148,4 +148,41 @@ class MathFunctionsTest {
 		assertEquals("5", exec("{{ biggest 2 5 3 }}"));
 	}
 
+	// --- String-to-Number coercion tests ---
+
+	@ParameterizedTest
+	@CsvSource(delimiter = '|',
+			value = { "{{ addf \"2.5\" \"3.5\" }}   | 6", "{{ addf \"10\" 5 }}         | 15",
+					"{{ mulf \"3\" \"4\" }}         | 12", "{{ divf \"10\" \"2\" }}     | 5",
+					"{{ sub \"10\" \"3\" }}          | 7", "{{ mul \"3\" \"4\" }}        | 12",
+					"{{ div \"10\" \"3\" }}          | 3", "{{ mod \"10\" \"3\" }}       | 1",
+					"{{ add \"2\" \"3\" }}           | 5", "{{ add1 \"5\" }}             | 6",
+					"{{ max \"2\" \"5\" \"3\" }}     | 5", "{{ min \"2\" \"5\" \"3\" }} | 2",
+					"{{ floor \"3.8\" }}             | 3", "{{ ceil \"3.2\" }}           | 4",
+					"{{ round \"3.5\" }}             | 4" })
+	void testStringToNumberCoercion(String template, String expected) throws IOException, TemplateException {
+		assertEquals(expected, exec(template));
+	}
+
+	@Test
+	void testToDoubleValCoercion() {
+		assertEquals(3.14, MathFunctions.toDoubleVal("3.14"), 0.001);
+		assertEquals(42.0, MathFunctions.toDoubleVal(42), 0.001);
+		assertEquals(0.0, MathFunctions.toDoubleVal("not-a-number"), 0.001);
+		assertEquals(1.0, MathFunctions.toDoubleVal(true), 0.001);
+		assertEquals(0.0, MathFunctions.toDoubleVal(false), 0.001);
+		assertEquals(0.0, MathFunctions.toDoubleVal(null), 0.001);
+	}
+
+	@Test
+	void testToLongValCoercion() {
+		assertEquals(42L, MathFunctions.toLongVal("42"));
+		assertEquals(42L, MathFunctions.toLongVal(42));
+		assertEquals(3L, MathFunctions.toLongVal("3.14"));
+		assertEquals(0L, MathFunctions.toLongVal("not-a-number"));
+		assertEquals(1L, MathFunctions.toLongVal(true));
+		assertEquals(0L, MathFunctions.toLongVal(false));
+		assertEquals(0L, MathFunctions.toLongVal(null));
+	}
+
 }

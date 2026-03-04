@@ -172,6 +172,57 @@ public final class MathFunctions {
 		};
 	}
 
+	// ========== Numeric Coercion Helpers ==========
+
+	/**
+	 * Coerce an argument to double. Handles Number, String, and Boolean like Go's
+	 * reflect-based coercion in Sprig.
+	 */
+	static double toDoubleVal(Object val) {
+		if (val instanceof Number n) {
+			return n.doubleValue();
+		}
+		if (val instanceof String s) {
+			try {
+				return Double.parseDouble(s);
+			}
+			catch (NumberFormatException ex) {
+				return 0.0;
+			}
+		}
+		if (val instanceof Boolean b) {
+			return b ? 1.0 : 0.0;
+		}
+		return 0.0;
+	}
+
+	/**
+	 * Coerce an argument to long. Handles Number, String, and Boolean like Go's
+	 * reflect-based coercion in Sprig.
+	 */
+	static long toLongVal(Object val) {
+		if (val instanceof Number n) {
+			return n.longValue();
+		}
+		if (val instanceof String s) {
+			try {
+				return Long.parseLong(s);
+			}
+			catch (NumberFormatException ex) {
+				try {
+					return (long) Double.parseDouble(s);
+				}
+				catch (NumberFormatException ex2) {
+					return 0L;
+				}
+			}
+		}
+		if (val instanceof Boolean b) {
+			return b ? 1L : 0L;
+		}
+		return 0L;
+	}
+
 	// ========== Basic Arithmetic Functions ==========
 
 	/**
@@ -185,11 +236,8 @@ public final class MathFunctions {
 			}
 			double sum = 0;
 			for (Object arg : args) {
-				if (arg instanceof Number) {
-					sum += ((Number) arg).doubleValue();
-				}
+				sum += toDoubleVal(arg);
 			}
-			// Return long if result is whole number, otherwise double
 			if (sum == Math.floor(sum)) {
 				return (long) sum;
 			}
@@ -206,11 +254,9 @@ public final class MathFunctions {
 			if (args.length < 2) {
 				return 0;
 			}
-			double result = ((Number) args[0]).doubleValue();
+			double result = toDoubleVal(args[0]);
 			for (int i = 1; i < args.length; i++) {
-				if (args[i] instanceof Number) {
-					result -= ((Number) args[i]).doubleValue();
-				}
+				result -= toDoubleVal(args[i]);
 			}
 			if (result == Math.floor(result)) {
 				return (long) result;
@@ -228,11 +274,9 @@ public final class MathFunctions {
 			if (args.length < 2) {
 				return 0;
 			}
-			double product = ((Number) args[0]).doubleValue();
+			double product = toDoubleVal(args[0]);
 			for (int i = 1; i < args.length; i++) {
-				if (args[i] instanceof Number) {
-					product *= ((Number) args[i]).doubleValue();
-				}
+				product *= toDoubleVal(args[i]);
 			}
 			if (product == Math.floor(product)) {
 				return (long) product;
@@ -251,8 +295,8 @@ public final class MathFunctions {
 			if (args.length < 2) {
 				return 0L;
 			}
-			long dividend = ((Number) args[0]).longValue();
-			long divisor = ((Number) args[1]).longValue();
+			long dividend = toLongVal(args[0]);
+			long divisor = toLongVal(args[1]);
 			if (divisor == 0) {
 				return 0L;
 			}
@@ -268,8 +312,8 @@ public final class MathFunctions {
 			if (args.length < 2) {
 				return 0L;
 			}
-			long a = ((Number) args[0]).longValue();
-			long b = ((Number) args[1]).longValue();
+			long a = toLongVal(args[0]);
+			long b = toLongVal(args[1]);
 			return (b != 0) ? a % b : 0L;
 		};
 	}
@@ -282,16 +326,10 @@ public final class MathFunctions {
 			if (args.length == 0 || args[0] == null) {
 				return 1;
 			}
-			if (args[0] instanceof Number) {
-				Number num = (Number) args[0];
-				if (args[0] instanceof Double || args[0] instanceof Float) {
-					return num.doubleValue() + 1;
-				}
-				else {
-					return num.longValue() + 1;
-				}
+			if (args[0] instanceof Double || args[0] instanceof Float) {
+				return ((Number) args[0]).doubleValue() + 1;
 			}
-			return 1;
+			return toLongVal(args[0]) + 1;
 		};
 	}
 
@@ -307,7 +345,7 @@ public final class MathFunctions {
 			}
 			double result = 0;
 			for (Object arg : args) {
-				result += ((Number) arg).doubleValue();
+				result += toDoubleVal(arg);
 			}
 			return result;
 		};
@@ -321,9 +359,9 @@ public final class MathFunctions {
 			if (args.length < 2) {
 				return 0.0;
 			}
-			double result = ((Number) args[0]).doubleValue();
+			double result = toDoubleVal(args[0]);
 			for (int i = 1; i < args.length; i++) {
-				result *= ((Number) args[i]).doubleValue();
+				result *= toDoubleVal(args[i]);
 			}
 			return result;
 		};
@@ -338,9 +376,9 @@ public final class MathFunctions {
 			if (args.length < 2) {
 				return 0.0;
 			}
-			double result = ((Number) args[0]).doubleValue();
+			double result = toDoubleVal(args[0]);
 			for (int i = 1; i < args.length; i++) {
-				double divisor = ((Number) args[i]).doubleValue();
+				double divisor = toDoubleVal(args[i]);
 				if (divisor != 0) {
 					result /= divisor;
 				}
@@ -362,11 +400,7 @@ public final class MathFunctions {
 			if (args.length == 0) {
 				return 0L;
 			}
-			Object val = args[0];
-			if (val instanceof Number) {
-				return (long) Math.floor(((Number) val).doubleValue());
-			}
-			return 0L;
+			return (long) Math.floor(toDoubleVal(args[0]));
 		};
 	}
 
@@ -378,11 +412,7 @@ public final class MathFunctions {
 			if (args.length == 0) {
 				return 0L;
 			}
-			Object val = args[0];
-			if (val instanceof Number) {
-				return (long) Math.ceil(((Number) val).doubleValue());
-			}
-			return 0L;
+			return (long) Math.ceil(toDoubleVal(args[0]));
 		};
 	}
 
@@ -394,11 +424,7 @@ public final class MathFunctions {
 			if (args.length == 0) {
 				return 0L;
 			}
-			Object val = args[0];
-			if (val instanceof Number) {
-				return Math.round(((Number) val).doubleValue());
-			}
-			return 0L;
+			return Math.round(toDoubleVal(args[0]));
 		};
 	}
 
@@ -414,14 +440,11 @@ public final class MathFunctions {
 			}
 			double maxVal = Double.NEGATIVE_INFINITY;
 			for (Object arg : args) {
-				if (arg instanceof Number) {
-					double val = ((Number) arg).doubleValue();
-					if (val > maxVal) {
-						maxVal = val;
-					}
+				double val = toDoubleVal(arg);
+				if (val > maxVal) {
+					maxVal = val;
 				}
 			}
-			// Return long if result is whole number, otherwise double
 			if (maxVal == Math.floor(maxVal) && !Double.isInfinite(maxVal)) {
 				return (long) maxVal;
 			}
@@ -439,11 +462,9 @@ public final class MathFunctions {
 			}
 			double minVal = Double.POSITIVE_INFINITY;
 			for (Object arg : args) {
-				if (arg instanceof Number) {
-					double val = ((Number) arg).doubleValue();
-					if (val < minVal) {
-						minVal = val;
-					}
+				double val = toDoubleVal(arg);
+				if (val < minVal) {
+					minVal = val;
 				}
 			}
 			if (minVal == Math.floor(minVal) && !Double.isInfinite(minVal)) {
@@ -460,11 +481,9 @@ public final class MathFunctions {
 			}
 			double maxVal = Double.NEGATIVE_INFINITY;
 			for (Object arg : args) {
-				if (arg instanceof Number) {
-					double val = ((Number) arg).doubleValue();
-					if (val > maxVal) {
-						maxVal = val;
-					}
+				double val = toDoubleVal(arg);
+				if (val > maxVal) {
+					maxVal = val;
 				}
 			}
 			return maxVal;
@@ -478,11 +497,9 @@ public final class MathFunctions {
 			}
 			double minVal = Double.POSITIVE_INFINITY;
 			for (Object arg : args) {
-				if (arg instanceof Number) {
-					double val = ((Number) arg).doubleValue();
-					if (val < minVal) {
-						minVal = val;
-					}
+				double val = toDoubleVal(arg);
+				if (val < minVal) {
+					minVal = val;
 				}
 			}
 			return minVal;
@@ -494,12 +511,12 @@ public final class MathFunctions {
 			if (args.length < 2) {
 				return 0;
 			}
-			int min = ((Number) args[0]).intValue();
-			int max = ((Number) args[1]).intValue();
-			if (min >= max) {
-				return min;
+			int minVal = (int) toLongVal(args[0]);
+			int maxVal = (int) toLongVal(args[1]);
+			if (minVal >= maxVal) {
+				return minVal;
 			}
-			return ThreadLocalRandom.current().nextInt(min, max);
+			return ThreadLocalRandom.current().nextInt(minVal, maxVal);
 		};
 	}
 
@@ -508,10 +525,7 @@ public final class MathFunctions {
 			if (args.length == 0 || args[0] == null) {
 				return 1.0;
 			}
-			if (args[0] instanceof Number) {
-				return ((Number) args[0]).doubleValue() + 1.0;
-			}
-			return 1.0;
+			return toDoubleVal(args[0]) + 1.0;
 		};
 	}
 
@@ -520,11 +534,9 @@ public final class MathFunctions {
 			if (args.length < 2) {
 				return 0.0;
 			}
-			double result = ((Number) args[0]).doubleValue();
+			double result = toDoubleVal(args[0]);
 			for (int i = 1; i < args.length; i++) {
-				if (args[i] instanceof Number) {
-					result -= ((Number) args[i]).doubleValue();
-				}
+				result -= toDoubleVal(args[i]);
 			}
 			return result;
 		};
