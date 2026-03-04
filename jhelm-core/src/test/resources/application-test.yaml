@@ -10,6 +10,10 @@ jhelmtest:
       - resource: "Secret/*"
         path: "data.*"
         reason: "Secret data contains generated passwords/certs that differ between runs"
+    "[bitnami/rabbitmq]":
+      - resource: "Service/*"
+        path: "spec.trafficDistribution"
+        reason: "trafficDistribution field rendered by JHelm but absent in Helm output"
     "[gitea/gitea]":
       # Subchart value propagation — connection strings still empty
       - resource: "Secret/*"
