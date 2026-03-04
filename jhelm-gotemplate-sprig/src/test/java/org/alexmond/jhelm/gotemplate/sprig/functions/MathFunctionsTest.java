@@ -123,7 +123,7 @@ class MathFunctionsTest {
 	}
 
 	@ParameterizedTest
-	@CsvSource(delimiter = '|', value = { "{{ add1f 2.5 }} | 3.5", "{{ add1f 0.0 }} | 1.0" })
+	@CsvSource(delimiter = '|', value = { "{{ add1f 2.5 }} | 3.5", "{{ add1f 0.0 }} | 1" })
 	void testAdd1f(String template, String expected) throws IOException, TemplateException {
 		assertEquals(expected, exec(template));
 	}
