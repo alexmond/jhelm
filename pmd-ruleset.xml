@@ -21,6 +21,8 @@
         <exclude name="PreserveStackTrace"/> <!-- ExecutionException unwrapping uses getCause() intentionally (moved from errorprone in PMD 7) -->
         <exclude name="RelianceOnDefaultCharset"/> <!-- GoTemplate API mirrors Go behavior; charset is not configurable -->
         <exclude name="GuardLogStatement"/> <!-- SLF4J parameterized logging avoids the cost this rule guards against -->
+        <exclude name="ImplicitFunctionalInterface"/> <!-- False positive on interfaces extending multi-method parents; inconsistent across environments -->
+        <exclude name="UnnecessaryWarningSuppression"/> <!-- CloseResource fires on macOS but not Linux; meta-rule cascading failures -->
     </rule>
 
     <!-- Code Style -->

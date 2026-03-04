@@ -247,6 +247,85 @@ class EngineTest {
 		assertTrue(result.contains("version: 17.0.0"));
 	}
 
+	@Test
+	void testSubchartsContextIncludesValuesAndRelease() {
+		// Mimics goauthentik/authentik pattern: parent template uses
+		// include "subchart.fullname" .Subcharts.serviceAccount
+		// The subchart fullname template needs .Values.fullnameOverride and
+		// .Release.Name
+		String subchartHelper = """
+				{{- define "remote-cluster.fullname" -}}
+				{{- if .Values.fullnameOverride -}}
+				{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+				{{- else -}}
+				{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
+				{{- end -}}
+				{{- end -}}
+				""";
+		Chart subchart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("remote-cluster").version("2.1.0").build())
+			.templates(List.of(tmpl("_helpers.tpl", subchartHelper)))
+			.values(Map.of())
+			.alias("serviceAccount")
+			.build();
+
+		String parentTemplate = """
+				serviceAccountName: {{ include "remote-cluster.fullname" .Subcharts.serviceAccount }}
+				""";
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("myapp")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("remote-cluster").alias("serviceAccount").build()))
+				.build())
+			.templates(List.of(tmpl("deploy.yaml", parentTemplate)))
+			.values(new HashMap<>(Map.of("serviceAccount", new HashMap<>(Map.of("fullnameOverride", "myapp")))))
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("serviceAccountName: myapp"),
+				"Subchart fullname should use fullnameOverride from values: " + result);
+	}
+
+	@Test
+	void testSubchartsContextFallsBackToReleaseName() {
+		// When no fullnameOverride, the subchart fullname should use Release.Name
+		String subchartHelper = """
+				{{- define "remote-cluster.fullname" -}}
+				{{- if .Values.fullnameOverride -}}
+				{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+				{{- else -}}
+				{{- printf "%s-%s" .Release.Name .Chart.Name | trunc 63 | trimSuffix "-" -}}
+				{{- end -}}
+				{{- end -}}
+				""";
+		Chart subchart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("remote-cluster").version("2.1.0").build())
+			.templates(List.of(tmpl("_helpers.tpl", subchartHelper)))
+			.values(Map.of())
+			.alias("serviceAccount")
+			.build();
+
+		String parentTemplate = """
+				serviceAccountName: {{ include "remote-cluster.fullname" .Subcharts.serviceAccount }}
+				""";
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("myapp")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("remote-cluster").alias("serviceAccount").build()))
+				.build())
+			.templates(List.of(tmpl("deploy.yaml", parentTemplate)))
+			.values(new HashMap<>(Map.of("serviceAccount", new HashMap<>())))
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("serviceAccountName: test-release-serviceAccount"),
+				"Subchart fullname should use Release.Name + alias: " + result);
+	}
+
 	// --- Global values ---
 
 	@Test
@@ -1663,6 +1742,29 @@ class EngineTest {
 		// pick "data" should extract the data key and produce a non-empty hash
 		assertFalse(result.contains("pick-data: 44136fa355b3678a"),
 				"pick 'data' from fromYaml should not return sha256 of '{}' (empty map): " + result);
+	}
+
+	// --- .txt template file inclusion (minio subchart pattern) ---
+
+	@Test
+	void testIncludeTxtTemplateFile() {
+		// Mimics minio subchart: configmap.yaml includes .txt files via
+		// include (print $.Template.BasePath "/_helper_create_bucket.txt") .
+		String helperTxt = "#!/bin/sh\necho \"Creating bucket {{ .Values.bucket }}\"";
+		String configmap = """
+				apiVersion: v1
+				kind: ConfigMap
+				data:
+				  initialize: |-
+				    {{- include (print $.Template.BasePath "/_helper_create_bucket.txt") . | nindent 4 }}
+				""";
+		Chart chart = simpleChart("minio", "1.0.0",
+				List.of(tmpl("_helper_create_bucket.txt", helperTxt), tmpl("configmap.yaml", configmap)),
+				new HashMap<>(Map.of("bucket", "my-bucket")));
+
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("Creating bucket my-bucket"),
+				".txt template should be included and rendered: " + result);
 	}
 
 	// --- regexReplaceAll with angle bracket markers (nats chart pattern) ---

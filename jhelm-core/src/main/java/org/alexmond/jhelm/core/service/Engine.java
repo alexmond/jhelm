@@ -363,11 +363,21 @@ public class Engine {
 		context.put("Template", Map.of("Name", "", "BasePath", chartBasePath));
 		context.put("Files", new ChartFiles(chart.getFiles()));
 
-		// Build .Subcharts map: subchart name/alias → { Chart: metadata }
+		// Build .Subcharts map: subchart name/alias → full context (Chart, Values,
+		// Release)
+		// In Helm, .Subcharts.<name> provides a complete rendering context so that
+		// templates referenced via include can access .Values, .Release, etc.
 		Map<String, Object> subcharts = new HashMap<>();
 		for (Chart dep : chart.getDependencies()) {
 			String depKey = (dep.getAlias() != null) ? dep.getAlias() : dep.getMetadata().getName();
-			subcharts.put(depKey, Map.of("Chart", dep.getMetadata()));
+			@SuppressWarnings("unchecked")
+			Map<String, Object> subchartValues = (Map<String, Object>) mergedValues.getOrDefault(depKey,
+					new HashMap<>());
+			Map<String, Object> subchartContext = new HashMap<>();
+			subchartContext.put("Chart", dep.getMetadata());
+			subchartContext.put("Values", subchartValues);
+			subchartContext.put("Release", releaseInfo);
+			subcharts.put(depKey, subchartContext);
 		}
 		context.put("Subcharts", subcharts);
 
