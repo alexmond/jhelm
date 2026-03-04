@@ -14,10 +14,10 @@ import java.util.ServiceLoader;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.gotemplate.internal.exec.Executor;
-import org.alexmond.jhelm.gotemplate.internal.parse.Node;
-import org.alexmond.jhelm.gotemplate.internal.parse.Parser;
-import org.alexmond.jhelm.gotemplate.internal.util.IOUtils;
+import org.alexmond.jhelm.gotemplate.exec.Executor;
+import org.alexmond.jhelm.gotemplate.parse.Node;
+import org.alexmond.jhelm.gotemplate.parse.Parser;
+import org.alexmond.jhelm.gotemplate.util.IOUtils;
 
 /**
  * GoTemplate represents a parsed Go template. It can contain multiple named templates

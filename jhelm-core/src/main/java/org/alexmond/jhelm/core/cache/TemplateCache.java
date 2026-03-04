@@ -7,7 +7,7 @@ import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
-import org.alexmond.jhelm.gotemplate.internal.parse.Node;
+import org.alexmond.jhelm.gotemplate.parse.Node;
 
 /**
  * LRU cache for parsed template ASTs. Keyed by template name and content hash to avoid
