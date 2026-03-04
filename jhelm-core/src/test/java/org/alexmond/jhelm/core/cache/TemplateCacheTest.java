@@ -3,7 +3,7 @@ package org.alexmond.jhelm.core.cache;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.alexmond.jhelm.gotemplate.internal.parse.Node;
+import org.alexmond.jhelm.gotemplate.parse.Node;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
