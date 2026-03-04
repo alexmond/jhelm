@@ -2,6 +2,7 @@ package org.alexmond.jhelm.gotemplate.helm.functions;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -10,11 +11,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.snakeyaml.engine.v2.api.ConstructNode;
+import org.snakeyaml.engine.v2.api.Load;
+import org.snakeyaml.engine.v2.api.LoadSettings;
+import org.snakeyaml.engine.v2.constructor.core.ConstructYamlCoreInt;
+import org.snakeyaml.engine.v2.nodes.Node;
+import org.snakeyaml.engine.v2.nodes.Tag;
+import org.snakeyaml.engine.v2.resolver.CoreScalarResolver;
+import org.snakeyaml.engine.v2.resolver.ScalarResolver;
+import org.snakeyaml.engine.v2.schema.CoreSchema;
+import org.snakeyaml.engine.v2.schema.Schema;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonGenerator;
 import tools.jackson.core.json.JsonWriteFeature;
 import tools.jackson.databind.SerializationContext;
-import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.module.SimpleModule;
@@ -46,12 +56,42 @@ public final class ConversionFunctions {
 		.build());
 
 	/**
-	 * Read-only YAML mapper for fromYaml/fromYamlArray. Go's yaml.Unmarshal reads only
-	 * the first document and ignores trailing content; Jackson 3 rejects trailing tokens
-	 * by default, so we disable that check to match Go behaviour.
+	 * YAML 1.1 octal pattern: bare-zero prefix followed by octal digits (e.g. 0660,
+	 * 0755). Go's yaml.v3 retains YAML 1.1 compatibility for these literals, parsing them
+	 * as integers. SnakeYAML Engine (YAML 1.2 strict) only recognises 0o prefix.
 	 */
-	private static final ThreadLocal<YAMLMapper> YAML_READ_MAPPER = ThreadLocal
-		.withInitial(() -> YAMLMapper.builder().disable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build());
+	private static final Pattern YAML11_OCTAL = Pattern.compile("^0[0-7]+$");
+
+	/**
+	 * SnakeYAML Engine LoadSettings for fromYaml/fromYamlArray. Uses a custom schema with
+	 * YAML 1.1 octal support and tilde-null resolution. SnakeYAML Engine is used directly
+	 * (instead of Jackson YAMLMapper) so that the custom schema constructors are honoured
+	 * — Jackson's YAMLMapper bypasses SnakeYAML's ConstructNode pipeline.
+	 */
+	private static final LoadSettings YAML_READ_SETTINGS = createYamlReadSettings();
+
+	private static LoadSettings createYamlReadSettings() {
+		CoreScalarResolver resolver = new CoreScalarResolver(true);
+		resolver.addImplicitResolver(Tag.NULL, CoreScalarResolver.NULL, "~");
+		resolver.addImplicitResolver(Tag.INT, YAML11_OCTAL, "0");
+
+		Map<Tag, ConstructNode> constructors = new HashMap<>(new CoreSchema().getSchemaTagConstructors());
+		constructors.put(Tag.INT, new Yaml11OctalIntConstructor());
+
+		Schema schema = new Schema() {
+			@Override
+			public ScalarResolver getScalarResolver() {
+				return resolver;
+			}
+
+			@Override
+			public Map<Tag, ConstructNode> getSchemaTagConstructors() {
+				return constructors;
+			}
+		};
+
+		return LoadSettings.builder().setSchema(schema).build();
+	}
 
 	/** Pattern matching a YAML line with a double-quoted scalar value. */
 	private static final Pattern QUOTED_VALUE = Pattern.compile("^(\\s*\\S+:\\s+)\"((?:[^\"\\\\]|\\\\.)*)\"\\s*$");
@@ -190,8 +230,8 @@ public final class ConversionFunctions {
 				if (yaml.isBlank()) {
 					return Map.of();
 				}
-				Map result = YAML_READ_MAPPER.get().readValue(normaliseYamlInput(yaml), Map.class);
-				return (result != null) ? result : Map.of();
+				Object result = loadFirstYamlDocument(yaml);
+				return (result instanceof Map<?, ?> map) ? map : Map.of();
 			}
 			catch (Exception ex) {
 				return Map.of();
@@ -213,7 +253,14 @@ public final class ConversionFunctions {
 				if (yaml.isBlank()) {
 					throw new RuntimeException("mustFromYaml: empty YAML string");
 				}
-				return YAML_READ_MAPPER.get().readValue(normaliseYamlInput(yaml), Map.class);
+				Object result = loadFirstYamlDocument(yaml);
+				if (result instanceof Map<?, ?>) {
+					return result;
+				}
+				throw new RuntimeException("mustFromYaml: expected map but got " + result);
+			}
+			catch (RuntimeException ex) {
+				throw ex;
 			}
 			catch (Exception ex) {
 				throw new RuntimeException("mustFromYaml: failed to parse YAML: " + ex.getMessage(), ex);
@@ -234,7 +281,8 @@ public final class ConversionFunctions {
 				if (yaml.isBlank()) {
 					return Collections.emptyList();
 				}
-				return YAML_READ_MAPPER.get().readValue(normaliseYamlInput(yaml), List.class);
+				Object result = loadFirstYamlDocument(yaml);
+				return (result instanceof List<?> list) ? list : Collections.emptyList();
 			}
 			catch (Exception ex) {
 				return Collections.emptyList();
@@ -255,7 +303,14 @@ public final class ConversionFunctions {
 				if (yaml.isBlank()) {
 					throw new RuntimeException("mustFromYamlArray: empty YAML string");
 				}
-				return YAML_READ_MAPPER.get().readValue(normaliseYamlInput(yaml), List.class);
+				Object result = loadFirstYamlDocument(yaml);
+				if (result instanceof List<?>) {
+					return result;
+				}
+				throw new RuntimeException("mustFromYamlArray: expected list but got " + result);
+			}
+			catch (RuntimeException ex) {
+				throw ex;
 			}
 			catch (Exception ex) {
 				throw new RuntimeException("mustFromYamlArray: failed to parse YAML array: " + ex.getMessage(), ex);
@@ -264,13 +319,17 @@ public final class ConversionFunctions {
 	}
 
 	/**
-	 * Normalises YAML input for Jackson parsing. Go's yaml.Unmarshal parses {@code |-} at
-	 * EOF (no trailing newline) as an empty block scalar, but Jackson's SnakeYAML Engine
-	 * scanner chokes if a trailing newline is present after the indicator without
-	 * content. Stripping trailing whitespace makes EOF terminate the scanner cleanly.
+	 * Loads the first YAML document from a string using SnakeYAML Engine directly. Go's
+	 * yaml.Unmarshal reads only the first document and ignores trailing content, so we
+	 * use {@code loadAllFromString} and take the first result.
+	 * <p>
+	 * Input is normalised by stripping trailing whitespace to handle block scalar
+	 * indicators ({@code |-}) at EOF without content.
 	 */
-	private static String normaliseYamlInput(String yaml) {
-		return yaml.stripTrailing();
+	private static Object loadFirstYamlDocument(String yaml) {
+		Load load = new Load(YAML_READ_SETTINGS);
+		Iterator<Object> docs = load.loadAllFromString(yaml.stripTrailing()).iterator();
+		return docs.hasNext() ? docs.next() : null;
 	}
 
 	// ===== JSON Functions =====
@@ -630,6 +689,25 @@ public final class ConversionFunctions {
 			return false;
 		}
 		return true;
+	}
+
+	// ===== YAML 1.1 Octal Support =====
+
+	/**
+	 * Integer constructor that recognises YAML 1.1 bare-octal literals ({@code 0660}) in
+	 * addition to the YAML 1.2 formats handled by {@link ConstructYamlCoreInt}.
+	 */
+	static final class Yaml11OctalIntConstructor extends ConstructYamlCoreInt {
+
+		@Override
+		public Object construct(Node node) {
+			String value = constructScalar(node);
+			if (value.length() > 1 && value.charAt(0) == '0' && YAML11_OCTAL.matcher(value).matches()) {
+				return createLongOrBigInteger(value.substring(1), 8);
+			}
+			return super.construct(node);
+		}
+
 	}
 
 }
