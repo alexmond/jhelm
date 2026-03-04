@@ -178,6 +178,50 @@ class StringFunctionsTest {
 		assertFalse(exec("{{ regexReplaceAllLiteral \"[0-9]+\" \"abc123def456\" \"X\" }}").isEmpty());
 	}
 
+	@Test
+	void testConvertGoReplacementToJava() {
+		// ${N} → $N (numbered group reference)
+		assertEquals("$1", StringFunctions.convertGoReplacementToJava("${1}"));
+		assertEquals("$12", StringFunctions.convertGoReplacementToJava("${12}"));
+		assertEquals("prefix $1 suffix", StringFunctions.convertGoReplacementToJava("prefix ${1} suffix"));
+
+		// $$ → \$ (literal dollar sign)
+		assertEquals("\\$", StringFunctions.convertGoReplacementToJava("$$"));
+		assertEquals("\\$100", StringFunctions.convertGoReplacementToJava("$$100"));
+
+		// ${name} stays as ${name} (named group)
+		assertEquals("${name}", StringFunctions.convertGoReplacementToJava("${name}"));
+
+		// No $ at all — passthrough
+		assertEquals("hello", StringFunctions.convertGoReplacementToJava("hello"));
+		assertEquals("", StringFunctions.convertGoReplacementToJava(""));
+
+		// $N stays as $N (already valid Java syntax)
+		assertEquals("$1", StringFunctions.convertGoReplacementToJava("$1"));
+	}
+
+	@Test
+	void testRegexReplaceAllWithGroupReference() throws IOException, TemplateException {
+		// Exact pattern used by nats chart: strip "<< ... >>" markers
+		String result = exec(
+				"{{ regexReplaceAll \"\\\"<<\\\\s+(.*?)\\\\s+>>\\\"\" \"\\\"<< $SERVER_NAME >>\\\"\" \"${1}\" }}");
+		assertEquals("$SERVER_NAME", result);
+	}
+
+	@Test
+	void testMustRegexReplaceAllWithGroupReference() throws IOException, TemplateException {
+		String result = exec(
+				"{{ mustRegexReplaceAll \"\\\"<<\\\\s+(.*?)\\\\s+>>\\\"\" \"\\\"<< $SERVER_NAME >>\\\"\" \"${1}\" }}");
+		assertEquals("$SERVER_NAME", result);
+	}
+
+	@Test
+	void testRegexReplaceAllWithLiteralDollar() throws IOException, TemplateException {
+		// $$ in Go replacement means literal $
+		String result = exec("{{ regexReplaceAll \"price\" \"the price is\" \"$$5\" }}");
+		assertEquals("the $5 is", result);
+	}
+
 	// --- quote/squote null handling ---
 
 	@Test

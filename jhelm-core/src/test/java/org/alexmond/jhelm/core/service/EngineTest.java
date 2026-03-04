@@ -1665,4 +1665,31 @@ class EngineTest {
 				"pick 'data' from fromYaml should not return sha256 of '{}' (empty map): " + result);
 	}
 
+	// --- regexReplaceAll with angle bracket markers (nats chart pattern) ---
+
+	@Test
+	void testRegexReplaceAllAngleBrackets() {
+		// Mimics nats chart's nats.formatConfig: toPrettyJson then strip "<< ... >>"
+		String helpersTpl = """
+				{{- define "nats.formatConfig" -}}
+				{{- $config := toPrettyJson . -}}
+				{{- regexReplaceAll "\\\"<<\\\\s+(.*?)\\\\s+>>\\\"" $config "${1}" -}}
+				{{- end -}}
+				""";
+		String mainTmpl = """
+				{{ include "nats.formatConfig" .Values.config }}
+				""";
+		Map<String, Object> config = new LinkedHashMap<>();
+		config.put("server_name", "<< $SERVER_NAME >>");
+		config.put("port", 4222);
+		Map<String, Object> values = Map.of("config", config);
+		Chart chart = simpleChart("nats", "1.0.0",
+				List.of(tmpl("_helpers.tpl", helpersTpl), tmpl("configmap.yaml", mainTmpl)), values);
+
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("$SERVER_NAME"), "Should contain unquoted $SERVER_NAME: " + result);
+		assertFalse(result.contains("<<"), "Should not contain << markers: " + result);
+		assertFalse(result.contains(">>"), "Should not contain >> markers: " + result);
+	}
+
 }

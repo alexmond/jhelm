@@ -616,7 +616,7 @@ public final class StringFunctions {
 				// So args are: [0]=pattern, [1]=text, [2]=replacement
 				String pattern = String.valueOf(args[0]);
 				String text = String.valueOf(args[1]);
-				String replacement = String.valueOf(args[2]);
+				String replacement = convertGoReplacementToJava(String.valueOf(args[2]));
 
 				return text.replaceAll(pattern, replacement);
 			}
@@ -635,13 +635,60 @@ public final class StringFunctions {
 				// Sprig signature: mustRegexReplaceAll pattern text replacement
 				String pattern = String.valueOf(args[0]);
 				String text = String.valueOf(args[1]);
-				String replacement = String.valueOf(args[2]);
+				String replacement = convertGoReplacementToJava(String.valueOf(args[2]));
 				return text.replaceAll(pattern, replacement);
 			}
 			catch (Exception ex) {
 				throw new RuntimeException("mustRegexReplaceAll: " + ex.getMessage(), ex);
 			}
 		};
+	}
+
+	/**
+	 * Convert Go regex replacement syntax to Java replacement syntax. Go uses
+	 * {@code ${N}} for numbered groups and {@code $$} for literal {@code $}, while Java
+	 * uses {@code $N} for numbered groups and {@code \$} for literal {@code $}.
+	 */
+	static String convertGoReplacementToJava(String replacement) {
+		if (!replacement.contains("$")) {
+			return replacement;
+		}
+		StringBuilder sb = new StringBuilder(replacement.length());
+		for (int i = 0; i < replacement.length(); i++) {
+			char c = replacement.charAt(i);
+			if (c == '$' && i + 1 < replacement.length()) {
+				char next = replacement.charAt(i + 1);
+				if (next == '$') {
+					// Go: $$ → Java: \$ (literal dollar sign)
+					sb.append("\\$");
+					i++;
+				}
+				else if (next == '{') {
+					// Check for ${digits} → $digits (numbered group reference)
+					int end = replacement.indexOf('}', i + 2);
+					if (end != -1) {
+						String content = replacement.substring(i + 2, end);
+						if (content.matches("\\d+")) {
+							sb.append('$').append(content);
+							i = end;
+						}
+						else {
+							sb.append(c);
+						}
+					}
+					else {
+						sb.append(c);
+					}
+				}
+				else {
+					sb.append(c);
+				}
+			}
+			else {
+				sb.append(c);
+			}
+		}
+		return sb.toString();
 	}
 
 	private static Function regexReplaceAllLiteral() {
