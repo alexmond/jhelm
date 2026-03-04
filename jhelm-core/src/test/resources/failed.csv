@@ -1,0 +1,23 @@
+# Charts with known comparison failures (format: chartName,repoId,repoUrl)
+# When a chart is fixed, remove it from this file.
+# If a chart unexpectedly passes, the test will fail — remove the entry.
+#
+# --- Code bugs ---
+# Octal number literals rendered as decimal (0660 -> 432) — #217
+cilium/cilium,cilium,https://helm.cilium.io/
+# serviceAccountName rendering — template expression evaluated incorrectly
+goauthentik/authentik,goauthentik,https://charts.goauthentik.io/
+# String cannot be cast to Number — type coercion in template
+grafana/mimir-distributed,grafana,https://grafana.github.io/helm-charts
+# $SERVER_NAME rendered as << $SERVER_NAME >> — variable interpolation
+nats/nats,nats,https://nats-io.github.io/k8s/helm/charts/
+# Subchart label propagation — labels null instead of expected values
+superset/superset,superset,http://apache.github.io/superset/
+# ClusterRole rules ordering — 112 diffs in rule array ordering
+kong/kong,kong,https://charts.konghq.com
+# --- toYaml serialization diffs (configmap checksums) ---
+# toYaml produces different output than Go yaml.Marshal
+harbor/harbor,harbor,https://helm.goharbor.io
+cloudnative-pg/cloudnative-pg,cloudnative-pg,https://cloudnative-pg.io/charts/
+falcosecurity/falco,falcosecurity,https://falcosecurity.github.io/charts
+dandydev-charts/redis-ha,dandydev-charts,https://dandydeveloper.github.io/charts/
