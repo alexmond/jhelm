@@ -318,6 +318,59 @@ class CollectionFunctionsTest {
 	}
 
 	@Test
+	void testMergeOverwritesEmptyString() throws IOException, TemplateException {
+		// Go mergo treats empty strings as zero values: merge overwrites them
+		Map<String, Object> data = new HashMap<>();
+		Map<String, Object> dst = new HashMap<>();
+		dst.put("tag", "");
+		data.put("dst", dst);
+		data.put("src", Map.of("tag", "2.15.1"));
+		assertEquals("2.15.1", execWithData("{{ $m := merge .dst .src }}{{ get $m \"tag\" }}", data));
+	}
+
+	@Test
+	void testMergeOverwritesZeroNumber() throws IOException, TemplateException {
+		// Go mergo treats zero numbers as zero values: merge overwrites them
+		Map<String, Object> data = new HashMap<>();
+		Map<String, Object> dst = new HashMap<>();
+		dst.put("count", 0);
+		data.put("dst", dst);
+		data.put("src", Map.of("count", 42));
+		assertEquals("42", execWithData("{{ $m := merge .dst .src }}{{ get $m \"count\" }}", data));
+	}
+
+	@Test
+	void testMergeOverwritesFalseBoolean() throws IOException, TemplateException {
+		// Go mergo treats false as a zero value: merge overwrites it
+		Map<String, Object> data = new HashMap<>();
+		Map<String, Object> dst = new HashMap<>();
+		dst.put("enabled", false);
+		data.put("dst", dst);
+		data.put("src", Map.of("enabled", true));
+		assertEquals("true", execWithData("{{ $m := merge .dst .src }}{{ get $m \"enabled\" }}", data));
+	}
+
+	@Test
+	void testMergePreservesTrueBoolean() throws IOException, TemplateException {
+		// Non-zero dst values should be preserved by merge
+		Map<String, Object> data = new HashMap<>();
+		data.put("dst", new HashMap<>(Map.of("enabled", true)));
+		data.put("src", Map.of("enabled", false));
+		assertEquals("true", execWithData("{{ $m := merge .dst .src }}{{ get $m \"enabled\" }}", data));
+	}
+
+	@Test
+	void testMergeOverwritesEmptyList() throws IOException, TemplateException {
+		// Go mergo treats empty collections as zero values
+		Map<String, Object> data = new HashMap<>();
+		Map<String, Object> dst = new HashMap<>();
+		dst.put("items", new ArrayList<>());
+		data.put("dst", dst);
+		data.put("src", Map.of("items", java.util.List.of("a", "b")));
+		assertEquals("2", execWithData("{{ $m := merge .dst .src }}{{ len (get $m \"items\") }}", data));
+	}
+
+	@Test
 	void testMustMergeDeepNested() throws IOException, TemplateException {
 		String template = """
 				{{ $d1 := dict "outer" (dict "a" 1 "b" 2) }}\

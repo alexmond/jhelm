@@ -135,7 +135,7 @@ public class ChartLoader {
 			if (file.isDirectory()) {
 				loadTemplatesRecursive(file, name, templates);
 			}
-			else if (name.endsWith(".yaml") || name.endsWith(".tpl")) {
+			else if (name.endsWith(".yaml") || name.endsWith(".yml") || name.endsWith(".tpl")) {
 				Chart.Template template = Chart.Template.builder()
 					.name(name)
 					.data(Files.readString(file.toPath()))
