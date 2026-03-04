@@ -1547,4 +1547,122 @@ class EngineTest {
 				"Non-hook ConfigMap should also be rendered: " + result);
 	}
 
+	// --- Include file-level template for checksum (#215) ---
+
+	@Test
+	void testIncludeFileTemplateSha256sum() {
+		// Reproduces the bitnami checksum pattern:
+		// checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . |
+		// sha256sum }}
+		String configmapTmpl = """
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: test-config
+				data:
+				  key1: {{ .Values.config.key1 }}
+				  key2: {{ .Values.config.key2 }}""";
+		String deployTmpl = """
+				apiVersion: apps/v1
+				kind: Deployment
+				metadata:
+				  name: test-deploy
+				  annotations:
+				    include-raw: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+				    fromYaml-keys: {{ include (print $.Template.BasePath "/configmap.yaml") . | fromYaml | keys | sortAlpha | join "," }}
+				    pick-data: {{ pick (include (print $.Template.BasePath "/configmap.yaml") . | fromYaml) "data" | toYaml | sha256sum }}""";
+
+		Map<String, Object> values = new HashMap<>();
+		values.put("config", new HashMap<>(Map.of("key1", "value1", "key2", "value2")));
+
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("configmap.yaml", configmapTmpl), tmpl("deployment.yaml", deployTmpl)), values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+
+		// The include should return non-empty content
+		assertFalse(result.contains("include-raw: e3b0c44298fc1c14"),
+				"include should not return empty string (sha256 of empty = e3b0c44298fc1c14...): " + result);
+
+		// fromYaml should parse the included template into a map with known keys
+		assertTrue(
+				result.contains("fromYaml-keys: apiVersion,data,kind,metadata")
+						|| result.contains("fromYaml-keys: apiVersion,kind,metadata,data"),
+				"fromYaml should parse the included template into a map with apiVersion, data, kind, metadata keys: "
+						+ result);
+
+		// pick "data" should extract the data key and produce a non-empty hash
+		assertFalse(result.contains("pick-data: 44136fa355b3678a"),
+				"pick 'data' from fromYaml should not return sha256 of '{}' (empty map): " + result);
+	}
+
+	@Test
+	void testIncludeFileTemplateRedisChart() throws Exception {
+		// Regression test for #215: include | fromYaml | pick "data" | toYaml |
+		// sha256sum
+		// was producing sha256("{}") because fromYaml failed to parse the included
+		// template output (block scalar at EOF without trailing newline caused
+		// Jackson YAML parse error)
+		File redisDir = new File("target/temp-charts/redis");
+		if (!redisDir.exists()) {
+			return; // Skip if chart not available locally
+		}
+		Chart chart = chartLoader.load(redisDir);
+
+		String result = engine.render(chart, Map.of(), releaseInfo());
+
+		// The configmap should be rendered
+		assertTrue(result.contains("kind: ConfigMap"), "ConfigMap should be rendered");
+
+		// Extract the checksum/configmap annotation — must not be sha256("{}")
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("checksum/configmap:\\s+(\\S+)").matcher(result);
+		assertTrue(m.find(), "checksum/configmap should exist in output");
+		String checksum = m.group(1);
+		assertFalse("44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a".equals(checksum),
+				"checksum/configmap must not be sha256('{}') — fromYaml chain is broken");
+	}
+
+	@Test
+	void testIncludeFileTemplateWithCondition() {
+		// Matches the Redis chart pattern: configmap.yaml wraps content in
+		// {{- if (include "helper" .) }} ... {{- end }}
+		String helpersTpl = """
+				{{- define "mychart.createConfigmap" -}}
+				{{- if empty .Values.existingConfigmap }}
+				    {{- true -}}
+				{{- end -}}
+				{{- end -}}""";
+		String configmapTmpl = """
+				{{- if (include "mychart.createConfigmap" .) }}
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: test-config
+				data:
+				  key1: {{ .Values.config.key1 }}
+				  key2: {{ .Values.config.key2 }}
+				{{- end }}""";
+		String deployTmpl = """
+				apiVersion: apps/v1
+				kind: Deployment
+				metadata:
+				  name: test-deploy
+				  annotations:
+				    pick-data: {{ pick (include (print $.Template.BasePath "/configmap.yaml") . | fromYaml) "data" | toYaml | sha256sum }}""";
+
+		Map<String, Object> values = new HashMap<>();
+		values.put("existingConfigmap", "");
+		values.put("config", new HashMap<>(Map.of("key1", "value1", "key2", "value2")));
+
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("_helpers.tpl", helpersTpl),
+				tmpl("configmap.yaml", configmapTmpl), tmpl("deployment.yaml", deployTmpl)), values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+
+		// The configmap should be rendered
+		assertTrue(result.contains("kind: ConfigMap"), "ConfigMap should be rendered: " + result);
+
+		// pick "data" should extract the data key and produce a non-empty hash
+		assertFalse(result.contains("pick-data: 44136fa355b3678a"),
+				"pick 'data' from fromYaml should not return sha256 of '{}' (empty map): " + result);
+	}
+
 }
