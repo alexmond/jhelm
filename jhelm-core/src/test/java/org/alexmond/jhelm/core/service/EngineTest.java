@@ -1744,6 +1744,29 @@ class EngineTest {
 				"pick 'data' from fromYaml should not return sha256 of '{}' (empty map): " + result);
 	}
 
+	// --- .txt template file inclusion (minio subchart pattern) ---
+
+	@Test
+	void testIncludeTxtTemplateFile() {
+		// Mimics minio subchart: configmap.yaml includes .txt files via
+		// include (print $.Template.BasePath "/_helper_create_bucket.txt") .
+		String helperTxt = "#!/bin/sh\necho \"Creating bucket {{ .Values.bucket }}\"";
+		String configmap = """
+				apiVersion: v1
+				kind: ConfigMap
+				data:
+				  initialize: |-
+				    {{- include (print $.Template.BasePath "/_helper_create_bucket.txt") . | nindent 4 }}
+				""";
+		Chart chart = simpleChart("minio", "1.0.0",
+				List.of(tmpl("_helper_create_bucket.txt", helperTxt), tmpl("configmap.yaml", configmap)),
+				new HashMap<>(Map.of("bucket", "my-bucket")));
+
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("Creating bucket my-bucket"),
+				".txt template should be included and rendered: " + result);
+	}
+
 	// --- regexReplaceAll with angle bracket markers (nats chart pattern) ---
 
 	@Test

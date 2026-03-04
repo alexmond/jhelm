@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -477,6 +478,33 @@ class ChartLoaderTest {
 
 		assertEquals(1, chart.getMetadata().getDependencies().size());
 		assertEquals("redis", chart.getMetadata().getDependencies().get(0).getName());
+	}
+
+	@Test
+	void testTxtAndJsonFilesLoadedAsTemplates() throws Exception {
+		Path chartDir = tempDir.resolve("chart-txt-templates");
+		Files.createDirectories(chartDir);
+		Files.writeString(chartDir.resolve("Chart.yaml"), """
+				apiVersion: v2
+				name: minio
+				version: 1.0.0
+				""");
+		Files.writeString(chartDir.resolve("values.yaml"), "{}");
+		Path tmplDir = Files.createDirectories(chartDir.resolve("templates"));
+		Files.writeString(tmplDir.resolve("configmap.yaml"), "kind: ConfigMap");
+		Files.writeString(tmplDir.resolve("_helpers.tpl"), "{{- define \"test\" -}}ok{{- end -}}");
+		Files.writeString(tmplDir.resolve("_helper_create_bucket.txt"), "#!/bin/sh\necho create");
+		Files.writeString(tmplDir.resolve("policy.json"), "{\"policy\": true}");
+		Files.writeString(tmplDir.resolve("NOTES.txt"), "Thank you for installing");
+
+		Chart chart = chartLoader.load(chartDir.toFile());
+
+		List<String> names = chart.getTemplates().stream().map(Chart.Template::getName).toList();
+		assertTrue(names.contains("configmap.yaml"));
+		assertTrue(names.contains("_helpers.tpl"));
+		assertTrue(names.contains("_helper_create_bucket.txt"), ".txt templates should be loaded");
+		assertTrue(names.contains("policy.json"), ".json templates should be loaded");
+		assertTrue(names.contains("NOTES.txt"), "NOTES.txt should be loaded");
 	}
 
 }

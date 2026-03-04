@@ -3,8 +3,6 @@
 # If a chart unexpectedly passes, the test will fail — remove the entry.
 #
 # --- Code bugs ---
-# Release name missing in s3.endpoint template expression (Issue #242)
-grafana/mimir-distributed,grafana,https://grafana.github.io/helm-charts
 # Subchart label propagation — labels null instead of expected values
 superset/superset,superset,http://apache.github.io/superset/
 # ClusterRole rules ordering — 112 diffs in rule array ordering
