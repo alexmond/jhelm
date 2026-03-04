@@ -209,7 +209,7 @@ public final class DictFunctions {
 				if (dstVal instanceof Map && srcVal instanceof Map) {
 					deepMerge((Map<String, Object>) dstVal, (Map<String, Object>) srcVal, overwrite);
 				}
-				else if (overwrite || dstVal == null) {
+				else if (overwrite || isEmptyValue(dstVal)) {
 					dst.put(key, srcVal);
 				}
 			}
@@ -217,6 +217,34 @@ public final class DictFunctions {
 				dst.put(key, srcVal);
 			}
 		}
+	}
+
+	/**
+	 * Checks whether a value is considered "empty" for merge purposes, matching Go's
+	 * mergo {@code isEmptyValue} semantics. Empty values (zero-length strings, zero
+	 * numbers, {@code false} booleans, empty collections, and {@code null}) are
+	 * overwritten by the source even in non-overwrite mode.
+	 */
+	private static boolean isEmptyValue(Object value) {
+		if (value == null) {
+			return true;
+		}
+		if (value instanceof String s) {
+			return s.isEmpty();
+		}
+		if (value instanceof Number n) {
+			return n.doubleValue() == 0;
+		}
+		if (value instanceof Boolean b) {
+			return !b;
+		}
+		if (value instanceof Collection<?> c) {
+			return c.isEmpty();
+		}
+		if (value instanceof Map<?, ?> m) {
+			return m.isEmpty();
+		}
+		return false;
 	}
 
 	private static Function mustMerge() {

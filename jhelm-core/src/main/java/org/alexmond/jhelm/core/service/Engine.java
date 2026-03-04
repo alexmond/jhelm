@@ -447,7 +447,7 @@ public class Engine {
 		List<Chart.Template> sorted = new ArrayList<>(chart.getTemplates());
 		sorted.sort(Comparator.comparing(Chart.Template::getName, Comparator.reverseOrder()));
 		for (Chart.Template t : sorted) {
-			if (!t.getName().endsWith(".yaml")) {
+			if (!t.getName().endsWith(".yaml") && !t.getName().endsWith(".yml")) {
 				continue;
 			}
 			try {
