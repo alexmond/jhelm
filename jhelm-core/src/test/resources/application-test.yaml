@@ -6,10 +6,19 @@ jhelmtest:
       - resource: "Secret/*"
         path: "data.*"
         reason: "Secret data contains generated passwords/certs that differ between runs"
-      # Checksum of secret templates — hash differs because underlying secret has random passwords
+      # Checksum annotations for secrets/credentials — hash differs because underlying data has random passwords
       - resource: "*"
         path: "spec.template.metadata.annotations.checksum/secret*"
         reason: "Secret templates contain generated passwords that differ between runs"
+      - resource: "*"
+        path: "spec.template.metadata.annotations.checksum/credential*"
+        reason: "Credential secrets contain generated data that differs between runs"
+      - resource: "*"
+        path: "spec.template.metadata.annotations.checksum/jwt*"
+        reason: "JWT secrets are generated per render"
+      - resource: "*"
+        path: "spec.template.metadata.annotations.checksum/clusteragent*"
+        reason: "Cluster agent tokens are generated per render"
     "[bitnami/rabbitmq]":
       - resource: "Service/*"
         path: "spec.trafficDistribution"

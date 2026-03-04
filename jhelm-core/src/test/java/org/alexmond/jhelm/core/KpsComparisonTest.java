@@ -177,6 +177,53 @@ class KpsComparisonTest {
 		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
 	}
 
+	private List<String[]> readFailedCsv() throws Exception {
+		try (InputStream is = getClass().getResourceAsStream("/failed.csv")) {
+			if (is == null) {
+				return List.of();
+			}
+			String content = new String(is.readAllBytes(), StandardCharsets.UTF_8).trim();
+			if (content.isEmpty()) {
+				return List.of();
+			}
+			return content.lines()
+				.filter((line) -> !line.isBlank() && !line.startsWith("#"))
+				.map((line) -> line.split(",", 3))
+				.filter((parts) -> parts.length == 3)
+				.toList();
+		}
+	}
+
+	@Test
+	void compareFailedCharts() throws Exception {
+		List<String[]> charts = readFailedCsv();
+		if (charts.isEmpty()) {
+			log.info("failed.csv is empty — no failed charts to verify");
+			return;
+		}
+		List<String> unexpectedPasses = new ArrayList<>();
+		for (String[] parts : charts) {
+			String chartName = parts[0].trim();
+			String repoId = parts[1].trim();
+			String repoUrl = parts[2].trim();
+			try {
+				compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+				unexpectedPasses.add(chartName);
+				log.warn("{} - UNEXPECTEDLY PASSED — remove from failed.csv", chartName);
+			}
+			catch (AssertionError ex) {
+				log.info("{} - Expected failure confirmed: {}", chartName,
+						ex.getMessage().lines().findFirst().orElse(ex.getMessage()));
+			}
+			catch (Exception ex) {
+				log.info("{} - Expected failure (exception): {}", chartName, ex.getMessage());
+			}
+		}
+		if (!unexpectedPasses.isEmpty()) {
+			fail("Charts that unexpectedly PASSED (remove from failed.csv): " + unexpectedPasses);
+		}
+	}
+
 	private void compareChart(String chartName, String releaseName, String repoId, String repoUrl) throws Exception {
 		// No charts skipped anymore
 
@@ -249,7 +296,7 @@ class KpsComparisonTest {
 			Files.writeString(expectedFile.toPath(), helmManifest);
 
 			// Compare manifests
-			compareManifests(chartName, jhelmManifest, helmManifest);
+			compareManifests(chartName, repoId, repoUrl, jhelmManifest, helmManifest);
 
 		}
 		catch (Exception ex) {
@@ -260,7 +307,8 @@ class KpsComparisonTest {
 				return;
 			}
 			log.error("{} - JHelm rendering failed", chartName, ex);
-			fail(chartName + " - JHelm rendering failed: " + ex.getMessage());
+			fail(chartName + " - JHelm rendering failed: " + ex.getMessage() + "\n  failed.csv: " + chartName + ","
+					+ repoId + "," + repoUrl);
 		}
 	}
 
@@ -300,7 +348,8 @@ class KpsComparisonTest {
 		}
 	}
 
-	private void compareManifests(String chartName, String jhelm, String helm) throws Exception {
+	private void compareManifests(String chartName, String repoId, String repoUrl, String jhelm, String helm)
+			throws Exception {
 		// Parse both manifests into YAML documents
 		List<JsonNode> jhelmDocs = parseYamlDocuments(jhelm);
 		List<JsonNode> helmDocs = parseYamlDocuments(helm);
@@ -376,6 +425,13 @@ class KpsComparisonTest {
 			for (String f : failures) {
 				msg.append("  - ").append(f).append('\n');
 			}
+			msg.append("  failed.csv: ")
+				.append(chartName)
+				.append(',')
+				.append(repoId)
+				.append(',')
+				.append(repoUrl)
+				.append('\n');
 			fail(msg.toString());
 		}
 	}
@@ -714,24 +770,33 @@ class KpsComparisonTest {
 	 * controlled by the {@code jhelmtest.number-of-top-charts} property (default 30).
 	 */
 	Stream<Arguments> topCharts() throws Exception {
-		int limit = testProperties.getNumberOfTopCharts();
-		String url = "https://artifacthub.io/api/v1/packages/search?kind=0&sort=relevance&limit=" + limit;
+		int total = testProperties.getNumberOfTopCharts();
 		JsonMapper mapper = JsonMapper.builder().build();
-		JsonNode result;
-		HttpsURLConnection conn = (HttpsURLConnection) URI.create(url).toURL().openConnection();
-		setupInsecureSsl(conn);
-		try (InputStream in = conn.getInputStream()) {
-			result = mapper.readTree(in);
-		}
-		JsonNode packages = result.has("packages") ? result.get("packages") : result;
-
 		List<Arguments> args = new ArrayList<>();
-		for (JsonNode pkg : packages) {
-			String name = pkg.get("name").asString();
-			JsonNode repo = pkg.get("repository");
-			String repoId = repo.get("name").asString();
-			String repoUrl = repo.get("url").asString();
-			args.add(Arguments.of(repoId + "/" + name, repoId, repoUrl));
+
+		int offset = 0;
+		while (args.size() < total) {
+			int batchSize = Math.min(60, total - args.size());
+			String url = "https://artifacthub.io/api/v1/packages/search?kind=0&sort=relevance&limit=" + batchSize
+					+ "&offset=" + offset;
+			HttpsURLConnection conn = (HttpsURLConnection) URI.create(url).toURL().openConnection();
+			setupInsecureSsl(conn);
+			JsonNode result;
+			try (InputStream in = conn.getInputStream()) {
+				result = mapper.readTree(in);
+			}
+			JsonNode packages = result.has("packages") ? result.get("packages") : result;
+			if (packages.isEmpty()) {
+				break;
+			}
+			for (JsonNode pkg : packages) {
+				String name = pkg.get("name").asString();
+				JsonNode repo = pkg.get("repository");
+				String repoId = repo.get("name").asString();
+				String repoUrl = repo.get("url").asString();
+				args.add(Arguments.of(repoId + "/" + name, repoId, repoUrl));
+			}
+			offset += batchSize;
 		}
 		return args.stream();
 	}
