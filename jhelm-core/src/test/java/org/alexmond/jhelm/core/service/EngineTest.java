@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -1765,6 +1766,78 @@ class EngineTest {
 		String result = engine.render(chart, Map.of(), releaseInfo());
 		assertTrue(result.contains("Creating bucket my-bucket"),
 				".txt template should be included and rendered: " + result);
+	}
+
+	// --- library chart template collision (#235) ---
+
+	@Test
+	void testLibraryChartTemplateCollisionKeepsNewerVersion() {
+		// Two subcharts bundle different versions of the same library chart "common".
+		// Older version defines a simple template; newer version defines a richer one.
+		// The engine should keep the newer version's template.
+		String olderHelpers = """
+				{{- define "common.labels.standard" -}}
+				app: {{ .Chart.Name }}
+				{{- end -}}""";
+		String newerHelpers = """
+				{{- define "common.labels.standard" -}}
+				{{- $customLabels := .customLabels | default dict -}}
+				{{- $context := .context | default . -}}
+				app: {{ $context.Chart.Name }}
+				{{- range $key, $val := $customLabels }}
+				{{ $key }}: {{ $val }}
+				{{- end -}}
+				{{- end -}}""";
+
+		Chart olderCommon = Chart.builder()
+			.metadata(ChartMetadata.builder().name("common").version("2.2.4").type("library").build())
+			.templates(List.of(tmpl("_labels.tpl", olderHelpers)))
+			.values(Map.of())
+			.build();
+		Chart newerCommon = Chart.builder()
+			.metadata(ChartMetadata.builder().name("common").version("2.14.1").type("library").build())
+			.templates(List.of(tmpl("_labels.tpl", newerHelpers)))
+			.values(Map.of())
+			.build();
+
+		// Subchart "redis" bundles older common, "postgresql" bundles newer common
+		Chart redis = Chart.builder()
+			.metadata(ChartMetadata.builder().name("redis").version("1.0.0").build())
+			.templates(List.of(tmpl("svc.yaml", "labels:\n  {{- include \"common.labels.standard\" . | nindent 2 }}")))
+			.values(Map.of())
+			.dependencies(List.of(olderCommon))
+			.build();
+		Chart postgresql = Chart.builder()
+			.metadata(ChartMetadata.builder().name("postgresql").version("1.0.0").build())
+			.templates(List.of(tmpl("svc.yaml",
+					"labels:\n  {{- include \"common.labels.standard\" (dict \"customLabels\" (dict \"tier\" \"db\") \"context\" $) | nindent 2 }}")))
+			.values(Map.of())
+			.dependencies(List.of(newerCommon))
+			.build();
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder().name("superset").version("1.0.0").build())
+			.templates(List.of(tmpl("cm.yaml", "kind: ConfigMap")))
+			.values(Map.of())
+			.dependencies(List.of(redis, postgresql))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		// The newer template supports both calling conventions.
+		// postgresql's call with dict "customLabels"/"context" should work.
+		assertTrue(result.contains("tier: db"),
+				"Newer common template should handle dict-style calling with customLabels: " + result);
+		// redis's simple call should also work (falls through to default)
+		assertTrue(result.contains("app: redis"), "Newer common template should handle simple calling too: " + result);
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "2.14.1, 2.2.4, 1", "2.2.4, 2.14.1, -1", "1.0.0, 1.0.0, 0", "3.0.0, 2.99.99, 1", "1.2.3, 1.2, 1",
+			"1.0, 1.0.0, 0" })
+	void testCompareVersions(String v1, String v2, int expectedSign) {
+		int result = Engine.compareVersions(v1, v2);
+		assertEquals(expectedSign, Integer.signum(result),
+				"compareVersions(\"%s\", \"%s\") expected sign %d but got %d".formatted(v1, v2, expectedSign, result));
 	}
 
 	// --- regexReplaceAll with angle bracket markers (nats chart pattern) ---
