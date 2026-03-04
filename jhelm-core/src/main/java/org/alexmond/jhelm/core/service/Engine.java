@@ -41,6 +41,8 @@ public class Engine {
 
 	private final Map<String, String> namedTemplates = new HashMap<>();
 
+	private final Map<String, String> templateVersions = new HashMap<>();
+
 	private final TemplateCache templateCache;
 
 	private final SchemaValidator schemaValidator;
@@ -123,6 +125,7 @@ public class Engine {
 
 	private String doRender(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
 		namedTemplates.clear();
+		templateVersions.clear();
 		// Create a new template for each render to avoid accumulation
 		this.factory = new GoTemplate();
 
@@ -295,17 +298,74 @@ public class Engine {
 	private void collectAllTemplates(Chart chart, Map<String, String> templates,
 			Map<String, String> templateToChartName, String rootChartName) {
 		String chartName = chart.getMetadata().getName();
+		String chartVersion = chart.getMetadata().getVersion();
 
 		for (Chart.Template t : chart.getTemplates()) {
 			// Use Helm-style path (chartName/templates/fileName) to match the names
 			// that charts use with $.Template.BasePath in include calls
 			String helmStyleKey = chartName + "/templates/" + t.getName();
-			templates.put(helmStyleKey, t.getData());
-			templateToChartName.put(helmStyleKey, chartName);
+			// On collision, keep the template from the higher chart version. Newer
+			// library chart versions are backward-compatible supersets of older ones,
+			// so keeping the newest avoids missing-feature failures.
+			String existingVersion = templateVersions.get(helmStyleKey);
+			if (existingVersion == null || compareVersions(chartVersion, existingVersion) > 0) {
+				templates.put(helmStyleKey, t.getData());
+				templateToChartName.put(helmStyleKey, chartName);
+				templateVersions.put(helmStyleKey, chartVersion);
+			}
 		}
 
 		for (Chart subchart : chart.getDependencies()) {
 			collectAllTemplates(subchart, templates, templateToChartName, rootChartName);
+		}
+	}
+
+	/**
+	 * Compare two version strings by splitting on "." and comparing each segment
+	 * numerically. Returns positive if v1 &gt; v2, negative if v1 &lt; v2, zero if equal.
+	 */
+	static int compareVersions(String v1, String v2) {
+		if (v1 == null && v2 == null) {
+			return 0;
+		}
+		if (v1 == null) {
+			return -1;
+		}
+		if (v2 == null) {
+			return 1;
+		}
+		String[] parts1 = v1.split("\\.");
+		String[] parts2 = v2.split("\\.");
+		int len = Math.max(parts1.length, parts2.length);
+		for (int i = 0; i < len; i++) {
+			int n1 = (i < parts1.length) ? parseSegment(parts1[i]) : 0;
+			int n2 = (i < parts2.length) ? parseSegment(parts2[i]) : 0;
+			if (n1 != n2) {
+				return Integer.compare(n1, n2);
+			}
+		}
+		return 0;
+	}
+
+	private static int parseSegment(String segment) {
+		try {
+			return Integer.parseInt(segment);
+		}
+		catch (NumberFormatException ex) {
+			// Strip non-numeric suffix (e.g. "1-beta") and parse the leading digits
+			StringBuilder digits = new StringBuilder();
+			for (char ch : segment.toCharArray()) {
+				if (Character.isDigit(ch)) {
+					digits.append(ch);
+				}
+				else {
+					break;
+				}
+			}
+			if (digits.length() > 0) {
+				return Integer.parseInt(digits.toString());
+			}
+			return 0;
 		}
 	}
 
