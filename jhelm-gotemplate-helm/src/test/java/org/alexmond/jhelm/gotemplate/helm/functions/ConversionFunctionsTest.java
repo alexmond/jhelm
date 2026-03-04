@@ -215,6 +215,49 @@ class ConversionFunctionsTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
+	void testFromYamlOctalNumber() {
+		// YAML 1.1 bare-octal: 0660 → integer 432
+		Function fromYaml = functions().get("fromYaml");
+		Map<String, Object> result = (Map<String, Object>) fromYaml.invoke(new Object[] { "mode: 0660" });
+		assertEquals(432, ((Number) result.get("mode")).intValue());
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testFromYamlOctalPermissions() {
+		// Common file permission octals
+		Function fromYaml = functions().get("fromYaml");
+		Map<String, Object> result = (Map<String, Object>) fromYaml.invoke(new Object[] { "perms: 0755" });
+		assertEquals(493, ((Number) result.get("perms")).intValue());
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testFromYamlQuotedOctalStaysString() {
+		// Quoted values must remain strings
+		Function fromYaml = functions().get("fromYaml");
+		Map<String, Object> result = (Map<String, Object>) fromYaml.invoke(new Object[] { "mode: \"0660\"" });
+		assertEquals("0660", result.get("mode"));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testFromYamlYaml12Octal() {
+		// YAML 1.2 0o prefix must still work
+		Function fromYaml = functions().get("fromYaml");
+		Map<String, Object> result = (Map<String, Object>) fromYaml.invoke(new Object[] { "mode: 0o660" });
+		assertEquals(432, ((Number) result.get("mode")).intValue());
+	}
+
+	@Test
+	void testToJsonPreservesOctalAsInteger() throws IOException, TemplateException {
+		// fromYaml | toJson pipeline should output the integer, not the string
+		String result = exec("{{ $d := fromYaml \"mode: 0660\" }}{{ toJson $d }}");
+		assertEquals("{\"mode\":432}", result);
+	}
+
+	@Test
 	void testFromYamlBlockScalarAtEof() {
 		// Reproduces #215: include returns YAML ending with block scalar indicator |-
 		// at EOF with no trailing newline, causing Jackson to fail

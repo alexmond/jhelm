@@ -3,8 +3,6 @@
 # If a chart unexpectedly passes, the test will fail — remove the entry.
 #
 # --- Code bugs ---
-# Octal number literals rendered as decimal (0660 -> 432) — #217
-cilium/cilium,cilium,https://helm.cilium.io/
 # serviceAccountName rendering — template expression evaluated incorrectly
 goauthentik/authentik,goauthentik,https://charts.goauthentik.io/
 # String cannot be cast to Number — type coercion in template
