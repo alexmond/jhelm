@@ -10,6 +10,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.alexmond.jhelm.gotemplate.Function;
 
 /**
@@ -18,6 +20,7 @@ import org.alexmond.jhelm.gotemplate.Function;
  *
  * @see <a href="https://masterminds.github.io/sprig/date.html">Sprig Date Functions</a>
  */
+@Slf4j
 public final class DateFunctions {
 
 	private DateFunctions() {
@@ -91,6 +94,7 @@ public final class DateFunctions {
 				return sdf.format(date);
 			}
 			catch (Exception ex) {
+				log.debug("date failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -120,6 +124,7 @@ public final class DateFunctions {
 				return sdf.format(date);
 			}
 			catch (Exception ex) {
+				log.debug("dateInZone failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -183,6 +188,7 @@ public final class DateFunctions {
 				return sdf.parse(dateStr);
 			}
 			catch (ParseException ex) {
+				log.debug("toDate failed: {}", ex.getMessage());
 				return null;
 			}
 		};
@@ -236,6 +242,7 @@ public final class DateFunctions {
 				return new Date(date.getTime() + millisToAdd);
 			}
 			catch (Exception ex) {
+				log.debug("dateModify failed: {}", ex.getMessage());
 				return date;
 			}
 		};
@@ -289,6 +296,7 @@ public final class DateFunctions {
 					seconds = Long.parseLong(String.valueOf(args[0]).trim());
 				}
 				catch (NumberFormatException ex) {
+					log.debug("duration failed: {}", ex.getMessage());
 					return "0s";
 				}
 			}
@@ -322,6 +330,7 @@ public final class DateFunctions {
 				return seconds + "s";
 			}
 			catch (Exception ex) {
+				log.debug("durationRound failed: {}", ex.getMessage());
 				return "0s";
 			}
 		};

@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.alexmond.jhelm.gotemplate.Function;
 
 /**
@@ -15,6 +17,7 @@ import org.alexmond.jhelm.gotemplate.Function;
  *
  * @see <a href="https://masterminds.github.io/sprig/math.html">Sprig Math Functions</a>
  */
+@Slf4j
 public final class MathFunctions {
 
 	private MathFunctions() {
@@ -83,6 +86,7 @@ public final class MathFunctions {
 				return Integer.parseInt(String.valueOf(args[0]));
 			}
 			catch (NumberFormatException ex) {
+				log.debug("toInt failed: {}", ex.getMessage());
 				return 0;
 			}
 		};
@@ -100,6 +104,7 @@ public final class MathFunctions {
 				return Long.parseLong(String.valueOf(args[0]));
 			}
 			catch (NumberFormatException ex) {
+				log.debug("toInt64 failed: {}", ex.getMessage());
 				return 0L;
 			}
 		};
@@ -117,6 +122,7 @@ public final class MathFunctions {
 				return Double.parseDouble(String.valueOf(args[0]));
 			}
 			catch (NumberFormatException ex) {
+				log.debug("toFloat64 failed: {}", ex.getMessage());
 				return 0.0;
 			}
 		};
@@ -135,6 +141,7 @@ public final class MathFunctions {
 				return Integer.parseInt(String.valueOf(args[0]).trim());
 			}
 			catch (NumberFormatException ex) {
+				log.debug("atoi failed: {}", ex.getMessage());
 				return 0;
 			}
 		};
@@ -167,6 +174,7 @@ public final class MathFunctions {
 				return Long.parseLong(s, 8);
 			}
 			catch (NumberFormatException ex) {
+				log.debug("toDecimal failed: {}", ex.getMessage());
 				return 0L;
 			}
 		};

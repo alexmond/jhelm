@@ -11,12 +11,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.alexmond.jhelm.gotemplate.Function;
 
 /**
  * Sprig String manipulation functions Based on: <a href=
  * "https://masterminds.github.io/sprig/strings.html">https://masterminds.github.io/sprig/strings.html</a>
  */
+@Slf4j
 public final class StringFunctions {
 
 	private StringFunctions() {
@@ -497,6 +500,7 @@ public final class StringFunctions {
 						&& Pattern.compile(String.valueOf(args[0])).matcher(String.valueOf(args[1])).find();
 			}
 			catch (Exception ex) {
+				log.debug("regexMatch failed: {}", ex.getMessage());
 				return false;
 			}
 		};
@@ -526,6 +530,7 @@ public final class StringFunctions {
 				return (m.find()) ? m.group() : "";
 			}
 			catch (Exception ex) {
+				log.debug("regexFind failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -569,6 +574,7 @@ public final class StringFunctions {
 				return results;
 			}
 			catch (Exception ex) {
+				log.debug("regexFindAll failed: {}", ex.getMessage());
 				return Collections.emptyList();
 			}
 		};
@@ -621,6 +627,7 @@ public final class StringFunctions {
 				return text.replaceAll(pattern, replacement);
 			}
 			catch (Exception ex) {
+				log.debug("regexReplaceAll failed: {}", ex.getMessage());
 				return String.valueOf(args[1]); // Return original text on error
 			}
 		};
@@ -704,6 +711,7 @@ public final class StringFunctions {
 				return text.replaceAll(pattern, replacement);
 			}
 			catch (Exception ex) {
+				log.debug("regexReplaceAllLiteral failed: {}", ex.getMessage());
 				return String.valueOf(args[2]); // Return original text on error
 			}
 		};
@@ -740,6 +748,7 @@ public final class StringFunctions {
 				return Arrays.asList(parts);
 			}
 			catch (Exception ex) {
+				log.debug("regexSplit failed: {}", ex.getMessage());
 				return Collections.singletonList(String.valueOf(args[1]));
 			}
 		};

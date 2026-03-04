@@ -4,6 +4,8 @@ import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.alexmond.jhelm.gotemplate.Function;
 import org.apache.hc.core5.net.URIBuilder;
 
@@ -14,6 +16,7 @@ import org.apache.hc.core5.net.URIBuilder;
  * @see <a href="https://masterminds.github.io/sprig/network.html">Sprig Network
  * Functions</a>
  */
+@Slf4j
 public final class NetworkFunctions {
 
 	private NetworkFunctions() {
@@ -68,6 +71,7 @@ public final class NetworkFunctions {
 				return result;
 			}
 			catch (Exception ex) {
+				log.debug("urlParse failed: {}", ex.getMessage());
 				return Map.of();
 			}
 		};
@@ -142,6 +146,7 @@ public final class NetworkFunctions {
 				return address.getHostAddress();
 			}
 			catch (Exception ex) {
+				log.debug("getHostByName failed: {}", ex.getMessage());
 				// Return empty string on DNS resolution failure
 				return "";
 			}
