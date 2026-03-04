@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.alexmond.jhelm.gotemplate.Function;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.BasicConstraints;
@@ -41,6 +43,7 @@ import org.apache.commons.codec.binary.Hex;
  * @see <a href="https://masterminds.github.io/sprig/crypto.html">Sprig Crypto
  * Functions</a>
  */
+@Slf4j
 public final class CryptoFunctions {
 
 	private CryptoFunctions() {
@@ -183,6 +186,7 @@ public final class CryptoFunctions {
 				return Hex.encodeHexString(raw).substring(0, 20);
 			}
 			catch (Exception ex) {
+				log.debug("derivePassword failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -202,6 +206,7 @@ public final class CryptoFunctions {
 				return toPemPrivateKey(keyPair, algorithm);
 			}
 			catch (Exception ex) {
+				log.debug("genPrivateKey failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -242,6 +247,7 @@ public final class CryptoFunctions {
 				return result;
 			}
 			catch (Exception ex) {
+				log.debug("genCA failed: {}", ex.getMessage());
 				return Map.of("Cert", "", "Key", "");
 			}
 		};
@@ -268,6 +274,7 @@ public final class CryptoFunctions {
 				return result;
 			}
 			catch (Exception ex) {
+				log.debug("genSelfSignedCert failed: {}", ex.getMessage());
 				return Map.of("Cert", "", "Key", "");
 			}
 		};
@@ -298,6 +305,7 @@ public final class CryptoFunctions {
 				return result;
 			}
 			catch (Exception ex) {
+				log.debug("genSignedCert failed: {}", ex.getMessage());
 				return Map.of("Cert", "", "Key", "");
 			}
 		};
@@ -350,6 +358,7 @@ public final class CryptoFunctions {
 				return Base64.getEncoder().encodeToString(combined);
 			}
 			catch (Exception ex) {
+				log.debug("encryptAES failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -374,6 +383,7 @@ public final class CryptoFunctions {
 				return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
 			}
 			catch (Exception ex) {
+				log.debug("decryptAES failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -402,6 +412,7 @@ public final class CryptoFunctions {
 				return result;
 			}
 			catch (Exception ex) {
+				log.debug("genCAWithKey failed: {}", ex.getMessage());
 				return Map.of("Cert", "", "Key", "");
 			}
 		};
@@ -424,6 +435,7 @@ public final class CryptoFunctions {
 				return result;
 			}
 			catch (Exception ex) {
+				log.debug("genSelfSignedCertWithKey failed: {}", ex.getMessage());
 				return Map.of("Cert", "", "Key", "");
 			}
 		};
@@ -448,6 +460,7 @@ public final class CryptoFunctions {
 				return result;
 			}
 			catch (Exception ex) {
+				log.debug("genSignedCertWithKey failed: {}", ex.getMessage());
 				return Map.of("Cert", "", "Key", "");
 			}
 		};

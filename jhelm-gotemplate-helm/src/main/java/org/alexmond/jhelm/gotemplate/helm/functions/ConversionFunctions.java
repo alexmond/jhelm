@@ -10,6 +10,8 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.alexmond.jhelm.gotemplate.Function;
 import org.snakeyaml.engine.v2.api.ConstructNode;
 import org.snakeyaml.engine.v2.api.Load;
@@ -38,6 +40,7 @@ import tools.jackson.dataformat.yaml.YAMLWriteFeature;
  * mustToYaml, mustToJson, mustFromJson, mustFromYaml Based on: <a href=
  * "https://helm.sh/docs/chart_template_guide/function_list/">https://helm.sh/docs/chart_template_guide/function_list/</a>
  */
+@Slf4j
 public final class ConversionFunctions {
 
 	private ConversionFunctions() {
@@ -189,6 +192,7 @@ public final class ConversionFunctions {
 				return removeUnnecessaryQuotes(yaml.trim());
 			}
 			catch (Exception ex) {
+				log.debug("toYaml failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -234,6 +238,7 @@ public final class ConversionFunctions {
 				return (result instanceof Map<?, ?> map) ? map : Map.of();
 			}
 			catch (Exception ex) {
+				log.debug("fromYaml failed: {}", ex.getMessage());
 				return Map.of();
 			}
 		};
@@ -285,6 +290,7 @@ public final class ConversionFunctions {
 				return (result instanceof List<?> list) ? list : Collections.emptyList();
 			}
 			catch (Exception ex) {
+				log.debug("fromYamlArray failed: {}", ex.getMessage());
 				return Collections.emptyList();
 			}
 		};
@@ -346,6 +352,7 @@ public final class ConversionFunctions {
 				return JSON_MAPPER.get().writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
+				log.debug("toJson failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -382,6 +389,7 @@ public final class ConversionFunctions {
 				return JSON_MAPPER.get().writerWithDefaultPrettyPrinter().writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
+				log.debug("toPrettyJson failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -418,6 +426,7 @@ public final class ConversionFunctions {
 				return RAW_JSON_MAPPER.get().writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
+				log.debug("toRawJson failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -457,6 +466,7 @@ public final class ConversionFunctions {
 				return JSON_MAPPER.get().readValue(json, Map.class);
 			}
 			catch (Exception ex) {
+				log.debug("fromJson failed: {}", ex.getMessage());
 				return Map.of();
 			}
 		};
@@ -503,6 +513,7 @@ public final class ConversionFunctions {
 				return JSON_MAPPER.get().readValue(json, List.class);
 			}
 			catch (Exception ex) {
+				log.debug("fromJsonArray failed: {}", ex.getMessage());
 				return Collections.emptyList();
 			}
 		};
@@ -543,6 +554,7 @@ public final class ConversionFunctions {
 				return TOML_MAPPER.get().writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
+				log.debug("toToml failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -575,6 +587,7 @@ public final class ConversionFunctions {
 				return TOML_MAPPER.get().readValue(toml, Map.class);
 			}
 			catch (Exception ex) {
+				log.debug("fromToml failed: {}", ex.getMessage());
 				return Map.of();
 			}
 		};

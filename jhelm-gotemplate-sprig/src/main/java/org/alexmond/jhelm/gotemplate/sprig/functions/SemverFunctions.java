@@ -7,6 +7,8 @@ import java.util.regex.Pattern;
 
 import org.semver4j.Semver;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.alexmond.jhelm.gotemplate.Function;
 
 /**
@@ -16,6 +18,7 @@ import org.alexmond.jhelm.gotemplate.Function;
  * @see <a href="https://masterminds.github.io/sprig/semver.html">Sprig Semver
  * Functions</a>
  */
+@Slf4j
 public final class SemverFunctions {
 
 	private SemverFunctions() {
@@ -85,6 +88,7 @@ public final class SemverFunctions {
 				return v.satisfies(normalizeConstraint(constraint), true);
 			}
 			catch (Exception ex) {
+				log.debug("semverCompare failed: {}", ex.getMessage());
 				return false;
 			}
 		};

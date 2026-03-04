@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.zip.Adler32;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.alexmond.jhelm.gotemplate.Function;
 import org.apache.commons.codec.binary.Base32;
 import org.apache.commons.codec.binary.Hex;
@@ -19,6 +21,7 @@ import org.apache.commons.codec.binary.Hex;
  * @see <a href="https://masterminds.github.io/sprig/encoding.html">Sprig Encoding
  * Functions</a>
  */
+@Slf4j
 public final class EncodingFunctions {
 
 	private static final Base32 BASE32 = new Base32();
@@ -69,6 +72,7 @@ public final class EncodingFunctions {
 				return new String(decoded, StandardCharsets.UTF_8);
 			}
 			catch (IllegalArgumentException ex) {
+				log.debug("b64dec failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -98,6 +102,7 @@ public final class EncodingFunctions {
 				return new String(decoded, StandardCharsets.UTF_8);
 			}
 			catch (Exception ex) {
+				log.debug("b32dec failed: {}", ex.getMessage());
 				return "";
 			}
 		};
@@ -125,6 +130,7 @@ public final class EncodingFunctions {
 			return Hex.encodeHexString(hash);
 		}
 		catch (Exception ex) {
+			log.debug("hashWith failed: {}", ex.getMessage());
 			return "";
 		}
 	}

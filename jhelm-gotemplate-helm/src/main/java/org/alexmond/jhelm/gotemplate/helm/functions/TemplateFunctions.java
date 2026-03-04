@@ -5,6 +5,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.alexmond.jhelm.gotemplate.Function;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
 
@@ -13,6 +15,7 @@ import org.alexmond.jhelm.gotemplate.GoTemplate;
  * <a href=
  * "https://helm.sh/docs/chart_template_guide/function_list/">https://helm.sh/docs/chart_template_guide/function_list/</a>
  */
+@Slf4j
 public final class TemplateFunctions {
 
 	private TemplateFunctions() {
@@ -52,6 +55,7 @@ public final class TemplateFunctions {
 				return writer.toString();
 			}
 			catch (Exception ex) {
+				log.debug("include failed: {}", ex.getMessage());
 				// Log warning but return empty string for compatibility
 				return "";
 			}
@@ -106,6 +110,7 @@ public final class TemplateFunctions {
 				return writer.toString();
 			}
 			catch (Exception ex) {
+				log.debug("tpl failed: {}", ex.getMessage());
 				// Log warning but return empty string for compatibility
 				return "";
 			}
