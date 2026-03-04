@@ -6,19 +6,12 @@ jhelmtest:
       - resource: "Secret/*"
         path: "data.*"
         reason: "Secret data contains generated passwords/certs that differ between runs"
-      # Checksum annotations for secrets/credentials — hash differs because underlying data has random passwords
+      # Checksum annotations — include renders templates inline and sha256sums
+      # the raw output. Generated secrets, certs, and toYaml serialization diffs
+      # cause hash mismatches even when final documents are functionally identical
       - resource: "*"
-        path: "spec.template.metadata.annotations.checksum/secret*"
-        reason: "Secret templates contain generated passwords that differ between runs"
-      - resource: "*"
-        path: "spec.template.metadata.annotations.checksum/credential*"
-        reason: "Credential secrets contain generated data that differs between runs"
-      - resource: "*"
-        path: "spec.template.metadata.annotations.checksum/jwt*"
-        reason: "JWT secrets are generated per render"
-      - resource: "*"
-        path: "spec.template.metadata.annotations.checksum/clusteragent*"
-        reason: "Cluster agent tokens are generated per render"
+        path: "spec.template.metadata.annotations.checksum/*"
+        reason: "Checksum annotations differ due to generated secrets/certs and toYaml serialization diffs (#237)"
       # Generated TLS certificates (genCA/genSignedCert) differ between runs
       - resource: "ValidatingWebhookConfiguration/*"
         path: "webhooks.*"
@@ -35,10 +28,6 @@ jhelmtest:
       - resource: "Secret/*"
         path: "stringData.*"
         reason: "Subchart value propagation gap — tpl-based connection strings empty (#201)"
-      # toYaml serialization difference in config template checksum
-      - resource: "Deployment/*"
-        path: "spec.template.metadata.annotations.checksum/config"
-        reason: "toYaml serializes gitea config differently from Go yaml.Marshal"
     "[datadog/datadog]":
       # Random UUID generated per render — always different between Helm and JHelm
       - resource: "ConfigMap/*"
