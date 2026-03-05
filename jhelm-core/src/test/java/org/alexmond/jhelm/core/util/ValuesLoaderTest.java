@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.util;
 
+import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -7,13 +8,18 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ValuesLoaderTest {
@@ -152,6 +158,87 @@ class ValuesLoaderTest {
 		assertTrue(result.containsKey("key"), "key should exist");
 		assertNull(result.get("key"), "'" + literal + "' should be parsed as null");
 		assertEquals("value", result.get("other"));
+	}
+
+	// --- isUrl ---
+
+	@Test
+	void testIsUrlDetectsHttp() {
+		assertTrue(ValuesLoader.isUrl("http://example.com/values.yaml"));
+		assertTrue(ValuesLoader.isUrl("https://example.com/values.yaml"));
+		assertTrue(ValuesLoader.isUrl("HTTP://EXAMPLE.COM/values.yaml"));
+		assertTrue(ValuesLoader.isUrl("HTTPS://EXAMPLE.COM/values.yaml"));
+	}
+
+	@Test
+	void testIsUrlRejectsFilePaths() {
+		assertFalse(ValuesLoader.isUrl("/tmp/values.yaml"));
+		assertFalse(ValuesLoader.isUrl("./values.yaml"));
+		assertFalse(ValuesLoader.isUrl("values.yaml"));
+	}
+
+	// --- loadFromUrl ---
+
+	@Test
+	void testLoadFromUrl() throws Exception {
+		String yaml = "replicas: 3\nimage: nginx\n";
+		HttpServer server = startServer(200, yaml);
+		try {
+			int port = server.getAddress().getPort();
+			Map<String, Object> result = ValuesLoader.loadFromUrl("http://localhost:" + port + "/values.yaml");
+			assertEquals(3, result.get("replicas"));
+			assertEquals("nginx", result.get("image"));
+		}
+		finally {
+			server.stop(0);
+		}
+	}
+
+	@Test
+	void testLoadFromUrlNestedValues() throws Exception {
+		String yaml = """
+				db:
+				  host: remotehost
+				  port: 5432
+				""";
+		HttpServer server = startServer(200, yaml);
+		try {
+			int port = server.getAddress().getPort();
+			Map<String, Object> result = ValuesLoader.loadFromUrl("http://localhost:" + port + "/values.yaml");
+			Map<?, ?> db = (Map<?, ?>) result.get("db");
+			assertEquals("remotehost", db.get("host"));
+			assertEquals(5432, db.get("port"));
+		}
+		finally {
+			server.stop(0);
+		}
+	}
+
+	@Test
+	void testLoadFromUrlHttpError() throws Exception {
+		HttpServer server = startServer(404, "not found");
+		try {
+			int port = server.getAddress().getPort();
+			String url = "http://localhost:" + port + "/missing.yaml";
+			IOException ex = assertThrows(IOException.class, () -> ValuesLoader.loadFromUrl(url));
+			assertTrue(ex.getMessage().contains("HTTP 404"));
+		}
+		finally {
+			server.stop(0);
+		}
+	}
+
+	private HttpServer startServer(int statusCode, String body) throws IOException {
+		HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+		server.createContext("/", (exchange) -> {
+			byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+			exchange.sendResponseHeaders(statusCode, bytes.length);
+			try (OutputStream os = exchange.getResponseBody()) {
+				os.write(bytes);
+			}
+		});
+		server.start();
+		return server;
 	}
 
 	private File writeValues(String content) throws IOException {

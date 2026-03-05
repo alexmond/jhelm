@@ -1,9 +1,13 @@
 package org.alexmond.jhelm.core.util;
 
+import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -135,7 +139,76 @@ class ValuesOverridesTest {
 		assertTrue(result.isEmpty());
 	}
 
+	// --- URL value files ---
+
+	@Test
+	void testUrlValueFile() throws Exception {
+		String yaml = "replicas: 5\nimage: redis\n";
+		HttpServer server = startServer(yaml);
+		try {
+			int port = server.getAddress().getPort();
+			String url = "http://localhost:" + port + "/values.yaml";
+			Map<String, Object> result = ValuesOverrides.parse(List.of(url), null);
+			assertEquals(5, result.get("replicas"));
+			assertEquals("redis", result.get("image"));
+		}
+		finally {
+			server.stop(0);
+		}
+	}
+
+	@Test
+	void testMixedLocalAndUrlFiles() throws Exception {
+		Path localFile = writeFile("local.yaml", """
+				replicas: 1
+				image: nginx
+				tag: latest
+				""");
+		String remoteYaml = "replicas: 3\ntag: stable\n";
+		HttpServer server = startServer(remoteYaml);
+		try {
+			int port = server.getAddress().getPort();
+			String url = "http://localhost:" + port + "/override.yaml";
+			Map<String, Object> result = ValuesOverrides.parse(List.of(localFile.toString(), url), null);
+			assertEquals(3, result.get("replicas"));
+			assertEquals("nginx", result.get("image"));
+			assertEquals("stable", result.get("tag"));
+		}
+		finally {
+			server.stop(0);
+		}
+	}
+
+	@Test
+	void testSetOverridesUrlFile() throws Exception {
+		String yaml = "replicas: 5\nimage: nginx\n";
+		HttpServer server = startServer(yaml);
+		try {
+			int port = server.getAddress().getPort();
+			String url = "http://localhost:" + port + "/values.yaml";
+			Map<String, Object> result = ValuesOverrides.parse(List.of(url), List.of("replicas=10"));
+			assertEquals("10", result.get("replicas"));
+			assertEquals("nginx", result.get("image"));
+		}
+		finally {
+			server.stop(0);
+		}
+	}
+
 	// --- helpers ---
+
+	private HttpServer startServer(String body) throws IOException {
+		HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+		server.createContext("/", (exchange) -> {
+			byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+			exchange.sendResponseHeaders(200, bytes.length);
+			try (OutputStream os = exchange.getResponseBody()) {
+				os.write(bytes);
+			}
+		});
+		server.start();
+		return server;
+	}
 
 	private Path writeValues(String content) throws IOException {
 		return writeFile("values.yaml", content);

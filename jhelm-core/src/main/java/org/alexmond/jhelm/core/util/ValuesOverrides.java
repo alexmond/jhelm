@@ -30,7 +30,13 @@ public final class ValuesOverrides {
 		Map<String, Object> merged = new HashMap<>();
 		if (files != null) {
 			for (String path : files) {
-				Map<String, Object> fileValues = ValuesLoader.load(new File(path));
+				Map<String, Object> fileValues;
+				if (ValuesLoader.isUrl(path)) {
+					fileValues = ValuesLoader.loadFromUrl(path);
+				}
+				else {
+					fileValues = ValuesLoader.load(new File(path));
+				}
 				ValuesLoader.deepMerge(merged, fileValues);
 			}
 		}

@@ -13,8 +13,15 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.StringReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -67,6 +74,59 @@ public final class ValuesLoader {
 		Load load = new Load(settings);
 		Map<String, Object> merged = new LinkedHashMap<>();
 		try (Reader reader = new FileReader(valuesFile, StandardCharsets.UTF_8)) {
+			for (Object doc : load.loadAllFromReader(reader)) {
+				if (doc instanceof Map) {
+					deepMerge(merged, (Map<String, Object>) doc);
+				}
+			}
+		}
+		return merged;
+	}
+
+	/**
+	 * Checks whether the given path looks like an HTTP or HTTPS URL.
+	 * @param path the file path or URL string
+	 * @return {@code true} if the path starts with {@code http://} or {@code https://}
+	 */
+	public static boolean isUrl(String path) {
+		String lower = path.toLowerCase(Locale.ROOT);
+		return lower.startsWith("http://") || lower.startsWith("https://");
+	}
+
+	/**
+	 * Downloads YAML content from a URL and parses it as values.
+	 * @param url the HTTP/HTTPS URL to download
+	 * @return merged values map
+	 * @throws IOException if the URL cannot be fetched or parsed
+	 */
+	@SuppressWarnings("unchecked")
+	public static Map<String, Object> loadFromUrl(String url) throws IOException {
+		String body;
+		try (HttpClient client = HttpClient.newBuilder()
+			.connectTimeout(Duration.ofSeconds(30))
+			.followRedirects(HttpClient.Redirect.NORMAL)
+			.build()) {
+			HttpRequest request = HttpRequest.newBuilder()
+				.uri(URI.create(url))
+				.timeout(Duration.ofSeconds(30))
+				.GET()
+				.build();
+			HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+			if (response.statusCode() < 200 || response.statusCode() >= 300) {
+				throw new IOException(
+						"Failed to fetch values from URL: " + url + " (HTTP " + response.statusCode() + ")");
+			}
+			body = response.body();
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new IOException("Interrupted while fetching values from URL: " + url, ex);
+		}
+
+		LoadSettings settings = LoadSettings.builder().setSchema(HELM_SCHEMA).build();
+		Load load = new Load(settings);
+		Map<String, Object> merged = new LinkedHashMap<>();
+		try (Reader reader = new StringReader(body)) {
 			for (Object doc : load.loadAllFromReader(reader)) {
 				if (doc instanceof Map) {
 					deepMerge(merged, (Map<String, Object>) doc);
