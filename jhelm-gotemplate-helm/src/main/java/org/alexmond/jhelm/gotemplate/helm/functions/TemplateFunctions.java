@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.alexmond.jhelm.gotemplate.Function;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
+import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
 
 /**
  * Helm template-specific functions for template inclusion and evaluation Based on:
@@ -69,7 +70,8 @@ public final class TemplateFunctions {
 	private static Function mustInclude(GoTemplate factory) {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustInclude: insufficient arguments (requires template name and context)");
+				throw new FunctionExecutionException(
+						"mustInclude: insufficient arguments (requires template name and context)");
 			}
 			String name = String.valueOf(args[0]);
 			Object data = args[1];
@@ -79,8 +81,8 @@ public final class TemplateFunctions {
 				return writer.toString();
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustInclude: failed to execute template '" + name + "': " + ex.getMessage(),
-						ex);
+				throw new FunctionExecutionException(
+						"mustInclude: failed to execute template '" + name + "': " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -124,7 +126,8 @@ public final class TemplateFunctions {
 	private static Function mustTpl(GoTemplate factory) {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustTpl: insufficient arguments (requires template string and context)");
+				throw new FunctionExecutionException(
+						"mustTpl: insufficient arguments (requires template string and context)");
 			}
 			String text = String.valueOf(args[0]);
 			Object data = args[1];
@@ -142,7 +145,7 @@ public final class TemplateFunctions {
 				return writer.toString();
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustTpl: failed to evaluate template: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustTpl: failed to evaluate template: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -154,7 +157,7 @@ public final class TemplateFunctions {
 	private static Function required() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("required: insufficient arguments");
+				throw new FunctionExecutionException("required: insufficient arguments");
 			}
 			String message = String.valueOf(args[0]);
 			Object value = args[1];
@@ -163,7 +166,7 @@ public final class TemplateFunctions {
 			if (value == null || (value instanceof String && ((String) value).isEmpty()) || (value.equals(false))
 					|| (value instanceof Collection && ((Collection<?>) value).isEmpty())
 					|| (value instanceof Map && ((Map<?, ?>) value).isEmpty())) {
-				throw new RuntimeException(message);
+				throw new FunctionExecutionException(message);
 			}
 
 			return value;

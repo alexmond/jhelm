@@ -13,6 +13,7 @@ import java.util.TimeZone;
 import lombok.extern.slf4j.Slf4j;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
 
 /**
  * Date and time manipulation functions from Sprig library. Includes date formatting,
@@ -202,7 +203,7 @@ public final class DateFunctions {
 	private static Function mustToDate() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustToDate: insufficient arguments");
+				throw new FunctionExecutionException("mustToDate: insufficient arguments");
 			}
 			String layout = String.valueOf(args[0]);
 			String dateStr = String.valueOf(args[1]);
@@ -213,7 +214,7 @@ public final class DateFunctions {
 				return sdf.parse(dateStr);
 			}
 			catch (ParseException ex) {
-				throw new RuntimeException("mustToDate: failed to parse date: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustToDate: failed to parse date: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -251,19 +252,19 @@ public final class DateFunctions {
 	private static Function mustDateModify() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustDateModify: insufficient arguments");
+				throw new FunctionExecutionException("mustDateModify: insufficient arguments");
 			}
 			String modification = String.valueOf(args[0]);
 			Date date = convertToDate(args[1]);
 			if (date == null) {
-				throw new RuntimeException("mustDateModify: invalid date");
+				throw new FunctionExecutionException("mustDateModify: invalid date");
 			}
 			try {
 				long millisToAdd = parseDurationToMillis(modification);
 				return new Date(date.getTime() + millisToAdd);
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustDateModify: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustDateModify: " + ex.getMessage(), ex);
 			}
 		};
 	}

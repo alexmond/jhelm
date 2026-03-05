@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
 
 /**
  * Sprig List/Slice manipulation functions. Based on:
@@ -107,7 +108,7 @@ public final class ListFunctions {
 		return (args) -> {
 			Object result = first().invoke(args);
 			if (result == null) {
-				throw new RuntimeException("mustFirst: list is empty");
+				throw new FunctionExecutionException("mustFirst: list is empty");
 			}
 			return result;
 		};
@@ -135,7 +136,7 @@ public final class ListFunctions {
 		return (args) -> {
 			Object result = rest().invoke(args);
 			if (result == null) {
-				throw new RuntimeException("mustRest: operation failed");
+				throw new FunctionExecutionException("mustRest: operation failed");
 			}
 			return result;
 		};
@@ -167,7 +168,7 @@ public final class ListFunctions {
 		return (args) -> {
 			Object result = last().invoke(args);
 			if (result == null) {
-				throw new RuntimeException("mustLast: list is empty");
+				throw new FunctionExecutionException("mustLast: list is empty");
 			}
 			return result;
 		};
@@ -195,7 +196,7 @@ public final class ListFunctions {
 		return (args) -> {
 			Object result = initial().invoke(args);
 			if (result == null) {
-				throw new RuntimeException("mustInitial: operation failed");
+				throw new FunctionExecutionException("mustInitial: operation failed");
 			}
 			return result;
 		};
@@ -215,7 +216,7 @@ public final class ListFunctions {
 	private static Function mustAppend() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustAppend: insufficient arguments");
+				throw new FunctionExecutionException("mustAppend: insufficient arguments");
 			}
 			return append().invoke(args);
 		};
@@ -235,7 +236,7 @@ public final class ListFunctions {
 	private static Function mustPrepend() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustPrepend: insufficient arguments");
+				throw new FunctionExecutionException("mustPrepend: insufficient arguments");
 			}
 			return prepend().invoke(args);
 		};
@@ -288,7 +289,7 @@ public final class ListFunctions {
 	private static Function mustReverse() {
 		return (args) -> {
 			if (args.length == 0) {
-				throw new RuntimeException("mustReverse: no arguments provided");
+				throw new FunctionExecutionException("mustReverse: no arguments provided");
 			}
 			return reverse().invoke(args);
 		};
@@ -318,7 +319,7 @@ public final class ListFunctions {
 	private static Function mustUniq() {
 		return (args) -> {
 			if (args.length == 0) {
-				throw new RuntimeException("mustUniq: no arguments provided");
+				throw new FunctionExecutionException("mustUniq: no arguments provided");
 			}
 			return uniq().invoke(args);
 		};
@@ -340,7 +341,7 @@ public final class ListFunctions {
 	private static Function mustWithout() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustWithout: insufficient arguments");
+				throw new FunctionExecutionException("mustWithout: insufficient arguments");
 			}
 			return without().invoke(args);
 		};
@@ -363,11 +364,11 @@ public final class ListFunctions {
 	private static Function mustHas() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustHas: insufficient arguments");
+				throw new FunctionExecutionException("mustHas: insufficient arguments");
 			}
 			boolean result = (boolean) has().invoke(args);
 			if (!result) {
-				throw new RuntimeException("mustHas: element not found");
+				throw new FunctionExecutionException("mustHas: element not found");
 			}
 			return result;
 		};
@@ -395,7 +396,7 @@ public final class ListFunctions {
 	private static Function mustSlice() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustSlice: insufficient arguments");
+				throw new FunctionExecutionException("mustSlice: insufficient arguments");
 			}
 			return slice().invoke(args);
 		};
@@ -492,7 +493,7 @@ public final class ListFunctions {
 	private static Function mustCompact() {
 		return (args) -> {
 			if (args.length == 0) {
-				throw new RuntimeException("mustCompact: no arguments provided");
+				throw new FunctionExecutionException("mustCompact: no arguments provided");
 			}
 			return compact().invoke(args);
 		};
@@ -597,7 +598,7 @@ public final class ListFunctions {
 	private static Function mustChunk() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustChunk: insufficient arguments");
+				throw new FunctionExecutionException("mustChunk: insufficient arguments");
 			}
 			return chunk().invoke(args);
 		};

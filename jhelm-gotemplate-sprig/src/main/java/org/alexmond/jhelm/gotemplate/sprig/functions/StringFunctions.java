@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
 
 /**
  * Sprig String manipulation functions Based on: <a href=
@@ -509,13 +510,13 @@ public final class StringFunctions {
 	private static Function mustRegexMatch() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustRegexMatch: insufficient arguments");
+				throw new FunctionExecutionException("mustRegexMatch: insufficient arguments");
 			}
 			try {
 				return Pattern.compile(String.valueOf(args[0])).matcher(String.valueOf(args[1])).find();
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustRegexMatch: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustRegexMatch: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -539,17 +540,17 @@ public final class StringFunctions {
 	private static Function mustRegexFind() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustRegexFind: insufficient arguments");
+				throw new FunctionExecutionException("mustRegexFind: insufficient arguments");
 			}
 			try {
 				Matcher m = Pattern.compile(String.valueOf(args[0])).matcher(String.valueOf(args[1]));
 				if (!m.find()) {
-					throw new RuntimeException("mustRegexFind: no match found");
+					throw new FunctionExecutionException("mustRegexFind: no match found");
 				}
 				return m.group();
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustRegexFind: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustRegexFind: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -583,7 +584,7 @@ public final class StringFunctions {
 	private static Function mustRegexFindAll() {
 		return (args) -> {
 			if (args.length < 3) {
-				throw new RuntimeException("mustRegexFindAll: insufficient arguments");
+				throw new FunctionExecutionException("mustRegexFindAll: insufficient arguments");
 			}
 			try {
 				String regex = String.valueOf(args[0]);
@@ -598,7 +599,7 @@ public final class StringFunctions {
 				return results;
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustRegexFindAll: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustRegexFindAll: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -636,7 +637,7 @@ public final class StringFunctions {
 	private static Function mustRegexReplaceAll() {
 		return (args) -> {
 			if (args.length < 3) {
-				throw new RuntimeException("mustRegexReplaceAll: insufficient arguments");
+				throw new FunctionExecutionException("mustRegexReplaceAll: insufficient arguments");
 			}
 			try {
 				// Sprig signature: mustRegexReplaceAll pattern text replacement
@@ -646,7 +647,7 @@ public final class StringFunctions {
 				return text.replaceAll(pattern, replacement);
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustRegexReplaceAll: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustRegexReplaceAll: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -720,7 +721,7 @@ public final class StringFunctions {
 	private static Function mustRegexReplaceAllLiteral() {
 		return (args) -> {
 			if (args.length < 3) {
-				throw new RuntimeException("mustRegexReplaceAllLiteral: insufficient arguments");
+				throw new FunctionExecutionException("mustRegexReplaceAllLiteral: insufficient arguments");
 			}
 			try {
 				// Sprig signature: mustRegexReplaceAllLiteral pattern replacement text
@@ -730,7 +731,7 @@ public final class StringFunctions {
 				return text.replaceAll(pattern, replacement);
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustRegexReplaceAllLiteral: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustRegexReplaceAllLiteral: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -757,7 +758,7 @@ public final class StringFunctions {
 	private static Function mustRegexSplit() {
 		return (args) -> {
 			if (args.length < 3) {
-				throw new RuntimeException("mustRegexSplit: insufficient arguments");
+				throw new FunctionExecutionException("mustRegexSplit: insufficient arguments");
 			}
 			try {
 				String regex = String.valueOf(args[0]);
@@ -767,7 +768,7 @@ public final class StringFunctions {
 				return Arrays.asList(parts);
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustRegexSplit: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustRegexSplit: " + ex.getMessage(), ex);
 			}
 		};
 	}
