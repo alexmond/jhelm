@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
 
 /**
  * Sprig logic and control flow functions Based on: <a href=
@@ -66,7 +67,7 @@ public final class LogicFunctions {
 
 	private static Function fail() {
 		return (args) -> {
-			throw new RuntimeException((args.length > 0) ? String.valueOf(args[0]) : "fail");
+			throw new FunctionExecutionException((args.length > 0) ? String.valueOf(args[0]) : "fail");
 		};
 	}
 

@@ -281,7 +281,7 @@ public final class Functions {
 				return null;
 			}
 			if (!(args[0] instanceof Function fn)) {
-				throw new RuntimeException("call: first argument must be a function");
+				throw new FunctionExecutionException("call: first argument must be a function");
 			}
 			Object[] fnArgs = new Object[args.length - 1];
 			System.arraycopy(args, 1, fnArgs, 0, args.length - 1);

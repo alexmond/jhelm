@@ -34,6 +34,7 @@ import tools.jackson.databind.ser.std.StdSerializer;
 import tools.jackson.dataformat.toml.TomlMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.dataformat.yaml.YAMLWriteFeature;
+import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
 
 /**
  * Helm conversion functions for YAML/JSON operations Includes Helm 4 new functions:
@@ -204,7 +205,7 @@ public final class ConversionFunctions {
 	private static Function mustToYaml() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				throw new RuntimeException("mustToYaml: no value provided");
+				throw new FunctionExecutionException("mustToYaml: no value provided");
 			}
 			try {
 				String yaml = YAML_MAPPER.get().writeValueAsString(args[0]);
@@ -215,7 +216,7 @@ public final class ConversionFunctions {
 				return removeUnnecessaryQuotes(yaml.trim());
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustToYaml: failed to convert to YAML: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustToYaml: failed to convert to YAML: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -250,24 +251,24 @@ public final class ConversionFunctions {
 	private static Function mustFromYaml() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				throw new RuntimeException("mustFromYaml: no YAML string provided");
+				throw new FunctionExecutionException("mustFromYaml: no YAML string provided");
 			}
 			try {
 				String yaml = String.valueOf(args[0]);
 				if (yaml.isBlank()) {
-					throw new RuntimeException("mustFromYaml: empty YAML string");
+					throw new FunctionExecutionException("mustFromYaml: empty YAML string");
 				}
 				Object result = loadFirstYamlDocument(yaml);
 				if (result instanceof Map<?, ?>) {
 					return result;
 				}
-				throw new RuntimeException("mustFromYaml: expected map but got " + result);
+				throw new FunctionExecutionException("mustFromYaml: expected map but got " + result);
 			}
 			catch (RuntimeException ex) {
 				throw ex;
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustFromYaml: failed to parse YAML: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustFromYaml: failed to parse YAML: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -301,24 +302,25 @@ public final class ConversionFunctions {
 	private static Function mustFromYamlArray() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				throw new RuntimeException("mustFromYamlArray: no YAML string provided");
+				throw new FunctionExecutionException("mustFromYamlArray: no YAML string provided");
 			}
 			try {
 				String yaml = String.valueOf(args[0]);
 				if (yaml.isBlank()) {
-					throw new RuntimeException("mustFromYamlArray: empty YAML string");
+					throw new FunctionExecutionException("mustFromYamlArray: empty YAML string");
 				}
 				Object result = loadFirstYamlDocument(yaml);
 				if (result instanceof List<?>) {
 					return result;
 				}
-				throw new RuntimeException("mustFromYamlArray: expected list but got " + result);
+				throw new FunctionExecutionException("mustFromYamlArray: expected list but got " + result);
 			}
 			catch (RuntimeException ex) {
 				throw ex;
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustFromYamlArray: failed to parse YAML array: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException(
+						"mustFromYamlArray: failed to parse YAML array: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -364,13 +366,13 @@ public final class ConversionFunctions {
 	private static Function mustToJson() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				throw new RuntimeException("mustToJson: no value provided");
+				throw new FunctionExecutionException("mustToJson: no value provided");
 			}
 			try {
 				return JSON_MAPPER.get().writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustToJson: failed to convert to JSON: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustToJson: failed to convert to JSON: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -401,13 +403,14 @@ public final class ConversionFunctions {
 	private static Function mustToPrettyJson() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				throw new RuntimeException("mustToPrettyJson: no value provided");
+				throw new FunctionExecutionException("mustToPrettyJson: no value provided");
 			}
 			try {
 				return JSON_MAPPER.get().writerWithDefaultPrettyPrinter().writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustToPrettyJson: failed to convert to JSON: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustToPrettyJson: failed to convert to JSON: " + ex.getMessage(),
+						ex);
 			}
 		};
 	}
@@ -438,13 +441,14 @@ public final class ConversionFunctions {
 	private static Function mustToRawJson() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				throw new RuntimeException("mustToRawJson: no value provided");
+				throw new FunctionExecutionException("mustToRawJson: no value provided");
 			}
 			try {
 				return RAW_JSON_MAPPER.get().writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustToRawJson: failed to convert to JSON: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustToRawJson: failed to convert to JSON: " + ex.getMessage(),
+						ex);
 			}
 		};
 	}
@@ -478,20 +482,20 @@ public final class ConversionFunctions {
 	private static Function mustFromJson() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				throw new RuntimeException("mustFromJson: no JSON string provided");
+				throw new FunctionExecutionException("mustFromJson: no JSON string provided");
 			}
 			try {
 				String json = String.valueOf(args[0]);
 				if (json.isBlank()) {
-					throw new RuntimeException("mustFromJson: empty JSON string");
+					throw new FunctionExecutionException("mustFromJson: empty JSON string");
 				}
 				if ("null".equals(json)) {
-					throw new RuntimeException("mustFromJson: cannot parse null");
+					throw new FunctionExecutionException("mustFromJson: cannot parse null");
 				}
 				return JSON_MAPPER.get().readValue(json, Map.class);
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustFromJson: failed to parse JSON: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustFromJson: failed to parse JSON: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -524,20 +528,21 @@ public final class ConversionFunctions {
 	private static Function mustFromJsonArray() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				throw new RuntimeException("mustFromJsonArray: no JSON string provided");
+				throw new FunctionExecutionException("mustFromJsonArray: no JSON string provided");
 			}
 			try {
 				String json = String.valueOf(args[0]);
 				if (json.isBlank()) {
-					throw new RuntimeException("mustFromJsonArray: empty JSON string");
+					throw new FunctionExecutionException("mustFromJsonArray: empty JSON string");
 				}
 				if ("null".equals(json)) {
-					throw new RuntimeException("mustFromJsonArray: cannot parse null");
+					throw new FunctionExecutionException("mustFromJsonArray: cannot parse null");
 				}
 				return JSON_MAPPER.get().readValue(json, List.class);
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustFromJsonArray: failed to parse JSON array: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException(
+						"mustFromJsonArray: failed to parse JSON array: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -562,13 +567,13 @@ public final class ConversionFunctions {
 	private static Function mustToToml() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				throw new RuntimeException("mustToToml: no value provided");
+				throw new FunctionExecutionException("mustToToml: no value provided");
 			}
 			try {
 				return TOML_MAPPER.get().writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustToToml: failed to convert to TOML: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustToToml: failed to convert to TOML: " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -595,17 +600,17 @@ public final class ConversionFunctions {
 	private static Function mustFromToml() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				throw new RuntimeException("mustFromToml: no TOML string provided");
+				throw new FunctionExecutionException("mustFromToml: no TOML string provided");
 			}
 			try {
 				String toml = String.valueOf(args[0]);
 				if (toml.isBlank()) {
-					throw new RuntimeException("mustFromToml: empty TOML string");
+					throw new FunctionExecutionException("mustFromToml: empty TOML string");
 				}
 				return TOML_MAPPER.get().readValue(toml, Map.class);
 			}
 			catch (Exception ex) {
-				throw new RuntimeException("mustFromToml: failed to parse TOML: " + ex.getMessage(), ex);
+				throw new FunctionExecutionException("mustFromToml: failed to parse TOML: " + ex.getMessage(), ex);
 			}
 		};
 	}

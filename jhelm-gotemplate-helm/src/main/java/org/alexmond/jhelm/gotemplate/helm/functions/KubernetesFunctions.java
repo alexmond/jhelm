@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
 
 /**
  * Helm Kubernetes-specific functions Based on: <a href=
@@ -63,7 +64,7 @@ public final class KubernetesFunctions {
 			}
 
 			if (args.length < 4) {
-				throw new RuntimeException("lookup requires 4 arguments: apiVersion, kind, namespace, name");
+				throw new FunctionExecutionException("lookup requires 4 arguments: apiVersion, kind, namespace, name");
 			}
 
 			String apiVersion = String.valueOf(args[0]);

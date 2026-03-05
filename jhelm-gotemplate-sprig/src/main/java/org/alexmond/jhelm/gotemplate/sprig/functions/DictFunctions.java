@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
 
 /**
  * Sprig Dict (map) manipulation functions. Based on:
@@ -116,11 +117,11 @@ public final class DictFunctions {
 	private static Function mustHasKey() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustHasKey: insufficient arguments");
+				throw new FunctionExecutionException("mustHasKey: insufficient arguments");
 			}
 			boolean result = (boolean) hasKey().invoke(args);
 			if (!result) {
-				throw new RuntimeException("mustHasKey: key not found");
+				throw new FunctionExecutionException("mustHasKey: key not found");
 			}
 			return result;
 		};
@@ -250,7 +251,7 @@ public final class DictFunctions {
 	private static Function mustMerge() {
 		return (args) -> {
 			if (args.length == 0) {
-				throw new RuntimeException("mustMerge: no arguments provided");
+				throw new FunctionExecutionException("mustMerge: no arguments provided");
 			}
 			return merge().invoke(args);
 		};
@@ -259,7 +260,7 @@ public final class DictFunctions {
 	private static Function mustMergeOverwrite() {
 		return (args) -> {
 			if (args.length == 0) {
-				throw new RuntimeException("mustMergeOverwrite: no arguments provided");
+				throw new FunctionExecutionException("mustMergeOverwrite: no arguments provided");
 			}
 			return mergeOverwrite().invoke(args);
 		};
@@ -273,7 +274,7 @@ public final class DictFunctions {
 	private static Function mustKeys() {
 		return (args) -> {
 			if (args.length == 0 || !(args[0] instanceof Map)) {
-				throw new RuntimeException("mustKeys: argument is not a map");
+				throw new FunctionExecutionException("mustKeys: argument is not a map");
 			}
 			return new ArrayList<>(((Map<?, ?>) args[0]).keySet());
 		};
@@ -300,7 +301,7 @@ public final class DictFunctions {
 	private static Function mustPick() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustPick: insufficient arguments");
+				throw new FunctionExecutionException("mustPick: insufficient arguments");
 			}
 			return pick().invoke(args);
 		};
@@ -323,7 +324,7 @@ public final class DictFunctions {
 	private static Function mustOmit() {
 		return (args) -> {
 			if (args.length < 2) {
-				throw new RuntimeException("mustOmit: insufficient arguments");
+				throw new FunctionExecutionException("mustOmit: insufficient arguments");
 			}
 			return omit().invoke(args);
 		};
@@ -337,7 +338,7 @@ public final class DictFunctions {
 	private static Function mustValues() {
 		return (args) -> {
 			if (args.length == 0 || !(args[0] instanceof Map)) {
-				throw new RuntimeException("mustValues: argument is not a map");
+				throw new FunctionExecutionException("mustValues: argument is not a map");
 			}
 			return new ArrayList<>(((Map<?, ?>) args[0]).values());
 		};
@@ -378,7 +379,7 @@ public final class DictFunctions {
 	private static Function mustDeepCopy() {
 		return (args) -> {
 			if (args.length == 0) {
-				throw new RuntimeException("mustDeepCopy: no arguments provided");
+				throw new FunctionExecutionException("mustDeepCopy: no arguments provided");
 			}
 			return deepCopy().invoke(args);
 		};
