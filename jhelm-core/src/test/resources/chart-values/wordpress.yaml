@@ -1,0 +1,3 @@
+# Minimal values for bitnami/wordpress comparison test.
+# WordPress requires a password; without it Helm template fails.
+wordpressPassword: "test-password-123"
