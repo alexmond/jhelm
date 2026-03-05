@@ -2,6 +2,7 @@
 * xref:getting-started.adoc[Getting Started]
 * xref:architecture.adoc[Architecture]
 * xref:spring-boot-starter.adoc[Spring Boot Starter]
+* xref:rest-api.adoc[REST API]
 * xref:cli-reference.adoc[CLI Reference]
 * xref:configuration.adoc[Configuration]
 * xref:core-engine.adoc[Core Engine]
