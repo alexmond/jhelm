@@ -14,6 +14,7 @@ import java.util.Optional;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.util.ValuesLoader;
 
 @RequiredArgsConstructor
 public class GetAction {
@@ -33,7 +34,7 @@ public class GetAction {
 		if (all && release.getChart() != null && release.getChart().getValues() != null) {
 			Map<String, Object> merged = new LinkedHashMap<>(release.getChart().getValues());
 			if (release.getConfig() != null && release.getConfig().getValues() != null) {
-				merged.putAll(release.getConfig().getValues());
+				ValuesLoader.deepMerge(merged, release.getConfig().getValues());
 			}
 			return toYaml(merged);
 		}

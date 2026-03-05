@@ -14,6 +14,7 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.SchemaValidator;
+import org.alexmond.jhelm.core.util.ValuesLoader;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -79,7 +80,7 @@ public class LintAction {
 		}
 		Map<String, Object> values = new HashMap<>(chart.getValues());
 		if (overrideValues != null) {
-			values.putAll(overrideValues);
+			ValuesLoader.deepMerge(values, overrideValues);
 		}
 		try {
 			schemaValidator.validate(chart.getMetadata().getName(), chart.getValuesSchema(), values);
@@ -97,7 +98,7 @@ public class LintAction {
 		}
 		Map<String, Object> values = new HashMap<>(chart.getValues());
 		if (overrideValues != null) {
-			values.putAll(overrideValues);
+			ValuesLoader.deepMerge(values, overrideValues);
 		}
 
 		Map<String, Object> releaseData = new HashMap<>();
