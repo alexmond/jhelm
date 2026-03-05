@@ -10,4 +10,8 @@ public class TemplateParseException extends TemplateException {
 		super(message, cause);
 	}
 
+	public TemplateParseException(String message, int line, int column) {
+		super(message, line, column);
+	}
+
 }
