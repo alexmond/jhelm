@@ -3,6 +3,7 @@ package org.alexmond.jhelm.rest;
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
 import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.GetAction;
+import org.alexmond.jhelm.core.action.SearchHubAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.LintAction;
@@ -17,9 +18,14 @@ import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.DependencyResolver;
+import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.alexmond.jhelm.rest.controller.ChartController;
+import org.alexmond.jhelm.rest.controller.DependencyController;
+import org.alexmond.jhelm.rest.controller.HubController;
 import org.alexmond.jhelm.rest.controller.ReleaseController;
+import org.alexmond.jhelm.rest.controller.RepoController;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -60,6 +66,34 @@ public class JhelmRestAutoConfiguration {
 	public ChartController chartController(TemplateAction templateAction, LintAction lintAction,
 			CreateAction createAction, PackageAction packageAction, VerifyAction verifyAction, ShowAction showAction) {
 		return new ChartController(templateAction, lintAction, createAction, packageAction, verifyAction, showAction);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnBean(RepoManager.class)
+	public RepoController repoController(RepoManager repoManager) {
+		return new RepoController(repoManager);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnBean(SearchHubAction.class)
+	public HubController hubController(SearchHubAction searchHubAction) {
+		return new HubController(searchHubAction);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnBean(RepoManager.class)
+	public DependencyResolver dependencyResolver(RepoManager repoManager) {
+		return new DependencyResolver(repoManager);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnBean(DependencyResolver.class)
+	public DependencyController dependencyController(DependencyResolver dependencyResolver, ChartLoader chartLoader) {
+		return new DependencyController(dependencyResolver, chartLoader);
 	}
 
 }
