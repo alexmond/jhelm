@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -392,6 +393,23 @@ class ConversionFunctionsTest {
 		Object result = fn.invoke(new Object[] { "[1,2,3]" });
 		assertInstanceOf(List.class, result);
 		assertEquals(3, ((List<?>) result).size());
+	}
+
+	@Test
+	void testToYamlPreservesInsertionOrder() {
+		// Go's yaml.Marshal preserves map insertion order, NOT alphabetical
+		Function toYaml = functions().get("toYaml");
+		Map<String, Object> data = new LinkedHashMap<>();
+		data.put("zebra", "last");
+		data.put("alpha", "first");
+		data.put("middle", "mid");
+		String result = (String) toYaml.invoke(new Object[] { data });
+		// Keys must appear in insertion order: zebra, alpha, middle
+		int zebraPos = result.indexOf("zebra");
+		int alphaPos = result.indexOf("alpha");
+		int middlePos = result.indexOf("middle");
+		assertTrue(zebraPos < alphaPos, "zebra should come before alpha (insertion order): " + result);
+		assertTrue(alphaPos < middlePos, "alpha should come before middle (insertion order): " + result);
 	}
 
 	// --- toYaml with regex values (backslash handling) ---

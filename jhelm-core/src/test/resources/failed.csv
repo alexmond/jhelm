@@ -5,9 +5,3 @@
 # --- Code bugs ---
 # Subchart label propagation — labels null instead of expected values
 superset/superset,superset,http://apache.github.io/superset/
-# --- toYaml serialization diffs (configmap checksums) ---
-# toYaml produces different output than Go yaml.Marshal
-harbor/harbor,harbor,https://helm.goharbor.io
-cloudnative-pg/cloudnative-pg,cloudnative-pg,https://cloudnative-pg.io/charts/
-falcosecurity/falco,falcosecurity,https://falcosecurity.github.io/charts
-dandydev-charts/redis-ha,dandydev-charts,https://dandydeveloper.github.io/charts/
