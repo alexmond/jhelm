@@ -69,6 +69,7 @@
         <module>jhelm-gotemplate-helm</module>
         <module>jhelm-core</module>
         <module>jhelm-kube</module>
+        <module>jhelm-rest</module>
         <module>jhelm-plugin</module>
         <module>jhelm-app</module>
         <module>jhelm-sample</module>
@@ -106,6 +107,11 @@
             <dependency>
                 <groupId>org.alexmond</groupId>
                 <artifactId>jhelm-kube</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.alexmond</groupId>
+                <artifactId>jhelm-rest</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
