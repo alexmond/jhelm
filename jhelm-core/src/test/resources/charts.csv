@@ -9,7 +9,6 @@ bitnami/mariadb,bitnami,https://charts.bitnami.com/bitnami
 bitnami/apache,bitnami,https://charts.bitnami.com/bitnami
 bitnami/jenkins,bitnami,https://charts.bitnami.com/bitnami
 bitnami/kafka,bitnami,https://charts.bitnami.com/bitnami
-bitnami/rabbitmq,bitnami,https://charts.bitnami.com/bitnami
 bitnami/elasticsearch,bitnami,https://charts.bitnami.com/bitnami
 bitnami/drupal,bitnami,https://charts.bitnami.com/bitnami
 bitnami/wordpress,bitnami,https://charts.bitnami.com/bitnami
