@@ -47,10 +47,10 @@ public class Parser {
 		// Can not have ELSE and END node as the last in root list node
 		Node lastNode = listNode.getLast();
 		if (lastNode instanceof ElseNode) {
-			throwUnexpectError("unexpected " + listNode);
+			throwUnexpectError("unexpected " + listNode, state);
 		}
 		if (lastNode instanceof EndNode) {
-			throwUnexpectError("unexpected " + listNode);
+			throwUnexpectError("unexpected " + listNode, state);
 		}
 
 		ListNode root = (ListNode) state.nodes.get(name);
@@ -89,7 +89,7 @@ public class Parser {
 				case LEFT_DELIM:
 					token = moveToNextNonSpaceToken(lexer, state);
 					if (token == null) {
-						throwUnexpectError("unclosed delimiter: " + lexer.getLeftDelimiter());
+						throwUnexpectError("unclosed delimiter: " + lexer.getLeftDelimiter(), state);
 					}
 
 					if (token.type() == TokenType.DEFINE) {
@@ -113,7 +113,7 @@ public class Parser {
 
 					break;
 				default:
-					throwUnexpectError(String.format("unexpected %s in input", token));
+					throwUnexpectError(String.format("unexpected %s in input", token), state);
 			}
 		}
 	}
@@ -121,7 +121,7 @@ public class Parser {
 	private void parseAction(ListNode listNode, Lexer lexer, State state) throws TemplateParseException {
 		Token token = moveToNextNonSpaceToken(lexer, state);
 		if (token == null) {
-			throwUnexpectError("missing action token");
+			throwUnexpectError("missing action token", state);
 		}
 
 		switch (token.type()) {
@@ -176,11 +176,12 @@ public class Parser {
 
 		Token token = moveToNextNonSpaceToken(lexer, state);
 		if (token == null) {
-			throwUnexpectError("missing token");
+			throwUnexpectError("missing token", state);
 		}
 
 		if (token.type() != TokenType.STRING && token.type() != TokenType.RAW_STRING) {
-			throw new TemplateParseException(String.format("unexpected '%s' in %s", token.value(), context));
+			throw new TemplateParseException(String.format("unexpected '%s' in %s", token.value(), context),
+					token.line(), token.column());
 		}
 
 		String blockTemplateName = StringUtils.unquote(token.value());
@@ -196,7 +197,7 @@ public class Parser {
 
 		Node lastNode = blockListNode.getLast();
 		if (lastNode instanceof ElseNode) {
-			throwUnexpectError(String.format("unexpected '%s' in block clause", lastNode));
+			throwUnexpectError(String.format("unexpected '%s' in block clause", lastNode), state);
 		}
 		if (lastNode instanceof EndNode) {
 			blockListNode.removeLast();
@@ -212,22 +213,24 @@ public class Parser {
 
 		Token token = moveToNextNonSpaceToken(lexer, state);
 		if (token == null) {
-			throwUnexpectError("missing token");
+			throwUnexpectError("missing token", state);
 		}
 
 		if (token.type() != TokenType.STRING && token.type() != TokenType.RAW_STRING) {
-			throw new TemplateParseException(String.format("unexpected '%s' in %s", token.value(), context));
+			throw new TemplateParseException(String.format("unexpected '%s' in %s", token.value(), context),
+					token.line(), token.column());
 		}
 
 		String definitionTemplateName = StringUtils.unquote(token.value());
 
 		token = moveToNextNonSpaceToken(lexer, state);
 		if (token == null) {
-			throwUnexpectError("missing token");
+			throwUnexpectError("missing token", state);
 		}
 
 		if (token.type() != TokenType.RIGHT_DELIM) {
-			throw new TemplateParseException(String.format("unexpected '%s' in %s", token.value(), context));
+			throw new TemplateParseException(String.format("unexpected '%s' in %s", token.value(), context),
+					token.line(), token.column());
 		}
 
 		ListNode definitionListNode = new ListNode();
@@ -238,7 +241,7 @@ public class Parser {
 			definitionListNode.removeLast();
 		}
 		else {
-			throwUnexpectError(String.format("unexpected '%s' in %s", lastNode, context));
+			throwUnexpectError(String.format("unexpected '%s' in %s", lastNode, context), state);
 			return;
 		}
 
@@ -248,7 +251,7 @@ public class Parser {
 	private void parseElse(ListNode listNode, Lexer lexer, State state) throws TemplateParseException {
 		Token token = moveToNextNonSpaceToken(lexer, state);
 		if (token == null) {
-			throwUnexpectError("missing token");
+			throwUnexpectError("missing token", state);
 		}
 
 		switch (token.type()) {
@@ -260,18 +263,18 @@ public class Parser {
 				listNode.append(new ElseNode());
 				break;
 			default:
-				throwUnexpectError(String.format("unexpected %s in end", token));
+				throwUnexpectError(String.format("unexpected %s in end", token), state);
 		}
 	}
 
 	private void parseBreak(ListNode listNode, Lexer lexer, State state) throws TemplateParseException {
 		Token token = moveToNextNonSpaceToken(lexer, state);
 		if (token == null) {
-			throwUnexpectError("missing token");
+			throwUnexpectError("missing token", state);
 		}
 
 		if (token.type() != TokenType.RIGHT_DELIM) {
-			throwUnexpectError(String.format("unexpected %s in break", token));
+			throwUnexpectError(String.format("unexpected %s in break", token), state);
 		}
 		listNode.append(new BreakNode());
 	}
@@ -279,11 +282,11 @@ public class Parser {
 	private void parseContinue(ListNode listNode, Lexer lexer, State state) throws TemplateParseException {
 		Token token = moveToNextNonSpaceToken(lexer, state);
 		if (token == null) {
-			throwUnexpectError("missing token");
+			throwUnexpectError("missing token", state);
 		}
 
 		if (token.type() != TokenType.RIGHT_DELIM) {
-			throwUnexpectError(String.format("unexpected %s in continue", token));
+			throwUnexpectError(String.format("unexpected %s in continue", token), state);
 		}
 		listNode.append(new ContinueNode());
 	}
@@ -291,11 +294,11 @@ public class Parser {
 	private void parseEnd(ListNode listNode, Lexer lexer, State state) throws TemplateParseException {
 		Token token = moveToNextNonSpaceToken(lexer, state);
 		if (token == null) {
-			throwUnexpectError("missing token");
+			throwUnexpectError("missing token", state);
 		}
 
 		if (token.type() != TokenType.RIGHT_DELIM) {
-			throwUnexpectError(String.format("unexpected %s in end", token));
+			throwUnexpectError(String.format("unexpected %s in end", token), state);
 		}
 		listNode.append(new EndNode());
 	}
@@ -323,11 +326,12 @@ public class Parser {
 
 		Token token = moveToNextNonSpaceToken(lexer, state);
 		if (token == null) {
-			throwUnexpectError("missing token");
+			throwUnexpectError("missing token", state);
 		}
 
 		if (token.type() != TokenType.STRING && token.type() != TokenType.RAW_STRING) {
-			throw new TemplateParseException(String.format("unexpected '%s' in %s", token.value(), context));
+			throw new TemplateParseException(String.format("unexpected '%s' in %s", token.value(), context),
+					token.line(), token.column());
 		}
 
 		String templateName = StringUtils.unquote(token.value());
@@ -335,7 +339,7 @@ public class Parser {
 
 		token = moveToNextNonSpaceToken(lexer, state);
 		if (token == null) {
-			throwUnexpectError("missing token");
+			throwUnexpectError("missing token", state);
 		}
 
 		if (token.type() != TokenType.RIGHT_DELIM) {
@@ -381,7 +385,7 @@ public class Parser {
 			if (allowElseIf) {
 				Token token = lookNextNonSpaceToken(lexer, state);
 				if (token == null) {
-					throwUnexpectError("missing token");
+					throwUnexpectError("missing token", state);
 				}
 
 				if (token.type() == TokenType.IF) {
@@ -408,7 +412,7 @@ public class Parser {
 			listNode.removeLast();
 		}
 		else {
-			throwUnexpectError("expected end, found " + lastNode);
+			throwUnexpectError("expected end, found " + lastNode, state);
 		}
 
 		state.variables.subList(variableCount, state.variables.size()).clear();
@@ -417,7 +421,7 @@ public class Parser {
 	private void parsePipe(PipeNode pipeNode, Lexer lexer, TokenType end, State state) throws TemplateParseException {
 		Token token = lookNextNonSpaceToken(lexer, state);
 		if (token == null) {
-			throwUnexpectError("missing token");
+			throwUnexpectError("missing token", state);
 		}
 
 		if (token.type() == TokenType.VARIABLE) {
@@ -427,30 +431,30 @@ public class Parser {
 		while (true) {
 			token = moveToNextNonSpaceToken(lexer, state);
 			if (token == null) {
-				throwUnexpectError("missing token");
+				throwUnexpectError("missing token", state);
 			}
 
 			if (token.type() == end) {
 				List<CommandNode> commands = pipeNode.getCommands();
 				if (commands.isEmpty()) {
-					throwUnexpectError("missing value for " + pipeNode.getContext());
+					throwUnexpectError("missing value for " + pipeNode.getContext(), state);
 				}
 				for (int i = 1; i < commands.size(); i++) {
 					Node firstArgument = commands.get(i).getFirstArgument();
 					if (firstArgument instanceof BoolNode) {
-						throwUnexpectError(String.format("non executable command in pipeline stage %d", i + 1));
+						throwUnexpectError(String.format("non executable command in pipeline stage %d", i + 1), state);
 					}
 					else if (firstArgument instanceof DotNode) {
-						throwUnexpectError(String.format("non executable command in pipeline stage %d", i + 1));
+						throwUnexpectError(String.format("non executable command in pipeline stage %d", i + 1), state);
 					}
 					else if (firstArgument instanceof NilNode) {
-						throwUnexpectError(String.format("non executable command in pipeline stage %d", i + 1));
+						throwUnexpectError(String.format("non executable command in pipeline stage %d", i + 1), state);
 					}
 					else if (firstArgument instanceof NumberNode) {
-						throwUnexpectError(String.format("non executable command in pipeline stage %d", i + 1));
+						throwUnexpectError(String.format("non executable command in pipeline stage %d", i + 1), state);
 					}
 					else if (firstArgument instanceof StringNode) {
-						throwUnexpectError(String.format("non executable command in pipeline stage %d", i + 1));
+						throwUnexpectError(String.format("non executable command in pipeline stage %d", i + 1), state);
 					}
 				}
 				break;
@@ -476,8 +480,8 @@ public class Parser {
 					break;
 				case ERROR:
 				default:
-					throw new TemplateParseException(
-							String.format("unexpected %s in %s", token, pipeNode.getContext()));
+					throw new TemplateParseException(String.format("unexpected %s in %s", token, pipeNode.getContext()),
+							token.line(), token.column());
 			}
 		}
 	}
@@ -487,7 +491,7 @@ public class Parser {
 		moveToNextNonSpaceToken(lexer, state);
 		Token nextToken = lookNextNonSpaceToken(lexer, state);
 		if (nextToken == null) {
-			throwUnexpectError("missing token");
+			throwUnexpectError("missing token", state);
 		}
 
 		switch (nextToken.type()) {
@@ -505,7 +509,7 @@ public class Parser {
 					if ("range".equals(pipeNode.getContext()) && pipeNode.getVariableCount() < 2) {
 						nextToken = lookNextNonSpaceToken(lexer, state);
 						if (nextToken == null) {
-							throwUnexpectError("missing token");
+							throwUnexpectError("missing token", state);
 						}
 
 						switch (nextToken.type()) {
@@ -517,7 +521,7 @@ public class Parser {
 								}
 								break;
 							default:
-								throwUnexpectError("");
+								throwUnexpectError("", state);
 						}
 					}
 				}
@@ -536,14 +540,14 @@ public class Parser {
 
 			Token token = moveToNextNonSpaceToken(lexer, state);
 			if (token == null) {
-				throwUnexpectError("missing token");
+				throwUnexpectError("missing token", state);
 			}
 
 			switch (token.type()) {
 				case IDENTIFIER:
 					String name = token.value();
 					if (!hasFunction(name)) {
-						throwUnexpectError(String.format("function %s not defined", token.value()));
+						throwUnexpectError(String.format("function %s not defined", token.value()), state);
 					}
 					node = new IdentifierNode(token.value());
 					break;
@@ -594,7 +598,7 @@ public class Parser {
 					moveToPrevItem(lexer, state);
 					break loop;
 				default:
-					throwUnexpectError("unexpected token: " + token.type());
+					throwUnexpectError("unexpected token: " + token.type(), state);
 					break;
 			}
 
@@ -603,19 +607,19 @@ public class Parser {
 				if (token != null && token.type() == TokenType.FIELD) {
 					// Validate that the node can have fields applied to it
 					if (node instanceof BoolNode) {
-						throwUnexpectError("unexpected . after boolean");
+						throwUnexpectError("unexpected . after boolean", state);
 					}
 					else if (node instanceof NumberNode) {
-						throwUnexpectError("unexpected . after number");
+						throwUnexpectError("unexpected . after number", state);
 					}
 					else if (node instanceof StringNode) {
-						throwUnexpectError("unexpected . after string");
+						throwUnexpectError("unexpected . after string", state);
 					}
 					else if (node instanceof NilNode) {
-						throwUnexpectError("unexpected . after nil");
+						throwUnexpectError("unexpected . after nil", state);
 					}
 					else if (node instanceof DotNode) {
-						throwUnexpectError("unexpected . after .");
+						throwUnexpectError("unexpected . after .", state);
 					}
 
 					ChainNode chainNode = new ChainNode(node);
@@ -649,12 +653,12 @@ public class Parser {
 					moveToPrevItem(lexer, state);
 					break loop;
 				default:
-					throwUnexpectError(String.format("unexpected %s in operand", token));
+					throwUnexpectError(String.format("unexpected %s in operand", token), state);
 			}
 		}
 
 		if (commandNode.getArgumentCount() == 0) {
-			throwUnexpectError("empty command");
+			throwUnexpectError("empty command", state);
 		}
 
 		pipeNode.append(commandNode);
@@ -700,6 +704,7 @@ public class Parser {
 		Token token = lookNextItem(lexer, state);
 		if (token != null) {
 			state.tokenIndex++;
+			state.lastToken = token;
 		}
 		return token;
 	}
@@ -764,11 +769,15 @@ public class Parser {
 		if (state.variables.contains(name)) {
 			return variableNode;
 		}
-		throwUnexpectError(String.format("undefined variable %s", name));
+		throwUnexpectError(String.format("undefined variable %s", name), state);
 		return null;
 	}
 
-	private void throwUnexpectError(String message) throws TemplateParseException {
+	private void throwUnexpectError(String message, State state) throws TemplateParseException {
+		Token token = state.lastToken;
+		if (token != null && token.line() > 0) {
+			throw new TemplateParseException(message, token.line(), token.column());
+		}
 		throw new TemplateParseException(message);
 	}
 
@@ -785,6 +794,11 @@ public class Parser {
 		 * Position marker
 		 */
 		private int tokenIndex;
+
+		/**
+		 * Last token consumed — used for error location reporting.
+		 */
+		private Token lastToken;
 
 	}
 

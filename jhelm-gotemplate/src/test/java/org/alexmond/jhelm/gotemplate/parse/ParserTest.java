@@ -48,7 +48,8 @@ class ParserTest {
 			parser.parse("empty action", "{{}}");
 		}
 		catch (TemplateParseException ex) {
-			assertEquals("missing value for command", ex.getMessage());
+			assertTrue(ex.getMessage().contains("missing value for command"),
+					"Expected 'missing value for command' but got: " + ex.getMessage());
 		}
 	}
 
