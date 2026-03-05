@@ -5,8 +5,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.alexmond.jhelm.gotemplate.Function;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
@@ -16,7 +14,6 @@ import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
  * <a href=
  * "https://helm.sh/docs/chart_template_guide/function_list/">https://helm.sh/docs/chart_template_guide/function_list/</a>
  */
-@Slf4j
 public final class TemplateFunctions {
 
 	private TemplateFunctions() {
@@ -40,8 +37,9 @@ public final class TemplateFunctions {
 	}
 
 	/**
-	 * include executes a named template and returns its output as a string Syntax:
-	 * include "templateName" $context Returns empty string on error
+	 * include executes a named template and returns its output as a string. Syntax:
+	 * include "templateName" $context. Propagates errors as
+	 * {@link FunctionExecutionException}, matching Go Helm behavior.
 	 */
 	private static Function include(GoTemplate factory) {
 		return (args) -> {
@@ -56,9 +54,8 @@ public final class TemplateFunctions {
 				return writer.toString();
 			}
 			catch (Exception ex) {
-				log.debug("include failed: {}", ex.getMessage());
-				// Log warning but return empty string for compatibility
-				return "";
+				throw new FunctionExecutionException(
+						"include: failed to execute template '" + name + "': " + ex.getMessage(), ex);
 			}
 		};
 	}
@@ -88,8 +85,9 @@ public final class TemplateFunctions {
 	}
 
 	/**
-	 * tpl evaluates a string as a template inline Syntax: tpl "{{.Values.foo}}" $context
-	 * Returns empty string on error
+	 * tpl evaluates a string as a template inline. Syntax: tpl "{{.Values.foo}}"
+	 * $context. Propagates errors as {@link FunctionExecutionException}, matching Go Helm
+	 * behavior.
 	 */
 	private static Function tpl(GoTemplate factory) {
 		return (args) -> {
@@ -112,9 +110,7 @@ public final class TemplateFunctions {
 				return writer.toString();
 			}
 			catch (Exception ex) {
-				log.debug("tpl failed: {}", ex.getMessage());
-				// Log warning but return empty string for compatibility
-				return "";
+				throw new FunctionExecutionException("tpl: failed to evaluate template: " + ex.getMessage(), ex);
 			}
 		};
 	}

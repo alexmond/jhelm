@@ -54,10 +54,11 @@ class TemplateFunctionsTest {
 	}
 
 	@Test
-	void testIncludeReturnsEmptyOnMissingTemplate() throws Exception {
+	void testIncludeThrowsOnMissingTemplate() {
 		Function include = functions.get("include");
-		String result = (String) include.invoke(new Object[] { "nonexistent", "data" });
-		assertEquals("", result);
+		RuntimeException ex = assertThrows(RuntimeException.class,
+				() -> include.invoke(new Object[] { "nonexistent", "data" }));
+		assertTrue(ex.getMessage().contains("nonexistent"));
 	}
 
 	// --- mustInclude tests ---
@@ -110,10 +111,11 @@ class TemplateFunctionsTest {
 	}
 
 	@Test
-	void testTplReturnsEmptyOnSyntaxError() throws Exception {
+	void testTplThrowsOnSyntaxError() {
 		Function tpl = functions.get("tpl");
-		String result = (String) tpl.invoke(new Object[] { "{{ .invalid }", Map.of() });
-		assertEquals("", result);
+		RuntimeException ex = assertThrows(RuntimeException.class,
+				() -> tpl.invoke(new Object[] { "{{ .invalid }", Map.of() }));
+		assertTrue(ex.getMessage().contains("tpl"));
 	}
 
 	// --- mustTpl tests ---
