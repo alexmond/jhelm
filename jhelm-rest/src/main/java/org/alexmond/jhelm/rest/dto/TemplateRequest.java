@@ -6,23 +6,20 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 @Data
-@Schema(description = "Request to install a new Helm release")
-public class InstallRequest {
+@Schema(description = "Request to render chart templates")
+public class TemplateRequest {
 
 	@Schema(description = "Path to the chart directory", example = "/tmp/nginx",
 			requiredMode = Schema.RequiredMode.REQUIRED)
 	private String chartPath;
 
-	@Schema(description = "Name for the release", example = "my-release", requiredMode = Schema.RequiredMode.REQUIRED)
-	private String releaseName;
+	@Schema(description = "Release name for template rendering", example = "my-release", defaultValue = "RELEASE-NAME")
+	private String releaseName = "RELEASE-NAME";
 
 	@Schema(description = "Kubernetes namespace", example = "default", defaultValue = "default")
 	private String namespace = "default";
 
 	@Schema(description = "Override values for the chart")
 	private Map<String, Object> values;
-
-	@Schema(description = "Simulate an install without applying", defaultValue = "false")
-	private boolean dryRun;
 
 }

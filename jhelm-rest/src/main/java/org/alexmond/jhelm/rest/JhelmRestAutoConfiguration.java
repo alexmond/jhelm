@@ -1,17 +1,24 @@
 package org.alexmond.jhelm.rest;
 
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
+import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.LintAction;
 import org.alexmond.jhelm.core.action.ListAction;
+import org.alexmond.jhelm.core.action.PackageAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.ShowAction;
 import org.alexmond.jhelm.core.action.StatusAction;
+import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
+import org.alexmond.jhelm.rest.controller.ChartController;
 import org.alexmond.jhelm.rest.controller.ReleaseController;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -45,6 +52,14 @@ public class JhelmRestAutoConfiguration {
 			ChartLoader chartLoader) {
 		return new ReleaseController(listAction, statusAction, getAction, historyAction, installAction, upgradeAction,
 				uninstallAction, rollbackAction, testAction, chartLoader);
+	}
+
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnBean(TemplateAction.class)
+	public ChartController chartController(TemplateAction templateAction, LintAction lintAction,
+			CreateAction createAction, PackageAction packageAction, VerifyAction verifyAction, ShowAction showAction) {
+		return new ChartController(templateAction, lintAction, createAction, packageAction, verifyAction, showAction);
 	}
 
 }
