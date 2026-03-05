@@ -1,0 +1,470 @@
+= REST API Starter
+
+The `jhelm-rest` module provides a Spring Boot starter that exposes Helm operations as a REST API with OpenAPI/Swagger documentation.
+
+== Getting Started
+
+=== Maven Dependency
+
+Add `jhelm-rest` to your Spring Boot web application:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-rest</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+----
+
+For Swagger UI, add springdoc-openapi:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>3.0.2</version>
+</dependency>
+----
+
+=== Sample Application
+
+A ready-to-run sample is available in the `jhelm-rest-sample` module:
+
+[source,bash]
+----
+cd jhelm-rest-sample
+../mvnw spring-boot:run
+----
+
+Open http://localhost:8080/swagger-ui.html to see all endpoints.
+
+== Configuration
+
+[cols="2,1,3"]
+|===
+| Property | Default | Description
+
+| `jhelm.rest.base-path`
+| `/api/v1`
+| Base path prefix for all REST endpoints
+|===
+
+[source,yaml]
+----
+jhelm:
+  rest:
+    base-path: /api/v1
+----
+
+== Auto-Configuration
+
+`JhelmRestAutoConfiguration` conditionally registers controllers based on available beans from `JhelmCoreAutoConfiguration`:
+
+[cols="2,2,3"]
+|===
+| Controller | Condition | Endpoints
+
+| `ReleaseController`
+| `ListAction` + `InstallAction` present (requires `jhelm-kube`)
+| 13 release management endpoints
+
+| `ChartController`
+| `TemplateAction` present
+| 8 chart operation endpoints
+
+| `RepoController`
+| `RepoManager` present
+| 6 repository management endpoints
+
+| `HubController`
+| `SearchHubAction` present
+| 1 ArtifactHub search endpoint
+
+| `DependencyController`
+| `DependencyResolver` present
+| 2 dependency management endpoints
+|===
+
+NOTE: Release endpoints require `jhelm-kube` on the classpath (Kubernetes client). All other endpoints work with `jhelm-core` alone.
+
+== API Reference
+
+=== Releases — `/api/v1/releases`
+
+[cols="1,3,4"]
+|===
+| Method | Path | Description
+
+| `GET`
+| `/releases?namespace=default`
+| List all releases in a namespace
+
+| `GET`
+| `/releases/{name}?namespace=default`
+| Get release status
+
+| `POST`
+| `/releases`
+| Install a new release
+
+| `PUT`
+| `/releases/{name}?namespace=default`
+| Upgrade an existing release
+
+| `DELETE`
+| `/releases/{name}?namespace=default`
+| Uninstall a release
+
+| `GET`
+| `/releases/{name}/history?namespace=default`
+| Get release revision history
+
+| `POST`
+| `/releases/{name}/rollback?namespace=default`
+| Rollback to a previous revision
+
+| `POST`
+| `/releases/{name}/test?namespace=default&timeoutSeconds=300`
+| Run test hooks
+
+| `GET`
+| `/releases/{name}/values?namespace=default&all=false`
+| Get release values (user overrides or all merged)
+
+| `GET`
+| `/releases/{name}/manifest?namespace=default`
+| Get rendered Kubernetes manifest
+
+| `GET`
+| `/releases/{name}/notes?namespace=default`
+| Get release notes
+
+| `GET`
+| `/releases/{name}/hooks?namespace=default`
+| List Helm hooks
+
+| `GET`
+| `/releases/{name}/resources?namespace=default`
+| List resource statuses
+|===
+
+==== Install a Release
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/releases \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "chartPath": "/path/to/my-chart",
+    "releaseName": "my-release",
+    "namespace": "production",
+    "values": {
+      "replicaCount": 3,
+      "image": {"tag": "v2.0"}
+    },
+    "dryRun": false
+  }'
+----
+
+==== Upgrade a Release
+
+[source,bash]
+----
+curl -X PUT http://localhost:8080/api/v1/releases/my-release?namespace=production \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "chartPath": "/path/to/chart-v2",
+    "values": {"image": {"tag": "v2.1"}},
+    "dryRun": false
+  }'
+----
+
+==== Rollback a Release
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/releases/my-release/rollback?namespace=production \
+  -H 'Content-Type: application/json' \
+  -d '{"revision": 2}'
+----
+
+=== Charts — `/api/v1/charts`
+
+[cols="1,3,4"]
+|===
+| Method | Path | Description
+
+| `POST`
+| `/charts/template`
+| Render chart templates to Kubernetes manifests
+
+| `POST`
+| `/charts/lint`
+| Validate a chart for issues
+
+| `POST`
+| `/charts/create`
+| Scaffold a new chart directory
+
+| `POST`
+| `/charts/package`
+| Package a chart into a .tgz archive
+
+| `POST`
+| `/charts/verify`
+| Verify PGP signature of a packaged chart
+
+| `GET`
+| `/charts/show?chartPath=...`
+| Show all chart info (metadata, values, README)
+
+| `GET`
+| `/charts/show/values?chartPath=...`
+| Show default values.yaml
+
+| `GET`
+| `/charts/show/readme?chartPath=...`
+| Show chart README
+|===
+
+==== Render Templates
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/charts/template \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "chartPath": "/path/to/my-chart",
+    "releaseName": "my-release",
+    "namespace": "production",
+    "values": {"replicaCount": 3}
+  }'
+----
+
+==== Lint a Chart
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/charts/lint \
+  -H 'Content-Type: application/json' \
+  -d '{"chartPath": "/path/to/my-chart", "strict": true}'
+----
+
+Response:
+
+[source,json]
+----
+{
+  "chartPath": "/path/to/my-chart",
+  "ok": true,
+  "errors": [],
+  "warnings": ["chart is missing a description"]
+}
+----
+
+==== Package a Chart
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/charts/package \
+  -H 'Content-Type: application/json' \
+  -d '{"chartPath": "/path/to/my-chart", "destination": "/tmp/packages"}'
+----
+
+Response:
+
+[source,json]
+----
+{"archivePath": "/tmp/packages/my-chart-1.0.0.tgz"}
+----
+
+=== Repositories — `/api/v1/repos`
+
+[cols="1,3,4"]
+|===
+| Method | Path | Description
+
+| `POST`
+| `/repos`
+| Add a chart repository
+
+| `GET`
+| `/repos`
+| List all configured repositories
+
+| `DELETE`
+| `/repos/{name}`
+| Remove a repository
+
+| `POST`
+| `/repos/{name}/update`
+| Update repository index
+
+| `GET`
+| `/repos/{name}/charts/{chart}/versions`
+| List available chart versions
+
+| `POST`
+| `/repos/{name}/charts/{chart}/pull`
+| Pull a chart from a repository
+|===
+
+==== Add a Repository
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/repos \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "bitnami", "url": "https://charts.bitnami.com/bitnami"}'
+----
+
+==== List Chart Versions
+
+[source,bash]
+----
+curl http://localhost:8080/api/v1/repos/bitnami/charts/nginx/versions
+----
+
+Response:
+
+[source,json]
+----
+[
+  {"name": "nginx", "chartVersion": "18.3.1", "appVersion": "1.27.3", "description": "..."},
+  {"name": "nginx", "chartVersion": "18.3.0", "appVersion": "1.27.3", "description": "..."}
+]
+----
+
+==== Pull a Chart
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/repos/bitnami/charts/nginx/pull \
+  -H 'Content-Type: application/json' \
+  -d '{"version": "18.3.1", "destination": "/tmp/charts"}'
+----
+
+=== Hub — `/api/v1/hub`
+
+[cols="1,3,4"]
+|===
+| Method | Path | Description
+
+| `GET`
+| `/hub/search?keyword=...&maxResults=20`
+| Search ArtifactHub for Helm charts
+|===
+
+==== Search ArtifactHub
+
+[source,bash]
+----
+curl 'http://localhost:8080/api/v1/hub/search?keyword=nginx&maxResults=5'
+----
+
+Response:
+
+[source,json]
+----
+[
+  {
+    "name": "nginx",
+    "version": "18.3.1",
+    "appVersion": "1.27.3",
+    "repoName": "bitnami",
+    "repoUrl": "https://charts.bitnami.com/bitnami",
+    "description": "NGINX Open Source is a web server..."
+  }
+]
+----
+
+NOTE: ArtifactHub API limits `maxResults` to 60 per request.
+
+=== Dependencies — `/api/v1/dependencies`
+
+[cols="1,3,4"]
+|===
+| Method | Path | Description
+
+| `POST`
+| `/dependencies/resolve`
+| Resolve dependency versions and create Chart.lock
+
+| `POST`
+| `/dependencies/download`
+| Download resolved dependencies from Chart.lock
+|===
+
+==== Resolve Dependencies
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/dependencies/resolve \
+  -H 'Content-Type: application/json' \
+  -d '{"chartPath": "/path/to/my-chart"}'
+----
+
+==== Download Dependencies
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/dependencies/download \
+  -H 'Content-Type: application/json' \
+  -d '{"chartPath": "/path/to/my-chart"}'
+----
+
+== Error Handling
+
+All endpoints return consistent error responses via `JhelmRestExceptionHandler`:
+
+- **400 Bad Request** — Missing required fields or invalid arguments
+- **404 Not Found** — Release or resource not found
+
+Error response format:
+
+[source,json]
+----
+{"message": "chartPath is required"}
+----
+
+== Spring Boot Integration
+
+=== Minimal Application
+
+[source,java]
+----
+@SpringBootApplication
+public class MyHelmApp {
+    public static void main(String[] args) {
+        SpringApplication.run(MyHelmApp.class, args);
+    }
+}
+----
+
+With `jhelm-rest` on the classpath, all endpoints are auto-configured. No additional code is needed.
+
+=== Custom Base Path
+
+[source,yaml]
+----
+jhelm:
+  rest:
+    base-path: /helm/api
+----
+
+All endpoints will be available under `/helm/api/releases`, `/helm/api/charts`, etc.
+
+=== Overriding Controllers
+
+All controllers are registered with `@ConditionalOnMissingBean`. Define your own to replace:
+
+[source,java]
+----
+@RestController
+@RequestMapping("/api/v1/releases")
+public class CustomReleaseController {
+    // Your custom implementation
+}
+----
