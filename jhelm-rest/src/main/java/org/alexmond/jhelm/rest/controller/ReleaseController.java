@@ -5,6 +5,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.action.InstallAction;
@@ -39,6 +44,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/releases")
+@Tag(name = "Releases", description = "Manage Helm releases")
 public class ReleaseController {
 
 	private final ListAction listAction;
@@ -78,13 +84,20 @@ public class ReleaseController {
 	}
 
 	@GetMapping
-	public List<ReleaseDto> list(@RequestParam(defaultValue = "default") String namespace) throws Exception {
+	@Operation(summary = "List releases", description = "List all Helm releases in a namespace")
+	public List<ReleaseDto> list(
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
+			throws Exception {
 		return this.listAction.list(namespace).stream().map(ReleaseDto::from).toList();
 	}
 
 	@GetMapping("/{name}")
-	public ResponseEntity<ReleaseDto> status(@PathVariable String name,
-			@RequestParam(defaultValue = "default") String namespace) throws Exception {
+	@Operation(summary = "Get release status",
+			responses = { @ApiResponse(responseCode = "200", description = "Release found"),
+					@ApiResponse(responseCode = "404", description = "Release not found") })
+	public ResponseEntity<ReleaseDto> status(@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
+			throws Exception {
 		return this.statusAction.status(name, namespace)
 			.map(ReleaseDto::from)
 			.map(ResponseEntity::ok)
@@ -92,6 +105,7 @@ public class ReleaseController {
 	}
 
 	@PostMapping
+	@Operation(summary = "Install a release", description = "Install a new Helm release from a chart")
 	public ResponseEntity<ReleaseDto> install(@RequestBody InstallRequest request) throws Exception {
 		if (request.getChartPath() == null || request.getChartPath().isBlank()) {
 			throw new IllegalArgumentException("chartPath is required");
@@ -107,7 +121,9 @@ public class ReleaseController {
 	}
 
 	@PutMapping("/{name}")
-	public ReleaseDto upgrade(@PathVariable String name, @RequestParam(defaultValue = "default") String namespace,
+	@Operation(summary = "Upgrade a release", description = "Upgrade an existing release to a new chart version")
+	public ReleaseDto upgrade(@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
 			@RequestBody UpgradeRequest request) throws Exception {
 		if (request.getChartPath() == null || request.getChartPath().isBlank()) {
 			throw new IllegalArgumentException("chartPath is required");
@@ -121,35 +137,45 @@ public class ReleaseController {
 	}
 
 	@DeleteMapping("/{name}")
-	public ResponseEntity<Void> uninstall(@PathVariable String name,
-			@RequestParam(defaultValue = "default") String namespace) throws Exception {
+	@Operation(summary = "Uninstall a release")
+	public ResponseEntity<Void> uninstall(@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
+			throws Exception {
 		this.uninstallAction.uninstall(name, namespace);
 		return ResponseEntity.noContent().build();
 	}
 
 	@GetMapping("/{name}/history")
-	public List<ReleaseDto> history(@PathVariable String name, @RequestParam(defaultValue = "default") String namespace)
+	@Operation(summary = "Get release history", description = "List all revisions of a release")
+	public List<ReleaseDto> history(@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
 			throws Exception {
 		return this.historyAction.history(name, namespace).stream().map(ReleaseDto::from).toList();
 	}
 
 	@PostMapping("/{name}/rollback")
-	public ResponseEntity<Void> rollback(@PathVariable String name,
-			@RequestParam(defaultValue = "default") String namespace, @RequestBody RollbackRequest request)
-			throws Exception {
+	@Operation(summary = "Rollback a release", description = "Rollback a release to a previous revision")
+	public ResponseEntity<Void> rollback(@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
+			@RequestBody RollbackRequest request) throws Exception {
 		this.rollbackAction.rollback(name, namespace, request.getRevision());
 		return ResponseEntity.noContent().build();
 	}
 
 	@PostMapping("/{name}/test")
-	public List<TestResultDto> test(@PathVariable String name, @RequestParam(defaultValue = "default") String namespace,
-			@RequestParam(defaultValue = "300") int timeoutSeconds) throws Exception {
+	@Operation(summary = "Test a release", description = "Run test hooks for a release")
+	public List<TestResultDto> test(@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
+			@Parameter(description = "Timeout in seconds") @RequestParam(defaultValue = "300") int timeoutSeconds)
+			throws Exception {
 		return this.testAction.test(name, namespace, timeoutSeconds).stream().map(TestResultDto::from).toList();
 	}
 
 	@GetMapping("/{name}/values")
-	public ResponseEntity<String> getValues(@PathVariable String name,
-			@RequestParam(defaultValue = "default") String namespace, @RequestParam(defaultValue = "false") boolean all)
+	@Operation(summary = "Get release values", description = "Get the values used by a release")
+	public ResponseEntity<String> getValues(@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
+			@Parameter(description = "Include computed values") @RequestParam(defaultValue = "false") boolean all)
 			throws Exception {
 		return this.getAction.getRelease(name, namespace)
 			.map((release) -> ResponseEntity.ok(safeGetValues(release, all)))
@@ -157,24 +183,31 @@ public class ReleaseController {
 	}
 
 	@GetMapping("/{name}/manifest")
-	public ResponseEntity<String> getManifest(@PathVariable String name,
-			@RequestParam(defaultValue = "default") String namespace) throws Exception {
+	@Operation(summary = "Get release manifest", description = "Get the rendered Kubernetes manifest")
+	public ResponseEntity<String> getManifest(@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
+			throws Exception {
 		return this.getAction.getRelease(name, namespace)
 			.map((release) -> ResponseEntity.ok(this.getAction.getManifest(release)))
 			.orElse(ResponseEntity.notFound().build());
 	}
 
 	@GetMapping("/{name}/notes")
-	public ResponseEntity<String> getNotes(@PathVariable String name,
-			@RequestParam(defaultValue = "default") String namespace) throws Exception {
+	@Operation(summary = "Get release notes")
+	public ResponseEntity<String> getNotes(@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
+			throws Exception {
 		return this.getAction.getRelease(name, namespace)
 			.map((release) -> ResponseEntity.ok(this.getAction.getNotes(release)))
 			.orElse(ResponseEntity.notFound().build());
 	}
 
 	@GetMapping("/{name}/hooks")
-	public ResponseEntity<List<HelmHookDto>> getHooks(@PathVariable String name,
-			@RequestParam(defaultValue = "default") String namespace) throws Exception {
+	@Operation(summary = "Get release hooks", description = "List Helm hooks defined in the release")
+	public ResponseEntity<List<HelmHookDto>> getHooks(
+			@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
+			throws Exception {
 		return this.getAction.getRelease(name, namespace).map((release) -> {
 			List<HelmHookDto> hooks = HookParser.parseHooks(release.getManifest())
 				.stream()
@@ -185,8 +218,11 @@ public class ReleaseController {
 	}
 
 	@GetMapping("/{name}/resources")
-	public ResponseEntity<List<ResourceStatusDto>> getResources(@PathVariable String name,
-			@RequestParam(defaultValue = "default") String namespace) throws Exception {
+	@Operation(summary = "Get resource statuses", description = "List Kubernetes resources and their status")
+	public ResponseEntity<List<ResourceStatusDto>> getResources(
+			@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
+			throws Exception {
 		return this.statusAction.status(name, namespace).map((release) -> {
 			List<ResourceStatusDto> statuses = safeGetResourceStatuses(release);
 			return ResponseEntity.ok(statuses);
