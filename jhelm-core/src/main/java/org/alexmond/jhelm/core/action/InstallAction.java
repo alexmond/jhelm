@@ -18,6 +18,7 @@ import org.alexmond.jhelm.core.service.LifecycleListener;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
+import org.alexmond.jhelm.core.util.ValuesLoader;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -41,7 +42,7 @@ public class InstallAction {
 		}
 		Map<String, Object> values = new HashMap<>(chart.getValues());
 		if (overrideValues != null) {
-			values.putAll(overrideValues);
+			ValuesLoader.deepMerge(values, overrideValues);
 		}
 
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()

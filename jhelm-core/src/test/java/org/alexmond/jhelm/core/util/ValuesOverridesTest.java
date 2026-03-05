@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ValuesOverridesTest {
@@ -133,6 +134,131 @@ class ValuesOverridesTest {
 	void testNullInputs() throws Exception {
 		Map<String, Object> result = ValuesOverrides.parse(null, null);
 		assertTrue(result.isEmpty());
+	}
+
+	// --- deep merge across files ---
+
+	@Test
+	void testDeepMergeAcrossFiles() throws Exception {
+		Path f1 = writeFile("base.yaml", """
+				db:
+				  host: localhost
+				  port: 5432
+				  name: mydb
+				""");
+		Path f2 = writeFile("override.yaml", """
+				db:
+				  port: 5433
+				  ssl: true
+				""");
+		Map<String, Object> result = ValuesOverrides.parse(List.of(f1.toString(), f2.toString()), null);
+		Map<?, ?> db = (Map<?, ?>) result.get("db");
+		assertEquals("localhost", db.get("host"));
+		assertEquals(5433, db.get("port"));
+		assertEquals("mydb", db.get("name"));
+		assertEquals(true, db.get("ssl"));
+	}
+
+	@Test
+	void testThreeFilesCascadeOrder() throws Exception {
+		Path f1 = writeFile("defaults.yaml", """
+				replicas: 1
+				image: nginx
+				tag: latest
+				""");
+		Path f2 = writeFile("staging.yaml", """
+				replicas: 2
+				tag: staging
+				""");
+		Path f3 = writeFile("custom.yaml", """
+				replicas: 5
+				""");
+		Map<String, Object> result = ValuesOverrides.parse(List.of(f1.toString(), f2.toString(), f3.toString()), null);
+		assertEquals(5, result.get("replicas"));
+		assertEquals("nginx", result.get("image"));
+		assertEquals("staging", result.get("tag"));
+	}
+
+	@Test
+	void testSetOverridesAllFiles() throws Exception {
+		Path f1 = writeFile("base.yaml", """
+				replicas: 1
+				image: nginx
+				""");
+		Path f2 = writeFile("prod.yaml", """
+				replicas: 3
+				""");
+		Map<String, Object> result = ValuesOverrides.parse(List.of(f1.toString(), f2.toString()),
+				List.of("replicas=10"));
+		assertEquals("10", result.get("replicas"));
+		assertEquals("nginx", result.get("image"));
+	}
+
+	@Test
+	void testEmptyFileDoesNotClearValues() throws Exception {
+		Path f1 = writeFile("base.yaml", """
+				replicas: 3
+				image: nginx
+				""");
+		Path f2 = writeFile("empty.yaml", "");
+		Map<String, Object> result = ValuesOverrides.parse(List.of(f1.toString(), f2.toString()), null);
+		assertEquals(3, result.get("replicas"));
+		assertEquals("nginx", result.get("image"));
+	}
+
+	@Test
+	void testNullValueRemovesKey() throws Exception {
+		Path f1 = writeFile("base.yaml", """
+				key1: value1
+				key2: value2
+				""");
+		Path f2 = writeFile("nullify.yaml", """
+				key1: null
+				""");
+		Map<String, Object> result = ValuesOverrides.parse(List.of(f1.toString(), f2.toString()), null);
+		assertNull(result.get("key1"));
+		assertEquals("value2", result.get("key2"));
+	}
+
+	@Test
+	void testSetOverridesNestedFileValues() throws Exception {
+		Path f1 = writeFile("base.yaml", """
+				db:
+				  host: localhost
+				  port: 5432
+				""");
+		Map<String, Object> result = ValuesOverrides.parse(List.of(f1.toString()), List.of("db.host=remotehost"));
+		Map<?, ?> db = (Map<?, ?>) result.get("db");
+		assertEquals("remotehost", db.get("host"));
+		assertEquals(5432, db.get("port"));
+	}
+
+	@Test
+	void testConflictingTypesMapVsScalar() throws Exception {
+		Path f1 = writeFile("base.yaml", """
+				config:
+				  key1: value1
+				  key2: value2
+				""");
+		Path f2 = writeFile("override.yaml", """
+				config: simple-string
+				""");
+		Map<String, Object> result = ValuesOverrides.parse(List.of(f1.toString(), f2.toString()), null);
+		assertEquals("simple-string", result.get("config"));
+	}
+
+	@Test
+	void testScalarToMapConversion() throws Exception {
+		Path f1 = writeFile("base.yaml", """
+				config: simple-string
+				""");
+		Path f2 = writeFile("override.yaml", """
+				config:
+				  key1: value1
+				""");
+		Map<String, Object> result = ValuesOverrides.parse(List.of(f1.toString(), f2.toString()), null);
+		Map<?, ?> config = (Map<?, ?>) result.get("config");
+		assertEquals("value1", config.get("key1"));
 	}
 
 	// --- helpers ---
