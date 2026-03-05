@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: jhelm-rest-sample
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+
+jhelm:
+  rest:
+    base-path: /api/v1
