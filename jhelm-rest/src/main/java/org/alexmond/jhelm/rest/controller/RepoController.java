@@ -1,5 +1,9 @@
 package org.alexmond.jhelm.rest.controller;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 
@@ -9,11 +13,18 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.alexmond.jhelm.core.model.RepositoryConfig;
 import org.alexmond.jhelm.core.service.RepoManager;
+import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.alexmond.jhelm.rest.dto.ChartVersionDto;
+import org.alexmond.jhelm.rest.dto.OciPullRequest;
+import org.alexmond.jhelm.rest.dto.OciPushRequest;
 import org.alexmond.jhelm.rest.dto.PullRequest;
 import org.alexmond.jhelm.rest.dto.RepoAddRequest;
 import org.alexmond.jhelm.rest.dto.RepoDto;
+import org.alexmond.jhelm.rest.util.ChartArchiveUtil;
+import org.alexmond.jhelm.rest.util.TempDir;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,10 +39,15 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Repositories", description = "Manage chart repositories")
 public class RepoController {
 
+	private static final MediaType APPLICATION_GZIP = MediaType.parseMediaType("application/gzip");
+
 	private final RepoManager repoManager;
 
-	public RepoController(RepoManager repoManager) {
+	private final JhelmRestProperties properties;
+
+	public RepoController(RepoManager repoManager, JhelmRestProperties properties) {
 		this.repoManager = repoManager;
+		this.properties = properties;
 	}
 
 	@PostMapping
@@ -81,15 +97,76 @@ public class RepoController {
 	}
 
 	@PostMapping("/{name}/charts/{chart}/pull")
-	@Operation(summary = "Pull a chart", description = "Download a chart from a repository")
-	public ResponseEntity<Void> pullChart(@Parameter(description = "Repository name") @PathVariable String name,
+	@Operation(summary = "Pull a chart",
+			description = "Download a chart from a repository and return it as a .tgz archive")
+	public ResponseEntity<byte[]> pullChart(@Parameter(description = "Repository name") @PathVariable String name,
 			@Parameter(description = "Chart name") @PathVariable String chart, @RequestBody PullRequest request)
 			throws Exception {
-		if (request.getDestination() == null || request.getDestination().isBlank()) {
-			throw new IllegalArgumentException("destination is required");
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-pull-")) {
+			this.repoManager.pull(chart, name, request.getVersion(), tempDir.path().toString());
+			Path chartDir = findSingleSubdir(tempDir.path());
+			String dirName = chartDir.getFileName().toString();
+			byte[] tgz = ChartArchiveUtil.toTgzBytes(chartDir, dirName);
+			String version = (request.getVersion() != null) ? request.getVersion() : "latest";
+			String fileName = chart + "-" + version + ".tgz";
+			return ResponseEntity.ok()
+				.contentType(APPLICATION_GZIP)
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+				.body(tgz);
 		}
-		this.repoManager.pull(chart, name, request.getVersion(), request.getDestination());
+	}
+
+	@PostMapping("/update-all")
+	@Operation(summary = "Update all repositories", description = "Update the index of all configured repositories")
+	public ResponseEntity<Void> updateAll() throws Exception {
+		this.repoManager.updateAll();
 		return ResponseEntity.ok().build();
+	}
+
+	@PostMapping("/oci/pull")
+	@Operation(summary = "Pull from OCI registry",
+			description = "Pull a chart from an OCI registry and return it as a .tgz archive")
+	public ResponseEntity<byte[]> pullOci(@RequestBody OciPullRequest request) throws Exception {
+		if (request.getOciUrl() == null || request.getOciUrl().isBlank()) {
+			throw new IllegalArgumentException("ociUrl is required");
+		}
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-oci-pull-")) {
+			this.repoManager.pullOci(request.getOciUrl(), tempDir.path().toString(), null);
+			File[] files = tempDir.path().toFile().listFiles();
+			if (files != null && files.length == 1 && files[0].getName().endsWith(".tgz")) {
+				byte[] tgz = Files.readAllBytes(files[0].toPath());
+				return ResponseEntity.ok()
+					.contentType(APPLICATION_GZIP)
+					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + files[0].getName() + "\"")
+					.body(tgz);
+			}
+			Path chartDir = findSingleSubdir(tempDir.path());
+			String dirName = chartDir.getFileName().toString();
+			byte[] tgz = ChartArchiveUtil.toTgzBytes(chartDir, dirName);
+			return ResponseEntity.ok()
+				.contentType(APPLICATION_GZIP)
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + dirName + ".tgz\"")
+				.body(tgz);
+		}
+	}
+
+	@PostMapping("/oci/push")
+	@Operation(summary = "Push to OCI registry", description = "Push a chart to an OCI registry")
+	public ResponseEntity<Void> pushOci(@RequestBody OciPushRequest request) throws Exception {
+		if (request.getChartTgzPath() == null || request.getChartTgzPath().isBlank()) {
+			throw new IllegalArgumentException("chartTgzPath is required");
+		}
+		if (request.getOciUrl() == null || request.getOciUrl().isBlank()) {
+			throw new IllegalArgumentException("ociUrl is required");
+		}
+		this.repoManager.pushOci(request.getChartTgzPath(), request.getOciUrl());
+		return ResponseEntity.ok().build();
+	}
+
+	private static Path findSingleSubdir(Path parent) throws IOException {
+		try (var stream = Files.list(parent)) {
+			return stream.filter(Files::isDirectory).findFirst().orElse(parent);
+		}
 	}
 
 }

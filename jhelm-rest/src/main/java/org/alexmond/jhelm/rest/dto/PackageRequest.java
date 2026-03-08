@@ -11,7 +11,4 @@ public class PackageRequest {
 			requiredMode = Schema.RequiredMode.REQUIRED)
 	private String chartPath;
 
-	@Schema(description = "Destination directory for the archive", example = "/tmp/output")
-	private String destination;
-
 }
