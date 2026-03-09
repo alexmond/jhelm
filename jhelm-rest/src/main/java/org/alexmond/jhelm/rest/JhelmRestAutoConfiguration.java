@@ -64,15 +64,17 @@ public class JhelmRestAutoConfiguration {
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(TemplateAction.class)
 	public ChartController chartController(TemplateAction templateAction, LintAction lintAction,
-			CreateAction createAction, PackageAction packageAction, VerifyAction verifyAction, ShowAction showAction) {
-		return new ChartController(templateAction, lintAction, createAction, packageAction, verifyAction, showAction);
+			CreateAction createAction, PackageAction packageAction, VerifyAction verifyAction, ShowAction showAction,
+			JhelmRestProperties properties) {
+		return new ChartController(templateAction, lintAction, createAction, packageAction, verifyAction, showAction,
+				properties);
 	}
 
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(RepoManager.class)
-	public RepoController repoController(RepoManager repoManager) {
-		return new RepoController(repoManager);
+	public RepoController repoController(RepoManager repoManager, JhelmRestProperties properties) {
+		return new RepoController(repoManager, properties);
 	}
 
 	@Bean
@@ -92,8 +94,9 @@ public class JhelmRestAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(DependencyResolver.class)
-	public DependencyController dependencyController(DependencyResolver dependencyResolver, ChartLoader chartLoader) {
-		return new DependencyController(dependencyResolver, chartLoader);
+	public DependencyController dependencyController(DependencyResolver dependencyResolver, ChartLoader chartLoader,
+			JhelmRestProperties properties) {
+		return new DependencyController(dependencyResolver, chartLoader, properties);
 	}
 
 }

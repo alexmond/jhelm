@@ -7,8 +7,8 @@ import lombok.Data;
 @Schema(description = "Request to scaffold a new chart")
 public class CreateRequest {
 
-	@Schema(description = "Path where the chart will be created", example = "/tmp/my-chart",
+	@Schema(description = "Name of the chart to create", example = "my-chart",
 			requiredMode = Schema.RequiredMode.REQUIRED)
-	private String chartPath;
+	private String name;
 
 }

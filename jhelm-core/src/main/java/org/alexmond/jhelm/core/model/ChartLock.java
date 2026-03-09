@@ -88,6 +88,21 @@ public class ChartLock {
 	}
 
 	/**
+	 * Serializes this ChartLock to a YAML string.
+	 * @return the YAML representation
+	 * @throws IOException if an error occurs during serialization
+	 */
+	public String toYaml() throws IOException {
+		YAMLMapper yamlMapper = YAMLMapper.builder().disable(YAMLWriteFeature.WRITE_DOC_START_MARKER).build();
+
+		if (generated == null) {
+			generated = OffsetDateTime.now().toString();
+		}
+
+		return yamlMapper.writeValueAsString(this);
+	}
+
+	/**
 	 * Represents a single locked dependency entry.
 	 */
 	@Data

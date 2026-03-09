@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.rest.controller;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -14,14 +15,17 @@ import org.alexmond.jhelm.core.action.PackageAction;
 import org.alexmond.jhelm.core.action.ShowAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.action.VerifyAction;
+import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.alexmond.jhelm.rest.dto.CreateRequest;
 import org.alexmond.jhelm.rest.dto.LintRequest;
 import org.alexmond.jhelm.rest.dto.LintResultDto;
 import org.alexmond.jhelm.rest.dto.PackageRequest;
-import org.alexmond.jhelm.rest.dto.PackageResultDto;
 import org.alexmond.jhelm.rest.dto.TemplateRequest;
 import org.alexmond.jhelm.rest.dto.VerifyRequest;
-import org.springframework.http.HttpStatus;
+import org.alexmond.jhelm.rest.util.ChartArchiveUtil;
+import org.alexmond.jhelm.rest.util.TempDir;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -35,6 +39,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Charts", description = "Chart operations: template, lint, create, package, verify, show")
 public class ChartController {
 
+	private static final MediaType APPLICATION_GZIP = MediaType.parseMediaType("application/gzip");
+
 	private final TemplateAction templateAction;
 
 	private final LintAction lintAction;
@@ -47,14 +53,18 @@ public class ChartController {
 
 	private final ShowAction showAction;
 
+	private final JhelmRestProperties properties;
+
 	public ChartController(TemplateAction templateAction, LintAction lintAction, CreateAction createAction,
-			PackageAction packageAction, VerifyAction verifyAction, ShowAction showAction) {
+			PackageAction packageAction, VerifyAction verifyAction, ShowAction showAction,
+			JhelmRestProperties properties) {
 		this.templateAction = templateAction;
 		this.lintAction = lintAction;
 		this.createAction = createAction;
 		this.packageAction = packageAction;
 		this.verifyAction = verifyAction;
 		this.showAction = showAction;
+		this.properties = properties;
 	}
 
 	@PostMapping("/template")
@@ -81,26 +91,40 @@ public class ChartController {
 	}
 
 	@PostMapping("/create")
-	@Operation(summary = "Create a chart", description = "Scaffold a new chart directory")
-	public ResponseEntity<Void> create(@RequestBody CreateRequest request) throws Exception {
-		if (request.getChartPath() == null || request.getChartPath().isBlank()) {
-			throw new IllegalArgumentException("chartPath is required");
+	@Operation(summary = "Create a chart",
+			description = "Scaffold a new chart and return it as a .tgz archive download")
+	public ResponseEntity<byte[]> create(@RequestBody CreateRequest request) throws Exception {
+		if (request.getName() == null || request.getName().isBlank()) {
+			throw new IllegalArgumentException("name is required");
 		}
-		this.createAction.create(Path.of(request.getChartPath()));
-		return ResponseEntity.status(HttpStatus.CREATED).build();
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-create-")) {
+			Path chartPath = tempDir.path().resolve(request.getName());
+			this.createAction.create(chartPath);
+			byte[] tgz = ChartArchiveUtil.toTgzBytes(chartPath, request.getName());
+			return ResponseEntity.ok()
+				.contentType(APPLICATION_GZIP)
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + request.getName() + ".tgz\"")
+				.body(tgz);
+		}
 	}
 
 	@PostMapping("/package")
-	@Operation(summary = "Package a chart", description = "Package a chart directory into a .tgz archive")
-	public PackageResultDto packageChart(@RequestBody PackageRequest request) throws Exception {
+	@Operation(summary = "Package a chart",
+			description = "Package a chart directory into a .tgz archive and return it as a download")
+	public ResponseEntity<byte[]> packageChart(@RequestBody PackageRequest request) throws Exception {
 		if (request.getChartPath() == null || request.getChartPath().isBlank()) {
 			throw new IllegalArgumentException("chartPath is required");
 		}
-		if (request.getDestination() != null) {
-			this.packageAction.setDestination(new File(request.getDestination()));
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-package-")) {
+			this.packageAction.setDestination(tempDir.path().toFile());
+			File archive = this.packageAction.packageChart(request.getChartPath());
+			byte[] tgz = Files.readAllBytes(archive.toPath());
+			String fileName = archive.getName();
+			return ResponseEntity.ok()
+				.contentType(APPLICATION_GZIP)
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+				.body(tgz);
 		}
-		File archive = this.packageAction.packageChart(request.getChartPath());
-		return PackageResultDto.builder().archivePath(archive.getAbsolutePath()).build();
 	}
 
 	@PostMapping("/verify")
@@ -135,6 +159,20 @@ public class ChartController {
 	public ResponseEntity<String> showReadme(
 			@Parameter(description = "Path to the chart directory") @RequestParam String chartPath) throws Exception {
 		return ResponseEntity.ok(this.showAction.showReadme(chartPath));
+	}
+
+	@GetMapping("/show/chart")
+	@Operation(summary = "Show chart metadata", description = "Show the Chart.yaml metadata")
+	public ResponseEntity<String> showChart(
+			@Parameter(description = "Path to the chart directory") @RequestParam String chartPath) throws Exception {
+		return ResponseEntity.ok(this.showAction.showChart(chartPath));
+	}
+
+	@GetMapping("/show/crds")
+	@Operation(summary = "Show chart CRDs", description = "Show Custom Resource Definitions bundled with the chart")
+	public ResponseEntity<String> showCrds(
+			@Parameter(description = "Path to the chart directory") @RequestParam String chartPath) throws Exception {
+		return ResponseEntity.ok(this.showAction.showCrds(chartPath));
 	}
 
 }

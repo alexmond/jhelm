@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.rest.controller;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -11,26 +12,33 @@ import org.alexmond.jhelm.core.action.ShowAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.rest.JhelmRestExceptionHandler;
+import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = ChartController.class)
 @Import(JhelmRestExceptionHandler.class)
+@EnableConfigurationProperties(JhelmRestProperties.class)
 class ChartControllerTest {
 
 	@Autowired
@@ -108,39 +116,46 @@ class ChartControllerTest {
 	}
 
 	@Test
-	void createScaffoldsChart() throws Exception {
-		this.mockMvc
-			.perform(post("/api/v1/charts/create").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("""
-						{"chartPath": "/tmp/my-chart"}
-						"""))
-			.andExpect(status().isCreated());
-		verify(this.createAction).create(Path.of("/tmp/my-chart"));
+	void createReturnsArchiveDownload() throws Exception {
+		doAnswer((invocation) -> {
+			Path chartPath = invocation.getArgument(0);
+			Files.createDirectories(chartPath);
+			Files.writeString(chartPath.resolve("Chart.yaml"), "name: my-chart\nversion: 0.1.0");
+			return null;
+		}).when(this.createAction).create(any(Path.class));
+
+		this.mockMvc.perform(post("/api/v1/charts/create").contentType(MediaType.APPLICATION_JSON).content("""
+				{"name": "my-chart"}
+				"""))
+			.andExpect(status().isOk())
+			.andExpect(header().string("Content-Type", "application/gzip"))
+			.andExpect(header().string("Content-Disposition", "attachment; filename=\"my-chart.tgz\""));
 	}
 
 	@Test
-	void createRejectsMissingChartPath() throws Exception {
+	void createRejectsMissingName() throws Exception {
 		this.mockMvc
 			.perform(post("/api/v1/charts/create").contentType(MediaType.APPLICATION_JSON)
 				.accept(MediaType.APPLICATION_JSON)
 				.content("{}"))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("chartPath is required"));
+			.andExpect(jsonPath("$.message").value("name is required"));
 	}
 
 	@Test
-	void packageChartReturnsArchivePath() throws Exception {
-		when(this.packageAction.packageChart("/tmp/nginx")).thenReturn(new File("/tmp/nginx-1.0.0.tgz"));
+	void packageChartReturnsArchiveDownload(@TempDir Path tempChart) throws Exception {
+		Files.writeString(tempChart.resolve("Chart.yaml"), "name: nginx\nversion: 1.0.0");
+		File archive = tempChart.resolve("nginx-1.0.0.tgz").toFile();
+		Files.writeString(archive.toPath(), "fake-tgz-content");
 
-		this.mockMvc
-			.perform(post("/api/v1/charts/package").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("""
-						{"chartPath": "/tmp/nginx"}
-						"""))
+		when(this.packageAction.packageChart(eq("/tmp/nginx"))).thenReturn(archive);
+
+		this.mockMvc.perform(post("/api/v1/charts/package").contentType(MediaType.APPLICATION_JSON).content("""
+				{"chartPath": "/tmp/nginx"}
+				"""))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.archivePath").value("/tmp/nginx-1.0.0.tgz"));
+			.andExpect(header().string("Content-Type", "application/gzip"))
+			.andExpect(header().string("Content-Disposition", "attachment; filename=\"nginx-1.0.0.tgz\""));
 	}
 
 	@Test
@@ -219,6 +234,28 @@ class ChartControllerTest {
 				.accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(content().string("# Nginx Chart"));
+	}
+
+	@Test
+	void showChartReturnsMetadata() throws Exception {
+		when(this.showAction.showChart("/tmp/nginx")).thenReturn("apiVersion: v2\nname: nginx");
+
+		this.mockMvc
+			.perform(get("/api/v1/charts/show/chart").param("chartPath", "/tmp/nginx")
+				.accept(MediaType.APPLICATION_JSON))
+			.andExpect(status().isOk())
+			.andExpect(content().string("apiVersion: v2\nname: nginx"));
+	}
+
+	@Test
+	void showCrdsReturnsCrds() throws Exception {
+		when(this.showAction.showCrds("/tmp/nginx")).thenReturn("apiVersion: apiextensions.k8s.io/v1\nkind: CRD");
+
+		this.mockMvc
+			.perform(
+					get("/api/v1/charts/show/crds").param("chartPath", "/tmp/nginx").accept(MediaType.APPLICATION_JSON))
+			.andExpect(status().isOk())
+			.andExpect(content().string("apiVersion: apiextensions.k8s.io/v1\nkind: CRD"));
 	}
 
 }

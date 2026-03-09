@@ -49,6 +49,10 @@ Open http://localhost:8080/swagger-ui.html to see all endpoints.
 | `jhelm.rest.base-path`
 | `/api/v1`
 | Base path prefix for all REST endpoints
+
+| `jhelm.rest.temp-dir`
+| System temp dir
+| Base directory for server-managed temporary files used during chart operations
 |===
 
 [source,yaml]
@@ -56,6 +60,7 @@ Open http://localhost:8080/swagger-ui.html to see all endpoints.
 jhelm:
   rest:
     base-path: /api/v1
+    temp-dir: /var/lib/jhelm/tmp
 ----
 
 == Auto-Configuration
@@ -72,11 +77,11 @@ jhelm:
 
 | `ChartController`
 | `TemplateAction` present
-| 8 chart operation endpoints
+| 10 chart operation endpoints
 
 | `RepoController`
 | `RepoManager` present
-| 6 repository management endpoints
+| 9 repository management endpoints
 
 | `HubController`
 | `SearchHubAction` present
@@ -206,11 +211,11 @@ curl -X POST http://localhost:8080/api/v1/releases/my-release/rollback?namespace
 
 | `POST`
 | `/charts/create`
-| Scaffold a new chart directory
+| Scaffold a new chart and return as .tgz download
 
 | `POST`
 | `/charts/package`
-| Package a chart into a .tgz archive
+| Package a chart and return as .tgz download
 
 | `POST`
 | `/charts/verify`
@@ -227,6 +232,14 @@ curl -X POST http://localhost:8080/api/v1/releases/my-release/rollback?namespace
 | `GET`
 | `/charts/show/readme?chartPath=...`
 | Show chart README
+
+| `GET`
+| `/charts/show/chart?chartPath=...`
+| Show Chart.yaml metadata
+
+| `GET`
+| `/charts/show/crds?chartPath=...`
+| Show Custom Resource Definitions
 |===
 
 ==== Render Templates
@@ -264,21 +277,29 @@ Response:
 }
 ----
 
+==== Create a Chart
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/charts/create \
+  -H 'Content-Type: application/json' \
+  -o my-chart.tgz \
+  -d '{"name": "my-chart"}'
+----
+
+Response: binary `.tgz` download with `Content-Type: application/gzip`.
+
 ==== Package a Chart
 
 [source,bash]
 ----
 curl -X POST http://localhost:8080/api/v1/charts/package \
   -H 'Content-Type: application/json' \
-  -d '{"chartPath": "/path/to/my-chart", "destination": "/tmp/packages"}'
+  -o my-chart-1.0.0.tgz \
+  -d '{"chartPath": "/path/to/my-chart"}'
 ----
 
-Response:
-
-[source,json]
-----
-{"archivePath": "/tmp/packages/my-chart-1.0.0.tgz"}
-----
+Response: binary `.tgz` download with `Content-Type: application/gzip`.
 
 === Repositories — `/api/v1/repos`
 
@@ -308,7 +329,19 @@ Response:
 
 | `POST`
 | `/repos/{name}/charts/{chart}/pull`
-| Pull a chart from a repository
+| Pull a chart and return as .tgz download
+
+| `POST`
+| `/repos/update-all`
+| Update all repository indices
+
+| `POST`
+| `/repos/oci/pull`
+| Pull a chart from an OCI registry and return as .tgz download
+
+| `POST`
+| `/repos/oci/push`
+| Push a chart to an OCI registry
 |===
 
 ==== Add a Repository
@@ -343,7 +376,38 @@ Response:
 ----
 curl -X POST http://localhost:8080/api/v1/repos/bitnami/charts/nginx/pull \
   -H 'Content-Type: application/json' \
-  -d '{"version": "18.3.1", "destination": "/tmp/charts"}'
+  -o nginx-18.3.1.tgz \
+  -d '{"version": "18.3.1"}'
+----
+
+Response: binary `.tgz` download with `Content-Type: application/gzip`.
+
+==== Update All Repositories
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/repos/update-all
+----
+
+==== Pull from OCI Registry
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/repos/oci/pull \
+  -H 'Content-Type: application/json' \
+  -o chart.tgz \
+  -d '{"ociUrl": "oci://registry.example.com/charts/nginx:1.0.0"}'
+----
+
+Response: binary `.tgz` download with `Content-Type: application/gzip`.
+
+==== Push to OCI Registry
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/repos/oci/push \
+  -H 'Content-Type: application/json' \
+  -d '{"chartTgzPath": "/tmp/nginx-1.0.0.tgz", "ociUrl": "oci://registry.example.com/charts/nginx"}'
 ----
 
 === Hub — `/api/v1/hub`
@@ -390,11 +454,11 @@ NOTE: ArtifactHub API limits `maxResults` to 60 per request.
 
 | `POST`
 | `/dependencies/resolve`
-| Resolve dependency versions and create Chart.lock
+| Resolve dependency versions and return Chart.lock YAML
 
 | `POST`
 | `/dependencies/download`
-| Download resolved dependencies from Chart.lock
+| Download resolved dependencies and return as .tgz download
 |===
 
 ==== Resolve Dependencies
@@ -406,14 +470,29 @@ curl -X POST http://localhost:8080/api/v1/dependencies/resolve \
   -d '{"chartPath": "/path/to/my-chart"}'
 ----
 
+Response: YAML content with `Content-Type: text/yaml`:
+
+[source,yaml]
+----
+dependencies:
+- name: redis
+  version: "18.0.0"
+  repository: "https://charts.bitnami.com/bitnami"
+digest: "sha256:..."
+generated: "2026-03-08T..."
+----
+
 ==== Download Dependencies
 
 [source,bash]
 ----
 curl -X POST http://localhost:8080/api/v1/dependencies/download \
   -H 'Content-Type: application/json' \
+  -o dependencies.tgz \
   -d '{"chartPath": "/path/to/my-chart"}'
 ----
+
+Response: binary `.tgz` download with `Content-Type: application/gzip`.
 
 == Error Handling
 
