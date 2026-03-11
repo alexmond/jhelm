@@ -29,46 +29,12 @@ public class PullCommand implements Runnable {
 	@Override
 	public void run() {
 		try {
-			if (chart.startsWith("oci://")) {
-				String fileName = deriveOciFileName(chart);
-				repoManager.pullFromUrl(chart, dest, fileName);
-			}
-			else {
-				String resolvedVersion = resolveVersion();
-				if (resolvedVersion == null) {
-					CliOutput.errPrintln(CliOutput.error("--version is required for repository chart pulls"));
-					return;
-				}
-				repoManager.pull(chart, null, resolvedVersion, dest);
-			}
+			repoManager.pull(chart, version, dest);
 			CliOutput.println(CliOutput.success("Chart pulled to " + dest));
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error pulling chart: " + ex.getMessage()));
 		}
-	}
-
-	private String resolveVersion() {
-		if (version != null) {
-			return version;
-		}
-		// Support repo/chart:version syntax
-		if (chart.contains(":")) {
-			int colon = chart.lastIndexOf(':');
-			String v = chart.substring(colon + 1);
-			chart = chart.substring(0, colon);
-			return v;
-		}
-		return null;
-	}
-
-	private String deriveOciFileName(String ociUrl) {
-		String raw = ociUrl.substring(6);
-		String[] parts = raw.split("/");
-		String last = parts[parts.length - 1];
-		String name = last.contains(":") ? last.substring(0, last.indexOf(':')) : last;
-		String chartTag = last.contains(":") ? last.substring(last.indexOf(':') + 1) : "latest";
-		return name + "-" + chartTag + ".tgz";
 	}
 
 }

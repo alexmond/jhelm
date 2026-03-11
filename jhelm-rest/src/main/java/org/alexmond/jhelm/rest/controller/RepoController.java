@@ -15,7 +15,6 @@ import org.alexmond.jhelm.core.model.RepositoryConfig;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.alexmond.jhelm.rest.dto.ChartVersionDto;
-import org.alexmond.jhelm.rest.dto.OciPullRequest;
 import org.alexmond.jhelm.rest.dto.OciPushRequest;
 import org.alexmond.jhelm.rest.dto.PullRequest;
 import org.alexmond.jhelm.rest.dto.RepoAddRequest;
@@ -96,19 +95,27 @@ public class RepoController {
 		return this.repoManager.getChartVersions(name, chart).stream().map(ChartVersionDto::from).toList();
 	}
 
-	@PostMapping("/{name}/charts/{chart}/pull")
+	@PostMapping("/pull")
 	@Operation(summary = "Pull a chart",
-			description = "Download a chart from a repository and return it as a .tgz archive")
-	public ResponseEntity<byte[]> pullChart(@Parameter(description = "Repository name") @PathVariable String name,
-			@Parameter(description = "Chart name") @PathVariable String chart, @RequestBody PullRequest request)
-			throws Exception {
+			description = "Pull a chart from a repository or OCI registry and return it as a .tgz archive")
+	public ResponseEntity<byte[]> pull(@RequestBody PullRequest request) throws Exception {
+		if (request.getChart() == null || request.getChart().isBlank()) {
+			throw new IllegalArgumentException("chart is required");
+		}
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-pull-")) {
-			this.repoManager.pull(chart, name, request.getVersion(), tempDir.path().toString());
+			this.repoManager.pull(request.getChart(), request.getVersion(), tempDir.path().toString());
+			String fileName = resolveFileName(request.getChart(), request.getVersion());
+			File[] files = tempDir.path().toFile().listFiles();
+			if (files != null && files.length == 1 && files[0].getName().endsWith(".tgz")) {
+				byte[] tgz = Files.readAllBytes(files[0].toPath());
+				return ResponseEntity.ok()
+					.contentType(APPLICATION_GZIP)
+					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + files[0].getName() + "\"")
+					.body(tgz);
+			}
 			Path chartDir = findSingleSubdir(tempDir.path());
 			String dirName = chartDir.getFileName().toString();
 			byte[] tgz = ChartArchiveUtil.toTgzBytes(chartDir, dirName);
-			String version = (request.getVersion() != null) ? request.getVersion() : "latest";
-			String fileName = chart + "-" + version + ".tgz";
 			return ResponseEntity.ok()
 				.contentType(APPLICATION_GZIP)
 				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
@@ -123,33 +130,6 @@ public class RepoController {
 		return ResponseEntity.ok().build();
 	}
 
-	@PostMapping("/oci/pull")
-	@Operation(summary = "Pull from OCI registry",
-			description = "Pull a chart from an OCI registry and return it as a .tgz archive")
-	public ResponseEntity<byte[]> pullOci(@RequestBody OciPullRequest request) throws Exception {
-		if (request.getOciUrl() == null || request.getOciUrl().isBlank()) {
-			throw new IllegalArgumentException("ociUrl is required");
-		}
-		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-oci-pull-")) {
-			this.repoManager.pullOci(request.getOciUrl(), tempDir.path().toString(), null);
-			File[] files = tempDir.path().toFile().listFiles();
-			if (files != null && files.length == 1 && files[0].getName().endsWith(".tgz")) {
-				byte[] tgz = Files.readAllBytes(files[0].toPath());
-				return ResponseEntity.ok()
-					.contentType(APPLICATION_GZIP)
-					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + files[0].getName() + "\"")
-					.body(tgz);
-			}
-			Path chartDir = findSingleSubdir(tempDir.path());
-			String dirName = chartDir.getFileName().toString();
-			byte[] tgz = ChartArchiveUtil.toTgzBytes(chartDir, dirName);
-			return ResponseEntity.ok()
-				.contentType(APPLICATION_GZIP)
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + dirName + ".tgz\"")
-				.body(tgz);
-		}
-	}
-
 	@PostMapping("/oci/push")
 	@Operation(summary = "Push to OCI registry", description = "Push a chart to an OCI registry")
 	public ResponseEntity<Void> pushOci(@RequestBody OciPushRequest request) throws Exception {
@@ -161,6 +141,21 @@ public class RepoController {
 		}
 		this.repoManager.pushOci(request.getChartTgzPath(), request.getOciUrl());
 		return ResponseEntity.ok().build();
+	}
+
+	private static String resolveFileName(String chart, String version) {
+		String chartName = chart;
+		if (chart.startsWith("oci://")) {
+			return RepoManager.deriveOciFileName(chart);
+		}
+		if (chartName.contains("/")) {
+			chartName = chartName.substring(chartName.lastIndexOf('/') + 1);
+		}
+		if (chartName.contains(":")) {
+			chartName = chartName.substring(0, chartName.lastIndexOf(':'));
+		}
+		String v = (version != null) ? version : "latest";
+		return chartName + "-" + v + ".tgz";
 	}
 
 	private static Path findSingleSubdir(Path parent) throws IOException {

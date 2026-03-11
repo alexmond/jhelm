@@ -517,4 +517,19 @@ class RepoManagerTest {
 		};
 	}
 
+	@ParameterizedTest
+	@CsvSource({ "oci://ghcr.io/helm/charts/nginx:1.0.0, nginx-1.0.0.tgz",
+			"oci://registry.example.com/charts/myapp:2.3.4, myapp-2.3.4.tgz",
+			"oci://registry.example.com/nginx, nginx-latest.tgz" })
+	void testDeriveOciFileName(String ociUrl, String expected) {
+		assertEquals(expected, RepoManager.deriveOciFileName(ociUrl));
+	}
+
+	@Test
+	void testUnifiedPullRejectsMissingVersion() {
+		Path configPath = tempDir.resolve("repositories.yaml");
+		RepoManager rm = new RepoManager(configPath.toString());
+		assertThrows(IOException.class, () -> rm.pull("bitnami/nginx", null, tempDir.toString()));
+	}
+
 }

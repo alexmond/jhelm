@@ -81,7 +81,7 @@ jhelm:
 
 | `RepoController`
 | `RepoManager` present
-| 9 repository management endpoints
+| 8 repository management endpoints
 
 | `HubController`
 | `SearchHubAction` present
@@ -328,16 +328,12 @@ Response: binary `.tgz` download with `Content-Type: application/gzip`.
 | List available chart versions
 
 | `POST`
-| `/repos/{name}/charts/{chart}/pull`
-| Pull a chart and return as .tgz download
+| `/repos/pull`
+| Pull a chart (repo or OCI) and return as .tgz download
 
 | `POST`
 | `/repos/update-all`
 | Update all repository indices
-
-| `POST`
-| `/repos/oci/pull`
-| Pull a chart from an OCI registry and return as .tgz download
 
 | `POST`
 | `/repos/oci/push`
@@ -372,12 +368,26 @@ Response:
 
 ==== Pull a Chart
 
+Pulls from a repository or OCI registry. The endpoint auto-detects OCI URLs by the `oci://` prefix.
+
+From a repository:
+
 [source,bash]
 ----
-curl -X POST http://localhost:8080/api/v1/repos/bitnami/charts/nginx/pull \
+curl -X POST http://localhost:8080/api/v1/repos/pull \
   -H 'Content-Type: application/json' \
   -o nginx-18.3.1.tgz \
-  -d '{"version": "18.3.1"}'
+  -d '{"chart": "bitnami/nginx", "version": "18.3.1"}'
+----
+
+From an OCI registry:
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/repos/pull \
+  -H 'Content-Type: application/json' \
+  -o nginx-1.0.0.tgz \
+  -d '{"chart": "oci://registry.example.com/charts/nginx:1.0.0"}'
 ----
 
 Response: binary `.tgz` download with `Content-Type: application/gzip`.
@@ -388,18 +398,6 @@ Response: binary `.tgz` download with `Content-Type: application/gzip`.
 ----
 curl -X POST http://localhost:8080/api/v1/repos/update-all
 ----
-
-==== Pull from OCI Registry
-
-[source,bash]
-----
-curl -X POST http://localhost:8080/api/v1/repos/oci/pull \
-  -H 'Content-Type: application/json' \
-  -o chart.tgz \
-  -d '{"ociUrl": "oci://registry.example.com/charts/nginx:1.0.0"}'
-----
-
-Response: binary `.tgz` download with `Content-Type: application/gzip`.
 
 ==== Push to OCI Registry
 
