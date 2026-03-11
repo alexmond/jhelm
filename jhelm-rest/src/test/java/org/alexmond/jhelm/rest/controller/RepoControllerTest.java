@@ -19,7 +19,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -105,22 +104,46 @@ class RepoControllerTest {
 	}
 
 	@Test
-	void pullChartReturnsArchiveDownload() throws Exception {
+	void pullRepoChartReturnsArchiveDownload() throws Exception {
 		doAnswer((invocation) -> {
-			String destDir = invocation.getArgument(3);
+			String destDir = invocation.getArgument(2);
 			Path chartDir = Path.of(destDir).resolve("nginx");
 			Files.createDirectories(chartDir);
 			Files.writeString(chartDir.resolve("Chart.yaml"), "name: nginx\nversion: 1.0.0");
 			return null;
-		}).when(this.repoManager).pull(eq("nginx"), eq("bitnami"), eq("1.0.0"), anyString());
+		}).when(this.repoManager).pull(eq("bitnami/nginx"), eq("1.0.0"), anyString());
 
-		this.mockMvc
-			.perform(post("/api/v1/repos/bitnami/charts/nginx/pull").contentType(MediaType.APPLICATION_JSON).content("""
-					{"version": "1.0.0"}
-					"""))
+		this.mockMvc.perform(post("/api/v1/repos/pull").contentType(MediaType.APPLICATION_JSON).content("""
+				{"chart": "bitnami/nginx", "version": "1.0.0"}
+				"""))
 			.andExpect(status().isOk())
 			.andExpect(header().string("Content-Type", "application/gzip"))
 			.andExpect(header().string("Content-Disposition", "attachment; filename=\"nginx-1.0.0.tgz\""));
+	}
+
+	@Test
+	void pullOciChartReturnsArchiveDownload() throws Exception {
+		doAnswer((invocation) -> {
+			String destDir = invocation.getArgument(2);
+			Path chartDir = Path.of(destDir).resolve("nginx");
+			Files.createDirectories(chartDir);
+			Files.writeString(chartDir.resolve("Chart.yaml"), "name: nginx\nversion: 1.0.0");
+			return null;
+		}).when(this.repoManager).pull(eq("oci://registry.example.com/nginx:1.0.0"), eq(null), anyString());
+
+		this.mockMvc.perform(post("/api/v1/repos/pull").contentType(MediaType.APPLICATION_JSON).content("""
+				{"chart": "oci://registry.example.com/nginx:1.0.0"}
+				""")).andExpect(status().isOk()).andExpect(header().string("Content-Type", "application/gzip"));
+	}
+
+	@Test
+	void pullRejectsMissingChart() throws Exception {
+		this.mockMvc
+			.perform(post("/api/v1/repos/pull").contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.content("{}"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.message").value("chart is required"));
 	}
 
 	@Test
@@ -128,31 +151,6 @@ class RepoControllerTest {
 		this.mockMvc.perform(post("/api/v1/repos/update-all").accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk());
 		verify(this.repoManager).updateAll();
-	}
-
-	@Test
-	void pullOciReturnsArchiveDownload() throws Exception {
-		doAnswer((invocation) -> {
-			String destDir = invocation.getArgument(1);
-			Path chartDir = Path.of(destDir).resolve("nginx");
-			Files.createDirectories(chartDir);
-			Files.writeString(chartDir.resolve("Chart.yaml"), "name: nginx\nversion: 1.0.0");
-			return null;
-		}).when(this.repoManager).pullOci(eq("oci://registry.example.com/nginx:1.0.0"), anyString(), isNull());
-
-		this.mockMvc.perform(post("/api/v1/repos/oci/pull").contentType(MediaType.APPLICATION_JSON).content("""
-				{"ociUrl": "oci://registry.example.com/nginx:1.0.0"}
-				""")).andExpect(status().isOk()).andExpect(header().string("Content-Type", "application/gzip"));
-	}
-
-	@Test
-	void pullOciRejectsMissingOciUrl() throws Exception {
-		this.mockMvc
-			.perform(post("/api/v1/repos/oci/pull").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("{}"))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("ociUrl is required"));
 	}
 
 	@Test

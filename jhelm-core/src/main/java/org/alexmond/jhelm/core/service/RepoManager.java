@@ -402,6 +402,42 @@ public class RepoManager {
 		return (o != null) ? String.valueOf(o) : null;
 	}
 
+	/**
+	 * Unified pull that handles both repo-based and OCI charts. Detects OCI URLs by their
+	 * {@code oci://} prefix.
+	 * @param chart either {@code repo/chartName}, {@code repo/chartName:version}, or
+	 * {@code oci://...}
+	 * @param version optional version (for repo charts; OCI version is in the URL tag)
+	 * @param destDir destination directory
+	 */
+	public void pull(String chart, String version, String destDir) throws IOException {
+		if (chart.startsWith("oci://")) {
+			String fileName = deriveOciFileName(chart);
+			pullOci(chart, destDir, fileName);
+		}
+		else {
+			String resolvedVersion = version;
+			if (resolvedVersion == null && chart.contains(":")) {
+				int colon = chart.lastIndexOf(':');
+				resolvedVersion = chart.substring(colon + 1);
+				chart = chart.substring(0, colon);
+			}
+			if (resolvedVersion == null || resolvedVersion.isBlank()) {
+				throw new IOException("version is required for repository chart pulls");
+			}
+			pull(chart, null, resolvedVersion, destDir);
+		}
+	}
+
+	public static String deriveOciFileName(String ociUrl) {
+		String raw = ociUrl.substring(6);
+		String[] parts = raw.split("/");
+		String last = parts[parts.length - 1];
+		String name = last.contains(":") ? last.substring(0, last.indexOf(':')) : last;
+		String chartTag = last.contains(":") ? last.substring(last.indexOf(':') + 1) : "latest";
+		return name + "-" + chartTag + ".tgz";
+	}
+
 	public void pull(String chartFullName, String repoName, String version, String destDir) throws IOException {
 		String finalChartName = chartFullName;
 		String finalRepoName = repoName;
