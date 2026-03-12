@@ -95,8 +95,8 @@ public class JhelmRestAutoConfiguration {
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(DependencyResolver.class)
 	public DependencyController dependencyController(DependencyResolver dependencyResolver, ChartLoader chartLoader,
-			JhelmRestProperties properties) {
-		return new DependencyController(dependencyResolver, chartLoader, properties);
+			RepoManager repoManager, JhelmRestProperties properties) {
+		return new DependencyController(dependencyResolver, chartLoader, repoManager, properties);
 	}
 
 }
