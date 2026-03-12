@@ -1,20 +1,16 @@
 package org.alexmond.jhelm.rest.controller;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
 import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.LintAction;
-import org.alexmond.jhelm.core.action.PackageAction;
 import org.alexmond.jhelm.core.action.ShowAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
-import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.rest.JhelmRestExceptionHandler;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -27,7 +23,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -52,12 +47,6 @@ class ChartControllerTest {
 
 	@MockitoBean
 	private CreateAction createAction;
-
-	@MockitoBean
-	private PackageAction packageAction;
-
-	@MockitoBean
-	private VerifyAction verifyAction;
 
 	@MockitoBean
 	private ShowAction showAction;
@@ -140,68 +129,6 @@ class ChartControllerTest {
 				.content("{}"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.message").value("name is required"));
-	}
-
-	@Test
-	void packageChartReturnsArchiveDownload(@TempDir Path tempChart) throws Exception {
-		Files.writeString(tempChart.resolve("Chart.yaml"), "name: nginx\nversion: 1.0.0");
-		File archive = tempChart.resolve("nginx-1.0.0.tgz").toFile();
-		Files.writeString(archive.toPath(), "fake-tgz-content");
-
-		when(this.packageAction.packageChart(eq("/tmp/nginx"))).thenReturn(archive);
-
-		this.mockMvc.perform(post("/api/v1/charts/package").contentType(MediaType.APPLICATION_JSON).content("""
-				{"chartPath": "/tmp/nginx"}
-				"""))
-			.andExpect(status().isOk())
-			.andExpect(header().string("Content-Type", "application/gzip"))
-			.andExpect(header().string("Content-Disposition", "attachment; filename=\"nginx-1.0.0.tgz\""));
-	}
-
-	@Test
-	void packageRejectsMissingChartPath() throws Exception {
-		this.mockMvc
-			.perform(post("/api/v1/charts/package").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("{}"))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("chartPath is required"));
-	}
-
-	@Test
-	void verifySucceeds() throws Exception {
-		this.mockMvc
-			.perform(post("/api/v1/charts/verify").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("""
-						{"chartTgzPath": "/tmp/nginx-1.0.0.tgz", "keyringPath": "/tmp/keyring.gpg"}
-						"""))
-			.andExpect(status().isOk());
-		verify(this.verifyAction).verify("/tmp/nginx-1.0.0.tgz", "/tmp/keyring.gpg");
-	}
-
-	@Test
-	void verifyRejectsMissingChartTgzPath() throws Exception {
-		this.mockMvc
-			.perform(post("/api/v1/charts/verify").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("""
-						{"keyringPath": "/tmp/keyring.gpg"}
-						"""))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("chartTgzPath is required"));
-	}
-
-	@Test
-	void verifyRejectsMissingKeyringPath() throws Exception {
-		this.mockMvc
-			.perform(post("/api/v1/charts/verify").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("""
-						{"chartTgzPath": "/tmp/nginx-1.0.0.tgz"}
-						"""))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("keyringPath is required"));
 	}
 
 	@Test
