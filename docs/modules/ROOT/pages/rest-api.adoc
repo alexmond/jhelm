@@ -89,7 +89,7 @@ jhelm:
 
 | `DependencyController`
 | `DependencyResolver` present
-| 2 dependency management endpoints
+| 1 dependency management endpoint
 |===
 
 NOTE: Release endpoints require `jhelm-kube` on the classpath (Kubernetes client). All other endpoints work with `jhelm-core` alone.
@@ -452,11 +452,7 @@ NOTE: ArtifactHub API limits `maxResults` to 60 per request.
 
 | `POST`
 | `/dependencies/resolve`
-| Resolve dependency versions and return Chart.lock YAML
-
-| `POST`
-| `/dependencies/download`
-| Download resolved dependencies and return as .tgz download
+| Resolve dependency versions from a chart reference and return Chart.lock YAML
 |===
 
 ==== Resolve Dependencies
@@ -465,7 +461,7 @@ NOTE: ArtifactHub API limits `maxResults` to 60 per request.
 ----
 curl -X POST http://localhost:8080/api/v1/dependencies/resolve \
   -H 'Content-Type: application/json' \
-  -d '{"chartPath": "/path/to/my-chart"}'
+  -d '{"chartRef": "bitnami/nginx", "version": "18.3.1"}'
 ----
 
 Response: YAML content with `Content-Type: text/yaml`:
@@ -480,18 +476,6 @@ digest: "sha256:..."
 generated: "2026-03-08T..."
 ----
 
-==== Download Dependencies
-
-[source,bash]
-----
-curl -X POST http://localhost:8080/api/v1/dependencies/download \
-  -H 'Content-Type: application/json' \
-  -o dependencies.tgz \
-  -d '{"chartPath": "/path/to/my-chart"}'
-----
-
-Response: binary `.tgz` download with `Content-Type: application/gzip`.
-
 == Error Handling
 
 All endpoints return consistent error responses via `JhelmRestExceptionHandler`:
@@ -503,7 +487,7 @@ Error response format:
 
 [source,json]
 ----
-{"message": "chartPath is required"}
+{"message": "chartRef is required"}
 ----
 
 == Spring Boot Integration
