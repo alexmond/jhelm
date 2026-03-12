@@ -8,7 +8,6 @@ import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.LintAction;
 import org.alexmond.jhelm.core.action.ListAction;
-import org.alexmond.jhelm.core.action.PackageAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.ShowAction;
 import org.alexmond.jhelm.core.action.StatusAction;
@@ -16,7 +15,6 @@ import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
-import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.DependencyResolver;
 import org.alexmond.jhelm.core.service.RepoManager;
@@ -64,10 +62,8 @@ public class JhelmRestAutoConfiguration {
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(TemplateAction.class)
 	public ChartController chartController(TemplateAction templateAction, LintAction lintAction,
-			CreateAction createAction, PackageAction packageAction, VerifyAction verifyAction, ShowAction showAction,
-			JhelmRestProperties properties) {
-		return new ChartController(templateAction, lintAction, createAction, packageAction, verifyAction, showAction,
-				properties);
+			CreateAction createAction, ShowAction showAction, JhelmRestProperties properties) {
+		return new ChartController(templateAction, lintAction, createAction, showAction, properties);
 	}
 
 	@Bean

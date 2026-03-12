@@ -77,7 +77,7 @@ jhelm:
 
 | `ChartController`
 | `TemplateAction` present
-| 10 chart operation endpoints
+| 8 chart operation endpoints
 
 | `RepoController`
 | `RepoManager` present
@@ -213,14 +213,6 @@ curl -X POST http://localhost:8080/api/v1/releases/my-release/rollback?namespace
 | `/charts/create`
 | Scaffold a new chart and return as .tgz download
 
-| `POST`
-| `/charts/package`
-| Package a chart and return as .tgz download
-
-| `POST`
-| `/charts/verify`
-| Verify PGP signature of a packaged chart
-
 | `GET`
 | `/charts/show?chartPath=...`
 | Show all chart info (metadata, values, README)
@@ -285,18 +277,6 @@ curl -X POST http://localhost:8080/api/v1/charts/create \
   -H 'Content-Type: application/json' \
   -o my-chart.tgz \
   -d '{"name": "my-chart"}'
-----
-
-Response: binary `.tgz` download with `Content-Type: application/gzip`.
-
-==== Package a Chart
-
-[source,bash]
-----
-curl -X POST http://localhost:8080/api/v1/charts/package \
-  -H 'Content-Type: application/json' \
-  -o my-chart-1.0.0.tgz \
-  -d '{"chartPath": "/path/to/my-chart"}'
 ----
 
 Response: binary `.tgz` download with `Content-Type: application/gzip`.
