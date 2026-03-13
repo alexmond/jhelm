@@ -8,6 +8,7 @@ import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.LintAction;
 import org.alexmond.jhelm.core.action.ShowAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
+import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.JhelmRestExceptionHandler;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
@@ -50,6 +52,9 @@ class ChartControllerTest {
 
 	@MockitoBean
 	private ShowAction showAction;
+
+	@MockitoBean
+	private RepoManager repoManager;
 
 	@Test
 	void templateRendersManifest() throws Exception {
@@ -133,20 +138,25 @@ class ChartControllerTest {
 
 	@Test
 	void showAllReturnsChartInfo() throws Exception {
-		when(this.showAction.showAll("/tmp/nginx")).thenReturn("# Chart.yaml\nname: nginx");
+		stubPull();
+		when(this.showAction.showAll(anyString())).thenReturn("# Chart.yaml\nname: nginx");
 
 		this.mockMvc
-			.perform(get("/api/v1/charts/show").param("chartPath", "/tmp/nginx").accept(MediaType.APPLICATION_JSON))
+			.perform(get("/api/v1/charts/show").param("chartRef", "bitnami/nginx")
+				.param("version", "18.3.1")
+				.accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(content().string("# Chart.yaml\nname: nginx"));
 	}
 
 	@Test
 	void showValuesReturnsValues() throws Exception {
-		when(this.showAction.showValues("/tmp/nginx")).thenReturn("replicas: 1");
+		stubPull();
+		when(this.showAction.showValues(anyString())).thenReturn("replicas: 1");
 
 		this.mockMvc
-			.perform(get("/api/v1/charts/show/values").param("chartPath", "/tmp/nginx")
+			.perform(get("/api/v1/charts/show/values").param("chartRef", "bitnami/nginx")
+				.param("version", "18.3.1")
 				.accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(content().string("replicas: 1"));
@@ -154,10 +164,12 @@ class ChartControllerTest {
 
 	@Test
 	void showReadmeReturnsReadme() throws Exception {
-		when(this.showAction.showReadme("/tmp/nginx")).thenReturn("# Nginx Chart");
+		stubPull();
+		when(this.showAction.showReadme(anyString())).thenReturn("# Nginx Chart");
 
 		this.mockMvc
-			.perform(get("/api/v1/charts/show/readme").param("chartPath", "/tmp/nginx")
+			.perform(get("/api/v1/charts/show/readme").param("chartRef", "bitnami/nginx")
+				.param("version", "18.3.1")
 				.accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(content().string("# Nginx Chart"));
@@ -165,10 +177,12 @@ class ChartControllerTest {
 
 	@Test
 	void showChartReturnsMetadata() throws Exception {
-		when(this.showAction.showChart("/tmp/nginx")).thenReturn("apiVersion: v2\nname: nginx");
+		stubPull();
+		when(this.showAction.showChart(anyString())).thenReturn("apiVersion: v2\nname: nginx");
 
 		this.mockMvc
-			.perform(get("/api/v1/charts/show/chart").param("chartPath", "/tmp/nginx")
+			.perform(get("/api/v1/charts/show/chart").param("chartRef", "bitnami/nginx")
+				.param("version", "18.3.1")
 				.accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(content().string("apiVersion: v2\nname: nginx"));
@@ -176,13 +190,36 @@ class ChartControllerTest {
 
 	@Test
 	void showCrdsReturnsCrds() throws Exception {
-		when(this.showAction.showCrds("/tmp/nginx")).thenReturn("apiVersion: apiextensions.k8s.io/v1\nkind: CRD");
+		stubPull();
+		when(this.showAction.showCrds(anyString())).thenReturn("apiVersion: apiextensions.k8s.io/v1\nkind: CRD");
 
 		this.mockMvc
-			.perform(
-					get("/api/v1/charts/show/crds").param("chartPath", "/tmp/nginx").accept(MediaType.APPLICATION_JSON))
+			.perform(get("/api/v1/charts/show/crds").param("chartRef", "bitnami/nginx")
+				.param("version", "18.3.1")
+				.accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(content().string("apiVersion: apiextensions.k8s.io/v1\nkind: CRD"));
+	}
+
+	@Test
+	void showWithoutVersionPulls() throws Exception {
+		stubPull();
+		when(this.showAction.showAll(anyString())).thenReturn("name: nginx");
+
+		this.mockMvc
+			.perform(get("/api/v1/charts/show").param("chartRef", "bitnami/nginx").accept(MediaType.APPLICATION_JSON))
+			.andExpect(status().isOk())
+			.andExpect(content().string("name: nginx"));
+	}
+
+	private void stubPull() throws Exception {
+		doAnswer((invocation) -> {
+			String destDir = invocation.getArgument(2);
+			Path chartDir = Path.of(destDir).resolve("nginx");
+			Files.createDirectories(chartDir);
+			Files.writeString(chartDir.resolve("Chart.yaml"), "name: nginx\nversion: 18.3.1");
+			return null;
+		}).when(this.repoManager).pull(anyString(), any(), anyString());
 	}
 
 }

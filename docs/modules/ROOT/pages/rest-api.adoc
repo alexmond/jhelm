@@ -76,7 +76,7 @@ jhelm:
 | 13 release management endpoints
 
 | `ChartController`
-| `TemplateAction` present
+| `TemplateAction` + `RepoManager` present
 | 8 chart operation endpoints
 
 | `RepoController`
@@ -214,23 +214,23 @@ curl -X POST http://localhost:8080/api/v1/releases/my-release/rollback?namespace
 | Scaffold a new chart and return as .tgz download
 
 | `GET`
-| `/charts/show?chartPath=...`
+| `/charts/show?chartRef=...&version=...`
 | Show all chart info (metadata, values, README)
 
 | `GET`
-| `/charts/show/values?chartPath=...`
+| `/charts/show/values?chartRef=...&version=...`
 | Show default values.yaml
 
 | `GET`
-| `/charts/show/readme?chartPath=...`
+| `/charts/show/readme?chartRef=...&version=...`
 | Show chart README
 
 | `GET`
-| `/charts/show/chart?chartPath=...`
+| `/charts/show/chart?chartRef=...&version=...`
 | Show Chart.yaml metadata
 
 | `GET`
-| `/charts/show/crds?chartPath=...`
+| `/charts/show/crds?chartRef=...&version=...`
 | Show Custom Resource Definitions
 |===
 
