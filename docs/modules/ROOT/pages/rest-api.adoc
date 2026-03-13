@@ -72,8 +72,8 @@ jhelm:
 | Controller | Condition | Endpoints
 
 | `ReleaseController`
-| `ListAction` + `InstallAction` present (requires `jhelm-kube`)
-| 13 release management endpoints
+| `ListAction` + `InstallAction` + `RepoManager` present (requires `jhelm-kube`)
+| 15 release management endpoints
 
 | `ChartController`
 | `TemplateAction` + `RepoManager` present
@@ -112,11 +112,19 @@ NOTE: Release endpoints require `jhelm-kube` on the classpath (Kubernetes client
 
 | `POST`
 | `/releases`
-| Install a new release
+| Install a release from a chart reference
+
+| `POST`
+| `/releases/upload`
+| Install a release from an uploaded .tgz archive (multipart)
 
 | `PUT`
 | `/releases/{name}?namespace=default`
-| Upgrade an existing release
+| Upgrade a release from a chart reference
+
+| `POST`
+| `/releases/{name}/upgrade/upload?namespace=default`
+| Upgrade a release from an uploaded .tgz archive (multipart)
 
 | `DELETE`
 | `/releases/{name}?namespace=default`
@@ -157,12 +165,15 @@ NOTE: Release endpoints require `jhelm-kube` on the classpath (Kubernetes client
 
 ==== Install a Release
 
+From a chart reference:
+
 [source,bash]
 ----
 curl -X POST http://localhost:8080/api/v1/releases \
   -H 'Content-Type: application/json' \
   -d '{
-    "chartPath": "/path/to/my-chart",
+    "chartRef": "bitnami/nginx",
+    "version": "18.3.1",
     "releaseName": "my-release",
     "namespace": "production",
     "values": {
@@ -173,17 +184,38 @@ curl -X POST http://localhost:8080/api/v1/releases \
   }'
 ----
 
+From an uploaded .tgz archive:
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/releases/upload \
+  -F 'chart=@nginx-18.3.1.tgz;type=application/gzip' \
+  -F 'request={"releaseName": "my-release", "namespace": "production"};type=application/json'
+----
+
 ==== Upgrade a Release
+
+From a chart reference:
 
 [source,bash]
 ----
 curl -X PUT http://localhost:8080/api/v1/releases/my-release?namespace=production \
   -H 'Content-Type: application/json' \
   -d '{
-    "chartPath": "/path/to/chart-v2",
+    "chartRef": "bitnami/nginx",
+    "version": "19.0.0",
     "values": {"image": {"tag": "v2.1"}},
     "dryRun": false
   }'
+----
+
+From an uploaded .tgz archive:
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/releases/my-release/upgrade/upload?namespace=production \
+  -F 'chart=@nginx-19.0.0.tgz;type=application/gzip' \
+  -F 'request={"values": {"image": {"tag": "v2.1"}}};type=application/json'
 ----
 
 ==== Rollback a Release

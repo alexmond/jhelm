@@ -6,15 +6,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 @Data
-@Schema(description = "Request to install a new Helm release from a repository chart reference")
-public class InstallRequest {
-
-	@Schema(description = "Chart reference (repo/chart or oci://...)", example = "bitnami/nginx",
-			requiredMode = Schema.RequiredMode.REQUIRED)
-	private String chartRef;
-
-	@Schema(description = "Chart version", example = "18.3.1")
-	private String version;
+@Schema(description = "Metadata for installing a release from an uploaded .tgz chart archive")
+public class InstallUploadRequest {
 
 	@Schema(description = "Name for the release", example = "my-release", requiredMode = Schema.RequiredMode.REQUIRED)
 	private String releaseName;
