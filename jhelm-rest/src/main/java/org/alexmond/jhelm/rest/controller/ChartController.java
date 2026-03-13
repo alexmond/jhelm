@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.rest.controller;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -11,6 +13,7 @@ import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.LintAction;
 import org.alexmond.jhelm.core.action.ShowAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
+import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.alexmond.jhelm.rest.dto.CreateRequest;
 import org.alexmond.jhelm.rest.dto.LintRequest;
@@ -43,14 +46,17 @@ public class ChartController {
 
 	private final ShowAction showAction;
 
+	private final RepoManager repoManager;
+
 	private final JhelmRestProperties properties;
 
 	public ChartController(TemplateAction templateAction, LintAction lintAction, CreateAction createAction,
-			ShowAction showAction, JhelmRestProperties properties) {
+			ShowAction showAction, RepoManager repoManager, JhelmRestProperties properties) {
 		this.templateAction = templateAction;
 		this.lintAction = lintAction;
 		this.createAction = createAction;
 		this.showAction = showAction;
+		this.repoManager = repoManager;
 		this.properties = properties;
 	}
 
@@ -98,36 +104,63 @@ public class ChartController {
 	@GetMapping("/show")
 	@Operation(summary = "Show chart info", description = "Show all chart information: metadata, values, README, CRDs")
 	public ResponseEntity<String> showAll(
-			@Parameter(description = "Path to the chart directory") @RequestParam String chartPath) throws Exception {
-		return ResponseEntity.ok(this.showAction.showAll(chartPath));
+			@Parameter(description = "Chart reference (repo/chart or oci://...)") @RequestParam String chartRef,
+			@Parameter(description = "Chart version") @RequestParam(required = false) String version) throws Exception {
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-show-")) {
+			String chartPath = pullChart(chartRef, version, tempDir);
+			return ResponseEntity.ok(this.showAction.showAll(chartPath));
+		}
 	}
 
 	@GetMapping("/show/values")
 	@Operation(summary = "Show chart values", description = "Show the default values.yaml")
 	public ResponseEntity<String> showValues(
-			@Parameter(description = "Path to the chart directory") @RequestParam String chartPath) throws Exception {
-		return ResponseEntity.ok(this.showAction.showValues(chartPath));
+			@Parameter(description = "Chart reference (repo/chart or oci://...)") @RequestParam String chartRef,
+			@Parameter(description = "Chart version") @RequestParam(required = false) String version) throws Exception {
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-show-")) {
+			String chartPath = pullChart(chartRef, version, tempDir);
+			return ResponseEntity.ok(this.showAction.showValues(chartPath));
+		}
 	}
 
 	@GetMapping("/show/readme")
 	@Operation(summary = "Show chart README")
 	public ResponseEntity<String> showReadme(
-			@Parameter(description = "Path to the chart directory") @RequestParam String chartPath) throws Exception {
-		return ResponseEntity.ok(this.showAction.showReadme(chartPath));
+			@Parameter(description = "Chart reference (repo/chart or oci://...)") @RequestParam String chartRef,
+			@Parameter(description = "Chart version") @RequestParam(required = false) String version) throws Exception {
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-show-")) {
+			String chartPath = pullChart(chartRef, version, tempDir);
+			return ResponseEntity.ok(this.showAction.showReadme(chartPath));
+		}
 	}
 
 	@GetMapping("/show/chart")
 	@Operation(summary = "Show chart metadata", description = "Show the Chart.yaml metadata")
 	public ResponseEntity<String> showChart(
-			@Parameter(description = "Path to the chart directory") @RequestParam String chartPath) throws Exception {
-		return ResponseEntity.ok(this.showAction.showChart(chartPath));
+			@Parameter(description = "Chart reference (repo/chart or oci://...)") @RequestParam String chartRef,
+			@Parameter(description = "Chart version") @RequestParam(required = false) String version) throws Exception {
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-show-")) {
+			String chartPath = pullChart(chartRef, version, tempDir);
+			return ResponseEntity.ok(this.showAction.showChart(chartPath));
+		}
 	}
 
 	@GetMapping("/show/crds")
 	@Operation(summary = "Show chart CRDs", description = "Show Custom Resource Definitions bundled with the chart")
 	public ResponseEntity<String> showCrds(
-			@Parameter(description = "Path to the chart directory") @RequestParam String chartPath) throws Exception {
-		return ResponseEntity.ok(this.showAction.showCrds(chartPath));
+			@Parameter(description = "Chart reference (repo/chart or oci://...)") @RequestParam String chartRef,
+			@Parameter(description = "Chart version") @RequestParam(required = false) String version) throws Exception {
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-show-")) {
+			String chartPath = pullChart(chartRef, version, tempDir);
+			return ResponseEntity.ok(this.showAction.showCrds(chartPath));
+		}
+	}
+
+	private String pullChart(String chartRef, String version, TempDir tempDir) throws IOException {
+		this.repoManager.pull(chartRef, version, tempDir.path().toString());
+		try (var stream = Files.list(tempDir.path())) {
+			return stream.filter(Files::isDirectory).findFirst().orElse(tempDir.path()).toString();
+		}
 	}
 
 }

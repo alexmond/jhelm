@@ -60,10 +60,10 @@ public class JhelmRestAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	@ConditionalOnBean(TemplateAction.class)
+	@ConditionalOnBean({ TemplateAction.class, RepoManager.class })
 	public ChartController chartController(TemplateAction templateAction, LintAction lintAction,
-			CreateAction createAction, ShowAction showAction, JhelmRestProperties properties) {
-		return new ChartController(templateAction, lintAction, createAction, showAction, properties);
+			CreateAction createAction, ShowAction showAction, RepoManager repoManager, JhelmRestProperties properties) {
+		return new ChartController(templateAction, lintAction, createAction, showAction, repoManager, properties);
 	}
 
 	@Bean
