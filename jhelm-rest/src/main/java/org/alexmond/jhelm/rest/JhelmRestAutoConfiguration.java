@@ -49,13 +49,13 @@ public class JhelmRestAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	@ConditionalOnBean({ ListAction.class, InstallAction.class })
+	@ConditionalOnBean({ ListAction.class, InstallAction.class, RepoManager.class })
 	public ReleaseController releaseController(ListAction listAction, StatusAction statusAction, GetAction getAction,
 			HistoryAction historyAction, InstallAction installAction, UpgradeAction upgradeAction,
 			UninstallAction uninstallAction, RollbackAction rollbackAction, TestAction testAction,
-			ChartLoader chartLoader) {
+			ChartLoader chartLoader, RepoManager repoManager, JhelmRestProperties properties) {
 		return new ReleaseController(listAction, statusAction, getAction, historyAction, installAction, upgradeAction,
-				uninstallAction, rollbackAction, testAction, chartLoader);
+				uninstallAction, rollbackAction, testAction, chartLoader, repoManager, properties);
 	}
 
 	@Bean

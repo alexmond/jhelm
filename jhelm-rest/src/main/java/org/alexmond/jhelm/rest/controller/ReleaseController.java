@@ -1,6 +1,5 @@
 package org.alexmond.jhelm.rest.controller;
 
-import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -22,15 +21,22 @@ import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.core.util.HookParser;
+import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.alexmond.jhelm.rest.dto.HelmHookDto;
 import org.alexmond.jhelm.rest.dto.InstallRequest;
+import org.alexmond.jhelm.rest.dto.InstallUploadRequest;
 import org.alexmond.jhelm.rest.dto.ReleaseDto;
 import org.alexmond.jhelm.rest.dto.ResourceStatusDto;
 import org.alexmond.jhelm.rest.dto.RollbackRequest;
 import org.alexmond.jhelm.rest.dto.TestResultDto;
 import org.alexmond.jhelm.rest.dto.UpgradeRequest;
+import org.alexmond.jhelm.rest.dto.UpgradeUploadRequest;
+import org.alexmond.jhelm.rest.util.ChartSourceResolver;
+import org.alexmond.jhelm.rest.util.TempDir;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,7 +46,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/releases")
@@ -67,10 +75,14 @@ public class ReleaseController {
 
 	private final ChartLoader chartLoader;
 
+	private final RepoManager repoManager;
+
+	private final JhelmRestProperties properties;
+
 	public ReleaseController(ListAction listAction, StatusAction statusAction, GetAction getAction,
 			HistoryAction historyAction, InstallAction installAction, UpgradeAction upgradeAction,
 			UninstallAction uninstallAction, RollbackAction rollbackAction, TestAction testAction,
-			ChartLoader chartLoader) {
+			ChartLoader chartLoader, RepoManager repoManager, JhelmRestProperties properties) {
 		this.listAction = listAction;
 		this.statusAction = statusAction;
 		this.getAction = getAction;
@@ -81,6 +93,8 @@ public class ReleaseController {
 		this.rollbackAction = rollbackAction;
 		this.testAction = testAction;
 		this.chartLoader = chartLoader;
+		this.repoManager = repoManager;
+		this.properties = properties;
 	}
 
 	@GetMapping
@@ -105,35 +119,77 @@ public class ReleaseController {
 	}
 
 	@PostMapping
-	@Operation(summary = "Install a release", description = "Install a new Helm release from a chart")
+	@Operation(summary = "Install a release",
+			description = "Install a new Helm release from a repository chart reference")
 	public ResponseEntity<ReleaseDto> install(@RequestBody InstallRequest request) throws Exception {
-		if (request.getChartPath() == null || request.getChartPath().isBlank()) {
-			throw new IllegalArgumentException("chartPath is required");
+		if (request.getChartRef() == null || request.getChartRef().isBlank()) {
+			throw new IllegalArgumentException("chartRef is required");
 		}
 		if (request.getReleaseName() == null || request.getReleaseName().isBlank()) {
 			throw new IllegalArgumentException("releaseName is required");
 		}
-		Chart chart = this.chartLoader.load(new File(request.getChartPath()));
-		Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
-		Release release = this.installAction.install(chart, request.getReleaseName(), request.getNamespace(), values, 1,
-				request.isDryRun());
-		return ResponseEntity.status(HttpStatus.CREATED).body(ReleaseDto.from(release));
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-install-")) {
+			Chart chart = ChartSourceResolver.fromChartRef(request.getChartRef(), request.getVersion(),
+					this.repoManager, this.chartLoader, tempDir);
+			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			Release release = this.installAction.install(chart, request.getReleaseName(), request.getNamespace(),
+					values, 1, request.isDryRun());
+			return ResponseEntity.status(HttpStatus.CREATED).body(ReleaseDto.from(release));
+		}
+	}
+
+	@PostMapping(path = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@Operation(summary = "Install a release from upload",
+			description = "Install a new Helm release from an uploaded .tgz chart archive")
+	public ResponseEntity<ReleaseDto> installUpload(@RequestPart("chart") MultipartFile chart,
+			@RequestPart("request") InstallUploadRequest request) throws Exception {
+		if (request.getReleaseName() == null || request.getReleaseName().isBlank()) {
+			throw new IllegalArgumentException("releaseName is required");
+		}
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-install-upload-")) {
+			Chart loaded = ChartSourceResolver.fromUpload(chart, this.repoManager, this.chartLoader, tempDir);
+			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			Release release = this.installAction.install(loaded, request.getReleaseName(), request.getNamespace(),
+					values, 1, request.isDryRun());
+			return ResponseEntity.status(HttpStatus.CREATED).body(ReleaseDto.from(release));
+		}
 	}
 
 	@PutMapping("/{name}")
-	@Operation(summary = "Upgrade a release", description = "Upgrade an existing release to a new chart version")
+	@Operation(summary = "Upgrade a release",
+			description = "Upgrade an existing release from a repository chart reference")
 	public ReleaseDto upgrade(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
 			@RequestBody UpgradeRequest request) throws Exception {
-		if (request.getChartPath() == null || request.getChartPath().isBlank()) {
-			throw new IllegalArgumentException("chartPath is required");
+		if (request.getChartRef() == null || request.getChartRef().isBlank()) {
+			throw new IllegalArgumentException("chartRef is required");
 		}
 		Release current = this.getAction.getRelease(name, namespace)
 			.orElseThrow(() -> new IllegalArgumentException("Release '" + name + "' not found"));
-		Chart chart = this.chartLoader.load(new File(request.getChartPath()));
-		Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
-		Release upgraded = this.upgradeAction.upgrade(current, chart, values, request.isDryRun());
-		return ReleaseDto.from(upgraded);
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-upgrade-")) {
+			Chart chart = ChartSourceResolver.fromChartRef(request.getChartRef(), request.getVersion(),
+					this.repoManager, this.chartLoader, tempDir);
+			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			Release upgraded = this.upgradeAction.upgrade(current, chart, values, request.isDryRun());
+			return ReleaseDto.from(upgraded);
+		}
+	}
+
+	@PostMapping(path = "/{name}/upgrade/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@Operation(summary = "Upgrade a release from upload",
+			description = "Upgrade an existing release from an uploaded .tgz chart archive")
+	public ReleaseDto upgradeUpload(@Parameter(description = "Release name") @PathVariable String name,
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
+			@RequestPart("chart") MultipartFile chart, @RequestPart("request") UpgradeUploadRequest request)
+			throws Exception {
+		Release current = this.getAction.getRelease(name, namespace)
+			.orElseThrow(() -> new IllegalArgumentException("Release '" + name + "' not found"));
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-upgrade-upload-")) {
+			Chart loaded = ChartSourceResolver.fromUpload(chart, this.repoManager, this.chartLoader, tempDir);
+			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			Release upgraded = this.upgradeAction.upgrade(current, loaded, values, request.isDryRun());
+			return ReleaseDto.from(upgraded);
+		}
 	}
 
 	@DeleteMapping("/{name}")

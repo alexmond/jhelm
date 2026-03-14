@@ -1,6 +1,8 @@
 package org.alexmond.jhelm.rest.controller;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -18,12 +20,16 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.JhelmRestExceptionHandler;
+import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -31,11 +37,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -43,6 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(controllers = ReleaseController.class)
 @Import(JhelmRestExceptionHandler.class)
+@EnableConfigurationProperties(JhelmRestProperties.class)
 class ReleaseControllerTest {
 
 	@Autowired
@@ -77,6 +87,9 @@ class ReleaseControllerTest {
 
 	@MockitoBean
 	private ChartLoader chartLoader;
+
+	@MockitoBean
+	private RepoManager repoManager;
 
 	private static Release sampleRelease() {
 		return Release.builder()
@@ -122,6 +135,7 @@ class ReleaseControllerTest {
 
 	@Test
 	void installCreatesRelease() throws Exception {
+		stubPull();
 		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("1.0.0").build()).build();
 		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
 		when(this.installAction.install(any(), eq("my-release"), eq("default"), anyMap(), anyInt(), anyBoolean()))
@@ -131,14 +145,14 @@ class ReleaseControllerTest {
 			.perform(post("/api/v1/releases").contentType(MediaType.APPLICATION_JSON)
 				.accept(MediaType.APPLICATION_JSON)
 				.content("""
-						{"chartPath": "/tmp/nginx", "releaseName": "my-release"}
+						{"chartRef": "bitnami/nginx", "version": "1.0.0", "releaseName": "my-release"}
 						"""))
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.name").value("my-release"));
 	}
 
 	@Test
-	void installRejectsMissingChartPath() throws Exception {
+	void installRejectsMissingChartRef() throws Exception {
 		this.mockMvc
 			.perform(post("/api/v1/releases").contentType(MediaType.APPLICATION_JSON)
 				.accept(MediaType.APPLICATION_JSON)
@@ -146,13 +160,33 @@ class ReleaseControllerTest {
 						{"releaseName": "my-release"}
 						"""))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("chartPath is required"));
+			.andExpect(jsonPath("$.message").value("chartRef is required"));
+	}
+
+	@Test
+	void installUploadCreatesRelease() throws Exception {
+		stubUntar();
+		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("1.0.0").build()).build();
+		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
+		when(this.installAction.install(any(), eq("my-release"), eq("default"), anyMap(), anyInt(), anyBoolean()))
+			.thenReturn(sampleRelease());
+
+		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-1.0.0.tgz", "application/gzip",
+				new byte[] { 1, 2, 3 });
+		MockMultipartFile requestPart = new MockMultipartFile("request", "", "application/json", """
+				{"releaseName": "my-release"}
+				""".getBytes());
+
+		this.mockMvc.perform(multipart("/api/v1/releases/upload").file(chartFile).file(requestPart))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.name").value("my-release"));
 	}
 
 	@Test
 	void upgradeRelease() throws Exception {
 		Release current = sampleRelease();
 		when(this.getAction.getRelease("my-release", "default")).thenReturn(Optional.of(current));
+		stubPull();
 		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("2.0.0").build()).build();
 		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
 		Release upgraded = sampleRelease();
@@ -163,8 +197,28 @@ class ReleaseControllerTest {
 			.perform(put("/api/v1/releases/my-release").contentType(MediaType.APPLICATION_JSON)
 				.accept(MediaType.APPLICATION_JSON)
 				.content("""
-						{"chartPath": "/tmp/nginx-v2"}
+						{"chartRef": "bitnami/nginx", "version": "2.0.0"}
 						"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.version").value(2));
+	}
+
+	@Test
+	void upgradeUploadRelease() throws Exception {
+		Release current = sampleRelease();
+		when(this.getAction.getRelease("my-release", "default")).thenReturn(Optional.of(current));
+		stubUntar();
+		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("2.0.0").build()).build();
+		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
+		Release upgraded = sampleRelease();
+		upgraded.setVersion(2);
+		when(this.upgradeAction.upgrade(any(), any(), anyMap(), anyBoolean())).thenReturn(upgraded);
+
+		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-2.0.0.tgz", "application/gzip",
+				new byte[] { 1, 2, 3 });
+		MockMultipartFile requestPart = new MockMultipartFile("request", "", "application/json", "{}".getBytes());
+
+		this.mockMvc.perform(multipart("/api/v1/releases/my-release/upgrade/upload").file(chartFile).file(requestPart))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.version").value(2));
 	}
@@ -257,6 +311,26 @@ class ReleaseControllerTest {
 		when(this.statusAction.status("missing", "default")).thenReturn(Optional.empty());
 		this.mockMvc.perform(get("/api/v1/releases/missing/resources").accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isNotFound());
+	}
+
+	private void stubPull() throws Exception {
+		doAnswer((invocation) -> {
+			String destDir = invocation.getArgument(2);
+			Path chartDir = Path.of(destDir).resolve("nginx");
+			Files.createDirectories(chartDir);
+			Files.writeString(chartDir.resolve("Chart.yaml"), "name: nginx\nversion: 1.0.0");
+			return null;
+		}).when(this.repoManager).pull(anyString(), any(), anyString());
+	}
+
+	private void stubUntar() throws Exception {
+		doAnswer((invocation) -> {
+			File destDir = invocation.getArgument(1);
+			Path chartDir = destDir.toPath().resolve("nginx");
+			Files.createDirectories(chartDir);
+			Files.writeString(chartDir.resolve("Chart.yaml"), "name: nginx\nversion: 1.0.0");
+			return null;
+		}).when(this.repoManager).untar(any(File.class), any(File.class));
 	}
 
 }
