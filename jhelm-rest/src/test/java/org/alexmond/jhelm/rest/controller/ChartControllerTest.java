@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.rest.controller;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -17,6 +18,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -27,6 +29,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -58,21 +61,22 @@ class ChartControllerTest {
 
 	@Test
 	void templateRendersManifest() throws Exception {
-		when(this.templateAction.render(eq("/tmp/nginx"), eq("my-release"), eq("default"), anyMap()))
+		stubPull();
+		when(this.templateAction.render(anyString(), eq("my-release"), eq("default"), anyMap()))
 			.thenReturn("apiVersion: v1\nkind: ConfigMap");
 
 		this.mockMvc
 			.perform(post("/api/v1/charts/template").contentType(MediaType.APPLICATION_JSON)
 				.accept(MediaType.APPLICATION_JSON)
 				.content("""
-						{"chartPath": "/tmp/nginx", "releaseName": "my-release"}
+						{"chartRef": "bitnami/nginx", "releaseName": "my-release"}
 						"""))
 			.andExpect(status().isOk())
 			.andExpect(content().string("apiVersion: v1\nkind: ConfigMap"));
 	}
 
 	@Test
-	void templateRejectsMissingChartPath() throws Exception {
+	void templateRejectsMissingChartRef() throws Exception {
 		this.mockMvc
 			.perform(post("/api/v1/charts/template").contentType(MediaType.APPLICATION_JSON)
 				.accept(MediaType.APPLICATION_JSON)
@@ -80,7 +84,22 @@ class ChartControllerTest {
 						{"releaseName": "my-release"}
 						"""))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("chartPath is required"));
+			.andExpect(jsonPath("$.message").value("chartRef is required"));
+	}
+
+	@Test
+	void templateUploadRendersManifest() throws Exception {
+		stubUntar();
+		when(this.templateAction.render(anyString(), eq("RELEASE-NAME"), eq("default"), anyMap()))
+			.thenReturn("apiVersion: v1\nkind: Service");
+
+		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-1.0.0.tgz", "application/gzip",
+				new byte[] { 1, 2, 3 });
+		MockMultipartFile requestPart = new MockMultipartFile("request", "", "application/json", "{}".getBytes());
+
+		this.mockMvc.perform(multipart("/api/v1/charts/template/upload").file(chartFile).file(requestPart))
+			.andExpect(status().isOk())
+			.andExpect(content().string("apiVersion: v1\nkind: Service"));
 	}
 
 	@Test
@@ -220,6 +239,16 @@ class ChartControllerTest {
 			Files.writeString(chartDir.resolve("Chart.yaml"), "name: nginx\nversion: 18.3.1");
 			return null;
 		}).when(this.repoManager).pull(anyString(), any(), anyString());
+	}
+
+	private void stubUntar() throws Exception {
+		doAnswer((invocation) -> {
+			File destDir = invocation.getArgument(1);
+			Path chartDir = destDir.toPath().resolve("nginx");
+			Files.createDirectories(chartDir);
+			Files.writeString(chartDir.resolve("Chart.yaml"), "name: nginx\nversion: 1.0.0");
+			return null;
+		}).when(this.repoManager).untar(any(File.class), any(File.class));
 	}
 
 }
