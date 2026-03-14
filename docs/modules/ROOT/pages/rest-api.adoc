@@ -77,11 +77,11 @@ jhelm:
 
 | `ChartController`
 | `TemplateAction` + `RepoManager` present
-| 8 chart operation endpoints
+| 9 chart operation endpoints
 
 | `RepoController`
 | `RepoManager` present
-| 8 repository management endpoints
+| 9 repository management endpoints
 
 | `HubController`
 | `SearchHubAction` present
@@ -235,7 +235,11 @@ curl -X POST http://localhost:8080/api/v1/releases/my-release/rollback?namespace
 
 | `POST`
 | `/charts/template`
-| Render chart templates to Kubernetes manifests
+| Render chart templates from a chart reference
+
+| `POST`
+| `/charts/template/upload`
+| Render chart templates from an uploaded .tgz archive (multipart)
 
 | `POST`
 | `/charts/lint`
@@ -268,16 +272,28 @@ curl -X POST http://localhost:8080/api/v1/releases/my-release/rollback?namespace
 
 ==== Render Templates
 
+From a chart reference:
+
 [source,bash]
 ----
 curl -X POST http://localhost:8080/api/v1/charts/template \
   -H 'Content-Type: application/json' \
   -d '{
-    "chartPath": "/path/to/my-chart",
+    "chartRef": "bitnami/nginx",
+    "version": "18.3.1",
     "releaseName": "my-release",
     "namespace": "production",
     "values": {"replicaCount": 3}
   }'
+----
+
+From an uploaded .tgz archive:
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/charts/template/upload \
+  -F 'chart=@nginx-18.3.1.tgz;type=application/gzip' \
+  -F 'request={"releaseName": "my-release", "namespace": "production"};type=application/json'
 ----
 
 ==== Lint a Chart
@@ -336,6 +352,10 @@ Response: binary `.tgz` download with `Content-Type: application/gzip`.
 | Update repository index
 
 | `GET`
+| `/repos/{name}/charts`
+| List all charts in a repository
+
+| `GET`
 | `/repos/{name}/charts/{chart}/versions`
 | List available chart versions
 
@@ -348,8 +368,8 @@ Response: binary `.tgz` download with `Content-Type: application/gzip`.
 | Update all repository indices
 
 | `POST`
-| `/repos/oci/push`
-| Push a chart to an OCI registry
+| `/repos/push`
+| Push an uploaded .tgz chart to a remote registry (multipart)
 |===
 
 ==== Add a Repository
@@ -359,6 +379,23 @@ Response: binary `.tgz` download with `Content-Type: application/gzip`.
 curl -X POST http://localhost:8080/api/v1/repos \
   -H 'Content-Type: application/json' \
   -d '{"name": "bitnami", "url": "https://charts.bitnami.com/bitnami"}'
+----
+
+==== List Charts in a Repository
+
+[source,bash]
+----
+curl http://localhost:8080/api/v1/repos/bitnami/charts
+----
+
+Response:
+
+[source,json]
+----
+[
+  {"name": "bitnami/nginx", "chartVersion": "18.3.1", "appVersion": "1.27.3", "description": "..."},
+  {"name": "bitnami/redis", "chartVersion": "20.0.0", "appVersion": "7.4.1", "description": "..."}
+]
 ----
 
 ==== List Chart Versions
@@ -411,13 +448,13 @@ Response: binary `.tgz` download with `Content-Type: application/gzip`.
 curl -X POST http://localhost:8080/api/v1/repos/update-all
 ----
 
-==== Push to OCI Registry
+==== Push a Chart
 
 [source,bash]
 ----
-curl -X POST http://localhost:8080/api/v1/repos/oci/push \
-  -H 'Content-Type: application/json' \
-  -d '{"chartTgzPath": "/tmp/nginx-1.0.0.tgz", "ociUrl": "oci://registry.example.com/charts/nginx"}'
+curl -X POST http://localhost:8080/api/v1/repos/push \
+  -F 'chart=@nginx-1.0.0.tgz;type=application/gzip' \
+  -F 'remote=oci://registry.example.com/charts/nginx'
 ----
 
 === Hub — `/api/v1/hub`

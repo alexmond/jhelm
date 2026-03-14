@@ -14,6 +14,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -24,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -94,6 +96,18 @@ class RepoControllerTest {
 	}
 
 	@Test
+	void listCharts() throws Exception {
+		RepoManager.ChartVersion cv = new RepoManager.ChartVersion("bitnami/nginx", "18.3.1", "1.27.3",
+				"NGINX web server");
+		when(this.repoManager.listCharts("bitnami")).thenReturn(List.of(cv));
+
+		this.mockMvc.perform(get("/api/v1/repos/bitnami/charts").accept(MediaType.APPLICATION_JSON))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$[0].name").value("bitnami/nginx"))
+			.andExpect(jsonPath("$[0].chartVersion").value("18.3.1"));
+	}
+
+	@Test
 	void listVersions() throws Exception {
 		RepoManager.ChartVersion cv = new RepoManager.ChartVersion("nginx", "1.0.0", "1.25", null);
 		when(this.repoManager.getChartVersions("bitnami", "nginx")).thenReturn(List.of(cv));
@@ -154,39 +168,25 @@ class RepoControllerTest {
 	}
 
 	@Test
-	void pushOci() throws Exception {
+	void push() throws Exception {
+		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-1.0.0.tgz", "application/gzip",
+				new byte[] { 1, 2, 3 });
+
 		this.mockMvc
-			.perform(post("/api/v1/repos/oci/push").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("""
-						{"chartTgzPath": "/tmp/nginx-1.0.0.tgz", "ociUrl": "oci://registry.example.com/nginx"}
-						"""))
+			.perform(
+					multipart("/api/v1/repos/push").file(chartFile).param("remote", "oci://registry.example.com/nginx"))
 			.andExpect(status().isOk());
-		verify(this.repoManager).pushOci("/tmp/nginx-1.0.0.tgz", "oci://registry.example.com/nginx");
+		verify(this.repoManager).pushOci(anyString(), eq("oci://registry.example.com/nginx"));
 	}
 
 	@Test
-	void pushOciRejectsMissingChartTgzPath() throws Exception {
-		this.mockMvc
-			.perform(post("/api/v1/repos/oci/push").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("""
-						{"ociUrl": "oci://registry.example.com/nginx"}
-						"""))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("chartTgzPath is required"));
-	}
+	void pushRejectsMissingRemote() throws Exception {
+		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-1.0.0.tgz", "application/gzip",
+				new byte[] { 1, 2, 3 });
 
-	@Test
-	void pushOciRejectsMissingOciUrl() throws Exception {
-		this.mockMvc
-			.perform(post("/api/v1/repos/oci/push").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("""
-						{"chartTgzPath": "/tmp/nginx-1.0.0.tgz"}
-						"""))
+		this.mockMvc.perform(multipart("/api/v1/repos/push").file(chartFile).param("remote", ""))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("ociUrl is required"));
+			.andExpect(jsonPath("$.message").value("remote is required"));
 	}
 
 }

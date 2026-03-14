@@ -15,7 +15,6 @@ import org.alexmond.jhelm.core.model.RepositoryConfig;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.alexmond.jhelm.rest.dto.ChartVersionDto;
-import org.alexmond.jhelm.rest.dto.OciPushRequest;
 import org.alexmond.jhelm.rest.dto.PullRequest;
 import org.alexmond.jhelm.rest.dto.RepoAddRequest;
 import org.alexmond.jhelm.rest.dto.RepoDto;
@@ -31,7 +30,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/repos")
@@ -88,6 +89,13 @@ public class RepoController {
 		return ResponseEntity.ok().build();
 	}
 
+	@GetMapping("/{name}/charts")
+	@Operation(summary = "List charts", description = "List all charts available in a repository")
+	public List<ChartVersionDto> listCharts(@Parameter(description = "Repository name") @PathVariable String name)
+			throws Exception {
+		return this.repoManager.listCharts(name).stream().map(ChartVersionDto::from).toList();
+	}
+
 	@GetMapping("/{name}/charts/{chart}/versions")
 	@Operation(summary = "List chart versions", description = "List available versions of a chart in a repository")
 	public List<ChartVersionDto> listVersions(@Parameter(description = "Repository name") @PathVariable String name,
@@ -130,17 +138,19 @@ public class RepoController {
 		return ResponseEntity.ok().build();
 	}
 
-	@PostMapping("/oci/push")
-	@Operation(summary = "Push to OCI registry", description = "Push a chart to an OCI registry")
-	public ResponseEntity<Void> pushOci(@RequestBody OciPushRequest request) throws Exception {
-		if (request.getChartTgzPath() == null || request.getChartTgzPath().isBlank()) {
-			throw new IllegalArgumentException("chartTgzPath is required");
+	@PostMapping(path = "/push", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@Operation(summary = "Push a chart", description = "Push an uploaded .tgz chart archive to a remote registry")
+	public ResponseEntity<Void> push(@RequestParam("chart") MultipartFile chart, @RequestParam("remote") String remote)
+			throws Exception {
+		if (remote == null || remote.isBlank()) {
+			throw new IllegalArgumentException("remote is required");
 		}
-		if (request.getOciUrl() == null || request.getOciUrl().isBlank()) {
-			throw new IllegalArgumentException("ociUrl is required");
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-push-")) {
+			Path tgzPath = tempDir.path().resolve("upload.tgz");
+			chart.transferTo(tgzPath.toFile());
+			this.repoManager.pushOci(tgzPath.toString(), remote);
+			return ResponseEntity.ok().build();
 		}
-		this.repoManager.pushOci(request.getChartTgzPath(), request.getOciUrl());
-		return ResponseEntity.ok().build();
 	}
 
 	private static String resolveFileName(String chart, String version) {

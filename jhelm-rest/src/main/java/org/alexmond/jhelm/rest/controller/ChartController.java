@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.rest.controller;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,6 +20,7 @@ import org.alexmond.jhelm.rest.dto.CreateRequest;
 import org.alexmond.jhelm.rest.dto.LintRequest;
 import org.alexmond.jhelm.rest.dto.LintResultDto;
 import org.alexmond.jhelm.rest.dto.TemplateRequest;
+import org.alexmond.jhelm.rest.dto.TemplateUploadRequest;
 import org.alexmond.jhelm.rest.util.ChartArchiveUtil;
 import org.alexmond.jhelm.rest.util.TempDir;
 import org.springframework.http.HttpHeaders;
@@ -29,7 +31,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/charts")
@@ -61,15 +65,36 @@ public class ChartController {
 	}
 
 	@PostMapping("/template")
-	@Operation(summary = "Render templates", description = "Render chart templates with optional value overrides")
+	@Operation(summary = "Render templates",
+			description = "Render chart templates from a repository chart reference with optional value overrides")
 	public ResponseEntity<String> template(@RequestBody TemplateRequest request) throws Exception {
-		if (request.getChartPath() == null || request.getChartPath().isBlank()) {
-			throw new IllegalArgumentException("chartPath is required");
+		if (request.getChartRef() == null || request.getChartRef().isBlank()) {
+			throw new IllegalArgumentException("chartRef is required");
 		}
-		Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
-		String manifest = this.templateAction.render(request.getChartPath(), request.getReleaseName(),
-				request.getNamespace(), values);
-		return ResponseEntity.ok(manifest);
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-template-")) {
+			String chartPath = pullChart(request.getChartRef(), request.getVersion(), tempDir);
+			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			String manifest = this.templateAction.render(chartPath, request.getReleaseName(), request.getNamespace(),
+					values);
+			return ResponseEntity.ok(manifest);
+		}
+	}
+
+	@PostMapping(path = "/template/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@Operation(summary = "Render templates from upload",
+			description = "Render chart templates from an uploaded .tgz chart archive")
+	public ResponseEntity<String> templateUpload(@RequestPart("chart") MultipartFile chart,
+			@RequestPart("request") TemplateUploadRequest request) throws Exception {
+		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-template-upload-")) {
+			File tgzFile = tempDir.path().resolve("upload.tgz").toFile();
+			chart.transferTo(tgzFile);
+			this.repoManager.untar(tgzFile, tempDir.path().toFile());
+			String chartPath = findChartDir(tempDir.path());
+			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			String manifest = this.templateAction.render(chartPath, request.getReleaseName(), request.getNamespace(),
+					values);
+			return ResponseEntity.ok(manifest);
+		}
 	}
 
 	@PostMapping("/lint")
@@ -158,8 +183,12 @@ public class ChartController {
 
 	private String pullChart(String chartRef, String version, TempDir tempDir) throws IOException {
 		this.repoManager.pull(chartRef, version, tempDir.path().toString());
-		try (var stream = Files.list(tempDir.path())) {
-			return stream.filter(Files::isDirectory).findFirst().orElse(tempDir.path()).toString();
+		return findChartDir(tempDir.path());
+	}
+
+	private static String findChartDir(Path parent) throws IOException {
+		try (var stream = Files.list(parent)) {
+			return stream.filter(Files::isDirectory).findFirst().orElse(parent).toString();
 		}
 	}
 

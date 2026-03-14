@@ -297,7 +297,45 @@ public class RepoManager {
 		}
 	}
 
+	public List<ChartVersion> listCharts(String repoName) throws IOException {
+		Map<?, ?> entries = loadIndexEntries(repoName);
+		List<ChartVersion> result = new ArrayList<>();
+		for (Map.Entry<?, ?> entry : entries.entrySet()) {
+			String chartName = String.valueOf(entry.getKey());
+			if (entry.getValue() instanceof List<?> list && !list.isEmpty()) {
+				Object first = list.getFirst();
+				if (first instanceof Map<?, ?> m) {
+					String version = asString(m.get("version"));
+					String appVersion = asString(m.get("appVersion"));
+					String description = asString(m.get("description"));
+					result.add(new ChartVersion(repoName + "/" + chartName, version, appVersion, description));
+				}
+			}
+		}
+		result.sort((a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+		return result;
+	}
+
 	public List<ChartVersion> getChartVersions(String repoName, String chartName) throws IOException {
+		Map<?, ?> entries = loadIndexEntries(repoName);
+		List<ChartVersion> result = new ArrayList<>();
+		Object chartListObj = entries.get(chartName);
+		if (!(chartListObj instanceof List<?> list)) {
+			return result;
+		}
+		for (Object o : list) {
+			if (o instanceof Map<?, ?> m) {
+				String version = asString(m.get("version"));
+				String appVersion = asString(m.get("appVersion"));
+				String description = asString(m.get("description"));
+				result.add(new ChartVersion(repoName + "/" + chartName, version, appVersion, description));
+			}
+		}
+		result.sort((a, b) -> safeCompareVersions(b.getChartVersion(), a.getChartVersion()));
+		return result;
+	}
+
+	private Map<?, ?> loadIndexEntries(String repoName) throws IOException {
 		File indexFile = getIndexCacheFile(repoName);
 		InputStream indexIn;
 		if (indexFile.exists()) {
@@ -307,7 +345,7 @@ public class RepoManager {
 			RepositoryConfig.Repository repo = getRepository(repoName);
 			String repoUrl = (repo != null) ? repo.getUrl() : null;
 			if (repoUrl == null) {
-				throw new IOException("Repository name is required to get chart versions. Found: " + repoName);
+				throw new IOException("Repository name is required. Found: " + repoName);
 			}
 			String indexUrl = repoUrl.endsWith("/") ? repoUrl + "index.yaml" : repoUrl + "/index.yaml";
 			if (log.isInfoEnabled()) {
@@ -332,28 +370,14 @@ public class RepoManager {
 			});
 			indexIn = new ByteArrayInputStream(indexData);
 		}
-		List<ChartVersion> result = new ArrayList<>();
 		try (InputStream in = indexIn) {
 			Map<?, ?> root = yamlMapper.readValue(in, Map.class);
 			Object entriesObj = root.get("entries");
-			if (!(entriesObj instanceof Map<?, ?> entries)) {
-				return result;
+			if (entriesObj instanceof Map<?, ?> entries) {
+				return entries;
 			}
-			Object chartListObj = entries.get(chartName);
-			if (!(chartListObj instanceof List<?> list)) {
-				return result;
-			}
-			for (Object o : list) {
-				if (o instanceof Map<?, ?> m) {
-					String version = asString(m.get("version"));
-					String appVersion = asString(m.get("appVersion"));
-					String description = asString(m.get("description"));
-					result.add(new ChartVersion(repoName + "/" + chartName, version, appVersion, description));
-				}
-			}
+			return Map.of();
 		}
-		result.sort((a, b) -> safeCompareVersions(b.getChartVersion(), a.getChartVersion()));
-		return result;
 	}
 
 	private int safeCompareVersions(String v1, String v2) {

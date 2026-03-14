@@ -6,15 +6,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 @Data
-@Schema(description = "Request to render chart templates")
-public class TemplateRequest {
-
-	@Schema(description = "Chart reference (repo/chart or oci://...)", example = "bitnami/nginx",
-			requiredMode = Schema.RequiredMode.REQUIRED)
-	private String chartRef;
-
-	@Schema(description = "Chart version constraint", example = "18.3.1")
-	private String version;
+@Schema(description = "Metadata for rendering templates from an uploaded .tgz chart archive")
+public class TemplateUploadRequest {
 
 	@Schema(description = "Release name for template rendering", example = "my-release", defaultValue = "RELEASE-NAME")
 	private String releaseName = "RELEASE-NAME";
