@@ -752,6 +752,11 @@ public class RepoManager {
 					continue;
 				}
 				File f = new File(destDir, entry.getName());
+				String canonicalDest = destDir.getCanonicalPath() + File.separator;
+				if (!f.getCanonicalPath().startsWith(canonicalDest)
+						&& !f.getCanonicalPath().equals(destDir.getCanonicalPath())) {
+					throw new IOException("Path traversal detected in chart archive: " + entry.getName());
+				}
 				if (entry.isDirectory()) {
 					if (!f.isDirectory() && !f.mkdirs()) {
 						throw new IOException("failed to create directory " + f);

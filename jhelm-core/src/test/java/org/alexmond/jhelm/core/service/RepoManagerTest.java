@@ -452,6 +452,26 @@ class RepoManagerTest {
 		assertTrue(new File(destDir, "minimal/Chart.yaml").exists());
 	}
 
+	@Test
+	void testUntarRejectsPathTraversal() throws Exception {
+		// Create a malicious tgz with a path traversal entry (GHSA-hr2v-4r36-88hr)
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		try (GzipCompressorOutputStream gzos = new GzipCompressorOutputStream(baos);
+				TarArchiveOutputStream taos = new TarArchiveOutputStream(gzos)) {
+			byte[] content = "malicious".getBytes();
+			TarArchiveEntry entry = new TarArchiveEntry("../../../etc/evil.txt");
+			entry.setSize(content.length);
+			taos.putArchiveEntry(entry);
+			taos.write(content);
+			taos.closeArchiveEntry();
+		}
+		File tgzFile = tempDir.resolve("evil.tgz").toFile();
+		Files.write(tgzFile.toPath(), baos.toByteArray());
+		File destDir = tempDir.resolve("out").toFile();
+		destDir.mkdirs();
+		assertThrows(IOException.class, () -> new RepoManager().untar(tgzFile, destDir));
+	}
+
 	// ── Test helpers ─────────────────────────────────────────────────────────
 
 	/**
