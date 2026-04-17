@@ -1,7 +1,6 @@
 ---
 name: test
 description: Run tests for the jhelm project
-disable-model-invocation: true
 argument-hint: [module] [TestClass#method]
 allowed-tools: Bash(./mvnw *)
 ---

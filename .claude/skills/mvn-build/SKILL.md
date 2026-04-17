@@ -1,7 +1,7 @@
 ---
 name: mvn-build
 description: Build the jhelm project with Maven
-disable-model-invocation: true
+argument-hint: [module]
 allowed-tools: Bash(./mvnw *)
 ---
 
