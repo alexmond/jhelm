@@ -73,7 +73,7 @@
         <module>jhelm-kube</module>
         <module>jhelm-rest</module>
         <module>jhelm-plugin</module>
-        <module>jhelm-app</module>
+        <module>jhelm-cli</module>
         <module>jhelm-sample</module>
         <module>jhelm-rest-sample</module>
     </modules>

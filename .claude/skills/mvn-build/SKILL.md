@@ -23,6 +23,6 @@ Run the Maven build for the project. If an argument is provided, build only that
 - `jhelm-gotemplate` — Go template engine
 - `jhelm-core` — Core Helm logic
 - `jhelm-kube` — Kubernetes integration
-- `jhelm-app` — CLI application
+- `jhelm-cli` — CLI application
 
 Run the appropriate build command. Report any compilation errors or test failures clearly.

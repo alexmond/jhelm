@@ -24,7 +24,7 @@ user-invocable: false
 - **try-with-resources** for system resource streams (e.g., `Files.walk()`)
 
 ### Error Handling
-- SLF4J via `@Slf4j` — no `System.out.println` in production code (CLI output in `jhelm-app` is the exception)
+- SLF4J via `@Slf4j` — no `System.out.println` in production code (CLI output in `jhelm-cli` is the exception)
 - Descriptive exceptions; always include original cause when rethrowing
 - Prefer `must*` function variants when strict validation is required
 

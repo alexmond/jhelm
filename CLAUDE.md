@@ -13,7 +13,7 @@ jhelm (parent)
 ├── jhelm-gotemplate/  — Go template engine
 ├── jhelm-core/        — Helm-specific logic, charts, actions (depends on: jhelm-gotemplate)
 ├── jhelm-kube/        — Kubernetes client integration (depends on: jhelm-core)
-├── jhelm-app/         — CLI entry point, Spring Boot + Picocli (depends on: jhelm-core, jhelm-kube)
+├── jhelm-cli/         — CLI entry point, Spring Boot + Picocli (depends on: jhelm-core, jhelm-kube)
 └── doc/               — Antora documentation (AsciiDoc)
 ```
 
@@ -60,7 +60,7 @@ jhelm (parent)
 - **try-with-resources** for system resource streams (e.g., `Files.walk()`)
 
 ### Error Handling & Logging
-- Use SLF4J via `@Slf4j` — no `System.out.println` in production code (CLI output in `jhelm-app` is the exception)
+- Use SLF4J via `@Slf4j` — no `System.out.println` in production code (CLI output in `jhelm-cli` is the exception)
 - Throw descriptive exceptions; always include original cause when rethrowing
 - Prefer `must*` function variants (e.g., `mustToYaml`) when strict validation is required
 

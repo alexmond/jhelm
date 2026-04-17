@@ -9,7 +9,7 @@ jhelm (parent)
 ├── jhelm-gotemplate/  — Go template engine (standalone)
 ├── jhelm-core/        — Helm logic, charts, actions (depends on: jhelm-gotemplate)
 ├── jhelm-kube/        — Kubernetes client integration (depends on: jhelm-core)
-└── jhelm-app/         — CLI entry point, Spring Boot + Picocli (depends on: jhelm-core, jhelm-kube)
+└── jhelm-cli/         — CLI entry point, Spring Boot + Picocli (depends on: jhelm-core, jhelm-kube)
 ----
 
 == Modules
@@ -40,7 +40,7 @@ Kubernetes client integration. Ships with Spring Boot auto-configuration (`Jhelm
 * *HelmKubeService* -- Kubernetes operations using the official Java client: resource apply/delete via server-side PATCH, ConfigMap-based release storage (Helm-compatible format), resource status checking (Deployments, StatefulSets, Jobs, Pods)
 * *AsyncHelmKubeService* -- extends `HelmKubeService` with `CompletableFuture`-based async methods using Java 21 virtual threads (`Executors.newVirtualThreadPerTaskExecutor()`)
 
-=== jhelm-app
+=== jhelm-cli
 
 CLI entry point built with Picocli and Spring Boot. Provides 16 top-level commands covering the full Helm workflow. See the xref:cli-reference.adoc[CLI Reference] for details.
 

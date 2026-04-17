@@ -14,7 +14,7 @@ jhelm (parent)
 ├── jhelm-gotemplate  — Go template engine (standalone, no Spring)
 ├── jhelm-core        — Helm logic, charts, actions (depends on: gotemplate)
 ├── jhelm-kube        — Kubernetes client integration (depends on: core)
-└── jhelm-app         — CLI, Spring Boot + Picocli (depends on: core, kube)
+└── jhelm-cli         — CLI, Spring Boot + Picocli (depends on: core, kube)
 ```
 
 ### Template Engine (`jhelm-gotemplate`)
@@ -34,7 +34,7 @@ jhelm (parent)
 - `HelmKubeService` — Kubernetes resource deployment
 - Uses official Kubernetes Java Client 25.0.0
 
-### CLI Application (`jhelm-app`)
+### CLI Application (`jhelm-cli`)
 - Spring Boot 4.0.2 application
 - Picocli-based command structure
 - Entry point for user-facing commands

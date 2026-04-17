@@ -13,7 +13,7 @@ For each changed file, verify:
 
 ### Code Quality
 - [ ] Uses `import` statements, never inline fully-qualified names
-- [ ] Uses `@Slf4j` for logging, no `System.out.println` (except CLI output in jhelm-app)
+- [ ] Uses `@Slf4j` for logging, no `System.out.println` (except CLI output in jhelm-cli)
 - [ ] Uses Lombok annotations appropriately (@Getter/@Setter, @Data, @Builder, @Slf4j)
 - [ ] Modern Java 21 features: text blocks, enhanced switch, streams, try-with-resources
 - [ ] Descriptive exceptions with original cause when rethrowing
@@ -34,7 +34,7 @@ For each changed file, verify:
 
 ### Architecture
 - [ ] No cross-module dependency violations (gotemplate has no Helm/Sprig imports)
-- [ ] No BouncyCastle PGP types in jhelm-app (pass strings to action layer)
+- [ ] No BouncyCastle PGP types in jhelm-cli (pass strings to action layer)
 - [ ] Dependency versions defined as properties in root pom.xml
 
 ## How to Review

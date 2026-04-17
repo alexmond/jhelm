@@ -53,7 +53,7 @@ This document outlines the mandatory coding standards and preferences for the `j
     - `jhelm-gotemplate`: Core Go template engine implementation.
     - `jhelm-core`: Helm-specific logic, charts, and actions.
     - `jhelm-kube`: Kubernetes client and provider implementations.
-    - `jhelm-app`: CLI entry point and Spring Boot configuration.
+    - `jhelm-cli`: CLI entry point and Spring Boot configuration.
 - **Dependencies**: 
     - Manage versions in the root `pom.xml` using `<dependencyManagement>`.
     - Always define dependency versions as properties in the `<properties>` section of the root `pom.xml`, unless the version is already managed by the Spring Boot parent.

@@ -20,7 +20,7 @@ Based on the prompt, determine scope:
 3. **Single class:** `./mvnw test -Dtest=<ClassName> -pl <module>`
 4. **Single method:** `./mvnw test -Dtest=<ClassName>#<method> -pl <module>`
 
-**Modules:** jhelm-gotemplate, jhelm-gotemplate-sprig, jhelm-gotemplate-helm, jhelm-core, jhelm-kube, jhelm-app
+**Modules:** jhelm-gotemplate, jhelm-gotemplate-sprig, jhelm-gotemplate-helm, jhelm-core, jhelm-kube, jhelm-cli
 
 ## Output Format
 
