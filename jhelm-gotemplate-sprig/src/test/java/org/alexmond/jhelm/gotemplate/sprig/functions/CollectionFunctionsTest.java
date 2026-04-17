@@ -529,6 +529,29 @@ class CollectionFunctionsTest {
 	}
 
 	@Test
+	void testPluckIncludesNullValues() throws IOException, TemplateException {
+		// pluck must include null values in the result list (Helm #31971)
+		Map<String, Object> d1 = new HashMap<>();
+		d1.put("key", null);
+		Map<String, Object> d2 = new HashMap<>();
+		d2.put("key", "value2");
+		Map<String, Object> data = new HashMap<>();
+		data.put("d1", d1);
+		data.put("d2", d2);
+		assertEquals("2", execWithData("{{ $p := pluck \"key\" .d1 .d2 }}{{ len $p }}", data));
+	}
+
+	@Test
+	void testPluckNullValueIsAccessible() throws IOException, TemplateException {
+		// The null entry should appear as "<no value>" when printed
+		Map<String, Object> d1 = new HashMap<>();
+		d1.put("key", null);
+		Map<String, Object> data = new HashMap<>();
+		data.put("d1", d1);
+		assertEquals("1", execWithData("{{ $p := pluck \"key\" .d1 }}{{ len $p }}", data));
+	}
+
+	@Test
 	void testDeepCopyList() throws IOException, TemplateException {
 		assertEquals("2", exec("{{ $l := list \"a\" \"b\" }}{{ $c := deepCopy $l }}{{ len $c }}"));
 	}

@@ -136,9 +136,9 @@ public final class DictFunctions {
 			List<Object> result = new ArrayList<>();
 			for (int i = 1; i < args.length; i++) {
 				if (args[i] instanceof Map) {
-					Object val = ((Map<?, ?>) args[i]).get(key);
-					if (val != null) {
-						result.add(val);
+					Map<?, ?> map = (Map<?, ?>) args[i];
+					if (map.containsKey(key)) {
+						result.add(map.get(key));
 					}
 				}
 			}
