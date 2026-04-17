@@ -8,7 +8,7 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <artifactId>jhelm</artifactId>
-    <name>jhelm-app</name>
+    <name>jhelm-cli</name>
     <description>Spring Boot application for Helm Java</description>
 
     <dependencies>

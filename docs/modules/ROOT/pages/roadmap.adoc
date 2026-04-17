@@ -108,5 +108,5 @@ Transform jhelm into an *enterprise-grade Helm management platform* powered by S
 
 * *jhelm-core*: Add `@ConfigurationProperties`, Spring Environment integration, Spring Events for deployment lifecycle, Spring Cache for template caching.
 * *jhelm-kube*: Reactive operations with Spring WebFlux, Spring Retry for resilience, Spring Cloud Kubernetes for discovery, Async deployment support.
-* *jhelm-app*: Read from Spring Config Server, support environment variables via Spring Boot.
+* *jhelm-cli*: Read from Spring Config Server, support environment variables via Spring Boot.
 * *jhelm-gotemplate*: Remains lightweight, no Spring dependency (pure Java).

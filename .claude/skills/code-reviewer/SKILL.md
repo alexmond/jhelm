@@ -70,7 +70,7 @@ python3 $CLAUDE_SKILL_DIR/scripts/review_report_generator.py . --format markdown
 When reviewing jhelm code, also check:
 
 - **Imports**: Never use inline fully-qualified names (PMD: `UnnecessaryFullyQualifiedName`)
-- **Logging**: Use `@Slf4j` — no `System.out.println` except CLI output in jhelm-app
+- **Logging**: Use `@Slf4j` — no `System.out.println` except CLI output in jhelm-cli
 - **Lombok**: Appropriate use of `@Getter/@Setter`, `@Data`, `@Builder`, `@Slf4j`
 - **Java 21**: Text blocks, enhanced switch, streams, try-with-resources
 - **Module boundaries**: No cross-module dependency violations (gotemplate ← core ← kube ← app)

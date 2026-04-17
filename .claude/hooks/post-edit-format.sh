@@ -27,7 +27,7 @@ case "$FILE_PATH" in
     *jhelm-gotemplate*) MODULE="jhelm-gotemplate" ;;
     *jhelm-core*) MODULE="jhelm-core" ;;
     *jhelm-kube*) MODULE="jhelm-kube" ;;
-    *jhelm-app*) MODULE="jhelm-app" ;;
+    *jhelm-cli*) MODULE="jhelm-cli" ;;
     *jhelm-plugin*) MODULE="jhelm-plugin" ;;
 esac
 

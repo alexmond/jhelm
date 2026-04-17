@@ -14,7 +14,7 @@ jhelm (parent)
 ├── jhelm-gotemplate (standalone template engine)
 ├── jhelm-core (depends on: jhelm-gotemplate)
 ├── jhelm-kube (depends on: jhelm-core)
-└── jhelm-app (depends on: jhelm-core, jhelm-kube)
+└── jhelm-cli (depends on: jhelm-core, jhelm-kube)
 ----
 
 == Testing

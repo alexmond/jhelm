@@ -55,7 +55,7 @@ class CreateCommandTest {
 	void testCreateChartMatchesHelm() throws Exception {
 		// Skip test if JAR is not built (only run during integration-test phase or after
 		// package)
-		Path jarPath = Path.of("target/jhelm-app-0.0.1-SNAPSHOT.jar");
+		Path jarPath = Path.of("target/jhelm-0.0.1-SNAPSHOT.jar");
 		if (!Files.exists(jarPath)) {
 			System.out.println("Skipping CreateCommandTest - JAR not found at " + jarPath.toAbsolutePath());
 			return;
@@ -132,7 +132,7 @@ class CreateCommandTest {
 		Files.createDirectories(jhelmWorkDir);
 
 		// Run jhelm via java -jar
-		Path jarPath = Path.of("target/jhelm-app-0.0.1-SNAPSHOT.jar");
+		Path jarPath = Path.of("target/jhelm-0.0.1-SNAPSHOT.jar");
 
 		ProcessBuilder pb = new ProcessBuilder("java", "-jar", jarPath.toAbsolutePath().toString(), "create",
 				chartName);

@@ -4,7 +4,7 @@ jhelm provides a command-line interface built on Picocli and Spring Boot.
 
 [source,bash]
 ----
-java -jar jhelm-app/target/jhelm-{jhelm-version}.jar [command] [options]
+java -jar jhelm-cli/target/jhelm-{jhelm-version}.jar [command] [options]
 ----
 
 == Chart Lifecycle Commands

@@ -3,7 +3,7 @@
 cat <<'CONTEXT'
 ## jhelm Project Quick Reference (re-injected after compaction)
 
-**Modules:** jhelm-gotemplate → jhelm-core → jhelm-kube → jhelm-app
+**Modules:** jhelm-gotemplate → jhelm-core → jhelm-kube → jhelm-cli
 **Build:** `./mvnw clean install` | **Test:** `./mvnw test -pl <module>`
 **Format:** `./mvnw spring-javaformat:apply` | **FQN fix:** `python3 .claude/scripts/fix_fqn.py .`
 **Validate:** `./mvnw validate` (runs PMD + Checkstyle — both fail the build)

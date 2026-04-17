@@ -21,7 +21,7 @@ After building, run the CLI via the application JAR:
 
 [source,bash]
 ----
-java -jar jhelm-app/target/jhelm-{jhelm-version}.jar --help
+java -jar jhelm-cli/target/jhelm-{jhelm-version}.jar --help
 ----
 
 === Examples

@@ -32,7 +32,7 @@ python3 -c "
 import xml.etree.ElementTree as ET
 
 THRESHOLD = 80
-modules = ['jhelm-gotemplate', 'jhelm-core', 'jhelm-app']
+modules = ['jhelm-gotemplate', 'jhelm-core', 'jhelm-cli']
 if '$ARGUMENTS':
     modules = ['$ARGUMENTS']
 
@@ -124,7 +124,7 @@ import xml.etree.ElementTree as ET
 import math
 
 THRESHOLD = 80
-modules = ['jhelm-gotemplate', 'jhelm-core', 'jhelm-app']
+modules = ['jhelm-gotemplate', 'jhelm-core', 'jhelm-cli']
 if '$ARGUMENTS':
     modules = ['$ARGUMENTS']
 
@@ -188,7 +188,7 @@ Complete report with all counter types (LINE, BRANCH, METHOD, CLASS):
 python3 -c "
 import xml.etree.ElementTree as ET
 
-modules = ['jhelm-gotemplate', 'jhelm-core', 'jhelm-app']
+modules = ['jhelm-gotemplate', 'jhelm-core', 'jhelm-cli']
 if '$ARGUMENTS':
     modules = ['$ARGUMENTS']
 

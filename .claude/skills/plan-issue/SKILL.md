@@ -41,7 +41,7 @@ Use Glob and Grep (or the Explore agent for broad searches) to locate:
 Key places to always check:
 - `jhelm-core/src/main/java/org/alexmond/jhelm/core/` — action classes, models, interfaces
 - `jhelm-kube/src/main/java/` — Kubernetes client implementation
-- `jhelm-app/src/main/java/` — CLI commands (Picocli)
+- `jhelm-cli/src/main/java/` — CLI commands (Picocli)
 - Matching test directories for each module
 
 ---

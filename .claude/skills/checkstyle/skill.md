@@ -265,7 +265,7 @@ def process(src_dirs):
 
 if __name__ == '__main__':
     base = Path('/Users/alex.mondshain/claude/jhelm')
-    process([str(base / m / 'src') for m in ['jhelm-core','jhelm-kube','jhelm-app','jhelm-gotemplate']])
+    process([str(base / m / 'src') for m in ['jhelm-core','jhelm-kube','jhelm-cli','jhelm-gotemplate']])
 ```
 
 ### Step 4: Handle special violations manually

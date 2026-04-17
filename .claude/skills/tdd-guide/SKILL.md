@@ -172,7 +172,7 @@ When increasing coverage for a module:
 | Module | Target | Notes |
 |--------|--------|-------|
 | jhelm-core | 80% | Action classes, Engine, RepoManager |
-| jhelm-app | 80% | CLI commands via Picocli CommandLine.execute() |
+| jhelm-cli | 80% | CLI commands via Picocli CommandLine.execute() |
 | jhelm-gotemplate | 80% | Template functions, Lexer, Parser |
 | jhelm-kube | 80% | Mock KubeService for k8s operations |
 

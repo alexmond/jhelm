@@ -192,7 +192,7 @@ public class ChartService {
 
 - Use SLF4J parameterized messages (`{}`) -- never string concatenation
 - Pass exception as the last argument to preserve stack trace
-- No `System.out.println` in production code (CLI output in `jhelm-app` is the exception)
+- No `System.out.println` in production code (CLI output in `jhelm-cli` is the exception)
 - Log at the right level; do not log and rethrow the same exception
 
 ## Import Style
