@@ -242,10 +242,6 @@ curl -X POST http://localhost:8080/api/v1/releases/my-release/rollback?namespace
 | Render chart templates from an uploaded .tgz archive (multipart)
 
 | `POST`
-| `/charts/lint`
-| Validate a chart for issues
-
-| `POST`
 | `/charts/create`
 | Scaffold a new chart and return as .tgz download
 
@@ -294,27 +290,6 @@ From an uploaded .tgz archive:
 curl -X POST http://localhost:8080/api/v1/charts/template/upload \
   -F 'chart=@nginx-18.3.1.tgz;type=application/gzip' \
   -F 'request={"releaseName": "my-release", "namespace": "production"};type=application/json'
-----
-
-==== Lint a Chart
-
-[source,bash]
-----
-curl -X POST http://localhost:8080/api/v1/charts/lint \
-  -H 'Content-Type: application/json' \
-  -d '{"chartPath": "/path/to/my-chart", "strict": true}'
-----
-
-Response:
-
-[source,json]
-----
-{
-  "chartPath": "/path/to/my-chart",
-  "ok": true,
-  "errors": [],
-  "warnings": ["chart is missing a description"]
-}
 ----
 
 ==== Create a Chart

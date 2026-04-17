@@ -11,14 +11,13 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.alexmond.jhelm.core.action.CreateAction;
-import org.alexmond.jhelm.core.action.LintAction;
+
 import org.alexmond.jhelm.core.action.ShowAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.alexmond.jhelm.rest.dto.CreateRequest;
-import org.alexmond.jhelm.rest.dto.LintRequest;
-import org.alexmond.jhelm.rest.dto.LintResultDto;
+
 import org.alexmond.jhelm.rest.dto.TemplateRequest;
 import org.alexmond.jhelm.rest.dto.TemplateUploadRequest;
 import org.alexmond.jhelm.rest.util.ChartArchiveUtil;
@@ -37,14 +36,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/charts")
-@Tag(name = "Charts", description = "Chart operations: template, lint, create, show")
+@Tag(name = "Charts", description = "Chart operations: template, create, show")
 public class ChartController {
 
 	private static final MediaType APPLICATION_GZIP = MediaType.parseMediaType("application/gzip");
 
 	private final TemplateAction templateAction;
-
-	private final LintAction lintAction;
 
 	private final CreateAction createAction;
 
@@ -54,10 +51,9 @@ public class ChartController {
 
 	private final JhelmRestProperties properties;
 
-	public ChartController(TemplateAction templateAction, LintAction lintAction, CreateAction createAction,
-			ShowAction showAction, RepoManager repoManager, JhelmRestProperties properties) {
+	public ChartController(TemplateAction templateAction, CreateAction createAction, ShowAction showAction,
+			RepoManager repoManager, JhelmRestProperties properties) {
 		this.templateAction = templateAction;
-		this.lintAction = lintAction;
 		this.createAction = createAction;
 		this.showAction = showAction;
 		this.repoManager = repoManager;
@@ -95,17 +91,6 @@ public class ChartController {
 					values);
 			return ResponseEntity.ok(manifest);
 		}
-	}
-
-	@PostMapping("/lint")
-	@Operation(summary = "Lint a chart", description = "Validate a chart for issues and best practices")
-	public LintResultDto lint(@RequestBody LintRequest request) {
-		if (request.getChartPath() == null || request.getChartPath().isBlank()) {
-			throw new IllegalArgumentException("chartPath is required");
-		}
-		Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
-		LintAction.LintResult result = this.lintAction.lint(request.getChartPath(), values, request.isStrict());
-		return LintResultDto.from(result);
 	}
 
 	@PostMapping("/create")

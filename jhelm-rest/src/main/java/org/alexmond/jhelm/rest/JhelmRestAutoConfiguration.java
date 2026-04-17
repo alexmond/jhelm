@@ -6,7 +6,7 @@ import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.SearchHubAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.action.InstallAction;
-import org.alexmond.jhelm.core.action.LintAction;
+
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.ShowAction;
@@ -61,9 +61,9 @@ public class JhelmRestAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean({ TemplateAction.class, RepoManager.class })
-	public ChartController chartController(TemplateAction templateAction, LintAction lintAction,
-			CreateAction createAction, ShowAction showAction, RepoManager repoManager, JhelmRestProperties properties) {
-		return new ChartController(templateAction, lintAction, createAction, showAction, repoManager, properties);
+	public ChartController chartController(TemplateAction templateAction, CreateAction createAction,
+			ShowAction showAction, RepoManager repoManager, JhelmRestProperties properties) {
+		return new ChartController(templateAction, createAction, showAction, repoManager, properties);
 	}
 
 	@Bean

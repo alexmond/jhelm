@@ -3,10 +3,9 @@ package org.alexmond.jhelm.rest.controller;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 import org.alexmond.jhelm.core.action.CreateAction;
-import org.alexmond.jhelm.core.action.LintAction;
+
 import org.alexmond.jhelm.core.action.ShowAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.service.RepoManager;
@@ -46,9 +45,6 @@ class ChartControllerTest {
 
 	@MockitoBean
 	private TemplateAction templateAction;
-
-	@MockitoBean
-	private LintAction lintAction;
 
 	@MockitoBean
 	private CreateAction createAction;
@@ -100,32 +96,6 @@ class ChartControllerTest {
 		this.mockMvc.perform(multipart("/api/v1/charts/template/upload").file(chartFile).file(requestPart))
 			.andExpect(status().isOk())
 			.andExpect(content().string("apiVersion: v1\nkind: Service"));
-	}
-
-	@Test
-	void lintReturnsResult() throws Exception {
-		LintAction.LintResult result = new LintAction.LintResult("/tmp/nginx", List.of(), List.of("missing desc"));
-		when(this.lintAction.lint(eq("/tmp/nginx"), anyMap(), eq(false))).thenReturn(result);
-
-		this.mockMvc
-			.perform(post("/api/v1/charts/lint").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("""
-						{"chartPath": "/tmp/nginx"}
-						"""))
-			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.ok").value(true))
-			.andExpect(jsonPath("$.warnings[0]").value("missing desc"));
-	}
-
-	@Test
-	void lintRejectsMissingChartPath() throws Exception {
-		this.mockMvc
-			.perform(post("/api/v1/charts/lint").contentType(MediaType.APPLICATION_JSON)
-				.accept(MediaType.APPLICATION_JSON)
-				.content("{}"))
-			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("chartPath is required"));
 	}
 
 	@Test
