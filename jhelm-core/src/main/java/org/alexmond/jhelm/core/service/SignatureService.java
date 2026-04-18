@@ -71,7 +71,8 @@ public class SignatureService {
 
 		PGPSignatureGenerator sigGen = new PGPSignatureGenerator(
 				new JcaPGPContentSignerBuilder(secretKey.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA256)
-					.setProvider("BC"));
+					.setProvider("BC"),
+				secretKey.getPublicKey());
 		sigGen.init(PGPSignature.CANONICAL_TEXT_DOCUMENT, privateKey);
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
