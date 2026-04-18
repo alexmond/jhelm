@@ -1,9 +1,13 @@
 package org.alexmond.jhelm.rest.config;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -11,6 +15,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @Getter
 @Setter
+@Slf4j
 @ConfigurationProperties(prefix = "jhelm.rest")
 public class JhelmRestProperties {
 
@@ -25,11 +30,20 @@ public class JhelmRestProperties {
 	private Path tempDir;
 
 	/**
-	 * Returns the configured temp directory, or the system default if not set.
+	 * Returns the configured temp directory, or the system default if not set. The
+	 * returned path is always absolute and normalized.
 	 * @return the temp directory path
 	 */
 	public Path getTempDir() {
-		return (this.tempDir != null) ? this.tempDir : Path.of(System.getProperty("java.io.tmpdir"));
+		Path dir = (this.tempDir != null) ? this.tempDir : Path.of(System.getProperty("java.io.tmpdir"));
+		return dir.toAbsolutePath().normalize();
+	}
+
+	@PostConstruct
+	void validateWorkspace() throws IOException {
+		Path workspace = getTempDir();
+		Files.createDirectories(workspace);
+		log.info("jhelm workspace: {}", workspace);
 	}
 
 }
