@@ -23,11 +23,6 @@ jhelmtest:
       - resource: "Service/*"
         path: "spec.trafficDistribution"
         reason: "trafficDistribution field rendered by JHelm but absent in Helm output"
-    "[gitea/gitea]":
-      # Subchart value propagation — connection strings still empty
-      - resource: "Secret/*"
-        path: "stringData.*"
-        reason: "Subchart value propagation gap — tpl-based connection strings empty (#201)"
     "[datadog/datadog]":
       # Random UUID generated per render — always different between Helm and JHelm
       - resource: "ConfigMap/*"
