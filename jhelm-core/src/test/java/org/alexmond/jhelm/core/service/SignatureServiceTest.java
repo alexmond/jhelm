@@ -259,6 +259,8 @@ class SignatureServiceTest {
 				() -> signatureService.verify(chartFile, "no signature content", publicKeys));
 	}
 
+	@SuppressWarnings("deprecation") // JcaPGPKeyPair 3-arg constructor; 4-arg version has
+										// a BouncyCastle bug
 	private static PGPKeyRingGenerator createKeyRingGenerator(String userId) throws Exception {
 		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", "BC");
 		kpg.initialize(2048);
