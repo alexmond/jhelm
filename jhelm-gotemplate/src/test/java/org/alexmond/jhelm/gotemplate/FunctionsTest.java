@@ -394,6 +394,9 @@ class FunctionsTest {
 		Function printf = Functions.GO_BUILTINS.get("printf");
 		assertEquals("port=9092 rate=1.500000", printf.invoke(new Object[] { "port=%d rate=%f", 9092.0, 1.5 }));
 		assertEquals("count=3 ratio=42.0000", printf.invoke(new Object[] { "count=%d ratio=%g", 3.0, 42 }));
+		// Gitea postgresql-ha.dns pattern: %s args before %g with Integer port
+		assertEquals("host.ns.svc.cluster:5432.00",
+				printf.invoke(new Object[] { "%s.%s.svc.%s:%g", "host", "ns", "cluster", 5432 }));
 	}
 
 	@Test
