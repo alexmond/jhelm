@@ -20,6 +20,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import java.util.List;
 
 class CollectionFunctionsTest {
 
@@ -90,6 +91,27 @@ class CollectionFunctionsTest {
 			data.put("items", new ArrayList<>(Arrays.asList("b", "c")));
 			assertEquals("a,b,c", execWithData("{{ $l := " + func + " .items \"a\" }}{{ join \",\" $l }}", data));
 		}
+	}
+
+	@Test
+	void testWithoutRemovesSingleOccurrence() throws IOException, TemplateException {
+		Map<String, Object> data = new HashMap<>();
+		data.put("items", new ArrayList<>(Arrays.asList("a", "b", "c")));
+		assertEquals("a,c", execWithData("{{ $r := without .items \"b\" }}{{ join \",\" $r }}", data));
+	}
+
+	@Test
+	void testWithoutRemovesAllOccurrences() throws IOException, TemplateException {
+		// Go's Sprig without() removes ALL matching elements, not just the first (#303)
+		Map<String, Object> data = new HashMap<>();
+		data.put("items", new ArrayList<>(Arrays.asList("a", "", "b", "", "c", "")));
+		assertEquals("a,b,c", execWithData("{{ $r := without .items \"\" }}{{ join \",\" $r }}", data));
+	}
+
+	@Test
+	void testWithoutEmptyStringsFromIncludes() throws IOException, TemplateException {
+		// Mirrors rabbitmq validation pattern: list of empty include results
+		assertEquals("0", exec("{{ $m := list \"\" \"\" \"\" \"\" }}{{ $m = without $m \"\" }}{{ len $m }}"));
 	}
 
 	@ParameterizedTest
@@ -366,7 +388,7 @@ class CollectionFunctionsTest {
 		Map<String, Object> dst = new HashMap<>();
 		dst.put("items", new ArrayList<>());
 		data.put("dst", dst);
-		data.put("src", Map.of("items", java.util.List.of("a", "b")));
+		data.put("src", Map.of("items", List.of("a", "b")));
 		assertEquals("2", execWithData("{{ $m := merge .dst .src }}{{ len (get $m \"items\") }}", data));
 	}
 

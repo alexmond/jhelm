@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -332,7 +333,9 @@ public final class ListFunctions {
 			}
 			List<Object> result = new ArrayList<>((Collection<?>) args[0]);
 			for (int i = 1; i < args.length; i++) {
-				result.remove(args[i]);
+				// Remove ALL occurrences, matching Go's Sprig without() behavior
+				Object toRemove = args[i];
+				result.removeIf((item) -> Objects.equals(item, toRemove));
 			}
 			return result;
 		};

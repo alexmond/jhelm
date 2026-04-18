@@ -19,10 +19,6 @@ jhelmtest:
       - resource: "MutatingWebhookConfiguration/*"
         path: "webhooks.*"
         reason: "TLS certificates are generated per render via genCA/genSignedCert"
-    "[bitnami/rabbitmq]":
-      - resource: "Service/*"
-        path: "spec.trafficDistribution"
-        reason: "trafficDistribution field rendered by JHelm but absent in Helm output"
     "[datadog/datadog]":
       # Random UUID generated per render — always different between Helm and JHelm
       - resource: "ConfigMap/*"

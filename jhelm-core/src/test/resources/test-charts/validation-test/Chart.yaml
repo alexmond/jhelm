@@ -1,0 +1,4 @@
+apiVersion: v2
+name: validation-test
+version: 1.0.0
+description: Test chart for validation pattern (rabbitmq-style)

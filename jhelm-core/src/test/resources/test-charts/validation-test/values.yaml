@@ -1,0 +1,5 @@
+ldap:
+  enabled: false
+  server: ""
+watermark:
+  type: "relative"

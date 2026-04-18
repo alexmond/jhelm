@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.regex.Pattern;
 
 class EngineTest {
 
@@ -1694,7 +1695,7 @@ class EngineTest {
 		assertTrue(result.contains("kind: ConfigMap"), "ConfigMap should be rendered");
 
 		// Extract the checksum/configmap annotation — must not be sha256("{}")
-		java.util.regex.Matcher m = java.util.regex.Pattern.compile("checksum/configmap:\\s+(\\S+)").matcher(result);
+		java.util.regex.Matcher m = Pattern.compile("checksum/configmap:\\s+(\\S+)").matcher(result);
 		assertTrue(m.find(), "checksum/configmap should exist in output");
 		String checksum = m.group(1);
 		assertFalse("44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a".equals(checksum),
@@ -1865,6 +1866,26 @@ class EngineTest {
 		assertTrue(result.contains("$SERVER_NAME"), "Should contain unquoted $SERVER_NAME: " + result);
 		assertFalse(result.contains("<<"), "Should not contain << markers: " + result);
 		assertFalse(result.contains(">>"), "Should not contain >> markers: " + result);
+	}
+
+	@Test
+	void testValidationPatternNoErrors() throws Exception {
+		// Mirrors rabbitmq validation.yaml pattern: include checks, without "", join,
+		// fail
+		Chart chart = chartLoader.load(new File("src/test/resources/test-charts/validation-test"));
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		// With no errors triggered, validation.yaml should produce empty/whitespace
+		// output
+		assertTrue(result.isBlank(), "Validation with no errors should produce blank output, got: " + result);
+	}
+
+	@Test
+	void testValidationPatternMultipleEmptyIncludes() throws Exception {
+		// Mirrors rabbitmq #303: without() must remove ALL empty strings, not just
+		// the first
+		Chart chart = chartLoader.load(new File("src/test/resources/test-charts/validation-test"));
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.isBlank(), "Validation with multiple empty includes should not trigger fail");
 	}
 
 }
