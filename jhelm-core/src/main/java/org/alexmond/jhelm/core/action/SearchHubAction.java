@@ -73,7 +73,7 @@ public class SearchHubAction {
 
 	private String textOrEmpty(JsonNode node, String field) {
 		JsonNode child = node.get(field);
-		return (child != null && !child.isNull()) ? child.asText() : "";
+		return (child != null && !child.isNull()) ? child.stringValue() : "";
 	}
 
 	@Data

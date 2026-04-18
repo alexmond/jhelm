@@ -26,8 +26,9 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
+import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
+import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 
 import org.alexmond.jhelm.core.model.RepositoryConfig;
@@ -83,12 +84,11 @@ final class RepoHttpClientFactory {
 		try {
 			boolean skipVerify = repo.isInsecure_skip_tls_verify() || globalInsecureSkipTls;
 			SSLContext sslContext = buildSslContext(repo, skipVerify);
-			var socketFactoryBuilder = SSLConnectionSocketFactoryBuilder.create().setSslContext(sslContext);
-			if (skipVerify) {
-				socketFactoryBuilder.setHostnameVerifier(NoopHostnameVerifier.INSTANCE);
-			}
+			TlsSocketStrategy tlsStrategy = skipVerify
+					? new DefaultClientTlsStrategy(sslContext, NoopHostnameVerifier.INSTANCE)
+					: new DefaultClientTlsStrategy(sslContext);
 			HttpClientConnectionManager connManager = PoolingHttpClientConnectionManagerBuilder.create()
-				.setSSLSocketFactory(socketFactoryBuilder.build())
+				.setTlsSocketStrategy(tlsStrategy)
 				.build();
 			return HttpClients.custom().setConnectionManager(connManager).build();
 		}
