@@ -402,9 +402,11 @@ public final class Functions {
 			format = format.replaceAll("%q", "%s"); // %(q) -> %s
 			format = format.replaceAll("%p", "%s"); // %(p) -> %s
 
-			// Extract format specifiers to coerce numeric types per-argument.
+			// Extract ALL format specifiers to coerce numeric types per-argument.
 			// Go's printf is lenient (any numeric type for %d/%g); Java is strict.
-			Matcher specMatcher = Pattern.compile("%[^%]*?([doxXbeEfgG])").matcher(format);
+			// Must track non-numeric specs (%s, %c, etc.) to maintain correct
+			// positional alignment with arguments.
+			Matcher specMatcher = Pattern.compile("%[^%]*?([a-zA-Z])").matcher(format);
 			List<Character> specTypes = new ArrayList<>();
 			while (specMatcher.find()) {
 				specTypes.add(specMatcher.group(1).charAt(0));
