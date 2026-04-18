@@ -20,6 +20,16 @@ public final class ValuesOverrides {
 	}
 
 	/**
+	 * Returns the given values map, or an empty map if {@code null}. Convenience method
+	 * to avoid repeated null-coalescing in controllers.
+	 * @param values the values map (may be {@code null})
+	 * @return the values map, or {@code Map.of()} if {@code null}
+	 */
+	public static Map<String, Object> safeValues(Map<String, Object> values) {
+		return (values != null) ? values : Map.of();
+	}
+
+	/**
 	 * Build a merged override map from values files and {@code --set} arguments.
 	 * @param files paths to YAML values files; {@code null} or empty means none
 	 * @param setArgs {@code key=value} strings; {@code null} or empty means none

@@ -1,7 +1,6 @@
 package org.alexmond.jhelm.rest.controller;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -33,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.alexmond.jhelm.core.service.ChartLoader;
 
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/repos")
@@ -121,7 +121,7 @@ public class RepoController {
 					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + files[0].getName() + "\"")
 					.body(tgz);
 			}
-			Path chartDir = findSingleSubdir(tempDir.path());
+			Path chartDir = ChartLoader.findChartDir(tempDir.path());
 			String dirName = chartDir.getFileName().toString();
 			byte[] tgz = ChartArchiveUtil.toTgzBytes(chartDir, dirName);
 			return ResponseEntity.ok()
@@ -166,12 +166,6 @@ public class RepoController {
 		}
 		String v = (version != null) ? version : "latest";
 		return chartName + "-" + v + ".tgz";
-	}
-
-	private static Path findSingleSubdir(Path parent) throws IOException {
-		try (var stream = Files.list(parent)) {
-			return stream.filter(Files::isDirectory).findFirst().orElse(parent);
-		}
 	}
 
 }

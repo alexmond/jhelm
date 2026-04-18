@@ -49,6 +49,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.alexmond.jhelm.core.util.ValuesOverrides;
 
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/releases")
@@ -131,7 +132,7 @@ public class ReleaseController {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-install-")) {
 			Chart chart = ChartSourceResolver.fromChartRef(request.getChartRef(), request.getVersion(),
 					this.repoManager, this.chartLoader, tempDir);
-			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
 			Release release = this.installAction.install(chart, request.getReleaseName(), request.getNamespace(),
 					values, 1, request.isDryRun());
 			return ResponseEntity.status(HttpStatus.CREATED).body(ReleaseDto.from(release));
@@ -148,7 +149,7 @@ public class ReleaseController {
 		}
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-install-upload-")) {
 			Chart loaded = ChartSourceResolver.fromUpload(chart, this.repoManager, this.chartLoader, tempDir);
-			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
 			Release release = this.installAction.install(loaded, request.getReleaseName(), request.getNamespace(),
 					values, 1, request.isDryRun());
 			return ResponseEntity.status(HttpStatus.CREATED).body(ReleaseDto.from(release));
@@ -169,7 +170,7 @@ public class ReleaseController {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-upgrade-")) {
 			Chart chart = ChartSourceResolver.fromChartRef(request.getChartRef(), request.getVersion(),
 					this.repoManager, this.chartLoader, tempDir);
-			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
 			Release upgraded = this.upgradeAction.upgrade(current, chart, values, request.isDryRun());
 			return ReleaseDto.from(upgraded);
 		}
@@ -186,7 +187,7 @@ public class ReleaseController {
 			.orElseThrow(() -> new IllegalArgumentException("Release '" + name + "' not found"));
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-upgrade-upload-")) {
 			Chart loaded = ChartSourceResolver.fromUpload(chart, this.repoManager, this.chartLoader, tempDir);
-			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
 			Release upgraded = this.upgradeAction.upgrade(current, loaded, values, request.isDryRun());
 			return ReleaseDto.from(upgraded);
 		}

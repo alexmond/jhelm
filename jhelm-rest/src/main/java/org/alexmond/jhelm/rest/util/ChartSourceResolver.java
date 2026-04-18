@@ -1,10 +1,7 @@
 package org.alexmond.jhelm.rest.util;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.stream.Stream;
 
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
@@ -32,7 +29,7 @@ public final class ChartSourceResolver {
 	public static Chart fromChartRef(String chartRef, String version, RepoManager repoManager, ChartLoader chartLoader,
 			TempDir tempDir) throws Exception {
 		repoManager.pull(chartRef, version, tempDir.path().toString());
-		Path chartDir = findChartDir(tempDir.path());
+		Path chartDir = ChartLoader.findChartDir(tempDir.path());
 		return chartLoader.load(chartDir.toFile());
 	}
 
@@ -49,14 +46,8 @@ public final class ChartSourceResolver {
 		File tgzFile = tempDir.path().resolve("upload.tgz").toFile();
 		file.transferTo(tgzFile);
 		repoManager.untar(tgzFile, tempDir.path().toFile());
-		Path chartDir = findChartDir(tempDir.path());
+		Path chartDir = ChartLoader.findChartDir(tempDir.path());
 		return chartLoader.load(chartDir.toFile());
-	}
-
-	private static Path findChartDir(Path parent) throws IOException {
-		try (Stream<Path> stream = Files.list(parent)) {
-			return stream.filter(Files::isDirectory).findFirst().orElse(parent);
-		}
 	}
 
 }
