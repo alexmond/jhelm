@@ -2,7 +2,6 @@ package org.alexmond.jhelm.rest.controller;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -11,10 +10,11 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.alexmond.jhelm.core.action.CreateAction;
-
 import org.alexmond.jhelm.core.action.ShowAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
+import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.RepoManager;
+import org.alexmond.jhelm.core.util.ValuesOverrides;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.alexmond.jhelm.rest.dto.CreateRequest;
 
@@ -69,7 +69,7 @@ public class ChartController {
 		}
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-template-")) {
 			String chartPath = pullChart(request.getChartRef(), request.getVersion(), tempDir);
-			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
 			String manifest = this.templateAction.render(chartPath, request.getReleaseName(), request.getNamespace(),
 					values);
 			return ResponseEntity.ok(manifest);
@@ -85,8 +85,8 @@ public class ChartController {
 			File tgzFile = tempDir.path().resolve("upload.tgz").toFile();
 			chart.transferTo(tgzFile);
 			this.repoManager.untar(tgzFile, tempDir.path().toFile());
-			String chartPath = findChartDir(tempDir.path());
-			Map<String, Object> values = (request.getValues() != null) ? request.getValues() : Map.of();
+			String chartPath = ChartLoader.findChartDir(tempDir.path()).toString();
+			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
 			String manifest = this.templateAction.render(chartPath, request.getReleaseName(), request.getNamespace(),
 					values);
 			return ResponseEntity.ok(manifest);
@@ -168,13 +168,7 @@ public class ChartController {
 
 	private String pullChart(String chartRef, String version, TempDir tempDir) throws IOException {
 		this.repoManager.pull(chartRef, version, tempDir.path().toString());
-		return findChartDir(tempDir.path());
-	}
-
-	private static String findChartDir(Path parent) throws IOException {
-		try (var stream = Files.list(parent)) {
-			return stream.filter(Files::isDirectory).findFirst().orElse(parent).toString();
-		}
+		return ChartLoader.findChartDir(tempDir.path()).toString();
 	}
 
 }

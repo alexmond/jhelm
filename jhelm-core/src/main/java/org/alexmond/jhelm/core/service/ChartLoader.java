@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.MalformedInputException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,6 +25,18 @@ import org.alexmond.jhelm.core.util.ValuesLoader;
 public class ChartLoader {
 
 	private final YAMLMapper yamlMapper = YAMLMapper.builder().build();
+
+	/**
+	 * Finds the first subdirectory inside a parent directory. Charts extracted from .tgz
+	 * archives create a single subdirectory (e.g. {@code parent/nginx/}).
+	 * @param parent the directory to search
+	 * @return the first subdirectory, or the parent itself if none found
+	 */
+	public static Path findChartDir(Path parent) throws IOException {
+		try (var stream = Files.list(parent)) {
+			return stream.filter(Files::isDirectory).findFirst().orElse(parent);
+		}
+	}
 
 	public Chart load(File chartDir) throws IOException {
 		if (!chartDir.exists() || !chartDir.isDirectory()) {

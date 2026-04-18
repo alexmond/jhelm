@@ -1,8 +1,5 @@
 package org.alexmond.jhelm.rest.controller;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.alexmond.jhelm.core.util.ValuesOverrides;
 
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/dependencies")
@@ -56,16 +54,10 @@ public class DependencyController {
 		}
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-dep-resolve-")) {
 			this.repoManager.pull(request.getChartRef(), request.getVersion(), tempDir.path().toString());
-			Chart chart = this.chartLoader.load(findChartDir(tempDir.path()).toFile());
-			Map<String, Object> values = (chart.getValues() != null) ? chart.getValues() : Map.of();
+			Chart chart = this.chartLoader.load(ChartLoader.findChartDir(tempDir.path()).toFile());
+			Map<String, Object> values = ValuesOverrides.safeValues(chart.getValues());
 			ChartLock lock = this.dependencyResolver.resolveDependencies(chart.getMetadata(), values, List.of());
 			return ResponseEntity.ok().contentType(TEXT_YAML).body(lock.toYaml());
-		}
-	}
-
-	private static Path findChartDir(Path parent) throws IOException {
-		try (var stream = Files.list(parent)) {
-			return stream.filter(Files::isDirectory).findFirst().orElse(parent);
 		}
 	}
 
