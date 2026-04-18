@@ -24,6 +24,21 @@ public class TempDir implements Closeable {
 		return this.path;
 	}
 
+	/**
+	 * Resolves a user-supplied name against this temp directory and verifies the result
+	 * stays within the sandbox. Prevents path traversal via names like {@code ../../etc}.
+	 * @param name the name to resolve (e.g. chart name)
+	 * @return the resolved path guaranteed to be within this temp directory
+	 * @throws IllegalArgumentException if the resolved path escapes the sandbox
+	 */
+	public Path sandboxedResolve(String name) {
+		Path resolved = this.path.resolve(name).normalize();
+		if (!resolved.startsWith(this.path)) {
+			throw new IllegalArgumentException("Path traversal detected: " + name);
+		}
+		return resolved;
+	}
+
 	@Override
 	public void close() throws IOException {
 		if (Files.exists(this.path)) {

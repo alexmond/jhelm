@@ -126,6 +126,17 @@ class ChartControllerTest {
 	}
 
 	@Test
+	void createRejectsPathTraversalName() throws Exception {
+		this.mockMvc
+			.perform(post("/api/v1/charts/create").contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.content("""
+						{"name": "../../etc/evil"}
+						"""))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
 	void showAllReturnsChartInfo() throws Exception {
 		stubPull();
 		when(this.showAction.showAll(anyString())).thenReturn("# Chart.yaml\nname: nginx");

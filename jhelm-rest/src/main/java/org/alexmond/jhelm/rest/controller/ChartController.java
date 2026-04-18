@@ -101,7 +101,7 @@ public class ChartController {
 			throw new IllegalArgumentException("name is required");
 		}
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-create-")) {
-			Path chartPath = tempDir.path().resolve(request.getName());
+			Path chartPath = tempDir.sandboxedResolve(request.getName());
 			this.createAction.create(chartPath);
 			byte[] tgz = ChartArchiveUtil.toTgzBytes(chartPath, request.getName());
 			return ResponseEntity.ok()
