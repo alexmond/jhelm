@@ -52,6 +52,8 @@ class VerifyActionTest {
 	Path tempDir;
 
 	@BeforeAll
+	@SuppressWarnings("deprecation") // JcaPGPKeyPair 3-arg constructor; 4-arg version has
+										// a BouncyCastle bug
 	static void generateKeys() throws Exception {
 		if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
 			Security.addProvider(new BouncyCastleProvider());

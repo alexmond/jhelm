@@ -529,10 +529,10 @@ class KpsComparisonTest {
 			}
 		}
 		else if (!expected.equals(actual)) {
-			if (expected.isTextual() && actual.isTextual()) {
+			if (expected.isString() && actual.isString()) {
 				try {
-					JsonNode parsedExpected = YAML_MAPPER.readTree(expected.textValue());
-					JsonNode parsedActual = YAML_MAPPER.readTree(actual.textValue());
+					JsonNode parsedExpected = YAML_MAPPER.readTree(expected.stringValue());
+					JsonNode parsedActual = YAML_MAPPER.readTree(actual.stringValue());
 					if (parsedExpected != null && parsedActual != null && !parsedExpected.isValueNode()
 							&& !parsedActual.isValueNode()) {
 						diffs.addAll(computeDiffs(parsedExpected, parsedActual, path));
