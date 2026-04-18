@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class Functions {
 
@@ -400,10 +402,27 @@ public final class Functions {
 			format = format.replaceAll("%q", "%s"); // %(q) -> %s
 			format = format.replaceAll("%p", "%s"); // %(p) -> %s
 
+			// Extract format specifiers to coerce numeric types per-argument.
+			// Go's printf is lenient (any numeric type for %d/%g); Java is strict.
+			Matcher specMatcher = Pattern.compile("%[^%]*?([doxXbeEfgG])").matcher(format);
+			List<Character> specTypes = new ArrayList<>();
+			while (specMatcher.find()) {
+				specTypes.add(specMatcher.group(1).charAt(0));
+			}
+
 			Object[] realArgs = new Object[args.length - 1];
 			for (int i = 0; i < realArgs.length; i++) {
-				// Java's String.format renders null as "null"; Go uses "" for nil
-				realArgs[i] = (args[i + 1] != null) ? args[i + 1] : "";
+				Object arg = (args[i + 1] != null) ? args[i + 1] : "";
+				if (arg instanceof Number && i < specTypes.size()) {
+					char spec = specTypes.get(i);
+					if ("eEfgG".indexOf(spec) >= 0 && (arg instanceof Integer || arg instanceof Long)) {
+						arg = ((Number) arg).doubleValue();
+					}
+					else if ("doxXb".indexOf(spec) >= 0 && (arg instanceof Double || arg instanceof Float)) {
+						arg = ((Number) arg).longValue();
+					}
+				}
+				realArgs[i] = arg;
 			}
 			return String.format(format, realArgs);
 		};

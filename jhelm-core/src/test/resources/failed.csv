@@ -3,7 +3,5 @@
 # If a chart unexpectedly passes, the test will fail — remove the entry.
 #
 # --- Code bugs ---
-# Subchart label propagation — labels null instead of expected values
-superset/superset,superset,http://apache.github.io/superset/
 # Validation template fails — bitnami common.validations produces non-empty result where Go produces ""
 bitnami/rabbitmq,bitnami,https://charts.bitnami.com/bitnami
