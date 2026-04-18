@@ -61,6 +61,24 @@ class TemplateFunctionsTest {
 		assertTrue(ex.getMessage().contains("nonexistent"));
 	}
 
+	@Test
+	void testIncludeOfEmptyTemplateReturnsEmptyString() throws Exception {
+		// Mirrors rabbitmq validation pattern: include a template that produces nothing
+		template.parse("check", "{{- define \"check\" -}}{{- if false -}}error{{- end -}}{{- end -}}");
+		Function include = functions.get("include");
+		String result = (String) include.invoke(new Object[] { "check", new HashMap<>() });
+		assertEquals("", result, "include of empty-producing template should return \"\"");
+	}
+
+	@Test
+	void testIncludeOfConditionallyEmptyTemplate() throws Exception {
+		// Include a template with a false condition and trim markers — should return ""
+		template.parse("helpers", "{{- define \"check1\" -}}{{- if false -}}error{{- end -}}{{- end -}}");
+		Function include = functions.get("include");
+		String result = (String) include.invoke(new Object[] { "check1", new HashMap<>() });
+		assertEquals("", result, "include of conditionally empty template should return empty string");
+	}
+
 	// --- mustInclude tests ---
 
 	@Test

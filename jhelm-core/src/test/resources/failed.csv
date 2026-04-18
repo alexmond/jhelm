@@ -3,5 +3,4 @@
 # If a chart unexpectedly passes, the test will fail — remove the entry.
 #
 # --- Code bugs ---
-# Validation template fails — bitnami common.validations produces non-empty result where Go produces ""
-bitnami/rabbitmq,bitnami,https://charts.bitnami.com/bitnami
+# (none — all previously listed charts are now fixed)
