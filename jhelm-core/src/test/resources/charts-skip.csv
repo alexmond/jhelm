@@ -1,0 +1,34 @@
+# Charts to skip during comparison testing (format: chartName,reason)
+# These charts are skipped due to known issues — re-test when the issue is fixed.
+#
+# --- OOM: chart too large for default heap (#311) ---
+openebs/openebs,OOM — 28 subcharts 760 templates exhaust heap (#311)
+#
+# --- Helm itself fails with default values (not jhelm bugs) ---
+# These charts require mandatory values, use library type, or have schema validation
+# that prevents `helm template` from succeeding with default values.
+grafana/loki,Helm fails: execution error (requires storage config)
+argo/argocd-apps,Helm fails: library chart or requires values
+aws/aws-load-balancer-controller,Helm fails: execution error (requires clusterName)
+bitnami/common,Helm fails: library charts are not installable
+drone/drone,Helm fails: values schema validation error
+rancher-stable/rancher,Helm fails: requires mandatory values (hostname)
+sonarqube/sonarqube,Helm fails: requires mandatory values
+nfs-subdir-external-provisioner/nfs-subdir-external-provisioner,Helm fails: requires nfs.server
+jupyterhub/jupyterhub,Helm fails: execution error
+gitlab/gitlab,Helm fails: requires mandatory values (domain)
+actions-runner-controller/actions-runner-controller,Helm fails: requires values
+immich/immich,Helm fails: requires values
+grafana/k8s-monitoring,Helm fails: requires cluster name
+prometheus-community/prometheus-blackbox-exporter,Helm fails: execution error
+prometheus-community/prometheus-postgres-exporter,Helm fails: execution error
+prometheus-community/prometheus-redis-exporter,Helm fails: execution error
+prometheus-community/prometheus-elasticsearch-exporter,Helm fails: execution error
+opentelemetry-helm/opentelemetry-collector,Helm fails: execution error
+ananace-charts/matrix-synapse,Helm fails: requires mandatory values
+#
+# --- Download failures (external repo issues) ---
+k8s-dashboard/kubernetes-dashboard,Repo 404 — dashboard moved to OCI
+twuni/docker-registry,Repo DNS failure
+prometheus-community/prometheus-adapter,Chart download 404
+deliveryhero/node-problem-detector,Repo intermittently unavailable

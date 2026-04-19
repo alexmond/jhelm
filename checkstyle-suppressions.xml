@@ -31,9 +31,10 @@
     <!-- TrustManager interface implementations must be public; ignore visibility rule -->
     <suppress checks="SpringMethodVisibility" files="KpsComparisonTest\.java"/>
 
-    <!-- RepoManager has deeply nested YAML parsing logic -->
+    <!-- RepoManager has deeply nested YAML parsing logic and many chart operations -->
     <suppress checks="NestedIfDepth" files="RepoManager\.java"/>
     <suppress checks="MethodLength" files="RepoManager\.java"/>
+    <suppress checks="FileLength" files="RepoManager\.java"/>
 
     <!-- Engine.renderWithSubcharts is slightly over limit due to log guards -->
     <suppress checks="MethodLength" files="Engine\.java"/>

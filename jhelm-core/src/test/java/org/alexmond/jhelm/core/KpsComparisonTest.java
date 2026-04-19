@@ -80,6 +80,29 @@ class KpsComparisonTest {
 
 	private final Set<String> addedRepos = new HashSet<>();
 
+	private final Set<String> skipCharts = loadSkipCharts();
+
+	private static Set<String> loadSkipCharts() {
+		Set<String> skips = new HashSet<>();
+		try (InputStream is = KpsComparisonTest.class.getResourceAsStream("/charts-skip.csv")) {
+			if (is == null) {
+				return skips;
+			}
+			new String(is.readAllBytes(), StandardCharsets.UTF_8).lines()
+				.filter((line) -> !line.isBlank() && !line.startsWith("#"))
+				.map((line) -> line.split(",")[0].trim())
+				.forEach(skips::add);
+		}
+		catch (IOException ex) {
+			// Ignore — no skip file
+		}
+		return skips;
+	}
+
+	private boolean isSkipped(String chartName) {
+		return this.skipCharts.contains(chartName);
+	}
+
 	private RepoManager createRepoManager() {
 		RepoManager rm = new RepoManager();
 		rm.setInsecureSkipTlsVerify(true);
@@ -225,7 +248,10 @@ class KpsComparisonTest {
 	}
 
 	private void compareChart(String chartName, String releaseName, String repoId, String repoUrl) throws Exception {
-		// No charts skipped anymore
+		if (isSkipped(chartName)) {
+			log.info("{} - Skipped (listed in charts-skip.csv)", chartName);
+			assumeTrue(false, chartName + " is in charts-skip.csv");
+		}
 
 		File chartDir = findChartDir(chartName);
 
@@ -306,9 +332,11 @@ class KpsComparisonTest {
 				log.warn("{} - JHelm rendering failed (ignored — catch-all rule): {}", chartName, ex.getMessage());
 				return;
 			}
-			log.error("{} - JHelm rendering failed", chartName, ex);
-			fail(chartName + " - JHelm rendering failed: " + ex.getMessage() + "\n  failed.csv: " + chartName + ","
-					+ repoId + "," + repoUrl);
+			// Build root-cause chain for clear error reporting
+			String rootCause = extractRootCause(ex);
+			log.error("{} - JHelm rendering failed: {}", chartName, rootCause);
+			fail(chartName + " - JHelm rendering failed: " + rootCause + "\n  failed.csv: " + chartName + "," + repoId
+					+ "," + repoUrl);
 		}
 	}
 
@@ -607,12 +635,11 @@ class KpsComparisonTest {
 	private File findChartDir(String chartFullName) {
 		String chartName = chartFullName.contains("/") ? chartFullName.substring(chartFullName.lastIndexOf("/") + 1)
 				: chartFullName;
-		String[] paths = { "target/temp-charts/" + chartName, "target/temp-charts/" + chartFullName,
-				"sample-charts/" + chartName, "../sample-charts/" + chartName, "target/test-charts/" + chartName,
-				"target/test-charts/bitnami/" + chartName, // common subfolder in bitnami
-															// tgz
-				chartName, // legacy check
-				"../" + chartName };
+		String sanitized = chartFullName.replace("/", "_");
+		// Per-chart subdirectory first (isolated), then legacy fallbacks
+		String[] paths = { "target/temp-charts/" + sanitized + "/" + chartName, "target/temp-charts/" + chartName,
+				"target/temp-charts/" + chartFullName, "sample-charts/" + chartName, "../sample-charts/" + chartName,
+				"target/test-charts/" + chartName, "target/test-charts/bitnami/" + chartName };
 		for (String p : paths) {
 			File f = new File(p);
 			if (f.exists() && f.isDirectory() && new File(f, "Chart.yaml").exists()) {
@@ -652,7 +679,13 @@ class KpsComparisonTest {
 
 	private void fetchFromHelmRepo(String chartName) throws Exception {
 		log.info("Fetching chart {} via RepoManager...", chartName);
-		File tempDir = new File("target/temp-charts");
+		// Use a per-chart subdirectory to avoid cross-contamination between test
+		// iterations
+		String sanitized = chartName.replace("/", "_");
+		File tempDir = new File("target/temp-charts/" + sanitized);
+		if (tempDir.exists()) {
+			deleteDir(tempDir);
+		}
 		tempDir.mkdirs();
 
 		// chartName may be in the form <repoId>/<chartName>
@@ -677,6 +710,21 @@ class KpsComparisonTest {
 			log.error("Failed to pull chart {}: {}", chartName, ex.getMessage());
 			throw ex;
 		}
+	}
+
+	private static void deleteDir(File dir) {
+		File[] files = dir.listFiles();
+		if (files != null) {
+			for (File f : files) {
+				if (f.isDirectory()) {
+					deleteDir(f);
+				}
+				else {
+					f.delete();
+				}
+			}
+		}
+		dir.delete();
 	}
 
 	private void fetchFromArtifactHub(String chartFullName) throws Exception {
@@ -805,6 +853,25 @@ class KpsComparisonTest {
 	@MethodSource("topCharts")
 	void compareTopCharts(String chartName, String repoId, String repoUrl) throws Exception {
 		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+	}
+
+	private static String extractRootCause(Throwable ex) {
+		StringBuilder sb = new StringBuilder();
+		Throwable current = ex;
+		while (current != null) {
+			if (sb.length() > 0) {
+				sb.append(" -> ");
+			}
+			String msg = current.getMessage();
+			if (msg != null && !msg.isBlank()) {
+				sb.append(msg.lines().findFirst().orElse(msg));
+			}
+			else {
+				sb.append(current.getClass().getSimpleName());
+			}
+			current = current.getCause();
+		}
+		return sb.toString();
 	}
 
 	record Diff(String path, String expected, String actual) {

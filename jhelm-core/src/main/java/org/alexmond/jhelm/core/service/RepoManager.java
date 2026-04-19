@@ -31,6 +31,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -57,6 +58,8 @@ public class RepoManager {
 
 	@Setter
 	private RegistryManager registryManager;
+
+	private final Map<String, Map<?, ?>> indexCache = new HashMap<>();
 
 	public RepoManager() {
 		this(resolveDefaultConfigPath());
@@ -278,6 +281,7 @@ public class RepoManager {
 			}
 			return null;
 		});
+		this.indexCache.remove(name);
 		if (log.isInfoEnabled()) {
 			log.info("Repository '{}' index updated", name);
 		}
@@ -336,6 +340,15 @@ public class RepoManager {
 	}
 
 	private Map<?, ?> loadIndexEntries(String repoName) throws IOException {
+		Map<?, ?> cached = this.indexCache.get(repoName);
+		if (cached == null) {
+			cached = parseIndexEntries(repoName);
+			this.indexCache.put(repoName, cached);
+		}
+		return cached;
+	}
+
+	private Map<?, ?> parseIndexEntries(String repoName) throws IOException {
 		File indexFile = getIndexCacheFile(repoName);
 		InputStream indexIn;
 		if (indexFile.exists()) {
