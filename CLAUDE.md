@@ -4,17 +4,23 @@
 
 jhelm is a Java implementation of the Helm package manager for Kubernetes. It provides native Java libraries and tools to work with Helm charts without requiring the Go-based Helm CLI.
 
-**Tech Stack**: Java 21, Spring Boot 4.0.2, Kubernetes Client 25.0.0, Picocli 4.7.6, Jackson YAML 2.18.2, Lombok
+**Tech Stack**: Java 21, Spring Boot 4.0.5, Kubernetes Client 25.0.0, Picocli 4.7.7, Jackson YAML, Lombok
 
 ## Project Structure
 
 ```
 jhelm (parent)
-├── jhelm-gotemplate/  — Go template engine
-├── jhelm-core/        — Helm-specific logic, charts, actions (depends on: jhelm-gotemplate)
-├── jhelm-kube/        — Kubernetes client integration (depends on: jhelm-core)
-├── jhelm-cli/         — CLI entry point, Spring Boot + Picocli (depends on: jhelm-core, jhelm-kube)
-└── doc/               — Antora documentation (AsciiDoc)
+├── jhelm-gotemplate/       — Go template engine (standalone, no Spring)
+├── jhelm-gotemplate-sprig/ — Sprig function implementations (ServiceLoader, priority 100)
+├── jhelm-gotemplate-helm/  — Helm function implementations (ServiceLoader, priority 200)
+├── jhelm-core/             — Helm logic, charts, actions (depends on: gotemplate)
+├── jhelm-kube/             — Kubernetes client integration (depends on: core)
+├── jhelm-rest/             — REST API module
+├── jhelm-plugin/           — Maven plugin for packaging
+├── jhelm-cli/              — CLI entry point, Spring Boot + Picocli (depends on: core, kube)
+├── jhelm-sample/           — Sample application
+├── jhelm-rest-sample/      — REST sample application
+└── docs/                   — Antora documentation (AsciiDoc)
 ```
 
 ## Build & Test Commands
@@ -101,7 +107,7 @@ jhelm (parent)
 
 ## PMD
 
-**Plugin**: `maven-pmd-plugin` 3.26.0 (PMD 7.7.0). Violations **fail the build** at `validate` phase.
+**Plugin**: `maven-pmd-plugin` 3.28.0 (PMD 7.7.0). Violations **fail the build** at `validate` phase.
 
 **Config**: `pmd-ruleset.xml` at project root. Excludes rules that don't fit the codebase (complexity rules for state machines, CLI-specific patterns, etc.).
 
@@ -146,10 +152,10 @@ python3 .claude/scripts/fix_fqn.py .
    ./mvnw spring-javaformat:apply
    ```
 
-2. **Run the fix script** (handles SpringCatch, NeedBraces, SpringLambda, SpringTernary, star imports):
+2. **Run the fix scripts** (handles SpringCatch, NeedBraces, SpringLambda, SpringTernary, star imports, FQN):
    ```bash
-   # Script is embedded in /.claude/skills/checkstyle/skill.md
-   python3 /tmp/fix_violations.py
+   python3 .claude/scripts/fix_fqn.py .
+   python3 .claude/scripts/fix_violations.py .
    ```
 
 3. **Manual fixes** for: `InnerTypeLast` (move inner classes after all methods), `SpringHideUtilityClassConstructor` (add private constructor + `final`), `NestedIfDepth` (extract method or suppress), `AnnotationUseStyle` (remove trailing `,` in annotation arrays)
@@ -165,7 +171,7 @@ Configured in `checkstyle.xml` (project root):
 
 | Scope | Consider refactoring | Build fails |
 |---|---|---|
-| File | > 500 lines | > 1000 lines |
+| File | > 500 lines | > 800 lines |
 | Method | > 50 lines | > 80 lines |
 
 ### Suppressions

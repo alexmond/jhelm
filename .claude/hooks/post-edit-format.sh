@@ -17,7 +17,7 @@ if [[ "$FILE_PATH" != *.java ]]; then
     exit 0
 fi
 
-cd /Users/alex.mondshain/claude/jhelm
+cd "$CLAUDE_PROJECT_DIR"
 
 # Determine which module the file belongs to
 MODULE=""
@@ -27,8 +27,12 @@ case "$FILE_PATH" in
     *jhelm-gotemplate*) MODULE="jhelm-gotemplate" ;;
     *jhelm-core*) MODULE="jhelm-core" ;;
     *jhelm-kube*) MODULE="jhelm-kube" ;;
+    *jhelm-rest*) MODULE="jhelm-rest" ;;
+    *jhelm-app*) MODULE="jhelm-app" ;;
     *jhelm-cli*) MODULE="jhelm-cli" ;;
     *jhelm-plugin*) MODULE="jhelm-plugin" ;;
+    *jhelm-sample*) MODULE="jhelm-sample" ;;
+    *jhelm-rest-sample*) MODULE="jhelm-rest-sample" ;;
 esac
 
 if [[ -n "$MODULE" ]]; then

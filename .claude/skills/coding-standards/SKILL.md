@@ -39,7 +39,7 @@ Two thresholds apply — **consider** and **enforce**:
 
 | Scope | Consider refactoring | Checkstyle enforces (build fails) |
 |---|---|---|
-| **File** | > 500 lines | > 1000 lines |
+| **File** | > 500 lines | > 800 lines |
 | **Method** | > 50 lines | > 80 lines |
 
 **Consider (500 lines / 50 lines):** A warning signal. Before adding more code to a large file or method, ask whether it should be split. Extract helpers, separate concerns, or move related methods to a dedicated class.

@@ -25,7 +25,7 @@ git checkout -b feature/$ARGUMENTS-<short-description>
 ### Step 3: Implement the changes
 
 - Read relevant source files before making modifications
-- Follow project coding standards (Java 21, Lombok, 4-space indent)
+- Follow project coding standards (Java 21, Lombok, tabs)
 - Keep changes focused on the issue requirements
 
 ### Step 4: Run tests
@@ -41,7 +41,7 @@ git commit -m "<descriptive message>
 
 Closes #$ARGUMENTS
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+Co-Authored-By: Claude <noreply@anthropic.com>"
 git push -u origin HEAD
 ```
 
