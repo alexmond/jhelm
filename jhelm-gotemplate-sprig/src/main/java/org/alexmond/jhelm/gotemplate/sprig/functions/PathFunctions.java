@@ -1,6 +1,8 @@
 package org.alexmond.jhelm.gotemplate.sprig.functions;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.alexmond.jhelm.gotemplate.Function;
@@ -117,7 +119,7 @@ public final class PathFunctions {
 			// Normalize multiple slashes and resolve . and ..
 			boolean rooted = path.startsWith("/");
 			String[] parts = path.split("/");
-			java.util.List<String> result = new java.util.ArrayList<>();
+			List<String> result = new ArrayList<>();
 			for (String part : parts) {
 				if (part.isEmpty() || ".".equals(part)) {
 					continue;

@@ -40,6 +40,7 @@ import java.util.Optional;
 import java.util.Objects;
 import java.util.Comparator;
 import java.util.stream.Collectors;
+import java.nio.charset.StandardCharsets;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -465,7 +466,7 @@ public class HelmKubeService implements KubeService {
 		byte[] json = objectMapper.writeValueAsBytes(release);
 		byte[] gzipped = gzip(json);
 		String b64 = Base64.getEncoder().encodeToString(gzipped);
-		return b64.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		return b64.getBytes(StandardCharsets.UTF_8);
 	}
 
 	private byte[] gzip(byte[] data) throws Exception {
