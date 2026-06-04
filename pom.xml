@@ -63,7 +63,7 @@
         <connection>scm:git:git@github.com:alexmond/jhelm.git</connection>
         <developerConnection>scm:git:git@github.com:alexmond/jhelm.git</developerConnection>
         <tag>HEAD</tag>
-        <url>https://github.com/alexmond/jsupervisor</url>
+        <url>https://github.com/alexmond/jhelm</url>
     </scm>
     <modules>
         <module>jhelm-gotemplate</module>
@@ -276,6 +276,13 @@
                 <configuration>
                     <showDeprecation>true</showDeprecation>
                     <showWarnings>true</showWarnings> <!-- Optional: also show all other warnings -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>
