@@ -65,6 +65,16 @@ class KpsComparisonTest {
 
 	private static final YAMLMapper YAML_MAPPER = YAMLMapper.builder().build();
 
+	/**
+	 * Repository URL overrides for charts whose upstream repo has moved but whose
+	 * ArtifactHub metadata still advertises the old (now 404) location. Keyed by the
+	 * stale URL, mapped to the working replacement.
+	 */
+	private static final Map<String, String> REPO_URL_OVERRIDES = Map.of(
+			// kubernetes-dashboard: repo renamed to kubernetes-retired; the old
+			// kubernetes.github.io/dashboard GitHub Pages site now returns 404 (#315)
+			"https://kubernetes.github.io/dashboard", "https://kubernetes-retired.github.io/dashboard");
+
 	@Autowired
 	private JhelmTestProperties testProperties;
 
@@ -253,12 +263,16 @@ class KpsComparisonTest {
 			assumeTrue(false, chartName + " is in charts-skip.csv");
 		}
 
+		// Redirect charts whose upstream repo has moved but whose ArtifactHub metadata
+		// still points at the old (now 404) location.
+		String effectiveRepoUrl = REPO_URL_OVERRIDES.getOrDefault(repoUrl.replaceAll("/+$", ""), repoUrl);
+
 		File chartDir = findChartDir(chartName);
 
 		if (chartDir == null) {
-			log.info("Chart {} not found locally, fetching from repository {}...", chartName, repoUrl);
+			log.info("Chart {} not found locally, fetching from repository {}...", chartName, effectiveRepoUrl);
 			try {
-				addHelmRepo(repoId, repoUrl);
+				addHelmRepo(repoId, effectiveRepoUrl);
 				fetchFromHelmRepo(chartName);
 				chartDir = findChartDir(chartName);
 			}
