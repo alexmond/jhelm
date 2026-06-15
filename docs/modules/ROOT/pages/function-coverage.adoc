@@ -1,0 +1,116 @@
+= Template Function Coverage
+
+This page tracks which template functions jhelm implements relative to upstream
+Go `text/template`, Sprig, and Helm, and flags functions that are *present but
+only partially faithful* ("partial") so chart authors know where behaviour may
+diverge from Go Helm.
+
+Baseline: the locally installed `helm` binary used by the comparison test
+suite (Helm 3.19 / Sprig as vendored by that release). Verified by enumerating
+jhelm's registered functions and probing each candidate against `helm template`.
+
+== Summary
+
+[cols="2,1,3"]
+|===
+| Group | Status | Notes
+
+| Go `text/template` builtins
+| ✅ Complete (19 / 19)
+| `and or not eq ne lt le gt ge` · `index slice len call` · `print printf println` · `html js urlquery`
+
+| Sprig functions
+| ✅ Complete
+| All documented Sprig categories are registered (strings, math, lists, dicts, dates, encoding, crypto, semver, reflection, paths, regex, defaults, type conversion, URL, UUID, network). `env` / `expandenv` are intentionally omitted to match Helm's security removal.
+
+| Helm functions
+| ⚠️ Near-complete — 1 gap
+| `include tpl required lookup` · all `toYaml/fromYaml`, `toJson/fromJson`, `toToml/fromToml` (+ `must*`) present. **Missing:** `toYamlPretty`.
+|===
+
+== Genuinely missing
+
+[cols="1,3"]
+|===
+| Function | Description
+
+| `toYamlPretty`
+| Helm's indented-sequence YAML marshaller. Differs from `toYaml` only in that block sequence items are indented under their key (`  - x` instead of `- x`). Small, self-contained addition.
+|===
+
+[NOTE]
+====
+Earlier audits circulated a list of "Helm 4 duration helpers" (`durationSeconds`,
+`durationMinutes`, `durationRoundTo`, `mustToDuration`, …). These are **not real
+Helm functions** — every one returns `function "…" not defined` from `helm
+template`. They are not tracked as gaps. jhelm does implement the real Sprig
+duration functions: `duration` and `durationRound`.
+====
+
+== Partial / verify (present, but behaviour may diverge)
+
+These functions are registered and work, but a JVM reimplementation cannot always
+reproduce Go's exact output. Treat output as structurally correct, not
+byte-identical, unless a parity test exists.
+
+[cols="1,3"]
+|===
+| Function(s) | Caveat
+
+| `lookup`
+| Queries the Kubernetes API. Returns an empty map when no `KubernetesProvider` is wired (the default, and the behaviour of `helm template` without a cluster). Live-cluster results require `jhelm-kube`.
+
+| `kubeVersion`
+| Returns a stub (`v1.28.0`) when no provider is available.
+
+| `getHostByName`
+| Performs real DNS resolution; result is environment-dependent and non-deterministic, like Helm.
+
+| `genCA`, `genCAWithKey`, `genSelfSignedCert*`, `genSignedCert*`, `genPrivateKey`, `buildCustomCert`
+| X.509 / key PEM encoding, serial numbers, and validity defaults can differ from Go's `crypto/x509`. Output is not byte-stable across runs (fresh keys), so only structural use is portable.
+
+| `bcrypt`, `htpasswd`, `derivePassword`
+| Salted / algorithm-specific output. Verify the hash prefix and format match; exact values are non-deterministic.
+
+| `encryptAES`, `decryptAES`
+| Round-trips within jhelm, but cross-compatibility with Helm-produced ciphertext depends on identical key derivation and framing.
+
+| `semverCompare`
+| Masterminds constraint grammar (`^ ~ - x || >=`, pre-release precedence). Edge cases may differ from the underlying Java semver handling.
+
+| `toToml`, `fromToml` (+ `must*`)
+| TOML key ordering, datetime, and nested-table emission vary by library; round-trips and string comparisons are fragile.
+
+| `randAlpha`, `randAlphaNum`, `randAscii`, `randNumeric`, `randBytes`, `randInt`, `uuidv4`, `shuffle`
+| Inherently non-deterministic; jhelm's PRNG does not reproduce Go's sequence. Only length / charset / format are guaranteed.
+|===
+
+== jhelm extensions (non-standard)
+
+jhelm registers a few functions that are **not** in upstream Sprig or Helm. They
+are harmless convenience aliases, but a chart relying on them is **not portable
+to real Helm**:
+
+* `mustHasKey`, `mustKeys`, `mustValues`, `mustPick`, `mustOmit` — `must*` aliases of the Sprig dict functions (Sprig has only the non-`must` forms).
+* `mustInclude`, `mustTpl`, `mustFromYaml`, `mustFromYamlArray`, `mustFromJsonArray`, `mustFromToml` — `must*` aliases not present in Helm.
+* `kubeVersion` — exposed as a function; Helm exposes this via the `.Capabilities.KubeVersion` object instead.
+
+== Known template-engine limitations
+
+Beyond the function map, the most common "it works in Helm but not jhelm" cases
+are engine/edge-case behaviours rather than missing functions. Known and fixed
+items (see git history / issues):
+
+* `tpl` of a string that both `define`s and `include`s a template in one string — fixed (defines declared inside `tpl` content are now registered in the shared namespace).
+* `toYaml` of a string containing `"` inside a sequence item produced `\"`-escaped output that broke a subsequent `tpl(toYaml …)` — fixed (sequence items are normalised to plain scalars).
+* Large umbrella charts exhausted the heap due to exponential template-alias growth — fixed.
+
+Open / under investigation:
+
+* Nested `tpl` (a `tpl` call whose rendered output contains another `tpl`) can still fail to parse on some charts (e.g. `grafana/loki` `loki.calculatedConfig`).
+
+== References
+
+* https://helm.sh/docs/chart_template_guide/function_list/[Helm — Template Function List]
+* https://masterminds.github.io/sprig/[Sprig Function Documentation]
+* https://pkg.go.dev/text/template#hdr-Functions[Go `text/template` — Builtin Functions]
