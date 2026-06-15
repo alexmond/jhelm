@@ -677,6 +677,16 @@ public final class ConversionFunctions {
 				if (canBePlainScalar(unescaped)) {
 					sb.append(prefix).append(unescaped);
 				}
+				else if (unescaped.indexOf('"') >= 0 && canBeSingleQuoted(unescaped)) {
+					// A value that cannot be plain (e.g. starts with a flow indicator
+					// like
+					// "{{") but contains double quotes is emitted by Go's yaml.Marshal in
+					// SINGLE-quote style, not double-quote-with-backslash-escapes. The
+					// backslashes otherwise break a subsequent tpl(toYaml ...) re-parse —
+					// a
+					// common pattern is a config value of {{ include "x" . }} (#327).
+					sb.append(prefix).append('\'').append(unescaped.replace("'", "''")).append('\'');
+				}
 				else {
 					sb.append(line);
 				}
@@ -747,6 +757,21 @@ public final class ConversionFunctions {
 		// Must not look like a number (would lose string type)
 		if (NUMERIC.matcher(s).matches()) {
 			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Whether a string can be represented as a YAML single-quoted scalar. Single quotes
+	 * can hold any printable content (with {@code '} doubled), but control characters
+	 * (including newline/tab) force double-quote style, so those are rejected here.
+	 */
+	private static boolean canBeSingleQuoted(String s) {
+		for (int i = 0; i < s.length(); i++) {
+			char c = s.charAt(i);
+			if (c < 0x20 || c == 0x7f) {
+				return false;
+			}
 		}
 		return true;
 	}
