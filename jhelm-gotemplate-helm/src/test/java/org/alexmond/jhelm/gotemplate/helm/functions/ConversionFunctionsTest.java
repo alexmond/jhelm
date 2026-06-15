@@ -145,6 +145,31 @@ class ConversionFunctionsTest {
 		assertTrue(result.contains("dnsPolicy: null"), "null field should be rendered as null");
 	}
 
+	@Test
+	void testToYamlPrettyIndentsSequenceItems() throws IOException, TemplateException {
+		// Helm's toYamlPretty indents block sequence items under their key
+		// (" - a: 1"), unlike toYaml which aligns the dash with the key ("- a: 1").
+		Map<String, Object> obj = new LinkedHashMap<>();
+		obj.put("list", List.of(Map.of("a", 1)));
+		obj.put("map", Map.of("k", "v"));
+		Map<String, Object> data = new HashMap<>();
+		data.put("obj", obj);
+
+		String pretty = execWithData("{{ toYamlPretty .obj }}", data);
+		String plain = execWithData("{{ toYaml .obj }}", data);
+
+		assertTrue(pretty.contains("list:\n  - a: 1"), "pretty should indent sequence items: " + pretty);
+		assertTrue(plain.contains("list:\n- a: 1"), "plain toYaml aligns dash with key: " + plain);
+		assertTrue(pretty.contains("map:\n  k: v"), "mapping indentation unchanged: " + pretty);
+	}
+
+	@Test
+	void testToYamlPrettyNullAndEmpty() {
+		Function toYamlPretty = functions().get("toYamlPretty");
+		assertEquals("", toYamlPretty.invoke(new Object[] {}));
+		assertEquals("", toYamlPretty.invoke(new Object[] { null }));
+	}
+
 	@ParameterizedTest
 	@CsvSource({ "toYaml", "mustToYaml" })
 	void testYamlSequenceItemWithEmbeddedQuotesIsPlain(String func) throws IOException, TemplateException {
@@ -393,10 +418,10 @@ class ConversionFunctionsTest {
 	@Test
 	void testGetFunctionsReturnsAllExpected() {
 		Map<String, Function> fns = functions();
-		List<String> expected = List.of("toYaml", "mustToYaml", "fromYaml", "mustFromYaml", "fromYamlArray",
-				"mustFromYamlArray", "toJson", "mustToJson", "toPrettyJson", "mustToPrettyJson", "toRawJson",
-				"mustToRawJson", "fromJson", "mustFromJson", "fromJsonArray", "mustFromJsonArray", "toToml",
-				"mustToToml", "fromToml", "mustFromToml");
+		List<String> expected = List.of("toYaml", "toYamlPretty", "mustToYaml", "fromYaml", "mustFromYaml",
+				"fromYamlArray", "mustFromYamlArray", "toJson", "mustToJson", "toPrettyJson", "mustToPrettyJson",
+				"toRawJson", "mustToRawJson", "fromJson", "mustFromJson", "fromJsonArray", "mustFromJsonArray",
+				"toToml", "mustToToml", "fromToml", "mustFromToml");
 		for (String name : expected) {
 			assertTrue(fns.containsKey(name), "missing function: " + name);
 		}

@@ -59,6 +59,19 @@ public final class ConversionFunctions {
 		.build());
 
 	/**
+	 * YAML mapper for {@code toYamlPretty}. Identical to {@link #YAML_MAPPER} but indents
+	 * block sequence items under their key ({@code   - x} instead of {@code - x}),
+	 * matching Helm's {@code toYamlPretty} (a yaml.v3 encoder with indent 2).
+	 */
+	private static final ThreadLocal<YAMLMapper> PRETTY_YAML_MAPPER = ThreadLocal.withInitial(() -> YAMLMapper.builder()
+		.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
+		.disable(YAMLWriteFeature.SPLIT_LINES)
+		.enable(YAMLWriteFeature.MINIMIZE_QUOTES)
+		.enable(YAMLWriteFeature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS)
+		.enable(YAMLWriteFeature.INDENT_ARRAYS_WITH_INDICATOR)
+		.build());
+
+	/**
 	 * YAML 1.1 octal pattern: bare-zero prefix followed by octal digits (e.g. 0660,
 	 * 0755). Go's yaml.v3 retains YAML 1.1 compatibility for these literals, parsing them
 	 * as integers. SnakeYAML Engine (YAML 1.2 strict) only recognises 0o prefix.
@@ -152,6 +165,7 @@ public final class ConversionFunctions {
 
 		// YAML functions
 		functions.put("toYaml", toYaml());
+		functions.put("toYamlPretty", toYamlPretty());
 		functions.put("mustToYaml", mustToYaml());
 		functions.put("fromYaml", fromYaml());
 		functions.put("mustFromYaml", mustFromYaml());
@@ -199,6 +213,29 @@ public final class ConversionFunctions {
 			}
 			catch (Exception ex) {
 				log.debug("toYaml failed: {}", ex.getMessage());
+				return "";
+			}
+		};
+	}
+
+	/**
+	 * toYamlPretty converts an object to YAML with block sequence items indented under
+	 * their key (Helm's {@code toYamlPretty}). Returns empty string on error.
+	 */
+	private static Function toYamlPretty() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			try {
+				String yaml = PRETTY_YAML_MAPPER.get().writeValueAsString(args[0]);
+				if (yaml.startsWith("---\n")) {
+					yaml = yaml.substring(4);
+				}
+				return removeUnnecessaryQuotes(yaml.trim());
+			}
+			catch (Exception ex) {
+				log.debug("toYamlPretty failed: {}", ex.getMessage());
 				return "";
 			}
 		};
