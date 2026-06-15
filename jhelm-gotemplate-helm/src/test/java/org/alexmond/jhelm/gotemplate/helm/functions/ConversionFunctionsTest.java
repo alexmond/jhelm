@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.gotemplate.helm.functions;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -167,6 +168,28 @@ class ConversionFunctionsTest {
 		Function toYamlPretty = functions().get("toYamlPretty");
 		assertEquals("", toYamlPretty.invoke(new Object[] {}));
 		assertEquals("", toYamlPretty.invoke(new Object[] { null }));
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "toYaml", "mustToYaml" })
+	void testYamlSequenceItemWithEmbeddedQuotesIsPlain(String func) throws IOException, TemplateException {
+		// #312: a list element containing double quotes (e.g. a shell command with a
+		// nested {{ include "x" . }}) was emitted as a double-quoted scalar with \"
+		// escapes. Go's yaml.Marshal emits it plain, and the backslashes break a
+		// subsequent tpl(toYaml ...) re-parse. Sequence items must be normalised to
+		// plain style just like mapping values are.
+		Map<String, Object> data = new HashMap<>();
+		data.put("obj", Map.of("command", List.of("sh", "-c", "until nc {{ include \"etcdUrl\" . }} 80; done")));
+
+		String result = execWithData("{{ " + func + " .obj }}", data);
+
+		assertTrue(result.contains("- until nc {{ include \"etcdUrl\" . }} 80; done"),
+				"sequence item should be a plain scalar, got: " + result);
+		assertFalse(result.contains("\\\""), "sequence item must not contain backslash-escaped quotes: " + result);
+		// The whole point: the emitted YAML must itself be re-parseable as a template
+		// (this is what tpl (toYaml ...) does).
+		assertDoesNotThrow(() -> new GoTemplate().parse("inline", result),
+				"toYaml output must be parseable by tpl: " + result);
 	}
 
 	// --- Direct function invocation tests for edge cases ---

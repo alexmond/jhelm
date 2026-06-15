@@ -9,6 +9,7 @@
 * xref:template-engine.adoc[Template Engine]
 ** xref:sprig-functions.adoc[Sprig Functions]
 ** xref:helm-functions.adoc[Helm Functions]
+** xref:function-coverage.adoc[Function Coverage]
 ** xref:extending-functions.adoc[Extending Functions]
 * xref:development.adoc[Development Guide]
 * xref:roadmap.adoc[Roadmap & Future Design]

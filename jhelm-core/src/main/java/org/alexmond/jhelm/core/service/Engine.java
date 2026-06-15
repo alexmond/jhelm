@@ -228,28 +228,20 @@ public class Engine {
 			return a.compareTo(b);
 		}).toList();
 
-		// Store original rootNodes count
-		int beforeCount = factory.getRootNodes().size();
-
 		for (String name : sortedNames) {
 			try {
 				String chartName = templateToChartName.get(name);
+				// Only helper files contribute named templates that may need a
+				// chart-prefixed alias. Snapshot the keys beforehand so we can alias
+				// exactly the defines this file adds — and nothing else.
+				boolean mayDefine = name.contains("_helpers") || name.endsWith(".tpl");
+				Set<String> beforeKeys = mayDefine ? new HashSet<>(factory.getRootNodes().keySet()) : null;
 				parseWithCache(name, allTemplates.get(name));
 				if (log.isDebugEnabled()) {
 					log.debug("Parsed template: {} (from chart: {})", name, chartName);
 				}
-
-				// After parsing, check if new named templates (defines) were added
-				// If this is a _helpers.tpl from a subchart, we need to alias the
-				// templates
-				if (name.contains("_helpers") || name.endsWith(".tpl")) {
-					int afterCount = factory.getRootNodes().size();
-					if (afterCount > beforeCount) {
-						// New named templates were added
-						// We need to create aliases with chart prefix
-						createChartPrefixedAliases(chartName);
-					}
-					beforeCount = afterCount;
+				if (beforeKeys != null) {
+					createChartPrefixedAliases(chartName, beforeKeys);
 				}
 			}
 			catch (Exception ex) {
@@ -267,23 +259,28 @@ public class Engine {
 		}
 	}
 
-	private void createChartPrefixedAliases(String chartName) {
-		// Get the rootNodes map to find newly added templates
+	/**
+	 * Register chart-prefixed aliases ({@code <chartName>.<template>}) for the named
+	 * templates added by the helper file just parsed. Only the keys absent from
+	 * {@code beforeKeys} are aliased, and each gets a single prefix — re-aliasing the
+	 * whole template set on every helper file would compound prefixes across subcharts
+	 * and explode the node map (#311).
+	 * @param chartName the chart whose helper file was just parsed
+	 * @param beforeKeys the {@code rootNodes} key set captured before parsing that file
+	 */
+	private void createChartPrefixedAliases(String chartName, Set<String> beforeKeys) {
 		Map<String, Node> rootNodes = factory.getRootNodes();
-		List<String> allKeys = new ArrayList<>(rootNodes.keySet());
-
-		// Templates added between beforeCount and afterCount are the new ones
-		// We need to create aliases with chart name prefix
-		for (String templateName : allKeys) {
-			// Skip file templates (they usually have paths)
-			if (templateName.contains("/") || templateName.contains("\\")) {
-				continue;
+		List<String> newlyAdded = new ArrayList<>();
+		for (String key : rootNodes.keySet()) {
+			// Only newly added named templates (defines) — skip file-path keys.
+			if (!beforeKeys.contains(key) && !key.contains("/") && !key.contains("\\")) {
+				newlyAdded.add(key);
 			}
+		}
 
-			// If this template doesn't already have the chart prefix, create an alias
+		for (String templateName : newlyAdded) {
 			if (!templateName.startsWith(chartName + ".")) {
 				String prefixedName = chartName + "." + templateName;
-				// Add alias: (prefixedName) -> same node as templateName
 				Node node = rootNodes.get(templateName);
 				if (node != null && !rootNodes.containsKey(prefixedName)) {
 					rootNodes.put(prefixedName, node);

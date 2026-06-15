@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.core.service;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -187,6 +188,36 @@ class EngineTest {
 		String result = engine.render(parent, Map.of(), releaseInfo());
 		assertTrue(result.contains("name: parent-app"));
 		assertTrue(result.contains("name: redis"));
+	}
+
+	@Test
+	void testManySubchartHelpersDoNotExplodeNodeMap() {
+		// Regression for #311: createChartPrefixedAliases used to re-alias the entire
+		// named-template set on every helper file, compounding chart prefixes across
+		// subcharts and growing the node map exponentially (millions of entries for a
+		// few hundred templates → OOM). With many helper-bearing subcharts this OOMs
+		// at the test heap on the buggy code; the fix keeps it linear.
+		int subchartCount = 30;
+		StringBuilder includes = new StringBuilder("apiVersion: v1\nkind: ConfigMap\ndata:\n");
+		List<Chart> subcharts = new ArrayList<>();
+		for (int i = 0; i < subchartCount; i++) {
+			subcharts.add(simpleChart("sub" + i, "1.0.0",
+					List.of(tmpl("_helpers.tpl", "{{ define \"tpl" + i + "\" }}val" + i + "{{ end }}")), Map.of()));
+			includes.append("  key").append(i).append(": {{ include \"tpl").append(i).append("\" . }}\n");
+		}
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder().name("parent").version("1.0.0").build())
+			.templates(List.of(tmpl("configmap.yaml", includes.toString())))
+			.values(Map.of())
+			.dependencies(subcharts)
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		// Every subchart's named template must resolve via include.
+		for (int i = 0; i < subchartCount; i++) {
+			assertTrue(result.contains("key" + i + ": val" + i), "missing rendered value for subchart " + i);
+		}
 	}
 
 	@Test

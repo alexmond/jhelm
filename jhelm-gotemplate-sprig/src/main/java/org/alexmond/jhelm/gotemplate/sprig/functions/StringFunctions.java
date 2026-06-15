@@ -705,15 +705,15 @@ public final class StringFunctions {
 				return "";
 			}
 			try {
-				// Sprig signature: regexReplaceAllLiteral pattern replacement text
+				// Sprig signature: regexReplaceAllLiteral pattern text replacement
 				String pattern = String.valueOf(args[0]);
-				String replacement = Matcher.quoteReplacement(String.valueOf(args[1]));
-				String text = String.valueOf(args[2]);
+				String text = String.valueOf(args[1]);
+				String replacement = Matcher.quoteReplacement(String.valueOf(args[2]));
 				return text.replaceAll(pattern, replacement);
 			}
 			catch (Exception ex) {
 				log.debug("regexReplaceAllLiteral failed: {}", ex.getMessage());
-				return String.valueOf(args[2]); // Return original text on error
+				return String.valueOf(args[1]); // Return original text on error
 			}
 		};
 	}
@@ -724,10 +724,10 @@ public final class StringFunctions {
 				throw new FunctionExecutionException("mustRegexReplaceAllLiteral: insufficient arguments");
 			}
 			try {
-				// Sprig signature: mustRegexReplaceAllLiteral pattern replacement text
+				// Sprig signature: mustRegexReplaceAllLiteral pattern text replacement
 				String pattern = String.valueOf(args[0]);
-				String replacement = Matcher.quoteReplacement(String.valueOf(args[1]));
-				String text = String.valueOf(args[2]);
+				String text = String.valueOf(args[1]);
+				String replacement = Matcher.quoteReplacement(String.valueOf(args[2]));
 				return text.replaceAll(pattern, replacement);
 			}
 			catch (Exception ex) {

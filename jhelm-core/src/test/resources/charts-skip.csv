@@ -28,7 +28,6 @@ opentelemetry-helm/opentelemetry-collector,Helm fails: execution error
 ananace-charts/matrix-synapse,Helm fails: requires mandatory values
 #
 # --- Download failures (external repo issues) ---
-k8s-dashboard/kubernetes-dashboard,Repo 404 — dashboard moved to OCI
 twuni/docker-registry,Repo DNS failure
 prometheus-community/prometheus-adapter,Chart download 404
 deliveryhero/node-problem-detector,Repo intermittently unavailable

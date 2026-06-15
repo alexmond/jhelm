@@ -97,22 +97,40 @@ public final class TemplateFunctions {
 			String text = String.valueOf(args[0]);
 			Object data = args[1];
 			try {
-				// Create a new template instance inheriting functions and named templates
-				GoTemplate tplTemplate = new GoTemplate(factory.getFunctions());
-				tplTemplate.getRootNodes().putAll(factory.getRootNodes());
-
-				// Parse the inline template
-				tplTemplate.parse("inline", text);
-
-				// Execute and return result
-				StringWriter writer = new StringWriter();
-				tplTemplate.execute("inline", data, writer);
-				return writer.toString();
+				return renderInline(factory, text, data);
 			}
 			catch (Exception ex) {
 				throw new FunctionExecutionException("tpl: failed to evaluate template: " + ex.getMessage(), ex);
 			}
 		};
+	}
+
+	/**
+	 * Parse and execute an inline template string against the engine's shared template
+	 * set. Named templates ({@code define} blocks) declared inside the inline text are
+	 * registered back into {@code factory} so that {@code include}/{@code template} —
+	 * which resolve against {@code factory} — can find them. This matches Helm, where a
+	 * template defined within a {@code tpl} string joins the global namespace (e.g. a
+	 * chart that declares {@code define} and {@code include} of the same name inside a
+	 * single values string).
+	 * @param factory the engine template set whose functions and named templates are
+	 * inherited
+	 * @param text the inline template source
+	 * @param data the rendering context
+	 * @return the rendered output
+	 */
+	private static String renderInline(GoTemplate factory, String text, Object data) throws Exception {
+		GoTemplate tplTemplate = new GoTemplate(factory.getFunctions());
+		tplTemplate.getRootNodes().putAll(factory.getRootNodes());
+		tplTemplate.parse("inline", text);
+		for (var entry : tplTemplate.getRootNodes().entrySet()) {
+			if (!"inline".equals(entry.getKey())) {
+				factory.getRootNodes().putIfAbsent(entry.getKey(), entry.getValue());
+			}
+		}
+		StringWriter writer = new StringWriter();
+		tplTemplate.execute("inline", data, writer);
+		return writer.toString();
 	}
 
 	/**
@@ -128,17 +146,7 @@ public final class TemplateFunctions {
 			String text = String.valueOf(args[0]);
 			Object data = args[1];
 			try {
-				// Create a new template instance inheriting functions and named templates
-				GoTemplate tplTemplate = new GoTemplate(factory.getFunctions());
-				tplTemplate.getRootNodes().putAll(factory.getRootNodes());
-
-				// Parse the inline template
-				tplTemplate.parse("inline", text);
-
-				// Execute and return result
-				StringWriter writer = new StringWriter();
-				tplTemplate.execute("inline", data, writer);
-				return writer.toString();
+				return renderInline(factory, text, data);
 			}
 			catch (Exception ex) {
 				throw new FunctionExecutionException("mustTpl: failed to evaluate template: " + ex.getMessage(), ex);

@@ -173,9 +173,15 @@ class StringFunctionsTest {
 		assertEquals(expected, exec(template));
 	}
 
-	@Test
-	void testRegexReplaceAllLiteral() throws IOException, TemplateException {
-		assertFalse(exec("{{ regexReplaceAllLiteral \"[0-9]+\" \"abc123def456\" \"X\" }}").isEmpty());
+	// Sprig signature: regexReplaceAllLiteral REGEX STRING REPL. Expected values
+	// verified against `helm template` (Go text/template + Masterminds/sprig).
+	@ParameterizedTest
+	@CsvSource(delimiter = '|',
+			value = { "{{ regexReplaceAllLiteral \"[0-9]+\" \"abc123def456\" \"X\" }}      | abcXdefX",
+					"{{ regexReplaceAllLiteral \"\\\\W\" \"a@b\" \"_\" }}                   | a_b",
+					"{{ regexReplaceAllLiteral \"o\" \"foo\" \"$1\" }}                      | f$1$1" })
+	void testRegexReplaceAllLiteral(String template, String expected) throws IOException, TemplateException {
+		assertEquals(expected, exec(template));
 	}
 
 	@Test

@@ -109,8 +109,14 @@ public final class ConversionFunctions {
 		return LoadSettings.builder().setSchema(schema).build();
 	}
 
-	/** Pattern matching a YAML line with a double-quoted scalar value. */
-	private static final Pattern QUOTED_VALUE = Pattern.compile("^(\\s*\\S+:\\s+)\"((?:[^\"\\\\]|\\\\.)*)\"\\s*$");
+	/**
+	 * Pattern matching a YAML line with a double-quoted scalar value, in either a mapping
+	 * entry ({@code key: "..."}) or a sequence item ({@code - "..."}). Both forms are
+	 * over-quoted by Jackson and need plain-style normalisation to match Go's
+	 * {@code yaml.Marshal} (#312).
+	 */
+	private static final Pattern QUOTED_VALUE = Pattern
+		.compile("^(\\s*(?:\\S+:|-)\\s+)\"((?:[^\"\\\\]|\\\\.)*)\"\\s*$");
 
 	/** YAML boolean and null literals that must remain quoted. */
 	private static final Set<String> YAML_KEYWORDS = Set.of("true", "false", "yes", "no", "on", "off", "null", "~");
