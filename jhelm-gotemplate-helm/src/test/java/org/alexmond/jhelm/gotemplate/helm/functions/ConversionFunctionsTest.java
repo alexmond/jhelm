@@ -167,6 +167,25 @@ class ConversionFunctionsTest {
 				"toYaml output must be parseable by tpl: " + result);
 	}
 
+	@ParameterizedTest
+	@CsvSource({ "toYaml", "mustToYaml" })
+	void testYamlNonPlainValueWithQuotesIsSingleQuoted(String func) throws IOException, TemplateException {
+		// #327: a value that cannot be a plain scalar (starts with the flow indicator
+		// "{{") but contains double quotes was emitted double-quoted with \" escapes,
+		// breaking a subsequent tpl(toYaml ...). Go emits it single-quoted, e.g.
+		// server_address: '{{ include "loki.x" . }}'.
+		Map<String, Object> data = new HashMap<>();
+		data.put("obj", Map.of("server_address", "{{ include \"loki.indexGatewayAddress\" . }}"));
+
+		String result = execWithData("{{ " + func + " .obj }}", data);
+
+		assertTrue(result.contains("server_address: '{{ include \"loki.indexGatewayAddress\" . }}'"),
+				"non-plain value with quotes should be single-quoted, got: " + result);
+		assertFalse(result.contains("\\\""), "must not contain backslash-escaped quotes: " + result);
+		assertDoesNotThrow(() -> new GoTemplate().parse("inline", result),
+				"toYaml output must be parseable by tpl: " + result);
+	}
+
 	// --- Direct function invocation tests for edge cases ---
 
 	private Map<String, Function> functions() {
