@@ -24,19 +24,15 @@ jhelm's registered functions and probing each candidate against `helm template`.
 | All documented Sprig categories are registered (strings, math, lists, dicts, dates, encoding, crypto, semver, reflection, paths, regex, defaults, type conversion, URL, UUID, network). `env` / `expandenv` are intentionally omitted to match Helm's security removal.
 
 | Helm functions
-| ⚠️ Near-complete — 1 gap
-| `include tpl required lookup` · all `toYaml/fromYaml`, `toJson/fromJson`, `toToml/fromToml` (+ `must*`) present. **Missing:** `toYamlPretty`.
+| ✅ Complete
+| `include tpl required lookup` · all `toYaml/fromYaml`, `toJson/fromJson`, `toToml/fromToml` (+ `must*`) present. `toYamlPretty` was the last gap and is now implemented.
 |===
 
 == Genuinely missing
 
-[cols="1,3"]
-|===
-| Function | Description
-
-| `toYamlPretty`
-| Helm's indented-sequence YAML marshaller. Differs from `toYaml` only in that block sequence items are indented under their key (`  - x` instead of `- x`). Small, self-contained addition.
-|===
+None. `toYamlPretty` (Helm's indented-sequence YAML marshaller — block sequence
+items indented under their key, `  - x` instead of `- x`) was the only gap and
+has been added.
 
 [NOTE]
 ====
