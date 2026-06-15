@@ -235,7 +235,7 @@ class ConversionFunctionsTest {
 	void testToJsonWholeNumberDoubleRenderedAsInteger() {
 		Function toJson = functions().get("toJson");
 		// Go's json.Marshal normalizes float64(1.0) to 1
-		Map<String, Object> data = new java.util.LinkedHashMap<>();
+		Map<String, Object> data = new LinkedHashMap<>();
 		data.put("traceSampling", 1.0);
 		data.put("rate", 100.0);
 		data.put("ratio", 0.5);
