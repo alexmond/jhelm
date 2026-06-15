@@ -47,7 +47,8 @@ class SprigFunctionsTest {
 		StringWriter writer = new StringWriter();
 		Map<String, Object> data = new HashMap<>();
 		data.put("text", "hello world");
-		execute("test", "{{ mustRegexReplaceAllLiteral \"world\" \"universe\" .text }}", data, writer);
+		// Sprig signature: mustRegexReplaceAllLiteral REGEX STRING REPL
+		execute("test", "{{ mustRegexReplaceAllLiteral \"world\" .text \"universe\" }}", data, writer);
 
 		assertEquals("hello universe", writer.toString());
 	}
