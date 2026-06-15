@@ -21,3 +21,4 @@ bitnami/redmine,bitnami,https://charts.bitnami.com/bitnami
 argo/argo-cd,argo,https://argoproj.github.io/argo-helm
 jetstack/cert-manager,jetstack,https://charts.jetstack.io
 karpenter/karpenter,karpenter,https://charts.karpenter.sh
+openebs/openebs,openebs,https://openebs.github.io/openebs

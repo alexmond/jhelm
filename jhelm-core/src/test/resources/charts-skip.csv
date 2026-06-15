@@ -2,7 +2,6 @@
 # These charts are skipped due to known issues — re-test when the issue is fixed.
 #
 # --- OOM: chart too large for default heap (#311) ---
-openebs/openebs,OOM — 28 subcharts 760 templates exhaust heap (#311)
 #
 # --- Helm itself fails with default values (not jhelm bugs) ---
 # These charts require mandatory values, use library type, or have schema validation
