@@ -129,6 +129,25 @@ class TemplateFunctionsTest {
 	}
 
 	@Test
+	void testTplDefineAndIncludeInSameString() throws Exception {
+		// A chart may declare a {{ define }} and {{ include }} it within one tpl'd string
+		// (e.g. openebs/mayastor's regex_or in values.yaml). The define must be visible
+		// to include, which resolves against the shared template set.
+		Function tpl = functions.get("tpl");
+		String text = "{{- define \"regex_or\" -}}{{ .a }}|{{ .b }}{{- end -}}{{ include \"regex_or\" . }}";
+		String result = (String) tpl.invoke(new Object[] { text, Map.of("a", "x", "b", "y") });
+		assertEquals("x|y", result);
+	}
+
+	@Test
+	void testMustTplDefineAndIncludeInSameString() throws Exception {
+		Function mustTpl = functions.get("mustTpl");
+		String text = "{{- define \"greet\" -}}hi {{ .who }}{{- end -}}{{ include \"greet\" . }}";
+		String result = (String) mustTpl.invoke(new Object[] { text, Map.of("who", "bob") });
+		assertEquals("hi bob", result);
+	}
+
+	@Test
 	void testTplThrowsOnSyntaxError() {
 		Function tpl = functions.get("tpl");
 		RuntimeException ex = assertThrows(RuntimeException.class,
