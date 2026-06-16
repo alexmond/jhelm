@@ -39,3 +39,16 @@ prometheus-community/prometheus-postgres-exporter,prometheus-community,https://p
 actions-runner-controller/actions-runner-controller,actions-runner-controller,https://actions-runner-controller.github.io/actions-runner-controller
 drone/drone,drone,https://charts.drone.io
 sonarqube/sonarqube,sonarqube,https://SonarSource.github.io/helm-chart-sonarqube
+bitnami/keycloak,bitnami,https://charts.bitnami.com/bitnami
+longhorn/longhorn,longhorn,https://charts.longhorn.io
+bitnami/rabbitmq,bitnami,https://charts.bitnami.com/bitnami
+external-secrets-operator/external-secrets,external-secrets-operator,https://charts.external-secrets.io/
+external-dns/external-dns,external-dns,https://kubernetes-sigs.github.io/external-dns/
+elastic/elasticsearch,elastic,https://helm.elastic.co
+cilium/cilium,cilium,https://helm.cilium.io/
+kyverno/kyverno,kyverno,https://kyverno.github.io/kyverno/
+cloudnative-pg/cloudnative-pg,cloudnative-pg,https://cloudnative-pg.io/charts/
+vmware-tanzu/velero,vmware-tanzu,https://vmware-tanzu.github.io/helm-charts/
+metallb/metallb,metallb,https://metallb.github.io/metallb
+apache-airflow/airflow,apache-airflow,https://airflow.apache.org/
+nextcloud/nextcloud,nextcloud,https://nextcloud.github.io/helm/
