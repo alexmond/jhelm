@@ -298,9 +298,13 @@ class KpsComparisonTest {
 
 		String sanitizedName = chartName.replace("/", "_");
 
+		// Value overrides for charts that require mandatory values (passed to both Helm
+		// and jhelm so any divergence is a real jhelm bug).
+		Map<String, Object> overrideValues = testProperties.getComparisonValues().getOrDefault(chartName, Map.of());
+
 		// STEP 1: Run Helm template FIRST and save output
 		log.info("{} - Running Helm template first...", chartName);
-		String helmManifest = runHelmInstallDryRun(chartDir, sanitizedReleaseName, "default");
+		String helmManifest = runHelmInstallDryRun(chartDir, sanitizedReleaseName, "default", overrideValues);
 
 		if (helmManifest == null) {
 			// Helm itself failed — skip this chart (requires mandatory values, etc.)
@@ -322,7 +326,7 @@ class KpsComparisonTest {
 		try {
 			log.info("{} - Running JHelm rendering...", chartName);
 			// JHelm dry-run
-			Release release = installAction.install(chart, sanitizedReleaseName, "default", Map.of(), 1, true);
+			Release release = installAction.install(chart, sanitizedReleaseName, "default", overrideValues, 1, true);
 			assertNotNull(release);
 
 			String jhelmManifest = release.getManifest();
@@ -354,10 +358,19 @@ class KpsComparisonTest {
 		}
 	}
 
-	private String runHelmInstallDryRun(File chartDir, String releaseName, String namespace) {
+	private String runHelmInstallDryRun(File chartDir, String releaseName, String namespace,
+			Map<String, Object> values) {
 		try {
-			ProcessBuilder pb = new ProcessBuilder("helm", "template", releaseName, chartDir.getAbsolutePath(),
-					"--namespace", namespace);
+			List<String> command = new ArrayList<>(
+					List.of("helm", "template", releaseName, chartDir.getAbsolutePath(), "--namespace", namespace));
+			if (values != null && !values.isEmpty()) {
+				File valuesFile = File.createTempFile("jhelm-values-", ".yaml");
+				valuesFile.deleteOnExit();
+				YAML_MAPPER.writeValue(valuesFile, values);
+				command.add("--values");
+				command.add(valuesFile.getAbsolutePath());
+			}
+			ProcessBuilder pb = new ProcessBuilder(command);
 			Process process = pb.start();
 
 			String output;

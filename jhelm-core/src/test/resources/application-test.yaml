@@ -29,3 +29,10 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.install_id"
         reason: "install_id is a random UUID generated per render"
+  # Value overrides for charts that Helm cannot render with default values. The same
+  # overrides are applied to both Helm and jhelm, so any divergence is a real jhelm bug.
+  comparison-values:
+    "[aws/aws-load-balancer-controller]":
+      clusterName: test-cluster
+    "[rancher-stable/rancher]":
+      hostname: rancher.example.com

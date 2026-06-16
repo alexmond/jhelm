@@ -27,3 +27,5 @@ traefik/traefik,traefik,https://traefik.github.io/charts
 metrics-server/metrics-server,metrics-server,https://kubernetes-sigs.github.io/metrics-server/
 hashicorp/vault,hashicorp,https://helm.releases.hashicorp.com
 harbor/harbor,harbor,https://helm.goharbor.io
+aws/aws-load-balancer-controller,aws,https://aws.github.io/eks-charts
+rancher-stable/rancher,rancher-stable,https://releases.rancher.com/server-charts/stable

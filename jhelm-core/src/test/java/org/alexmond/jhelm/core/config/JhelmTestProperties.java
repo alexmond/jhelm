@@ -29,6 +29,14 @@ public class JhelmTestProperties {
 	private Map<String, List<IgnoreRule>> comparisonIgnores = Map.of();
 
 	/**
+	 * Value overrides applied to both Helm and jhelm rendering, keyed by chart name.
+	 * Supplies the mandatory values some charts require so they can be compared (e.g. a
+	 * cluster name or hostname). The same overrides go to {@code helm template -f} and to
+	 * the jhelm install, so any divergence is a real jhelm bug.
+	 */
+	private Map<String, Map<String, Object>> comparisonValues = Map.of();
+
+	/**
 	 * A single comparison-ignore rule describing a resource/path pattern to skip during
 	 * manifest diff.
 	 */
