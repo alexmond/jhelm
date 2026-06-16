@@ -4,26 +4,38 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import tools.jackson.dataformat.yaml.YAMLMapper;
+import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 
 /**
  * Implements Helm's .Files template object. Provides access to non-template files within
  * a chart archive.
  *
  * <p>
- * Method names use PascalCase to match Go/Helm convention (e.g. {@code .Files.Get},
- * {@code .Files.Glob}). The template executor resolves methods by exact name via
- * reflection.
+ * Like Helm's {@code files} type, this is a map (path → content) that <em>also</em>
+ * exposes helper methods. So a template can both {@code range} over it and call
+ * {@code .Get}/{@code .Glob}/{@code .AsConfig}. Method names use PascalCase to match
+ * Go/Helm convention; the template executor resolves them by exact name via reflection
+ * (falling back from map-key lookup).
  *
  * @see <a href="https://helm.sh/docs/chart_template_guide/accessing_files/">Helm File
  * Access</a>
  */
 @SuppressWarnings("PMD.MethodNamingConventions")
-public class ChartFiles {
+public class ChartFiles extends AbstractMap<String, String> {
+
+	private static final YAMLMapper YAML = YAMLMapper.builder()
+		.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
+		.enable(YAMLWriteFeature.MINIMIZE_QUOTES)
+		.build();
 
 	private final Map<String, String> files;
 
@@ -31,12 +43,18 @@ public class ChartFiles {
 		this.files = (files != null) ? files : Map.of();
 	}
 
+	@Override
+	public Set<Map.Entry<String, String>> entrySet() {
+		return files.entrySet();
+	}
+
 	/**
-	 * Returns files matching the given glob pattern as a map of path to content.
+	 * Returns files matching the given glob pattern. Like Helm, the result is itself a
+	 * {@link ChartFiles} so chained calls such as {@code .AsConfig} work.
 	 * @param pattern glob pattern (e.g. "files/crds/*.yaml")
-	 * @return map of matching file paths to their content
+	 * @return a ChartFiles containing only the matching files
 	 */
-	public Map<String, String> Glob(String pattern) {
+	public ChartFiles Glob(String pattern) {
 		PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
 		Map<String, String> result = new LinkedHashMap<>();
 		for (Map.Entry<String, String> entry : files.entrySet()) {
@@ -44,7 +62,7 @@ public class ChartFiles {
 				result.put(entry.getKey(), entry.getValue());
 			}
 		}
-		return result;
+		return new ChartFiles(result);
 	}
 
 	/**
@@ -80,24 +98,49 @@ public class ChartFiles {
 	}
 
 	/**
-	 * Returns all files with their content base64-encoded (for use in Secret data).
-	 * @return map of file paths to base64-encoded content
+	 * Returns the files as a YAML string for use in Secret {@code data}, keyed by base
+	 * file name with base64-encoded values (matching Helm's {@code .AsSecrets}).
+	 * @return YAML string of base name → base64 content
 	 */
-	public Map<String, String> AsSecrets() {
+	public String AsSecrets() {
 		Map<String, String> result = new LinkedHashMap<>();
 		for (Map.Entry<String, String> entry : files.entrySet()) {
-			result.put(entry.getKey(),
+			result.put(baseName(entry.getKey()),
 					Base64.getEncoder().encodeToString(entry.getValue().getBytes(StandardCharsets.UTF_8)));
 		}
-		return result;
+		return toYaml(result);
 	}
 
 	/**
-	 * Returns all files with their raw string content (for use in ConfigMap data).
-	 * @return map of file paths to string content
+	 * Returns the files as a YAML string for use in ConfigMap {@code data}, keyed by base
+	 * file name with raw string values (matching Helm's {@code .AsConfig}).
+	 * @return YAML string of base name → content
 	 */
-	public Map<String, String> AsConfig() {
-		return new LinkedHashMap<>(files);
+	public String AsConfig() {
+		Map<String, String> result = new LinkedHashMap<>();
+		for (Map.Entry<String, String> entry : files.entrySet()) {
+			result.put(baseName(entry.getKey()), entry.getValue());
+		}
+		return toYaml(result);
+	}
+
+	private static String baseName(String path) {
+		int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+		return (slash >= 0) ? path.substring(slash + 1) : path;
+	}
+
+	private static String toYaml(Map<String, String> map) {
+		if (map.isEmpty()) {
+			return "";
+		}
+		try {
+			String yaml = YAML.writeValueAsString(map);
+			// Helm's toYAML trims the trailing newline; the template handles indentation.
+			return yaml.endsWith("\n") ? yaml.substring(0, yaml.length() - 1) : yaml;
+		}
+		catch (Exception ex) {
+			return "";
+		}
 	}
 
 	@Override

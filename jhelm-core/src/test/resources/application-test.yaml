@@ -29,6 +29,11 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.install_id"
         reason: "install_id is a random UUID generated per render"
+    "[ananace-charts/matrix-synapse]":
+      # registration_shared_secret is generated per render (randAlphaNum)
+      - resource: "Secret/*"
+        path: "stringData.config.yaml.registration_shared_secret"
+        reason: "Randomly generated per render"
   # Value overrides for charts that Helm cannot render with default values. The same
   # overrides are applied to both Helm and jhelm, so any divergence is a real jhelm bug.
   comparison-values:

@@ -494,7 +494,14 @@ public class Executor {
 		if (current instanceof Map<?, ?> rawMap) {
 			@SuppressWarnings("unchecked")
 			Map<String, Object> map = (Map<String, Object>) rawMap;
-			return map.get(identifier);
+			if (map.containsKey(identifier)) {
+				return map.get(identifier);
+			}
+			// A type that is both a map and exposes helper methods (like Helm's .Files):
+			// when the key is absent, fall back to a matching no-arg helper method. Plain
+			// maps have no such custom methods, so their missing keys still return null.
+			Object methodValue = invokeNoArgHelperMethod(current, identifier);
+			return (methodValue != NO_METHOD) ? methodValue : map.get(identifier);
 		}
 		BeanInfo currentBeanInfo = getBeanInfo(current);
 		PropertyDescriptor[] propertyDescriptors = currentBeanInfo.getPropertyDescriptors();
@@ -519,6 +526,34 @@ public class Executor {
 
 		// In Helm, missing fields return nil instead of throwing an error
 		return null;
+	}
+
+	/**
+	 * Sentinel marking "no matching helper method found" (distinct from a null result).
+	 */
+	private static final Object NO_METHOD = new Object();
+
+	/**
+	 * Invoke a public no-arg method named {@code name} declared by the target's own class
+	 * (not inherited from the JDK). Used so a map-like object that also exposes helper
+	 * methods — e.g. Helm's {@code .Files} with {@code .AsConfig} — resolves the method
+	 * when the map key is absent. JDK map/object methods (isEmpty, size, ...) are skipped
+	 * so plain maps are unaffected.
+	 * @return the method result, or {@link #NO_METHOD} if no such method exists
+	 */
+	private static Object invokeNoArgHelperMethod(Object target, String name) {
+		for (Method method : target.getClass().getMethods()) {
+			if (method.getParameterCount() == 0 && method.getName().equals(name)
+					&& !method.getDeclaringClass().getName().startsWith("java.")) {
+				try {
+					return method.invoke(target);
+				}
+				catch (ReflectiveOperationException ex) {
+					return NO_METHOD;
+				}
+			}
+		}
+		return NO_METHOD;
 	}
 
 	private Object executeField(FieldNode fieldNode, Object data) throws TemplateExecutionException {
