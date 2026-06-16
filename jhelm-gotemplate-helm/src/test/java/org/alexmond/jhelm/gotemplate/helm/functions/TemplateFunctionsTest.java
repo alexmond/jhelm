@@ -206,27 +206,24 @@ class TemplateFunctionsTest {
 	}
 
 	@Test
-	void testRequiredThrowsOnFalse() {
+	void testRequiredPassesFalse() {
+		// Helm only rejects nil and the empty string — a boolean false is a valid value
+		// (e.g. matrix-synapse's `required "..." .Values.config.reportStats`).
 		Function required = functions.get("required");
-		RuntimeException ex = assertThrows(RuntimeException.class,
-				() -> required.invoke(new Object[] { "must be truthy", false }));
-		assertEquals("must be truthy", ex.getMessage());
+		assertEquals(false, required.invoke(new Object[] { "must be set", false }));
 	}
 
 	@Test
-	void testRequiredThrowsOnEmptyCollection() {
+	void testRequiredPassesEmptyCollection() {
 		Function required = functions.get("required");
-		RuntimeException ex = assertThrows(RuntimeException.class,
-				() -> required.invoke(new Object[] { "list required", Collections.emptyList() }));
-		assertEquals("list required", ex.getMessage());
+		assertEquals(Collections.emptyList(),
+				required.invoke(new Object[] { "list required", Collections.emptyList() }));
 	}
 
 	@Test
-	void testRequiredThrowsOnEmptyMap() {
+	void testRequiredPassesEmptyMap() {
 		Function required = functions.get("required");
-		RuntimeException ex = assertThrows(RuntimeException.class,
-				() -> required.invoke(new Object[] { "map required", Collections.emptyMap() }));
-		assertEquals("map required", ex.getMessage());
+		assertEquals(Collections.emptyMap(), required.invoke(new Object[] { "map required", Collections.emptyMap() }));
 	}
 
 	@Test

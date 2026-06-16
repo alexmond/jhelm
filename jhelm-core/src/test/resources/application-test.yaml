@@ -36,3 +36,18 @@ jhelmtest:
       clusterName: test-cluster
     "[rancher-stable/rancher]":
       hostname: rancher.example.com
+    "[immich/immich]":
+      immich:
+        persistence:
+          library:
+            existingClaim: test-claim
+    "[opentelemetry-helm/opentelemetry-collector]":
+      mode: deployment
+      image:
+        repository: otel/opentelemetry-collector-contrib
+      command:
+        name: otelcol-contrib
+    "[ananace-charts/matrix-synapse]":
+      serverName: matrix.example.com
+      config:
+        reportStats: false
