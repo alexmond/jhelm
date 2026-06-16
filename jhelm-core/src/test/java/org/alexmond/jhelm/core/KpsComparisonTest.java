@@ -290,6 +290,12 @@ class KpsComparisonTest {
 		if (sanitizedReleaseName.startsWith("-")) {
 			sanitizedReleaseName = "r" + sanitizedReleaseName;
 		}
+		// Helm rejects release names longer than 53 characters — truncate (charts with
+		// long repo/name combos like prometheus-community/prometheus-blackbox-exporter).
+		// Applied to both Helm and jhelm, so resource names stay consistent.
+		if (sanitizedReleaseName.length() > 53) {
+			sanitizedReleaseName = sanitizedReleaseName.substring(0, 53);
+		}
 		if (sanitizedReleaseName.endsWith("-")) {
 			sanitizedReleaseName = sanitizedReleaseName.substring(0, sanitizedReleaseName.length() - 1);
 		}

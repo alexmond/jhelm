@@ -56,3 +56,7 @@ jhelmtest:
       serverName: matrix.example.com
       config:
         reportStats: false
+    "[prometheus-community/prometheus-postgres-exporter]":
+      config:
+        datasource:
+          password: test
