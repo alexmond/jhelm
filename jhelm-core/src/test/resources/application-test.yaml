@@ -60,3 +60,12 @@ jhelmtest:
       config:
         datasource:
           password: test
+    "[drone/drone]":
+      env:
+        DRONE_SERVER_HOST: drone.example.com
+        DRONE_SERVER_PROTO: https
+        DRONE_RPC_SECRET: testsecret
+    "[sonarqube/sonarqube]":
+      monitoringPasscode: testpass123
+      community:
+        enabled: true
