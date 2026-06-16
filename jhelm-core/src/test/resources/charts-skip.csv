@@ -8,10 +8,8 @@
 # that prevents `helm template` from succeeding with default values.
 grafana/loki,Helm fails: execution error (requires storage config)
 argo/argocd-apps,Helm fails: library chart or requires values
-aws/aws-load-balancer-controller,Helm fails: execution error (requires clusterName)
 bitnami/common,Helm fails: library charts are not installable
 drone/drone,Helm fails: values schema validation error
-rancher-stable/rancher,Helm fails: requires mandatory values (hostname)
 sonarqube/sonarqube,Helm fails: requires mandatory values
 nfs-subdir-external-provisioner/nfs-subdir-external-provisioner,Helm fails: requires nfs.server
 jupyterhub/jupyterhub,Helm fails: execution error
