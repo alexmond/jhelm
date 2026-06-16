@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -78,22 +79,22 @@ class ChartFilesTest {
 
 	@Test
 	void testAsSecretsBase64EncodesContent() {
-		ChartFiles files = new ChartFiles(Map.of("password.txt", "s3cret"));
-		Map<String, String> secrets = files.AsSecrets();
-		String expected = Base64.getEncoder().encodeToString("s3cret".getBytes(StandardCharsets.UTF_8));
-		assertEquals(expected, secrets.get("password.txt"));
+		// AsSecrets returns a YAML string keyed by base file name with base64 values,
+		// matching Helm's .AsSecrets.
+		ChartFiles files = new ChartFiles(Map.of("creds/password.txt", "s3cret"));
+		String secrets = files.AsSecrets();
+		String b64 = Base64.getEncoder().encodeToString("s3cret".getBytes(StandardCharsets.UTF_8));
+		assertEquals("password.txt: " + b64, secrets);
 	}
 
 	@Test
-	void testAsConfigReturnsCopy() {
+	void testAsConfigReturnsYamlKeyedByBaseName() {
+		// AsConfig returns a YAML string keyed by base file name, matching Helm's
+		// .AsConfig (used as ConfigMap data via `{{ .AsConfig | indent 2 }}`).
 		Map<String, String> original = new LinkedHashMap<>();
-		original.put("app.conf", "port=8080");
+		original.put("conf/app.conf", "port=8080");
 		ChartFiles files = new ChartFiles(original);
-		Map<String, String> config = files.AsConfig();
-		assertEquals("port=8080", config.get("app.conf"));
-		// Verify it's a copy
-		config.put("extra", "value");
-		assertEquals("", files.Get("extra"));
+		assertEquals("app.conf: port=8080", files.AsConfig());
 	}
 
 	@Test
@@ -109,6 +110,32 @@ class ChartFilesTest {
 	void testToStringReturnsEmpty() {
 		ChartFiles files = new ChartFiles(Map.of("a", "b"));
 		assertEquals("", files.toString());
+	}
+
+	@Test
+	void testGlobThenAsConfigThroughTemplate() throws Exception {
+		// The common ConfigMap pattern `{{ (.Files.Glob "scripts/*.sh").AsConfig }}`:
+		// Glob returns a ChartFiles (a map), and .AsConfig must resolve as a method even
+		// though ChartFiles is a map — exercises the executor's method fallback.
+		ChartFiles files = new ChartFiles(Map.of("scripts/a.sh", "echo hi", "values.yaml", "x: 1"));
+		GoTemplate t = new GoTemplate();
+		t.parse("test", "{{ (.Files.Glob \"scripts/*.sh\").AsConfig }}");
+		java.io.StringWriter w = new java.io.StringWriter();
+		t.execute("test", new java.util.HashMap<>(Map.of("Files", files)), w);
+		assertEquals("a.sh: echo hi", w.toString());
+	}
+
+	@Test
+	void testRangeOverGlob() throws Exception {
+		// A ChartFiles must remain rangeable (it is a map) so `range $p, $c :=
+		// .Files.Glob`
+		// works like Helm's files object.
+		ChartFiles files = new ChartFiles(Map.of("scripts/a.sh", "AAA"));
+		GoTemplate t = new GoTemplate();
+		t.parse("test", "{{ range $p, $c := .Files.Glob \"scripts/*.sh\" }}{{ $p }}={{ $c }}{{ end }}");
+		java.io.StringWriter w = new java.io.StringWriter();
+		t.execute("test", new java.util.HashMap<>(Map.of("Files", files)), w);
+		assertEquals("scripts/a.sh=AAA", w.toString());
 	}
 
 }

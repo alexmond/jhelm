@@ -20,7 +20,6 @@ prometheus-community/prometheus-blackbox-exporter,Helm fails: execution error
 prometheus-community/prometheus-postgres-exporter,Helm fails: execution error
 prometheus-community/prometheus-redis-exporter,Helm fails: execution error
 prometheus-community/prometheus-elasticsearch-exporter,Helm fails: execution error
-ananace-charts/matrix-synapse,Renders with comparison-values but scripts ConfigMap data is empty in jhelm (follow-up)
 #
 # --- Download failures (external repo issues) ---
 twuni/docker-registry,Repo DNS failure

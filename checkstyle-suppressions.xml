@@ -39,9 +39,10 @@
     <!-- Engine.renderWithSubcharts is slightly over limit due to log guards -->
     <suppress checks="MethodLength" files="Engine\.java"/>
 
-    <!-- Lexer and Parser are state machines — long methods/files are an inherent property of the pattern -->
+    <!-- Lexer, Parser and Executor are state machines/dispatchers — long methods/files are an inherent property of the pattern -->
     <suppress checks="MethodLength|FileLength" files="Parser\.java"/>
     <suppress checks="MethodLength" files="Lexer\.java"/>
+    <suppress checks="FileLength" files="Executor\.java"/>
 
     <!-- HelmChartTemplates methods return static YAML text blocks, not logic — size limits don't apply -->
     <suppress checks="MethodLength" files="HelmChartTemplates\.java"/>

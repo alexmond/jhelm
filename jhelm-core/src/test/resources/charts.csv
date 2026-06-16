@@ -31,3 +31,4 @@ aws/aws-load-balancer-controller,aws,https://aws.github.io/eks-charts
 rancher-stable/rancher,rancher-stable,https://releases.rancher.com/server-charts/stable
 immich/immich,immich,https://immich-app.github.io/immich-charts
 opentelemetry-helm/opentelemetry-collector,opentelemetry-helm,https://open-telemetry.github.io/opentelemetry-helm-charts
+ananace-charts/matrix-synapse,ananace-charts,https://ananace.gitlab.io/charts
