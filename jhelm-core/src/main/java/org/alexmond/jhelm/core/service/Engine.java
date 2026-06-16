@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartFiles;
@@ -110,11 +111,36 @@ public class Engine {
 		return true;
 	}
 
+	/**
+	 * Stack size for the render thread. Deeply nested {@code tpl}/{@code include} chains
+	 * — e.g. grafana/loki's {@code configMapOrSecretContentHash} →
+	 * {@code calculatedConfig} → nested {@code tpl} — recurse far deeper on the JVM (each
+	 * {@code tpl} builds a fresh template) than on Go's growable goroutine stacks,
+	 * overflowing the default ~512KB stack. A large stack matches Go's behaviour for
+	 * finite-but-deep nesting.
+	 */
+	private static final long RENDER_STACK_SIZE = 32L * 1024 * 1024;
+
 	@SneakyThrows
 	public String render(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
 		long startNanos = System.nanoTime();
 		try {
-			return doRender(chart, values, releaseInfo);
+			AtomicReference<String> result = new AtomicReference<>();
+			AtomicReference<RuntimeException> error = new AtomicReference<>();
+			Thread renderThread = new Thread(null, () -> {
+				try {
+					result.set(doRender(chart, values, releaseInfo));
+				}
+				catch (RuntimeException ex) {
+					error.set(ex);
+				}
+			}, "jhelm-render", RENDER_STACK_SIZE);
+			renderThread.start();
+			renderThread.join();
+			if (error.get() != null) {
+				throw error.get();
+			}
+			return result.get();
 		}
 		finally {
 			if (metrics != null) {
