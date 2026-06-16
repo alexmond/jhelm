@@ -81,3 +81,21 @@ jhelmtest:
       monitoringPasscode: testpass123
       community:
         enabled: true
+    "[grafana/loki]":
+      loki:
+        useTestSchema: true
+        storage:
+          type: filesystem
+      deploymentMode: SingleBinary
+      singleBinary:
+        replicas: 1
+      read:
+        replicas: 0
+      write:
+        replicas: 0
+      backend:
+        replicas: 0
+      chunksCache:
+        enabled: false
+      resultsCache:
+        enabled: false
