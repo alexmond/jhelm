@@ -22,3 +22,8 @@ argo/argo-cd,argo,https://argoproj.github.io/argo-helm
 jetstack/cert-manager,jetstack,https://charts.jetstack.io
 karpenter/karpenter,karpenter,https://charts.karpenter.sh
 openebs/openebs,openebs,https://openebs.github.io/openebs
+ingress-nginx/ingress-nginx,ingress-nginx,https://kubernetes.github.io/ingress-nginx
+traefik/traefik,traefik,https://traefik.github.io/charts
+metrics-server/metrics-server,metrics-server,https://kubernetes-sigs.github.io/metrics-server/
+hashicorp/vault,hashicorp,https://helm.releases.hashicorp.com
+harbor/harbor,harbor,https://helm.goharbor.io
