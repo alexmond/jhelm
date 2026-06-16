@@ -37,3 +37,5 @@ prometheus-community/prometheus-redis-exporter,prometheus-community,https://prom
 prometheus-community/prometheus-elasticsearch-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
 prometheus-community/prometheus-postgres-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
 actions-runner-controller/actions-runner-controller,actions-runner-controller,https://actions-runner-controller.github.io/actions-runner-controller
+drone/drone,drone,https://charts.drone.io
+sonarqube/sonarqube,sonarqube,https://SonarSource.github.io/helm-chart-sonarqube
