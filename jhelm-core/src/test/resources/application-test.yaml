@@ -34,6 +34,18 @@ jhelmtest:
       - resource: "Secret/*"
         path: "stringData.config.yaml.registration_shared_secret"
         reason: "Randomly generated per render"
+    "[elastic/elasticsearch]":
+      # The Helm test-hook Pod has a random name suffix (randAlphaNum) that differs
+      # every render, so the resource key never matches.
+      - resource: "Pod/*"
+        path: "*"
+        reason: "helm test-hook Pod has a per-render random name suffix"
+    "[nextcloud/nextcloud]":
+      # hooks-hash is a sha256 of hooked content; differs only by toYaml serialization
+      # (same class as checksum/* annotations, #237).
+      - resource: "Deployment/*"
+        path: "spec.template.metadata.annotations.hooks-hash"
+        reason: "content hash differs by toYaml serialization, not semantics (#237)"
   # Value overrides for charts that Helm cannot render with default values. The same
   # overrides are applied to both Helm and jhelm, so any divergence is a real jhelm bug.
   comparison-values:

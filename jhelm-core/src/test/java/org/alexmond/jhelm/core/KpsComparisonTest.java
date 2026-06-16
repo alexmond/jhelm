@@ -367,8 +367,12 @@ class KpsComparisonTest {
 	private String runHelmInstallDryRun(File chartDir, String releaseName, String namespace,
 			Map<String, Object> values) {
 		try {
-			List<String> command = new ArrayList<>(
-					List.of("helm", "template", releaseName, chartDir.getAbsolutePath(), "--namespace", namespace));
+			// Pin the kube version so version-gated template logic matches jhelm's
+			// Capabilities.KubeVersion (Engine sets v1.35.0). Otherwise the helm CLI's
+			// built-in default kube version varies by helm build and charts gating on it
+			// (e.g. Service.spec.trafficDistribution, hostUsers) diverge.
+			List<String> command = new ArrayList<>(List.of("helm", "template", releaseName, chartDir.getAbsolutePath(),
+					"--namespace", namespace, "--kube-version", "v1.35.0"));
 			if (values != null && !values.isEmpty()) {
 				File valuesFile = File.createTempFile("jhelm-values-", ".yaml");
 				valuesFile.deleteOnExit();
