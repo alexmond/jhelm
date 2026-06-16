@@ -15,14 +15,12 @@ nfs-subdir-external-provisioner/nfs-subdir-external-provisioner,Helm fails: requ
 jupyterhub/jupyterhub,Helm fails: execution error
 gitlab/gitlab,Helm fails: requires mandatory values (domain)
 actions-runner-controller/actions-runner-controller,Helm fails: requires values
-immich/immich,Helm fails: requires values
 grafana/k8s-monitoring,Helm fails: requires cluster name
 prometheus-community/prometheus-blackbox-exporter,Helm fails: execution error
 prometheus-community/prometheus-postgres-exporter,Helm fails: execution error
 prometheus-community/prometheus-redis-exporter,Helm fails: execution error
 prometheus-community/prometheus-elasticsearch-exporter,Helm fails: execution error
-opentelemetry-helm/opentelemetry-collector,Helm fails: execution error
-ananace-charts/matrix-synapse,Helm fails: requires mandatory values
+ananace-charts/matrix-synapse,Renders with comparison-values but scripts ConfigMap data is empty in jhelm (follow-up)
 #
 # --- Download failures (external repo issues) ---
 twuni/docker-registry,Repo DNS failure

@@ -129,7 +129,16 @@ public final class MathFunctions {
 	}
 
 	private static Function toStringFunc() {
-		return (args) -> (args.length == 0) ? "" : String.valueOf(args[0]);
+		return (args) -> {
+			if (args.length == 0) {
+				return "";
+			}
+			// Match Go's fmt.Sprint(nil): a nil value stringifies to "<nil>", not Java's
+			// "null". Charts rely on this, e.g. `eq (toString .x) "<nil>"` to test
+			// whether
+			// a value is unset (opentelemetry-collector.serviceEnabled).
+			return (args[0] == null) ? "<nil>" : String.valueOf(args[0]);
+		};
 	}
 
 	private static Function atoi() {

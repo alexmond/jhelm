@@ -1,7 +1,6 @@
 package org.alexmond.jhelm.gotemplate.helm.functions;
 
 import java.io.StringWriter;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -166,10 +165,11 @@ public final class TemplateFunctions {
 			String message = String.valueOf(args[0]);
 			Object value = args[1];
 
-			// Check if value is "empty" (null, empty string, false, empty collection)
-			if (value == null || (value instanceof String && ((String) value).isEmpty()) || (value.equals(false))
-					|| (value instanceof Collection && ((Collection<?>) value).isEmpty())
-					|| (value instanceof Map && ((Map<?, ?>) value).isEmpty())) {
+			// Helm's `required` rejects only nil and the empty string — a boolean false,
+			// an empty list, or an empty map are all valid values and must pass through
+			// (e.g. matrix-synapse's `required "..." .Values.config.reportStats` with
+			// reportStats: false).
+			if (value == null || (value instanceof String && ((String) value).isEmpty())) {
 				throw new FunctionExecutionException(message);
 			}
 

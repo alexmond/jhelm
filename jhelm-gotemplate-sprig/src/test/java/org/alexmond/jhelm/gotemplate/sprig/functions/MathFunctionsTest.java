@@ -90,6 +90,16 @@ class MathFunctionsTest {
 		assertEquals(List.of(), fn.invoke(new Object[] { null }));
 	}
 
+	@Test
+	void testToStringNilMatchesGo() {
+		// Go's fmt.Sprint(nil) is "<nil>"; charts test unset values via
+		// `eq (toString .x) "<nil>"` (e.g. opentelemetry-collector.serviceEnabled).
+		Function fn = MathFunctions.getFunctions().get("toString");
+		assertEquals("<nil>", fn.invoke(new Object[] { (Object) null }));
+		assertEquals("42", fn.invoke(new Object[] { 42 }));
+		assertEquals("true", fn.invoke(new Object[] { true }));
+	}
+
 	@ParameterizedTest
 	@CsvSource(delimiter = '|', value = { "0777 | 511", "0644 | 420", "0755 | 493" })
 	void testToDecimal(String input, long expected) {
