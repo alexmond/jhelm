@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.5</version>
+        <version>4.0.6</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>org.alexmond</groupId>
@@ -44,7 +44,6 @@
         <chicory.version>1.7.2</chicory.version>
         <swagger-annotations.version>2.2.34</swagger-annotations.version>
         <springdoc-openapi.version>3.0.2</springdoc-openapi.version>
-        <spring-retry.version>2.0.12</spring-retry.version>
 
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.10.0</central-publishing-maven-plugin.version>
@@ -148,11 +147,6 @@
                 <groupId>com.dylibso.chicory</groupId>
                 <artifactId>wasi</artifactId>
                 <version>${chicory.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.retry</groupId>
-                <artifactId>spring-retry</artifactId>
-                <version>${spring-retry.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>

@@ -9,13 +9,14 @@ import io.kubernetes.client.openapi.ApiException;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.KubeService;
+import java.time.Duration;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.retry.backoff.FixedBackOffPolicy;
-import org.springframework.retry.policy.SimpleRetryPolicy;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -37,13 +38,9 @@ class RetryableKubeServiceTest {
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
 
-		// Simple retry: up to 3 attempts with no backoff for fast tests
-		RetryTemplate template = new RetryTemplate();
-		SimpleRetryPolicy policy = new SimpleRetryPolicy(3);
-		FixedBackOffPolicy backOff = new FixedBackOffPolicy();
-		backOff.setBackOffPeriod(0);
-		template.setRetryPolicy(policy);
-		template.setBackOffPolicy(backOff);
+		// Up to 3 attempts (2 retries) with no backoff for fast tests
+		RetryPolicy policy = RetryPolicy.builder().maxRetries(2).delay(Duration.ZERO).build();
+		RetryTemplate template = new RetryTemplate(policy);
 
 		retryableService = new RetryableKubeService(delegate, template);
 	}
