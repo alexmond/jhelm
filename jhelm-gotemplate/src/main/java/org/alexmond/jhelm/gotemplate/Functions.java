@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.IllegalFormatException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -426,8 +427,77 @@ public final class Functions {
 				}
 				realArgs[i] = arg;
 			}
-			return String.format(format, realArgs);
+			try {
+				return String.format(format, realArgs);
+			}
+			catch (IllegalFormatException ex) {
+				// Go's fmt never aborts on malformed verbs (it emits best-effort
+				// markers),
+				// but Java's Formatter throws. ERB-style literals routed through printf —
+				// e.g. gitlab's "<%= File.read('%s')... %>" where %= and %> are not Java
+				// conversions — must not crash rendering. Neutralise the unparseable '%'
+				// sequences (keeping the real verbs) and retry.
+				return String.format(neutralizeInvalidFormatSpecifiers(format), realArgs);
+			}
 		};
+	}
+
+	/**
+	 * Replaces every {@code %} that does not begin a valid Java format conversion (or
+	 * {@code %%}) with a literal {@code %%}, leaving genuine verbs (and their flags,
+	 * width and precision) intact. This lets {@link String#format} tolerate Go/ERB format
+	 * strings such as {@code "<%= ... %>"} without throwing, mirroring Go's lenient fmt.
+	 */
+	private static String neutralizeInvalidFormatSpecifiers(String format) {
+		final String flags = "-+ #0,(";
+		final String validVerbs = "bBhHsScCdoxXeEfgGaAn";
+		StringBuilder out = new StringBuilder(format.length() + 8);
+		int i = 0;
+		int n = format.length();
+		while (i < n) {
+			char c = format.charAt(i);
+			if (c != '%') {
+				out.append(c);
+				i++;
+				continue;
+			}
+			if (i + 1 < n && format.charAt(i + 1) == '%') {
+				out.append("%%");
+				i += 2;
+				continue;
+			}
+			int j = i + 1;
+			// optional argument index "k$"
+			int k = j;
+			while (k < n && Character.isDigit(format.charAt(k))) {
+				k++;
+			}
+			if (k < n && k > j && format.charAt(k) == '$') {
+				j = k + 1;
+			}
+			while (j < n && flags.indexOf(format.charAt(j)) >= 0) {
+				j++;
+			}
+			while (j < n && Character.isDigit(format.charAt(j))) {
+				j++;
+			}
+			if (j < n && format.charAt(j) == '.') {
+				j++;
+				while (j < n && Character.isDigit(format.charAt(j))) {
+					j++;
+				}
+			}
+			if (j < n && validVerbs.indexOf(format.charAt(j)) >= 0) {
+				out.append(format, i, j + 1);
+				i = j + 1;
+			}
+			else {
+				// Not a valid conversion: treat this '%' as a literal.
+				out.append("%%");
+				i++;
+			}
+		}
+		return out.toString();
 	}
 
 	private static Function println() {

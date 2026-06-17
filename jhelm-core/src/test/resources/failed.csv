@@ -6,7 +6,8 @@
 # Both render under `helm template` with the comparison-values in application-test.yaml,
 # so the remaining failure is a real jhelm bug (tracked here until fixed).
 #
-# gitlab: the umbrella/subchart name-collision that hid gitlab.registry.hostname is fixed
-# (#18); rendering now reaches a separate bug — `gitlab.appConfig.duo.configuration` fails
-# with "Conversion = '='" (a printf/format-verb gap in that template).
+# gitlab: now renders end-to-end (the name-collision #18 and printf-verb #20 crashes are
+# fixed), but still diverges from Helm — jhelm emits Ingress objects where Helm emits
+# Gateway API resources (HTTPRoute/TCPRoute/BackendTrafficPolicy), and several
+# shared-secrets/migrations Jobs differ by content-hash suffix. Separate parity work.
 gitlab/gitlab,gitlab,https://charts.gitlab.io

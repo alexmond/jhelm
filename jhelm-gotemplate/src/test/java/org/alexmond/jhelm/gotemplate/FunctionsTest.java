@@ -80,6 +80,22 @@ class FunctionsTest {
 	}
 
 	@Test
+	void testPrintfStillFormatsValidVerbs() {
+		Function printf = Functions.GO_BUILTINS.get("printf");
+		assertEquals("a=1", printf.invoke(new Object[] { "%s=%d", "a", 1 }));
+	}
+
+	@Test
+	void testPrintfToleratesErbStyleLiterals() {
+		// gitlab routes an ERB literal through printf; %= and %> are not Java
+		// conversions.
+		// Go's fmt never throws — the real %s verb must still substitute.
+		Function printf = Functions.GO_BUILTINS.get("printf");
+		assertEquals("<%= File.read('/etc/x').strip.to_json() %>",
+				printf.invoke(new Object[] { "<%= File.read('%s').strip.to_json() %>", "/etc/x" }));
+	}
+
+	@Test
 	void testIndexFromMapMissingKey() throws Exception {
 		Function index = Functions.GO_BUILTINS.get("index");
 		Map<String, Object> map = Map.of("key", "value");
