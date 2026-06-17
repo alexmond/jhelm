@@ -6,9 +6,9 @@
 # Both render under `helm template` with the comparison-values in application-test.yaml,
 # so the remaining failure is a real jhelm bug (tracked here until fixed).
 #
-# gitlab: the umbrella chart and a subchart are both named "gitlab", so jhelm collapses
-# their template files to the same `gitlab/templates/<file>` key and version-drops one —
-# losing the subchart's _registry.tpl, so `gitlab.registry.hostname` is "not found".
+# gitlab: the umbrella/subchart name-collision that hid gitlab.registry.hostname is fixed
+# (#18); rendering now reaches a separate bug — `gitlab.appConfig.duo.configuration` fails
+# with "Conversion = '='" (a printf/format-verb gap in that template).
 gitlab/gitlab,gitlab,https://charts.gitlab.io
 # k8s-monitoring: renders all 19 documents, but the loki destination's defaults
 # (`$.Files.Get "destinations/loki-values.yaml" | fromYaml`) come through empty, so

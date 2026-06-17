@@ -1,0 +1,4 @@
+apiVersion: v2
+name: name-collision
+version: 1.0.0
+description: Umbrella chart that shares its name with a vendored subchart (regression for #18)
