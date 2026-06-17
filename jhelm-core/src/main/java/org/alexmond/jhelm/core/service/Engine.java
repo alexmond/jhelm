@@ -238,10 +238,18 @@ public class Engine {
 		// Also track which chart each template belongs to for proper namespacing
 		Map<String, String> allTemplates = new HashMap<>();
 		Map<String, String> templateToChartName = new HashMap<>();
-		collectAllTemplates(chart, allTemplates, templateToChartName, chart.getMetadata().getName());
+		// Full umbrella-relative path per template (e.g.
+		// "gitlab/charts/openbao/templates/
+		// x.tpl"). Helm keys templates by this path and parses in its sorted order, so
+		// when
+		// two subcharts define the same named template the last one in that order wins.
+		// Parsing in the same order makes jhelm's define resolution match Helm's.
+		Map<String, String> templateFullPath = new HashMap<>();
+		collectAllTemplates(chart, allTemplates, templateToChartName, templateFullPath, chart.getMetadata().getName());
 
-		// Second pass: try to parse each template. Templates with definitions (tpl)
-		// should be parsed first.
+		// Second pass: parse each template. Helper files (.tpl) are parsed first so their
+		// defines are present; within each group templates are parsed in Helm's full-path
+		// order so same-named defines resolve to the same winner as Helm.
 		List<String> sortedNames = allTemplates.keySet().stream().sorted((a, b) -> {
 			boolean aTpl = a.endsWith(".tpl");
 			boolean bTpl = b.endsWith(".tpl");
@@ -253,14 +261,20 @@ public class Engine {
 			}
 			// Distinct-content collision extras (synthetic "name@version/templates/..."
 			// keys; chart names never contain '@') parse before the deduped primaries so
-			// that the primary — the higher-version winner — wins any define-name
-			// conflict.
+			// that the primary — the higher-version winner — wins a same-name define
+			// conflict between versions of the same library chart (e.g. bitnami common).
 			boolean aExtra = a.indexOf('@') >= 0;
 			boolean bExtra = b.indexOf('@') >= 0;
 			if (aExtra != bExtra) {
 				return aExtra ? -1 : 1;
 			}
-			return a.compareTo(b);
+			// Within a group, parse in Helm's full-path order so that a same-name define
+			// shared by distinct subcharts (e.g. gitlab's umbrella vs openbao
+			// gitlab.gatewayApi.route.enabled) resolves to the same winner as Helm.
+			String aPath = templateFullPath.getOrDefault(a, a);
+			String bPath = templateFullPath.getOrDefault(b, b);
+			int cmp = aPath.compareTo(bPath);
+			return (cmp != 0) ? cmp : a.compareTo(b);
 		}).toList();
 
 		for (String name : sortedNames) {
@@ -328,7 +342,13 @@ public class Engine {
 	}
 
 	private void collectAllTemplates(Chart chart, Map<String, String> templates,
-			Map<String, String> templateToChartName, String rootChartName) {
+			Map<String, String> templateToChartName, Map<String, String> templateFullPath, String rootChartName) {
+		collectAllTemplates(chart, templates, templateToChartName, templateFullPath, rootChartName, rootChartName);
+	}
+
+	private void collectAllTemplates(Chart chart, Map<String, String> templates,
+			Map<String, String> templateToChartName, Map<String, String> templateFullPath, String rootChartName,
+			String pathPrefix) {
 		String chartName = chart.getMetadata().getName();
 		String chartVersion = chart.getMetadata().getVersion();
 
@@ -336,39 +356,42 @@ public class Engine {
 			// Use Helm-style path (chartName/templates/fileName) to match the names
 			// that charts use with $.Template.BasePath in include calls
 			String helmStyleKey = chartName + "/templates/" + t.getName();
+			// Full umbrella-relative path, used only to order parsing like Helm.
+			String fullPath = pathPrefix + "/templates/" + t.getName();
 			// On collision, keep the template from the higher chart version. Newer
 			// library chart versions are backward-compatible supersets of older ones,
 			// so keeping the newest avoids missing-feature failures.
 			String existingVersion = templateVersions.get(helmStyleKey);
 			if (existingVersion == null || compareVersions(chartVersion, existingVersion) > 0) {
 				// A genuinely different file is being displaced (not just an older copy
-				// of
-				// the same library helper): keep its defines so they aren't lost.
+				// of the same library helper): keep its defines so they aren't lost.
 				String displaced = templates.get(helmStyleKey);
 				if (displaced != null && !displaced.equals(t.getData())) {
-					preserveDistinctTemplate(templates, templateToChartName, templateToChartName.get(helmStyleKey),
-							existingVersion, t.getName(), displaced);
+					preserveDistinctTemplate(templates, templateToChartName, templateFullPath,
+							templateToChartName.get(helmStyleKey), templateFullPath.get(helmStyleKey), existingVersion,
+							t.getName(), displaced);
 				}
 				templates.put(helmStyleKey, t.getData());
 				templateToChartName.put(helmStyleKey, chartName);
+				templateFullPath.put(helmStyleKey, fullPath);
 				templateVersions.put(helmStyleKey, chartVersion);
 			}
 			else {
 				// Same short key, equal/older version. If the content genuinely differs,
 				// this is a distinct chart that merely shares a name (e.g. an umbrella
-				// and
-				// a subchart both named "gitlab"): keep its defines under a version-
+				// and a subchart both named "gitlab"): keep its defines under a version-
 				// qualified key instead of dropping the whole file (#18).
 				String kept = templates.get(helmStyleKey);
 				if (kept != null && !kept.equals(t.getData())) {
-					preserveDistinctTemplate(templates, templateToChartName, chartName, chartVersion, t.getName(),
-							t.getData());
+					preserveDistinctTemplate(templates, templateToChartName, templateFullPath, chartName, fullPath,
+							chartVersion, t.getName(), t.getData());
 				}
 			}
 		}
 
 		for (Chart subchart : chart.getDependencies()) {
-			collectAllTemplates(subchart, templates, templateToChartName, rootChartName);
+			collectAllTemplates(subchart, templates, templateToChartName, templateFullPath, rootChartName,
+					pathPrefix + "/charts/" + subchart.getMetadata().getName());
 		}
 	}
 
@@ -377,14 +400,19 @@ public class Engine {
 	 * with a different file (distinct content), under a version-qualified key so the
 	 * second pass still parses it and registers its named templates. The value is only
 	 * ever a helper included by {@code define} name, so the synthetic key just needs to
-	 * be unique — it is never referenced by path.
+	 * be unique — it is never referenced by path. Its real full path is recorded so it is
+	 * still ordered like Helm during parsing.
 	 */
 	private static void preserveDistinctTemplate(Map<String, String> templates, Map<String, String> templateToChartName,
-			String chartName, String version, String fileName, String content) {
+			Map<String, String> templateFullPath, String chartName, String fullPath, String version, String fileName,
+			String content) {
 		String key = chartName + "@" + ((version != null) ? version : "") + "/templates/" + fileName;
 		if (!templates.containsKey(key)) {
 			templates.put(key, content);
 			templateToChartName.put(key, chartName);
+			if (fullPath != null) {
+				templateFullPath.put(key, fullPath);
+			}
 		}
 	}
 

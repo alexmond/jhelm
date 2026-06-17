@@ -1,0 +1,4 @@
+apiVersion: v2
+name: define-order
+version: 1.0.0
+description: Umbrella and a subchart define the same template name (regression for #21)

@@ -6,8 +6,8 @@
 # Both render under `helm template` with the comparison-values in application-test.yaml,
 # so the remaining failure is a real jhelm bug (tracked here until fixed).
 #
-# gitlab: now renders end-to-end (the name-collision #18 and printf-verb #20 crashes are
-# fixed), but still diverges from Helm — jhelm emits Ingress objects where Helm emits
-# Gateway API resources (HTTPRoute/TCPRoute/BackendTrafficPolicy), and several
-# shared-secrets/migrations Jobs differ by content-hash suffix. Separate parity work.
+# gitlab: renders end-to-end and now emits the Gateway API resources Helm does
+# (HTTPRoute/TCPRoute/BackendTrafficPolicy — the parse-order #21 fix), but still diverges:
+# several shared-secrets/migrations/issuer Jobs differ by content-hash suffix, the Gateway
+# object is missing a couple of listeners, and a test-hook Pod has a random name suffix.
 gitlab/gitlab,gitlab,https://charts.gitlab.io

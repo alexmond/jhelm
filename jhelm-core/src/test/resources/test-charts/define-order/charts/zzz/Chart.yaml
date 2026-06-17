@@ -1,0 +1,4 @@
+apiVersion: v2
+name: zzz
+version: 1.0.0
+description: Subchart redefining shared.value
