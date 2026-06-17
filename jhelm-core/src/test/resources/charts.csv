@@ -53,3 +53,4 @@ metallb/metallb,metallb,https://metallb.github.io/metallb
 apache-airflow/airflow,apache-airflow,https://airflow.apache.org/
 nextcloud/nextcloud,nextcloud,https://nextcloud.github.io/helm/
 grafana/loki,grafana,https://grafana.github.io/helm-charts
+grafana/k8s-monitoring,grafana,https://grafana.github.io/helm-charts
