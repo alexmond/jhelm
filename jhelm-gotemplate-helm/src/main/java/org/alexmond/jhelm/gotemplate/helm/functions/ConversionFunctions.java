@@ -2,6 +2,7 @@ package org.alexmond.jhelm.gotemplate.helm.functions;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -270,19 +271,19 @@ public final class ConversionFunctions {
 	private static Function fromYaml() {
 		return (args) -> {
 			if (args.length == 0 || args[0] == null) {
-				return Map.of();
+				return new LinkedHashMap<>();
 			}
 			try {
 				String yaml = String.valueOf(args[0]);
 				if (yaml.isBlank()) {
-					return Map.of();
+					return new LinkedHashMap<>();
 				}
 				Object result = loadFirstYamlDocument(yaml);
-				return (result instanceof Map<?, ?> map) ? map : Map.of();
+				return (result instanceof Map<?, ?> map) ? map : new LinkedHashMap<>();
 			}
 			catch (Exception ex) {
 				log.debug("fromYaml failed: {}", ex.getMessage());
-				return Map.of();
+				return new LinkedHashMap<>();
 			}
 		};
 	}

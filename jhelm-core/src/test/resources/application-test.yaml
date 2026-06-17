@@ -99,3 +99,52 @@ jhelmtest:
         enabled: false
       resultsCache:
         enabled: false
+    "[grafana/k8s-monitoring]":
+      cluster:
+        name: test-cluster
+      destinations:
+        loki:
+          type: loki
+          url: http://loki.example.com/loki/api/v1/push
+      clusterEvents:
+        enabled: true
+        collector: alloy-singleton
+      collectors:
+        alloy-singleton:
+          enabled: true
+    "[gitlab/gitlab]":
+      global:
+        hosts:
+          domain: example.com
+        redis:
+          host: redis.example.com
+          password:
+            enabled: false
+        psql:
+          host: postgresql.example.com
+          password:
+            secret: gitlab-postgresql-password
+            key: postgresql-password
+        appConfig:
+          object_store:
+            enabled: true
+            connection:
+              secret: gitlab-object-storage
+              key: connection
+        registry:
+          bucket: registry
+        minio:
+          enabled: false
+      certmanager-issuer:
+        email: test@example.com
+      registry:
+        storage:
+          secret: gitlab-registry-storage
+          key: config
+      gitlab:
+        toolbox:
+          backups:
+            objectStorage:
+              config:
+                secret: gitlab-backup-storage
+                key: config

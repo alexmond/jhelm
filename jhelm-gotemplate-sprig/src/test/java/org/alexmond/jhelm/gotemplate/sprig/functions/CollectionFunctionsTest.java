@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import org.alexmond.jhelm.gotemplate.Function;
 import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.TemplateException;
 import org.junit.jupiter.api.Test;
@@ -295,6 +296,36 @@ class CollectionFunctionsTest {
 				{{ $m := mergeOverwrite $d1 $d2 $d3 }}\
 				{{ get $m "a" }},{{ get $m "b" }},{{ get $m "c" }}""";
 		assertEquals("3,30,300", exec(template));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testMergeOverwriteToleratesImmutableMaps() {
+		// Regression: fromYaml (and similar) can yield immutable maps, both at the top
+		// level and nested. mergeOverwrite must not throw UnsupportedOperationException
+		// when merging into them — this is the grafana/k8s-monitoring failure mode where
+		// `mergeOverwrite ($.Files.Get ... | fromYaml) ...` blew up.
+		Function fn = DictFunctions.getFunctions().get("mergeOverwrite");
+		Map<String, Object> dst = Map.of("outer", Map.of("a", 1));
+		Map<String, Object> src = Map.of("outer", Map.of("a", 99, "b", 2));
+		Map<String, Object> result = (Map<String, Object>) fn.invoke(dst, src);
+		Map<String, Object> outer = (Map<String, Object>) result.get("outer");
+		assertEquals(99, outer.get("a"));
+		assertEquals(2, outer.get("b"));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testMergeToleratesImmutableNestedDestination() {
+		// merge (non-overwrite) must also tolerate an immutable nested destination map,
+		// preserving the destination's existing value.
+		Function fn = DictFunctions.getFunctions().get("merge");
+		Map<String, Object> dst = Map.of("outer", Map.of("a", 1));
+		Map<String, Object> src = Map.of("outer", Map.of("a", 99, "b", 2));
+		Map<String, Object> result = (Map<String, Object>) fn.invoke(dst, src);
+		Map<String, Object> outer = (Map<String, Object>) result.get("outer");
+		assertEquals(1, outer.get("a"));
+		assertEquals(2, outer.get("b"));
 	}
 
 	@Test

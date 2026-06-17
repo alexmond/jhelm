@@ -3,4 +3,14 @@
 # If a chart unexpectedly passes, the test will fail — remove the entry.
 #
 # --- Code bugs ---
-# (none — all previously listed charts are now fixed)
+# Both render under `helm template` with the comparison-values in application-test.yaml,
+# so the remaining failure is a real jhelm bug (tracked here until fixed).
+#
+# gitlab: the umbrella chart and a subchart are both named "gitlab", so jhelm collapses
+# their template files to the same `gitlab/templates/<file>` key and version-drops one —
+# losing the subchart's _registry.tpl, so `gitlab.registry.hostname` is "not found".
+gitlab/gitlab,gitlab,https://charts.gitlab.io
+# k8s-monitoring: renders all 19 documents, but the loki destination's defaults
+# (`$.Files.Get "destinations/loki-values.yaml" | fromYaml`) come through empty, so
+# retry_on_http_429 / backoff / external_labels and the Alloy spec defaults are blank.
+grafana/k8s-monitoring,grafana,https://grafana.github.io/helm-charts

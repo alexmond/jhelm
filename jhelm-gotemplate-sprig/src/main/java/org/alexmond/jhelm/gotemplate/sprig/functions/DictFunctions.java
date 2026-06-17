@@ -174,7 +174,7 @@ public final class DictFunctions {
 			if (args.length == 0) {
 				return new LinkedHashMap<>();
 			}
-			Map<String, Object> dst = (args[0] instanceof Map) ? (Map<String, Object>) args[0] : new LinkedHashMap<>();
+			Map<String, Object> dst = ensureMutableMap(args[0]);
 			for (int i = 1; i < args.length; i++) {
 				if (args[i] instanceof Map) {
 					deepMerge(dst, (Map<String, Object>) args[i], false);
@@ -190,7 +190,7 @@ public final class DictFunctions {
 			if (args.length == 0) {
 				return new LinkedHashMap<>();
 			}
-			Map<String, Object> dst = (args[0] instanceof Map) ? (Map<String, Object>) args[0] : new LinkedHashMap<>();
+			Map<String, Object> dst = ensureMutableMap(args[0]);
 			for (int i = 1; i < args.length; i++) {
 				if (args[i] instanceof Map) {
 					deepMerge(dst, (Map<String, Object>) args[i], true);
@@ -198,6 +198,25 @@ public final class DictFunctions {
 			}
 			return dst;
 		};
+	}
+
+	/**
+	 * Returns a mutable map for use as a merge destination. {@code fromYaml} and friends
+	 * can hand back immutable maps (e.g. {@code Map.of()} for empty/blank input), which
+	 * would throw {@link UnsupportedOperationException} when merged into. Already-mutable
+	 * maps are returned as-is so Helm's "modifies the destination in place" semantics are
+	 * preserved; anything else is shallow-copied into a {@link LinkedHashMap} (nested
+	 * maps are made mutable on demand during the recursive merge).
+	 */
+	@SuppressWarnings("unchecked")
+	private static Map<String, Object> ensureMutableMap(Object value) {
+		if (value instanceof LinkedHashMap || value instanceof HashMap) {
+			return (Map<String, Object>) value;
+		}
+		if (value instanceof Map) {
+			return new LinkedHashMap<>((Map<String, Object>) value);
+		}
+		return new LinkedHashMap<>();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -208,7 +227,18 @@ public final class DictFunctions {
 			if (dst.containsKey(key)) {
 				Object dstVal = dst.get(key);
 				if (dstVal instanceof Map && srcVal instanceof Map) {
-					deepMerge((Map<String, Object>) dstVal, (Map<String, Object>) srcVal, overwrite);
+					// The nested destination may be immutable (e.g. from fromYaml). Make
+					// it
+					// mutable — writing the copy back into the parent — before merging.
+					Map<String, Object> dstChild;
+					if (dstVal instanceof LinkedHashMap || dstVal instanceof HashMap) {
+						dstChild = (Map<String, Object>) dstVal;
+					}
+					else {
+						dstChild = new LinkedHashMap<>((Map<String, Object>) dstVal);
+						dst.put(key, dstChild);
+					}
+					deepMerge(dstChild, (Map<String, Object>) srcVal, overwrite);
 				}
 				else if (overwrite || isEmptyValue(dstVal)) {
 					dst.put(key, srcVal);
