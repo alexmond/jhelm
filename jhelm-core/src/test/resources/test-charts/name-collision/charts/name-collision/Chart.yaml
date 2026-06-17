@@ -1,0 +1,4 @@
+apiVersion: v2
+name: name-collision
+version: 0.1.0
+description: Vendored subchart sharing the umbrella's name

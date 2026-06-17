@@ -251,6 +251,15 @@ public class Engine {
 			if (!aTpl && bTpl) {
 				return 1;
 			}
+			// Distinct-content collision extras (synthetic "name@version/templates/..."
+			// keys; chart names never contain '@') parse before the deduped primaries so
+			// that the primary — the higher-version winner — wins any define-name
+			// conflict.
+			boolean aExtra = a.indexOf('@') >= 0;
+			boolean bExtra = b.indexOf('@') >= 0;
+			if (aExtra != bExtra) {
+				return aExtra ? -1 : 1;
+			}
 			return a.compareTo(b);
 		}).toList();
 
@@ -332,14 +341,50 @@ public class Engine {
 			// so keeping the newest avoids missing-feature failures.
 			String existingVersion = templateVersions.get(helmStyleKey);
 			if (existingVersion == null || compareVersions(chartVersion, existingVersion) > 0) {
+				// A genuinely different file is being displaced (not just an older copy
+				// of
+				// the same library helper): keep its defines so they aren't lost.
+				String displaced = templates.get(helmStyleKey);
+				if (displaced != null && !displaced.equals(t.getData())) {
+					preserveDistinctTemplate(templates, templateToChartName, templateToChartName.get(helmStyleKey),
+							existingVersion, t.getName(), displaced);
+				}
 				templates.put(helmStyleKey, t.getData());
 				templateToChartName.put(helmStyleKey, chartName);
 				templateVersions.put(helmStyleKey, chartVersion);
+			}
+			else {
+				// Same short key, equal/older version. If the content genuinely differs,
+				// this is a distinct chart that merely shares a name (e.g. an umbrella
+				// and
+				// a subchart both named "gitlab"): keep its defines under a version-
+				// qualified key instead of dropping the whole file (#18).
+				String kept = templates.get(helmStyleKey);
+				if (kept != null && !kept.equals(t.getData())) {
+					preserveDistinctTemplate(templates, templateToChartName, chartName, chartVersion, t.getName(),
+							t.getData());
+				}
 			}
 		}
 
 		for (Chart subchart : chart.getDependencies()) {
 			collectAllTemplates(subchart, templates, templateToChartName, rootChartName);
+		}
+	}
+
+	/**
+	 * Registers a template file that collides on its {@code chartName/templates/file} key
+	 * with a different file (distinct content), under a version-qualified key so the
+	 * second pass still parses it and registers its named templates. The value is only
+	 * ever a helper included by {@code define} name, so the synthetic key just needs to
+	 * be unique — it is never referenced by path.
+	 */
+	private static void preserveDistinctTemplate(Map<String, String> templates, Map<String, String> templateToChartName,
+			String chartName, String version, String fileName, String content) {
+		String key = chartName + "@" + ((version != null) ? version : "") + "/templates/" + fileName;
+		if (!templates.containsKey(key)) {
+			templates.put(key, content);
+			templateToChartName.put(key, chartName);
 		}
 	}
 

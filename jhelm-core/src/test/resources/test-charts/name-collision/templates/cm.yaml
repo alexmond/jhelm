@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-cm
+data:
+  # parentonly is defined in this umbrella's _helpers.tpl; childonly is defined only in
+  # the like-named subchart's _helpers.tpl (a distinct file colliding on the same key).
+  parent: {{ include "name-collision.parentonly" . }}
+  child: {{ include "name-collision.childonly" . }}
