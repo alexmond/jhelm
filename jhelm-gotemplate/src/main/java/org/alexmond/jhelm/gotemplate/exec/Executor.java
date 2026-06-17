@@ -421,10 +421,15 @@ public class Executor {
 			throw new TemplateExecutionException("empty command");
 		}
 		Node firstArgument = command.getFirstArgument();
+		// A method call on the receiver applies when there are explicit arguments
+		// (.obj.Method arg) or when an upstream pipeline value is threaded in as the
+		// final argument (arg | .obj.Method).
+		boolean methodCallPossible = command.getArgumentCount() > 1 || currentPipelineValue != null;
 		if (firstArgument instanceof FieldNode fieldNode) {
 			// Go templates: .obj.Method arg → call Method(arg) on obj
-			if (command.getArgumentCount() > 1) {
-				Object result = tryFieldMethodCall(fieldNode, command.getArguments(), data, beanInfo);
+			if (methodCallPossible) {
+				Object result = tryFieldMethodCall(fieldNode, command.getArguments(), data, beanInfo,
+						currentPipelineValue);
 				if (result != INVOKE_NOT_FOUND) {
 					return result;
 				}
@@ -437,16 +442,27 @@ public class Executor {
 		}
 		if (firstArgument instanceof ChainNode chainNode) {
 			// Go templates: (.pipe).Method arg or .X.Y.Method arg → method call
-			if (command.getArgumentCount() > 1) {
-				Object result = tryChainMethodCall(chainNode, command.getArguments(), data, beanInfo);
+			if (methodCallPossible) {
+				Object result = tryChainMethodCall(chainNode, command.getArguments(), data, beanInfo,
+						currentPipelineValue);
 				if (result != INVOKE_NOT_FOUND) {
 					return result;
 				}
 			}
 			return executeChain(chainNode, data, beanInfo);
 		}
-		if (firstArgument instanceof VariableNode) {
-			return executeVariable((VariableNode) firstArgument);
+		if (firstArgument instanceof VariableNode variableNode) {
+			// Go templates: $var.Field.Method arg → call Method(arg) on $var.Field
+			// (e.g. $.Files.Get "path" or arg | $.Files.Get). Without this, the method
+			// name resolves as a missing field and the argument is dropped.
+			if (methodCallPossible && variableNode.getIdentifiers().length > 1) {
+				Object result = tryVariableMethodCall(variableNode, command.getArguments(), data, beanInfo,
+						currentPipelineValue);
+				if (result != INVOKE_NOT_FOUND) {
+					return result;
+				}
+			}
+			return executeVariable(variableNode);
 		}
 
 		if (firstArgument instanceof DotNode) {
@@ -573,8 +589,8 @@ public class Executor {
 	 * {@code Method(arg1, arg2)} on the result of {@code .Obj}.
 	 * @return the method result, or {@link #INVOKE_NOT_FOUND} if no method matched
 	 */
-	private Object tryFieldMethodCall(FieldNode fieldNode, List<Node> cmdArgNodes, Object data, BeanInfo beanInfo)
-			throws TemplateExecutionException {
+	private Object tryFieldMethodCall(FieldNode fieldNode, List<Node> cmdArgNodes, Object data, BeanInfo beanInfo,
+			Object pipelineValue) throws TemplateExecutionException {
 		String[] identifiers = fieldNode.getIdentifiers();
 		if (identifiers.length == 0) {
 			return INVOKE_NOT_FOUND;
@@ -587,7 +603,7 @@ public class Executor {
 		}
 
 		String methodName = identifiers[identifiers.length - 1];
-		return tryMethodInvoke(receiver, methodName, cmdArgNodes, data, beanInfo);
+		return tryMethodInvoke(receiver, methodName, cmdArgNodes, data, beanInfo, pipelineValue);
 	}
 
 	/**
@@ -596,8 +612,8 @@ public class Executor {
 	 * {@code ChainNode(FieldNode("X"), ["Y", "Method"])}.
 	 * @return the method result, or {@link #INVOKE_NOT_FOUND} if no method matched
 	 */
-	private Object tryChainMethodCall(ChainNode chainNode, List<Node> cmdArgNodes, Object data, BeanInfo beanInfo)
-			throws TemplateExecutionException {
+	private Object tryChainMethodCall(ChainNode chainNode, List<Node> cmdArgNodes, Object data, BeanInfo beanInfo,
+			Object pipelineValue) throws TemplateExecutionException {
 		List<String> fields = chainNode.getFields();
 		if (fields.isEmpty()) {
 			return INVOKE_NOT_FOUND;
@@ -610,22 +626,51 @@ public class Executor {
 		}
 
 		String methodName = fields.get(fields.size() - 1);
-		return tryMethodInvoke(receiver, methodName, cmdArgNodes, data, beanInfo);
+		return tryMethodInvoke(receiver, methodName, cmdArgNodes, data, beanInfo, pipelineValue);
+	}
+
+	/**
+	 * Try to invoke the last identifier of a variable reference as a method call:
+	 * {@code $var.Field.Method arg} calls {@code Method(arg)} on the result of
+	 * {@code $var.Field}. Mirrors {@link #tryFieldMethodCall} for variable-rooted chains
+	 * such as {@code $.Files.Get "path"}.
+	 * @return the method result, or {@link #INVOKE_NOT_FOUND} if no method matched
+	 */
+	private Object tryVariableMethodCall(VariableNode variableNode, List<Node> cmdArgNodes, Object data,
+			BeanInfo beanInfo, Object pipelineValue) throws TemplateExecutionException {
+		String varName = variableNode.getIdentifier(0);
+		if (!variables.containsKey(varName)) {
+			return INVOKE_NOT_FOUND;
+		}
+		Object receiver = variables.get(varName);
+		String[] identifiers = variableNode.getIdentifiers();
+		// Resolve all identifiers except the last to get the receiver object
+		for (int i = 1; i < identifiers.length - 1; i++) {
+			receiver = getFieldValue(receiver, identifiers[i]);
+		}
+		String methodName = identifiers[identifiers.length - 1];
+		return tryMethodInvoke(receiver, methodName, cmdArgNodes, data, beanInfo, pipelineValue);
 	}
 
 	/**
 	 * Core method invocation logic shared by field and chain method calls.
 	 */
 	private Object tryMethodInvoke(Object receiver, String methodName, List<Node> cmdArgNodes, Object data,
-			BeanInfo beanInfo) throws TemplateExecutionException {
+			BeanInfo beanInfo, Object pipelineValue) throws TemplateExecutionException {
 		if (receiver == null) {
 			return INVOKE_NOT_FOUND;
 		}
 
-		// Evaluate the method arguments (skip the first arg which is the node itself)
+		// Evaluate the method arguments (skip the first arg which is the node itself).
+		// In a chained pipeline the upstream value is passed as the method's final
+		// argument (Go: "arg | .Method x" calls Method(x, arg)).
 		List<Node> argNodes = cmdArgNodes.subList(1, cmdArgNodes.size());
-		Object[] args = new Object[argNodes.size()];
+		int extra = (pipelineValue != null) ? 1 : 0;
+		Object[] args = new Object[argNodes.size() + extra];
 		executeArguments(data, beanInfo, argNodes, args);
+		if (extra == 1) {
+			args[args.length - 1] = pipelineValue;
+		}
 
 		// Try to find a matching method via reflection
 		for (Method m : receiver.getClass().getMethods()) {

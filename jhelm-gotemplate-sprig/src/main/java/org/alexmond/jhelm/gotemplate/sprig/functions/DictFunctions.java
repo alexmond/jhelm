@@ -388,7 +388,12 @@ public final class DictFunctions {
 		if (obj == null) {
 			return null;
 		}
-		if (obj instanceof Map) {
+		// Only the standard mutable map types are deep-copied. Special map subtypes that
+		// carry behaviour — notably the engine's Files object (`.Files.Get`/`.Glob`) —
+		// must be passed through unchanged; copying them into a plain LinkedHashMap would
+		// strip their methods and break `(deepCopy $).Files.Get` (Helm preserves the
+		// concrete type here).
+		if (obj instanceof LinkedHashMap || obj instanceof HashMap) {
 			Map<String, Object> copy = new LinkedHashMap<>();
 			for (Map.Entry<String, Object> entry : ((Map<String, Object>) obj).entrySet()) {
 				copy.put(entry.getKey(), recursiveDeepCopy(entry.getValue()));
@@ -402,7 +407,8 @@ public final class DictFunctions {
 			}
 			return copy;
 		}
-		// Primitives (String, Number, Boolean) are immutable — no copy needed
+		// Primitives (String, Number, Boolean), behavioural maps, and other opaque types
+		// are immutable or method-bearing — no copy needed.
 		return obj;
 	}
 

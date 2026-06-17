@@ -2,6 +2,8 @@ package org.alexmond.jhelm.gotemplate.sprig.functions;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -312,6 +314,22 @@ class CollectionFunctionsTest {
 		Map<String, Object> outer = (Map<String, Object>) result.get("outer");
 		assertEquals(99, outer.get("a"));
 		assertEquals(2, outer.get("b"));
+	}
+
+	@Test
+	void testDeepCopyPreservesBehaviouralMaps() {
+		// deepCopy deep-copies plain mutable maps but must pass non-standard map types
+		// through unchanged — otherwise the engine's Files object loses its `.Get` method
+		// after `deepCopy $`, which is how grafana/k8s-monitoring reads destination
+		// defaults via `($.Files.Get ... | fromYaml)`.
+		Function fn = DictFunctions.getFunctions().get("deepCopy");
+		Map<String, Object> plain = new HashMap<>();
+		plain.put("a", 1);
+		Object plainCopy = fn.invoke(plain);
+		assertNotSame(plain, plainCopy);
+		assertEquals(plain, plainCopy);
+		Map<String, Object> behavioural = Map.of("x", 1);
+		assertSame(behavioural, fn.invoke(behavioural));
 	}
 
 	@Test

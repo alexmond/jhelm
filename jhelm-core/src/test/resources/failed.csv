@@ -10,7 +10,3 @@
 # (#18); rendering now reaches a separate bug — `gitlab.appConfig.duo.configuration` fails
 # with "Conversion = '='" (a printf/format-verb gap in that template).
 gitlab/gitlab,gitlab,https://charts.gitlab.io
-# k8s-monitoring: renders all 19 documents, but the loki destination's defaults
-# (`$.Files.Get "destinations/loki-values.yaml" | fromYaml`) come through empty, so
-# retry_on_http_429 / backoff / external_labels and the Alloy spec defaults are blank.
-grafana/k8s-monitoring,grafana,https://grafana.github.io/helm-charts
