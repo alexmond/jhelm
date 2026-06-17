@@ -9,8 +9,9 @@ import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.service.KubeService;
-import org.springframework.retry.RetryCallback;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryException;
+import org.springframework.core.retry.RetryTemplate;
+import org.springframework.core.retry.Retryable;
 import java.net.ConnectException;
 import java.net.SocketException;
 
@@ -37,7 +38,7 @@ public class RetryableKubeService implements KubeService {
 
 	@Override
 	public void storeRelease(Release release) throws Exception {
-		executeWithRetry("storeRelease", (ctx) -> {
+		executeWithRetry("storeRelease", () -> {
 			delegate.storeRelease(release);
 			return null;
 		});
@@ -45,22 +46,22 @@ public class RetryableKubeService implements KubeService {
 
 	@Override
 	public Optional<Release> getRelease(String name, String namespace) throws Exception {
-		return executeWithRetry("getRelease", (ctx) -> delegate.getRelease(name, namespace));
+		return executeWithRetry("getRelease", () -> delegate.getRelease(name, namespace));
 	}
 
 	@Override
 	public List<Release> listReleases(String namespace) throws Exception {
-		return executeWithRetry("listReleases", (ctx) -> delegate.listReleases(namespace));
+		return executeWithRetry("listReleases", () -> delegate.listReleases(namespace));
 	}
 
 	@Override
 	public List<Release> getReleaseHistory(String name, String namespace) throws Exception {
-		return executeWithRetry("getReleaseHistory", (ctx) -> delegate.getReleaseHistory(name, namespace));
+		return executeWithRetry("getReleaseHistory", () -> delegate.getReleaseHistory(name, namespace));
 	}
 
 	@Override
 	public void deleteReleaseHistory(String name, String namespace) throws Exception {
-		executeWithRetry("deleteReleaseHistory", (ctx) -> {
+		executeWithRetry("deleteReleaseHistory", () -> {
 			delegate.deleteReleaseHistory(name, namespace);
 			return null;
 		});
@@ -68,7 +69,7 @@ public class RetryableKubeService implements KubeService {
 
 	@Override
 	public void apply(String namespace, String yamlContent) throws Exception {
-		executeWithRetry("apply", (ctx) -> {
+		executeWithRetry("apply", () -> {
 			delegate.apply(namespace, yamlContent);
 			return null;
 		});
@@ -76,7 +77,7 @@ public class RetryableKubeService implements KubeService {
 
 	@Override
 	public void delete(String namespace, String yamlContent) throws Exception {
-		executeWithRetry("delete", (ctx) -> {
+		executeWithRetry("delete", () -> {
 			delegate.delete(namespace, yamlContent);
 			return null;
 		});
@@ -84,7 +85,7 @@ public class RetryableKubeService implements KubeService {
 
 	@Override
 	public List<ResourceStatus> getResourceStatuses(String namespace, String manifest) throws Exception {
-		return executeWithRetry("getResourceStatuses", (ctx) -> delegate.getResourceStatuses(namespace, manifest));
+		return executeWithRetry("getResourceStatuses", () -> delegate.getResourceStatuses(namespace, manifest));
 	}
 
 	@Override
@@ -93,17 +94,23 @@ public class RetryableKubeService implements KubeService {
 		delegate.waitForReady(namespace, manifest, timeoutSeconds);
 	}
 
-	private <T> T executeWithRetry(String operation, RetryCallback<T, Exception> callback) throws Exception {
-		return retryTemplate.execute(callback, (ctx) -> {
-			Throwable last = ctx.getLastThrowable();
+	private <T> T executeWithRetry(String operation, Retryable<T> callback) throws Exception {
+		try {
+			return retryTemplate.execute(callback);
+		}
+		catch (RetryException ex) {
+			// Thrown when the policy stops retrying — either a non-transient failure (the
+			// predicate rejected it) or all retries exhausted. The cause is the last
+			// underlying failure; rethrow it as-is so callers see the original exception.
+			Throwable last = ex.getCause();
 			if (log.isErrorEnabled()) {
 				log.error("All retry attempts exhausted for {}", operation, last);
 			}
-			if (last instanceof Exception ex) {
-				throw ex;
+			if (last instanceof Exception cause) {
+				throw cause;
 			}
 			throw new KubernetesOperationException("Retry exhausted for " + operation, last);
-		});
+		}
 	}
 
 	/**
