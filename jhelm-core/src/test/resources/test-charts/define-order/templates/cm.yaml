@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-cm
+data:
+  # shared.value is defined in both this umbrella's _helpers.tpl and the zzz subchart's.
+  # Helm parses in full-path order (charts/zzz/... before templates/...), so the
+  # umbrella's definition is parsed last and wins.
+  value: {{ include "shared.value" . }}
