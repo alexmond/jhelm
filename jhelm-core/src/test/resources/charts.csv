@@ -75,3 +75,9 @@ crossplane/crossplane,crossplane,https://charts.crossplane.io/stable
 istio/base,istio,https://istio-release.storage.googleapis.com/charts
 istio/istiod,istio,https://istio-release.storage.googleapis.com/charts
 jetstack/trust-manager,jetstack,https://charts.jetstack.io
+fluent/fluent-bit,fluent,https://fluent.github.io/helm-charts
+jaegertracing/jaeger,jaegertracing,https://jaegertracing.github.io/helm-charts
+bitnami/airflow,bitnami,https://charts.bitnami.com/bitnami
+emberstack/reflector,emberstack,https://emberstack.github.io/helm-charts
+jetstack/cert-manager-csi-driver,jetstack,https://charts.jetstack.io
+grafana/promtail,grafana,https://grafana.github.io/helm-charts
