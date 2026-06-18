@@ -86,6 +86,15 @@ class FunctionsTest {
 	}
 
 	@Test
+	void testPrintfQuoteVerbDoubleQuotesStrings() {
+		// Go's %q double-quotes (with escaping); jhelm previously dropped it to %s.
+		Function printf = Functions.GO_BUILTINS.get("printf");
+		assertEquals("\"VictoriaMetrics\"", printf.invoke(new Object[] { "%q", "VictoriaMetrics" }));
+		assertEquals("{\"datasource\":\"VM\"}", printf.invoke(new Object[] { "{\"datasource\":%q}", "VM" }));
+		assertEquals("\"a\\\"b\"", printf.invoke(new Object[] { "%q", "a\"b" }), "embedded quotes are escaped");
+	}
+
+	@Test
 	void testPrintfToleratesErbStyleLiterals() {
 		// gitlab routes an ERB literal through printf; %= and %> are not Java
 		// conversions.

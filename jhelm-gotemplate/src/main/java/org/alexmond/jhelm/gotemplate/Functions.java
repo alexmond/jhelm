@@ -400,8 +400,9 @@ public final class Functions {
 			// Translate Go format verbs to Java equivalents
 			format = format.replaceAll("%#?v", "%s"); // %v and %#(v) -> %s
 			format = format.replaceAll("%T", "%s"); // %(T) -> %s
-			format = format.replaceAll("%q", "%s"); // %(q) -> %s
 			format = format.replaceAll("%p", "%s"); // %(p) -> %s
+			// %q is kept for now — unlike %s it double-quotes its argument (Go strconv.
+			// Quote), so the corresponding arg is quoted below before %q -> %s.
 
 			// Extract ALL format specifiers to coerce numeric types per-argument.
 			// Go's printf is lenient (any numeric type for %d/%g); Java is strict.
@@ -416,8 +417,12 @@ public final class Functions {
 			Object[] realArgs = new Object[args.length - 1];
 			for (int i = 0; i < realArgs.length; i++) {
 				Object arg = (args[i + 1] != null) ? args[i + 1] : "";
-				if (arg instanceof Number && i < specTypes.size()) {
-					char spec = specTypes.get(i);
+				char spec = (i < specTypes.size()) ? specTypes.get(i) : '\0';
+				if (spec == 'q') {
+					// Go's %q double-quotes the value with Go-syntax escaping.
+					arg = goQuote(arg);
+				}
+				else if (arg instanceof Number) {
 					if ("eEfgG".indexOf(spec) >= 0 && (arg instanceof Integer || arg instanceof Long)) {
 						arg = ((Number) arg).doubleValue();
 					}
@@ -427,6 +432,8 @@ public final class Functions {
 				}
 				realArgs[i] = arg;
 			}
+			// The %q arguments are now pre-quoted strings, so render them with %s.
+			format = format.replaceAll("%q", "%s");
 			try {
 				return String.format(format, realArgs);
 			}
@@ -440,6 +447,30 @@ public final class Functions {
 				return String.format(neutralizeInvalidFormatSpecifiers(format), realArgs);
 			}
 		};
+	}
+
+	/**
+	 * Renders a value the way Go's {@code %q} verb does: the string form wrapped in
+	 * double quotes with Go-syntax escaping of quotes, backslashes and the common control
+	 * characters. Used so {@code printf "%q" x} matches Helm/Go output.
+	 */
+	private static String goQuote(Object value) {
+		String s = String.valueOf(value);
+		StringBuilder sb = new StringBuilder(s.length() + 2);
+		sb.append('"');
+		for (int i = 0; i < s.length(); i++) {
+			char c = s.charAt(i);
+			switch (c) {
+				case '"' -> sb.append("\\\"");
+				case '\\' -> sb.append("\\\\");
+				case '\n' -> sb.append("\\n");
+				case '\t' -> sb.append("\\t");
+				case '\r' -> sb.append("\\r");
+				default -> sb.append(c);
+			}
+		}
+		sb.append('"');
+		return sb.toString();
 	}
 
 	/**
