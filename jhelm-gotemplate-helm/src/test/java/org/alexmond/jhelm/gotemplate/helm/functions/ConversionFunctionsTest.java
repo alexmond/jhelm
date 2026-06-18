@@ -119,6 +119,29 @@ class ConversionFunctionsTest {
 	}
 
 	@Test
+	void testToYamlQuoteStyleMatchesGoYaml() {
+		// Go's yaml.Marshal (Helm's toYaml) single-quotes non-plain scalars (special
+		// chars,
+		// flow-indicator starts) but double-quotes empty/numeric/keyword strings.
+		// Verified
+		// against `helm template`.
+		Map<String, Object> data = new LinkedHashMap<>();
+		data.put("withColon", "key: value");
+		data.put("withHash", "a # b");
+		data.put("flow", "{{ x }}");
+		data.put("numStr", "123");
+		data.put("emptyStr", "");
+		data.put("tilde", "~");
+		String result = (String) functions().get("toYaml").invoke(new Object[] { data });
+		assertTrue(result.contains("withColon: 'key: value'"), "special-char string is single-quoted: " + result);
+		assertTrue(result.contains("withHash: 'a # b'"), "hash string is single-quoted: " + result);
+		assertTrue(result.contains("flow: '{{ x }}'"), "flow-indicator string is single-quoted: " + result);
+		assertTrue(result.contains("numStr: \"123\""), "numeric string stays double-quoted: " + result);
+		assertTrue(result.contains("emptyStr: \"\""), "empty string stays double-quoted: " + result);
+		assertTrue(result.contains("tilde: \"~\""), "null keyword stays double-quoted: " + result);
+	}
+
+	@Test
 	void testToYamlRendersWholeFloatsAsIntegers() {
 		// Helm marshals via JSON, where float64(1.0) -> "1". jhelm must match (whole
 		// floats
@@ -546,11 +569,12 @@ class ConversionFunctionsTest {
 
 	@Test
 	void testToYamlPreservesQuotesWhenNeeded() {
-		// Values starting with flow indicators must stay quoted
+		// Values starting with flow indicators must stay quoted. Go's yaml.Marshal uses
+		// single-quote style for these (not double), so jhelm emits '{flow}'.
 		Function toYaml = functions().get("toYaml");
 		Map<String, String> data = Map.of("val", "{flow}");
 		String result = (String) toYaml.invoke(new Object[] { data });
-		assertTrue(result.contains("\""), "values starting with { must stay quoted");
+		assertTrue(result.contains("'{flow}'"), "flow-indicator value must stay single-quoted: " + result);
 	}
 
 	@Test
