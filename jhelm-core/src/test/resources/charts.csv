@@ -81,3 +81,10 @@ bitnami/airflow,bitnami,https://charts.bitnami.com/bitnami
 emberstack/reflector,emberstack,https://emberstack.github.io/helm-charts
 jetstack/cert-manager-csi-driver,jetstack,https://charts.jetstack.io
 grafana/promtail,grafana,https://grafana.github.io/helm-charts
+prometheus-community/prometheus-pushgateway,prometheus-community,https://prometheus-community.github.io/helm-charts
+bitnami/spark,bitnami,https://charts.bitnami.com/bitnami
+jenkins/jenkins,jenkins,https://charts.jenkins.io
+hashicorp/consul,hashicorp,https://helm.releases.hashicorp.com
+vector/vector,vector,https://helm.vector.dev
+authentik/authentik,authentik,https://charts.goauthentik.io
+bitnami/tomcat,bitnami,https://charts.bitnami.com/bitnami
