@@ -103,6 +103,49 @@ class ConversionFunctionsTest {
 		assertTrue(result.contains(expectedContains));
 	}
 
+	@Test
+	void testToYamlSortsKeysLikeHelm() throws IOException, TemplateException {
+		// Helm's toYaml marshals via sigs.k8s.io/yaml (-> JSON, which sorts map keys), so
+		// jhelm must sort too — otherwise toYaml output that gets hashed (resource-name
+		// suffixes, checksum/* annotations) diverges from Helm byte-for-byte (#237).
+		Map<String, Object> obj = new java.util.LinkedHashMap<>();
+		obj.put("zebra", 1);
+		obj.put("alpha", 2);
+		obj.put("mike", 3);
+		Map<String, Object> data = new HashMap<>();
+		data.put("obj", obj);
+		String result = execWithData("{{ toYaml .obj }}", data).trim();
+		assertEquals("alpha: 2\nmike: 3\nzebra: 1", result, "toYaml must emit keys in sorted order");
+	}
+
+	@Test
+	void testToYamlRendersWholeFloatsAsIntegers() {
+		// Helm marshals via JSON, where float64(1.0) -> "1". jhelm must match (whole
+		// floats
+		// lose the ".0") so hashed toYaml agrees; fractional floats are unchanged.
+		Function toYaml = functions().get("toYaml");
+		Map<String, Object> data = new LinkedHashMap<>();
+		data.put("whole", 1.0);
+		data.put("frac", 0.5);
+		String result = (String) toYaml.invoke(new Object[] { data });
+		assertTrue(result.contains("whole: 1\n") || result.endsWith("whole: 1"),
+				"whole-number float must render as int: " + result);
+		assertTrue(result.contains("frac: 0.5"), "fractional float must be unchanged: " + result);
+	}
+
+	@Test
+	void testToYamlSortsNestedKeys() throws IOException, TemplateException {
+		Map<String, Object> inner = new java.util.LinkedHashMap<>();
+		inner.put("bb", 1);
+		inner.put("aa", 2);
+		Map<String, Object> obj = new java.util.LinkedHashMap<>();
+		obj.put("outer", inner);
+		Map<String, Object> data = new HashMap<>();
+		data.put("obj", obj);
+		String result = execWithData("{{ toYaml .obj }}", data).trim();
+		assertEquals("outer:\n  aa: 2\n  bb: 1", result, "toYaml must sort nested map keys too");
+	}
+
 	@ParameterizedTest
 	@CsvSource({ "toYaml", "mustToYaml" })
 	void testYamlNumericStringsQuoted(String func) throws IOException, TemplateException {
@@ -463,20 +506,20 @@ class ConversionFunctionsTest {
 	}
 
 	@Test
-	void testToYamlPreservesInsertionOrder() {
-		// Go's yaml.Marshal preserves map insertion order, NOT alphabetical
+	void testToYamlSortsKeysNotInsertionOrder() {
+		// Helm's toYaml marshals via sigs.k8s.io/yaml (-> JSON), which sorts map keys —
+		// it does NOT preserve insertion order. jhelm must match so hashed toYaml agrees.
 		Function toYaml = functions().get("toYaml");
 		Map<String, Object> data = new LinkedHashMap<>();
 		data.put("zebra", "last");
 		data.put("alpha", "first");
 		data.put("middle", "mid");
 		String result = (String) toYaml.invoke(new Object[] { data });
-		// Keys must appear in insertion order: zebra, alpha, middle
 		int zebraPos = result.indexOf("zebra");
 		int alphaPos = result.indexOf("alpha");
 		int middlePos = result.indexOf("middle");
-		assertTrue(zebraPos < alphaPos, "zebra should come before alpha (insertion order): " + result);
-		assertTrue(alphaPos < middlePos, "alpha should come before middle (insertion order): " + result);
+		assertTrue(alphaPos < middlePos, "alpha should come before middle (sorted): " + result);
+		assertTrue(middlePos < zebraPos, "middle should come before zebra (sorted): " + result);
 	}
 
 	// --- toYaml with regex values (backslash handling) ---
