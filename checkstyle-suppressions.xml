@@ -49,6 +49,10 @@
     <suppress checks="MethodLength" files="HelmChartTemplates\.java"/>
     <suppress checks="FileLength" files="HelmChartTemplates\.java"/>
 
+    <!-- ConversionFunctions is one cohesive registry of YAML/JSON/TOML conversion functions
+         plus the Go-faithful serialization post-processing — long by nature -->
+    <suppress checks="FileLength" files="ConversionFunctions\.java"/>
+
     <!-- Test files are exempt from size limits: test methods are short but files accumulate many of them -->
     <suppress checks="MethodLength" files=".*Test\.java"/>
     <suppress checks="FileLength" files=".*Test\.java"/>

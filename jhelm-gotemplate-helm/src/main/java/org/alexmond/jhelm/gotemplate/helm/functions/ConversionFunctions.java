@@ -56,7 +56,13 @@ public final class ConversionFunctions {
 		.enable(YAMLWriteFeature.MINIMIZE_QUOTES)
 		// Keep quotes on numeric-looking strings to match Go yaml.Marshal behavior
 		.enable(YAMLWriteFeature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS)
-		// Go's yaml.Marshal preserves insertion order — do NOT sort keys alphabetically
+		// Helm's toYaml marshals via sigs.k8s.io/yaml (-> JSON, which sorts keys); match
+		// it
+		// so hashed toYaml (name suffixes, checksum/*) agrees. (toYamlPretty keeps
+		// order.)
+		.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
+		// Render whole-number floats as ints (1.0 -> 1) like Helm's JSON-based marshal.
+		.addModule(goNumberModule())
 		.build());
 
 	/**
