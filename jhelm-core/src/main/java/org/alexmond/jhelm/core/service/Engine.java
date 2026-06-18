@@ -670,12 +670,41 @@ public class Engine {
 	private void mergeSubchartDefaults(Chart chart, Map<String, Object> mergedValues) {
 		for (Chart dep : chart.getDependencies()) {
 			String depKey = (dep.getAlias() != null) ? dep.getAlias() : dep.getMetadata().getName();
-			if (dep.getValues() != null && !dep.getValues().isEmpty()) {
+			// Coalesce the subchart's full default tree — its own values.yaml plus its
+			// nested subcharts' defaults, recursively — so parent templates that read
+			// .Values.<sub>.<nestedsub>.* (e.g. gitlab's .Values.gitlab.webservice) see
+			// the
+			// same tree Helm builds. Anything already set on the parent for this key
+			// wins.
+			Map<String, Object> depDefaults = coalesceChartValues(dep);
+			if (!depDefaults.isEmpty()) {
 				Map<String, Object> existing = (Map<String, Object>) mergedValues.getOrDefault(depKey, new HashMap<>());
-				Map<String, Object> merged = mergeValues(dep.getValues(), existing);
-				mergedValues.put(depKey, merged);
+				mergedValues.put(depKey, mergeValues(depDefaults, existing));
 			}
 		}
+	}
+
+	/**
+	 * Recursively coalesce a chart's default values: its own {@code values.yaml} with
+	 * each subchart's coalesced defaults placed under the subchart's name/alias key. The
+	 * chart's own values for a subchart key win over that subchart's defaults (Helm
+	 * precedence).
+	 */
+	@SuppressWarnings("unchecked")
+	private Map<String, Object> coalesceChartValues(Chart chart) {
+		Map<String, Object> base = (chart.getValues() != null) ? new HashMap<>(chart.getValues()) : new HashMap<>();
+		for (Chart dep : chart.getDependencies()) {
+			String depKey = (dep.getAlias() != null) ? dep.getAlias() : dep.getMetadata().getName();
+			Map<String, Object> depDefaults = coalesceChartValues(dep);
+			if (depDefaults.isEmpty()) {
+				continue;
+			}
+			Object existing = base.get(depKey);
+			Map<String, Object> overrides = (existing instanceof Map) ? (Map<String, Object>) existing
+					: new HashMap<>();
+			base.put(depKey, mergeValues(depDefaults, overrides));
+		}
+		return base;
 	}
 
 	/**

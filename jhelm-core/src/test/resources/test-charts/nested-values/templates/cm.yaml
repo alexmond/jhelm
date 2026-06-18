@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-cm
+data:
+  # leaf.color is a default of the leaf sub-subchart; the umbrella must see it at
+  # .Values.mid.leaf.color via recursive subchart value coalescing (Helm behaviour).
+  leafColor: {{ .Values.mid.leaf.color }}
