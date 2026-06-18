@@ -26,6 +26,22 @@ class YamlDocumentSeparatorTest {
 	}
 
 	@Test
+	void testSeparatorWithTrailingWhitespace() throws Exception {
+		// A "---" with trailing whitespace (some charts emit it literally) must still
+		// split
+		// the documents, otherwise the second resource is glued onto the first and
+		// vanishes
+		// from the resource set (victoria-metrics-k8s-stack's aggregated ClusterRoles).
+		String input = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test1\n--- \n"
+				+ "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test2\n";
+		String result = cleanManifest(input);
+		assertTrue(result.contains("name: test1"), "first doc kept: " + result);
+		assertTrue(result.contains("name: test2"), "second doc must not be glued/dropped: " + result);
+		long docs = result.lines().filter((line) -> line.equals("kind: ConfigMap")).count();
+		assertEquals(2, docs, "both documents must be present: " + result);
+	}
+
+	@Test
 	void testBasicSeparator() throws Exception {
 		String input = """
 				apiVersion: v1
