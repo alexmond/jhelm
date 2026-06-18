@@ -221,8 +221,11 @@ public class Engine {
 		// Split by YAML document separator patterns:
 		// 1. \n---\n (standard separator with blank line)
 		// 2. \n--- followed by newline with content (template-generated separator)
-		// Use lookbehind to keep the newline before --- but not the --- itself
-		String[] docs = normalized.split("\\n---(?=\\n)");
+		// Trailing whitespace after the --- is allowed (YAML treats "--- " as a
+		// separator;
+		// some charts emit it literally), otherwise the following resource is glued onto
+		// the previous document and disappears from the resource set.
+		String[] docs = normalized.split("\\n---[ \\t]*(?=\\n)");
 		StringBuilder cleaned = new StringBuilder();
 
 		for (String doc : docs) {

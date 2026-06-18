@@ -756,8 +756,11 @@ public final class ConversionFunctions {
 		if ((first == '-' || first == '?') && s.length() > 1 && s.charAt(1) == ' ') {
 			return false;
 		}
-		// Must not contain ": " (mapping indicator) or " #" (comment indicator)
-		if (s.contains(": ") || s.contains(" #")) {
+		// Must not contain ": " (mapping indicator) or " #" (comment indicator), nor end
+		// with ":" — a trailing colon (e.g. a Prometheus recording-rule name like
+		// "node_namespace_pod:kube_pod_info:") is read as a mapping key and corrupts the
+		// document, so Go's yaml.Marshal quotes it.
+		if (s.contains(": ") || s.contains(" #") || s.endsWith(":")) {
 			return false;
 		}
 		// Must not be a YAML boolean/null keyword

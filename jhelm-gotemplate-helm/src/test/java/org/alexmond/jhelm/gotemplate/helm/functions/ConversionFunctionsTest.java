@@ -142,6 +142,25 @@ class ConversionFunctionsTest {
 	}
 
 	@Test
+	void testToYamlQuotesTrailingColonStrings() {
+		// A value ending in ':' (e.g. a Prometheus recording-rule name) would otherwise
+		// be
+		// read back as a mapping key and corrupt the document — Go's yaml.Marshal quotes
+		// it.
+		Map<String, Object> data = new LinkedHashMap<>();
+		data.put("record", "node_namespace_pod:kube_pod_info:");
+		String result = (String) functions().get("toYaml").invoke(new Object[] { data });
+		assertTrue(
+				result.contains("'node_namespace_pod:kube_pod_info:'")
+						|| result.contains("\"node_namespace_pod:kube_pod_info:\""),
+				"trailing-colon value must be quoted: " + result);
+		// Sanity: the result must round-trip as valid YAML.
+		Object back = functions().get("fromYaml").invoke(new Object[] { result });
+		assertInstanceOf(Map.class, back);
+		assertEquals("node_namespace_pod:kube_pod_info:", ((Map<?, ?>) back).get("record"));
+	}
+
+	@Test
 	void testToYamlRendersWholeFloatsAsIntegers() {
 		// Helm marshals via JSON, where float64(1.0) -> "1". jhelm must match (whole
 		// floats

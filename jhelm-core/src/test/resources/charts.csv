@@ -67,3 +67,4 @@ prometheus-community/kube-state-metrics,prometheus-community,https://prometheus-
 opentelemetry/opentelemetry-operator,opentelemetry,https://open-telemetry.github.io/opentelemetry-helm-charts
 bitnami/clickhouse,bitnami,https://charts.bitnami.com/bitnami
 bitnami/valkey,bitnami,https://charts.bitnami.com/bitnami
+victoria-metrics/victoria-metrics-k8s-stack,victoria-metrics,https://victoriametrics.github.io/helm-charts
