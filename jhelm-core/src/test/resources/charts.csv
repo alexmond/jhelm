@@ -68,3 +68,10 @@ opentelemetry/opentelemetry-operator,opentelemetry,https://open-telemetry.github
 bitnami/clickhouse,bitnami,https://charts.bitnami.com/bitnami
 bitnami/valkey,bitnami,https://charts.bitnami.com/bitnami
 victoria-metrics/victoria-metrics-k8s-stack,victoria-metrics,https://victoriametrics.github.io/helm-charts
+bitnami/thanos,bitnami,https://charts.bitnami.com/bitnami
+grafana/loki-distributed,grafana,https://grafana.github.io/helm-charts
+grafana/alloy,grafana,https://grafana.github.io/helm-charts
+crossplane/crossplane,crossplane,https://charts.crossplane.io/stable
+istio/base,istio,https://istio-release.storage.googleapis.com/charts
+istio/istiod,istio,https://istio-release.storage.googleapis.com/charts
+jetstack/trust-manager,jetstack,https://charts.jetstack.io
