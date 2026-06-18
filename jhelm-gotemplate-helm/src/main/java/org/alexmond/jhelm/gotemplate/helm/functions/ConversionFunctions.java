@@ -684,14 +684,17 @@ public final class ConversionFunctions {
 				if (canBePlainScalar(unescaped)) {
 					sb.append(prefix).append(unescaped);
 				}
-				else if (unescaped.indexOf('"') >= 0 && canBeSingleQuoted(unescaped)) {
-					// A value that cannot be plain (e.g. starts with a flow indicator
-					// like
-					// "{{") but contains double quotes is emitted by Go's yaml.Marshal in
-					// SINGLE-quote style, not double-quote-with-backslash-escapes. The
-					// backslashes otherwise break a subsequent tpl(toYaml ...) re-parse —
-					// a
-					// common pattern is a config value of {{ include "x" . }} (#327).
+				else if (canBeSingleQuoted(unescaped) && !needsDoubleQuote(unescaped)) {
+					// Go's yaml.Marshal (Helm's toYaml, via sigs.k8s.io/yaml -> yaml.v2)
+					// emits SINGLE-quote style for non-plain scalars — e.g. values with a
+					// ": "/" #" indicator or a flow-indicator start like "{{" — reserving
+					// double quotes for empty/numeric/keyword strings (see
+					// needsDoubleQuote)
+					// and control-char content. Single quotes also keep backslashes
+					// literal,
+					// so a re-parse of tpl(toYaml ...) over {{ include "x" . }} stays
+					// intact
+					// (#327).
 					sb.append(prefix).append('\'').append(unescaped.replace("'", "''")).append('\'');
 				}
 				else {
@@ -773,6 +776,16 @@ public final class ConversionFunctions {
 	 * can hold any printable content (with {@code '} doubled), but control characters
 	 * (including newline/tab) force double-quote style, so those are rejected here.
 	 */
+	/**
+	 * Whether Go's yaml.Marshal would keep a non-plain scalar in double-quote style
+	 * rather than single. It reserves double quotes for the empty string and for strings
+	 * that look like another YAML type (numbers, booleans, null) — quoting those keeps
+	 * them strings; everything else quotable is emitted single-quoted.
+	 */
+	private static boolean needsDoubleQuote(String s) {
+		return s.isEmpty() || NUMERIC.matcher(s).matches() || YAML_KEYWORDS.contains(s.toLowerCase(Locale.ROOT));
+	}
+
 	private static boolean canBeSingleQuoted(String s) {
 		for (int i = 0; i < s.length(); i++) {
 			char c = s.charAt(i);
