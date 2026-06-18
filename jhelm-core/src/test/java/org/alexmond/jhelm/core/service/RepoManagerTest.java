@@ -88,6 +88,20 @@ class RepoManagerTest {
 	}
 
 	@Test
+	void testVersionComparisonMatchesHelmSemver() {
+		RepoManager rm = new RepoManager();
+		// A leading "v" must not rank an old version above a newer bare one — the bug
+		// that
+		// made jhelm pick the 404'ing prometheus-adapter v0.5.0 over 5.3.0.
+		assertTrue(rm.safeCompareVersions("5.3.0", "v0.5.0") > 0, "5.3.0 should outrank v0.5.0");
+		assertTrue(rm.safeCompareVersions("v1.2.0", "1.10.0") < 0, "1.10.0 should outrank v1.2.0 (numeric)");
+		// A normal release outranks an equal pre-release (Helm picks the latest stable).
+		assertTrue(rm.safeCompareVersions("1.0.0", "1.0.0-rc1") > 0, "stable should outrank its pre-release");
+		assertTrue(rm.safeCompareVersions("1.0.0-rc2", "1.0.0-rc1") > 0, "rc2 should outrank rc1");
+		assertEquals(0, rm.safeCompareVersions("2.1.0", "v2.1.0"), "v-prefix is ignored");
+	}
+
+	@Test
 	void testComputeFileSha256() throws IOException {
 		RepoManager repoManager = new RepoManager();
 		File file = tempDir.resolve("test.bin").toFile();

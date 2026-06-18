@@ -393,7 +393,15 @@ public class RepoManager {
 		}
 	}
 
-	private int safeCompareVersions(String v1, String v2) {
+	/**
+	 * Compares two chart versions by SemVer precedence, matching how Helm selects the
+	 * "latest" version to fetch. A leading {@code v} is ignored ({@code v0.5.0} ==
+	 * release {@code 0.5.0}), the {@code major.minor.patch} core is compared numerically,
+	 * and a release with no pre-release ranks <em>above</em> an otherwise-equal
+	 * pre-release (so {@code 5.3.0} beats {@code 5.3.0-rc1} and the stale
+	 * {@code v0.5.0}).
+	 */
+	int safeCompareVersions(String v1, String v2) {
 		if (v1 == null && v2 == null) {
 			return 0;
 		}
@@ -403,8 +411,38 @@ public class RepoManager {
 		if (v2 == null) {
 			return 1;
 		}
-		String[] p1 = v1.split("[.-]");
-		String[] p2 = v2.split("[.-]");
+		v1 = stripLeadingV(v1);
+		v2 = stripLeadingV(v2);
+		String core1 = v1;
+		String pre1 = "";
+		int dash1 = v1.indexOf('-');
+		if (dash1 >= 0) {
+			core1 = v1.substring(0, dash1);
+			pre1 = v1.substring(dash1 + 1);
+		}
+		String core2 = v2;
+		String pre2 = "";
+		int dash2 = v2.indexOf('-');
+		if (dash2 >= 0) {
+			core2 = v2.substring(0, dash2);
+			pre2 = v2.substring(dash2 + 1);
+		}
+		int coreCmp = compareCoreVersions(core1, core2);
+		if (coreCmp != 0) {
+			return coreCmp;
+		}
+		// Same major.minor.patch: per SemVer a normal version outranks a pre-release.
+		boolean hasPre1 = !pre1.isEmpty();
+		boolean hasPre2 = !pre2.isEmpty();
+		if (hasPre1 != hasPre2) {
+			return hasPre1 ? -1 : 1;
+		}
+		return pre1.compareTo(pre2);
+	}
+
+	private int compareCoreVersions(String core1, String core2) {
+		String[] p1 = core1.split("\\.");
+		String[] p2 = core2.split("\\.");
 		int n = Math.max(p1.length, p2.length);
 		for (int i = 0; i < n; i++) {
 			String a = (i < p1.length) ? p1[i] : "0";
@@ -424,6 +462,10 @@ public class RepoManager {
 			}
 		}
 		return 0;
+	}
+
+	private String stripLeadingV(String v) {
+		return (!v.isEmpty() && (v.charAt(0) == 'v' || v.charAt(0) == 'V')) ? v.substring(1) : v;
 	}
 
 	private int parseIntSafe(String s) {
