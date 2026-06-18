@@ -29,6 +29,10 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.install_id"
         reason: "install_id is a random UUID generated per render"
+      # Unix timestamp of the render — the Helm and JHelm renders happen seconds apart
+      - resource: "ConfigMap/*"
+        path: "data.install_time"
+        reason: "install_time is the render Unix timestamp; differs by seconds between the two renders"
     "[ananace-charts/matrix-synapse]":
       # registration_shared_secret is generated per render (randAlphaNum)
       - resource: "Secret/*"

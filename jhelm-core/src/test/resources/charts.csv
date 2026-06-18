@@ -57,3 +57,7 @@ grafana/k8s-monitoring,grafana,https://grafana.github.io/helm-charts
 nfs-subdir-external-provisioner/nfs-subdir-external-provisioner,nfs-subdir-external-provisioner,https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/
 prometheus-community/prometheus-adapter,prometheus-community,https://prometheus-community.github.io/helm-charts
 deliveryhero/node-problem-detector,deliveryhero,https://charts.deliveryhero.io/
+datadog/datadog,datadog,https://helm.datadoghq.com
+argo/argo-workflows,argo,https://argoproj.github.io/argo-helm
+grafana/tempo,grafana,https://grafana.github.io/helm-charts
+grafana/mimir-distributed,grafana,https://grafana.github.io/helm-charts
