@@ -148,3 +148,7 @@ jhelmtest:
               config:
                 secret: gitlab-backup-storage
                 key: config
+    "[nfs-subdir-external-provisioner/nfs-subdir-external-provisioner]":
+      nfs:
+        server: 10.0.0.1
+        path: /exported/path

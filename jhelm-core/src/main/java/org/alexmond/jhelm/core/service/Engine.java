@@ -28,17 +28,30 @@ import org.alexmond.jhelm.core.model.VersionSet;
 @Slf4j
 public class Engine {
 
-	// Full set of API group versions matching k8s client-go v1.31 scheme registration.
-	// Helm builds this from scheme.Scheme.PrioritizedVersionsAllGroups().
-	private static final List<String> DEFAULT_API_VERSIONS = List.of("v1", "admissionregistration.k8s.io/v1",
-			"admissionregistration.k8s.io/v1beta1", "apiextensions.k8s.io/v1", "apiregistration.k8s.io/v1", "apps/v1",
-			"authentication.k8s.io/v1", "authentication.k8s.io/v1beta1", "authorization.k8s.io/v1", "autoscaling/v2",
-			"autoscaling/v1", "batch/v1", "certificates.k8s.io/v1", "certificates.k8s.io/v1alpha1",
-			"coordination.k8s.io/v1", "coordination.k8s.io/v1alpha2", "discovery.k8s.io/v1", "events.k8s.io/v1",
-			"flowcontrol.apiserver.k8s.io/v1", "flowcontrol.apiserver.k8s.io/v1beta3",
-			"internal.apiserver.k8s.io/v1alpha1", "networking.k8s.io/v1", "networking.k8s.io/v1alpha1",
-			"node.k8s.io/v1", "policy/v1", "rbac.authorization.k8s.io/v1", "resource.k8s.io/v1alpha3",
-			"scheduling.k8s.io/v1", "storage.k8s.io/v1", "storage.k8s.io/v1alpha1", "storagemigration.k8s.io/v1alpha1");
+	// Exactly Helm's built-in chartutil.DefaultVersionSet — the .Capabilities.APIVersions
+	// that `helm template` exposes with no live cluster (dumped from helm 3.x). Matching
+	// it
+	// verbatim keeps `.Capabilities.APIVersions.Has` checks in parity with Helm; notably
+	// it
+	// excludes apiregistration.k8s.io/* and keeps legacy *beta1 groups (e.g. extensions/
+	// v1beta1, apps/v1beta1, autoscaling/v2beta1) that a newer client-go scheme drops.
+	private static final List<String> DEFAULT_API_VERSIONS = List.of("admissionregistration.k8s.io/v1",
+			"admissionregistration.k8s.io/v1alpha1", "admissionregistration.k8s.io/v1beta1", "apiextensions.k8s.io/v1",
+			"apiextensions.k8s.io/v1beta1", "apps/v1", "apps/v1beta1", "apps/v1beta2", "authentication.k8s.io/v1",
+			"authentication.k8s.io/v1alpha1", "authentication.k8s.io/v1beta1", "authorization.k8s.io/v1",
+			"authorization.k8s.io/v1beta1", "autoscaling/v1", "autoscaling/v2", "autoscaling/v2beta1",
+			"autoscaling/v2beta2", "batch/v1", "batch/v1beta1", "certificates.k8s.io/v1",
+			"certificates.k8s.io/v1alpha1", "certificates.k8s.io/v1beta1", "coordination.k8s.io/v1",
+			"coordination.k8s.io/v1alpha2", "coordination.k8s.io/v1beta1", "discovery.k8s.io/v1",
+			"discovery.k8s.io/v1beta1", "events.k8s.io/v1", "events.k8s.io/v1beta1", "extensions/v1beta1",
+			"flowcontrol.apiserver.k8s.io/v1", "flowcontrol.apiserver.k8s.io/v1beta1",
+			"flowcontrol.apiserver.k8s.io/v1beta2", "flowcontrol.apiserver.k8s.io/v1beta3",
+			"internal.apiserver.k8s.io/v1alpha1", "networking.k8s.io/v1", "networking.k8s.io/v1beta1", "node.k8s.io/v1",
+			"node.k8s.io/v1alpha1", "node.k8s.io/v1beta1", "policy/v1", "policy/v1beta1",
+			"rbac.authorization.k8s.io/v1", "rbac.authorization.k8s.io/v1alpha1", "rbac.authorization.k8s.io/v1beta1",
+			"resource.k8s.io/v1", "resource.k8s.io/v1alpha3", "resource.k8s.io/v1beta1", "resource.k8s.io/v1beta2",
+			"scheduling.k8s.io/v1", "scheduling.k8s.io/v1alpha1", "scheduling.k8s.io/v1beta1", "storage.k8s.io/v1",
+			"storage.k8s.io/v1alpha1", "storage.k8s.io/v1beta1", "storagemigration.k8s.io/v1alpha1", "v1");
 
 	private final Map<String, String> namedTemplates = new HashMap<>();
 
