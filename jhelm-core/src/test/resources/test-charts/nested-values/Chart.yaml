@@ -1,0 +1,4 @@
+apiVersion: v2
+name: nested-values
+version: 1.0.0
+description: Umbrella reading a 2-levels-deep subchart default (regression for #21)
