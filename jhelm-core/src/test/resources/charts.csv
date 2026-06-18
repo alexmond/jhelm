@@ -61,3 +61,9 @@ datadog/datadog,datadog,https://helm.datadoghq.com
 argo/argo-workflows,argo,https://argoproj.github.io/argo-helm
 grafana/tempo,grafana,https://grafana.github.io/helm-charts
 grafana/mimir-distributed,grafana,https://grafana.github.io/helm-charts
+kedacore/keda,kedacore,https://kedacore.github.io/charts
+stakater/reloader,stakater,https://stakater.github.io/stakater-charts
+prometheus-community/kube-state-metrics,prometheus-community,https://prometheus-community.github.io/helm-charts
+opentelemetry/opentelemetry-operator,opentelemetry,https://open-telemetry.github.io/opentelemetry-helm-charts
+bitnami/clickhouse,bitnami,https://charts.bitnami.com/bitnami
+bitnami/valkey,bitnami,https://charts.bitnami.com/bitnami
