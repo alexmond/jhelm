@@ -13,6 +13,7 @@ import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.RepoManager;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -204,6 +205,7 @@ class KpsComparisonTest {
 		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
 	}
 
+	@Tag("comparison")
 	@ParameterizedTest
 	@CsvFileSource(resources = "/charts.csv")
 	void compareAllTopCharts(String chartName, String repoId, String repoUrl) throws Exception {
@@ -227,6 +229,7 @@ class KpsComparisonTest {
 		}
 	}
 
+	@Tag("comparison")
 	@Test
 	void compareFailedCharts() throws Exception {
 		List<String[]> charts = readFailedCsv();
@@ -886,6 +889,7 @@ class KpsComparisonTest {
 		return args.stream();
 	}
 
+	@Tag("comparison")
 	@ParameterizedTest
 	@MethodSource("topCharts")
 	void compareTopCharts(String chartName, String repoId, String repoUrl) throws Exception {
