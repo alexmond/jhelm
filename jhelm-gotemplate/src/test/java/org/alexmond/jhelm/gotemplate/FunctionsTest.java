@@ -132,6 +132,15 @@ class FunctionsTest {
 	}
 
 	@Test
+	void testPrintfWrongTypeEmitsGoMarker() {
+		// Go prints `%!verb(type=value)` for a non-numeric arg on a numeric verb;
+		// yugabyte does `printf "%d" "4Gi" | regexFind "\\d+"` to extract the digits.
+		Function printf = Functions.GO_BUILTINS.get("printf");
+		assertEquals("%!d(string=4Gi)", printf.invoke(new Object[] { "%d", "4Gi" }));
+		assertEquals("port=%!d(string=7000)", printf.invoke(new Object[] { "port=%d", "7000" }));
+	}
+
+	@Test
 	void testPrintfToleratesErbStyleLiterals() {
 		// gitlab routes an ERB literal through printf; %= and %> are not Java
 		// conversions.
