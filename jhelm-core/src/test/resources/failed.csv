@@ -11,3 +11,12 @@
 # several shared-secrets/migrations/issuer Jobs differ by content-hash suffix, the Gateway
 # object is missing a couple of listeners, and a test-hook Pod has a random name suffix.
 gitlab/gitlab,gitlab,https://charts.gitlab.io
+#
+# argo-events: Helm renders a large integer values default in scientific notation.
+# The controller-config ConfigMap interpolates
+# `{{ .Values.configs.jetstream.streamConfig.maxMsgs }}` (default 1000000) directly;
+# Helm loads values numbers as float64 so it prints `1e+06`, jhelm keeps the integer
+# and prints `1000000`. Matching Helm's large-int->scientific gotcha would require
+# treating every values.yaml integer as a double (risky, affects all direct
+# interpolations); deferred. (#27)
+argo/argo-events,argo,https://argoproj.github.io/argo-helm
