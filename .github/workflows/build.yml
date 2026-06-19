@@ -39,14 +39,13 @@ jobs:
         with:
           url: ${{ vars.UNITRACK_URL }}
           token: ${{ secrets.UNITRACK_TOKEN }}
-          # Full coverage + unit tests from the pure-template modules. The chart-parity tests
-          # (kube/rest/cli/core/gotemplate-sprig) embed full rendered charts in surefire's
-          # system-out — ~1-2GB of XML, >100MB even gzipped. To upload those too, set surefire
-          # <redirectTestOutputToFile>true</redirectTestOutputToFile> (keeps console out of the
-          # XML) or shard per-module with a shared run-key.
-          junit: |
-            jhelm-gotemplate/**/surefire-reports/TEST-*.xml
-            jhelm-gotemplate-helm/**/surefire-reports/TEST-*.xml
+          # soft-fail: reporting to UniTrack must never fail the build.
+          # jhelm's tests embed full rendered charts in surefire system-out — ~GBs of XML,
+          # >100MB even gzipped. Until surefire <redirectTestOutputToFile>true</...> trims that
+          # (or you shard per-module with a shared run-key), upload coverage for everything plus
+          # tests from one small module; widen `junit` to **/ afterwards.
+          soft-fail: "true"
+          junit: 'jhelm-gotemplate-helm/**/surefire-reports/TEST-*.xml'
           jacoco: '**/target/site/jacoco/jacoco.xml'
 
 #      - name: Publish Test Results
