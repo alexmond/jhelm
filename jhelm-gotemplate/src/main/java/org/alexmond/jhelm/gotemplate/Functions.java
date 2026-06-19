@@ -58,9 +58,10 @@ public final class Functions {
 
 	private static Function index() {
 		return (args) -> {
-			if (args.length < 2) {
+			if (args.length == 0) {
 				return null;
 			}
+			// Go's `index x` with no keys returns x itself; only indexing keys descend.
 			Object result = args[0];
 			for (int i = 1; i < args.length; i++) {
 				Object key = args[i];

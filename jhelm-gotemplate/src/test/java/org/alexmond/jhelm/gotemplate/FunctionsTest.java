@@ -112,6 +112,14 @@ class FunctionsTest {
 	}
 
 	@Test
+	void testIndexWithNoKeysReturnsValueItself() throws Exception {
+		// Go's `index x` with no indexing keys returns x unchanged.
+		Function index = Functions.GO_BUILTINS.get("index");
+		assertEquals(8080, index.invoke(new Object[] { 8080 }));
+		assertEquals("value", index.invoke(new Object[] { "value" }));
+	}
+
+	@Test
 	void testIndexFromList() throws Exception {
 		Function index = Functions.GO_BUILTINS.get("index");
 		List<String> list = List.of("a", "b", "c");
@@ -132,9 +140,16 @@ class FunctionsTest {
 	}
 
 	@Test
-	void testIndexInsufficientArgs() throws Exception {
+	void testIndexWithoutKeysReturnsCollectionItself() throws Exception {
+		// Go's `index x` with no indexing keys returns x unchanged, even for a map.
 		Function index = Functions.GO_BUILTINS.get("index");
-		assertNull(index.invoke(new Object[] { Map.of("a", 1) }));
+		assertEquals(Map.of("a", 1), index.invoke(new Object[] { Map.of("a", 1) }));
+	}
+
+	@Test
+	void testIndexNoArgsReturnsNull() throws Exception {
+		Function index = Functions.GO_BUILTINS.get("index");
+		assertNull(index.invoke(new Object[] {}));
 	}
 
 	@Test
