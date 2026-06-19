@@ -191,6 +191,36 @@ class EngineTest {
 	}
 
 	@Test
+	void testSubchartNullValuesPrunedButTopLevelKept() {
+		// Helm drops null-valued keys while coalescing a subchart ("setting a key to null
+		// removes it"), but keeps them for the top-level release chart. Render the key
+		// set
+		// of an identical map in both and confirm the subchart loses its null key.
+		Map<String, Object> subCtx = new HashMap<>();
+		subCtx.put("a", 1);
+		subCtx.put("b", null);
+		Chart subchart = simpleChart("sub", "1.0.0",
+				List.of(tmpl("k.yaml", "subkeys:{{ range $k, $v := .Values.ctx }} {{ $k }}{{ end }}")),
+				Map.of("ctx", subCtx));
+
+		Map<String, Object> parentCtx = new HashMap<>();
+		parentCtx.put("a", 1);
+		parentCtx.put("b", null);
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder().name("parent").version("1.0.0").build())
+			.templates(List.of(tmpl("k.yaml", "parentkeys:{{ range $k, $v := .Values.ctx }} {{ $k }}{{ end }}")))
+			.values(Map.of("ctx", parentCtx))
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("parentkeys: a b"), "top-level null key kept: " + result);
+		assertTrue(result.contains("subkeys: a\n") || result.trim().endsWith("subkeys: a"),
+				"subchart null key pruned: " + result);
+		assertFalse(result.contains("subkeys: a b"), "subchart must not keep null key: " + result);
+	}
+
+	@Test
 	void testManySubchartHelpersDoNotExplodeNodeMap() {
 		// Regression for #311: createChartPrefixedAliases used to re-alias the entire
 		// named-template set on every helper file, compounding chart prefixes across
