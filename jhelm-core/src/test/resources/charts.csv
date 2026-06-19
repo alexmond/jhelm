@@ -212,3 +212,15 @@ linkerd/linkerd2-cni,linkerd,https://helm.linkerd.io/stable
 nginx-stable/nginx-ingress,nginx-stable,https://helm.nginx.com/stable
 open-telemetry/opentelemetry-kube-stack,open-telemetry,https://open-telemetry.github.io/opentelemetry-helm-charts
 prometheus-community/prometheus-systemd-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+bitnami/gitea,bitnami,https://charts.bitnami.com/bitnami
+bitnami/mediawiki,bitnami,https://charts.bitnami.com/bitnami
+bitnami/minio,bitnami,https://charts.bitnami.com/bitnami
+bitnami/opencart,bitnami,https://charts.bitnami.com/bitnami
+bitnami/owncloud,bitnami,https://charts.bitnami.com/bitnami
+bitnami/phpbb,bitnami,https://charts.bitnami.com/bitnami
+bitnami/prestashop,bitnami,https://charts.bitnami.com/bitnami
+bitnami/sonarqube,bitnami,https://charts.bitnami.com/bitnami
+bitnami/suitecrm,bitnami,https://charts.bitnami.com/bitnami
+bitnami/vault,bitnami,https://charts.bitnami.com/bitnami
+codecentric/keycloakx,codecentric,https://codecentric.github.io/helm-charts
+cetic/nifi,cetic,https://cetic.github.io/helm-charts
