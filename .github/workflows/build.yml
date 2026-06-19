@@ -33,6 +33,15 @@ jobs:
       - name: Build with Maven
         run: ./mvnw clean install -B --fail-at-end
 
+      - name: Report tests + coverage to UniTrack
+        if: always()
+        uses: alexmond/unitrack/action@v0
+        with:
+          url: ${{ vars.UNITRACK_URL }}
+          token: ${{ secrets.UNITRACK_TOKEN }}
+          junit: '**/surefire-reports/TEST-*.xml'
+          jacoco: '**/target/site/jacoco/jacoco.xml'
+
 #      - name: Publish Test Results
 #        uses: EnricoMi/publish-unit-test-result-action@v2
 #        if: always()
