@@ -26,10 +26,19 @@ byte-parity gate against `helm template` plus an extraction-ready template engin
 * YAML document splitting tolerates a `---` separator with trailing whitespace, so the
   following resource is no longer glued onto the previous document.
 * `merge`/`mergeOverwrite`/`fromYaml` no longer throw on immutable maps.
+* `title` matches Go's `strings.Title`: it title-cases the letter after a separator and
+  leaves the rest of each word untouched (`xtrabackupSidecar` -> `XtrabackupSidecar`).
+* `index x` with no indexing keys returns `x` itself (Go semantics), instead of `null`.
+* `printf` matches Go's `fmt` for several verbs: `%t` prints `true`/`false`, a whole
+  `float64` via `%v` prints without a trailing `.0`, and surplus verbs emit
+  `%!verb(MISSING)` instead of aborting the render.
 
 === Build & coverage
 
 * Spring Boot 4.0.6; `spring-retry` migrated to the `spring-core` retry API.
-* Comparison-suite coverage grown from 54 to 90 charts, all rendering identically to Helm
-  (k8s-monitoring, kube-prometheus-stack, victoria-metrics-k8s-stack, istio, consul,
-  airflow, datadog, and more).
+* Comparison-suite coverage grown from 54 to *300 charts*, all rendering identically to
+  Helm — meeting the 0.1.0 conformance gate. Spans the bitnami library, the
+  prometheus-community exporters, grafana/loki/mimir/tempo, istio, elastic/eck,
+  victoria-metrics, the ory/percona/mongodb/kuberay/strimzi operators, and many more.
+* The chart-parity suite is tagged `comparison` and excluded from the default build, so
+  `mvn verify` stays fast; the full suite runs in a dedicated CI job.

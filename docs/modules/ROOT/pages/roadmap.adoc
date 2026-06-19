@@ -19,13 +19,13 @@ extraction-ready engine*. The release is cut via `maven_release.yml`
 | *≥ 300 charts* render byte-identical to `helm template` in CI (the `KpsComparisonTest`
   suite, `charts.csv`), order-independent and with only the documented comparison-ignores
   (random/timestamp names, generated secrets/certs).
-| 90 / 300
+| ✅ 300 / 300
 
 | Engine maturity
 | The Go template engine (`jhelm-gotemplate` + `-sprig` + `-helm`) is in a *very advanced,
   extraction-ready state* — see "`gotmpl4j` readiness" below. The 300-chart suite is its
   de-facto conformance test.
-| In progress
+| Advanced — 300-chart suite green; remaining gaps tracked as discrete issues
 
 | Supported surface
 | All modules ship as supported: `gotemplate`/`sprig`/`helm` (engine), `core` (chart
