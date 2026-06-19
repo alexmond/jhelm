@@ -16,3 +16,4 @@ jupyterhub/jupyterhub,Helm fails on fetched version (.Release.Time.Seconds remov
 robusta/robusta,Helm fails with default values: "At least one sink must be defined"
 victoria-metrics/victoria-metrics-agent,Helm fails with default values (requires remoteWrite url)
 victoria-metrics/victoria-metrics-alert,Helm fails with default values (requires datasource/notifier url)
+victoria-metrics/victoria-metrics-gateway,Helm fails with default values (requires upstream/auth config)

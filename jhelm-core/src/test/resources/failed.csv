@@ -67,3 +67,7 @@ pomerium/pomerium,pomerium,https://helm.pomerium.io
 # (Deployment/Service/ServiceAccount for *-gateway*); subchart-enablement gap
 # (same class as the bitnami grafana memcached omission, #30).
 kong/ingress,kong,https://charts.konghq.com
+#
+# redpanda/console: jhelm renders zero resources where Helm renders the console
+# Deployment/Service/ConfigMap/Secret/SA; a top-level conditional-enablement gap.
+redpanda/console,redpanda,https://charts.redpanda.com
