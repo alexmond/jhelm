@@ -34,6 +34,8 @@ class StringFunctionsTest {
 			value = { "{{ upper \"hello\" }}                          | HELLO",
 					"{{ lower \"HELLO\" }}                          | hello",
 					"{{ title \"hello world\" }}                    | Hello World",
+					"{{ title \"xtrabackupSidecar\" }}              | XtrabackupSidecar",
+					"{{ title \"hello-world\" }}                    | Hello-World",
 					"{{ repeat 3 \"ab\" }}                          | ababab",
 					"{{ substr 0 5 \"Hello World\" }}               | Hello",
 					"{{ trim \"  hello  \" }}                       | hello",
