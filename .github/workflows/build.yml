@@ -39,8 +39,8 @@ jobs:
         with:
           url: ${{ vars.UNITRACK_URL }}
           token: ${{ secrets.UNITRACK_TOKEN }}
-          junit: '**/surefire-reports/TEST-*.xml'
-          jacoco: '**/target/site/jacoco/jacoco.xml'
+          junit: './**/surefire-reports/TEST-*.xml'
+          jacoco: './**/target/site/jacoco/jacoco.xml'
 
 #      - name: Publish Test Results
 #        uses: EnricoMi/publish-unit-test-result-action@v2
