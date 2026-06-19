@@ -113,6 +113,17 @@ class FunctionsTest {
 	}
 
 	@Test
+	void testPrintfNilArgEmitsGoMarker() {
+		// Go prints a bad-verb marker for a nil arg: %s -> %!s(<nil>), %v -> <nil>.
+		Function printf = Functions.GO_BUILTINS.get("printf");
+		assertEquals("linkerd/helm %!s(<nil>)", printf.invoke(new Object[] { "linkerd/helm %s", null }));
+		assertEquals("%!s(<nil>):5432", printf.invoke(new Object[] { "%s:5432", null }));
+		assertEquals("<nil>", printf.invoke(new Object[] { "%v", null }));
+		// A present value is unaffected.
+		assertEquals("host:5432", printf.invoke(new Object[] { "%s:5432", "host" }));
+	}
+
+	@Test
 	void testPrintfEmitsMissingMarkerForSurplusVerbs() {
 		// Go prints `%!s(MISSING)` for a verb with no argument instead of aborting;
 		// bitnami harbor's noProxy helper feeds 7 args to an 11-verb format string.
