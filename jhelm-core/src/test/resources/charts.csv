@@ -88,3 +88,17 @@ hashicorp/consul,hashicorp,https://helm.releases.hashicorp.com
 vector/vector,vector,https://helm.vector.dev
 authentik/authentik,authentik,https://charts.goauthentik.io
 bitnami/tomcat,bitnami,https://charts.bitnami.com/bitnami
+bitnami/cassandra,bitnami,https://charts.bitnami.com/bitnami
+bitnami/zookeeper,bitnami,https://charts.bitnami.com/bitnami
+bitnami/nats,bitnami,https://charts.bitnami.com/bitnami
+bitnami/etcd,bitnami,https://charts.bitnami.com/bitnami
+bitnami/memcached,bitnami,https://charts.bitnami.com/bitnami
+bitnami/influxdb,bitnami,https://charts.bitnami.com/bitnami
+prometheus-community/alertmanager,prometheus-community,https://prometheus-community.github.io/helm-charts
+prometheus-community/prometheus-node-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+kong/kong,kong,https://charts.konghq.com
+aqua/trivy,aqua,https://aquasecurity.github.io/helm-charts
+falcosecurity/falco,falcosecurity,https://falcosecurity.github.io/charts
+grafana/pyroscope,grafana,https://grafana.github.io/helm-charts
+bitnami/redis-cluster,bitnami,https://charts.bitnami.com/bitnami
+prometheus-community/prometheus-snmp-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
