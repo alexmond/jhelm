@@ -203,3 +203,12 @@ bitnami/kong,bitnami,https://charts.bitnami.com/bitnami
 bitnami/grafana-operator,bitnami,https://charts.bitnami.com/bitnami
 emqx/emqx-operator,emqx,https://repos.emqx.io/charts
 newrelic/nri-metadata-injection,newrelic,https://helm-charts.newrelic.com
+bitnami/flink,bitnami,https://charts.bitnami.com/bitnami
+bitnami/pinniped,bitnami,https://charts.bitnami.com/bitnami
+elastic/eck-stack,elastic,https://helm.elastic.co
+jetstack/cert-manager-approver-policy,jetstack,https://charts.jetstack.io
+jetstack/cert-manager-csi-driver-spiffe,jetstack,https://charts.jetstack.io
+linkerd/linkerd2-cni,linkerd,https://helm.linkerd.io/stable
+nginx-stable/nginx-ingress,nginx-stable,https://helm.nginx.com/stable
+open-telemetry/opentelemetry-kube-stack,open-telemetry,https://open-telemetry.github.io/opentelemetry-helm-charts
+prometheus-community/prometheus-systemd-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts

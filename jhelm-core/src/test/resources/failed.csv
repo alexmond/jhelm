@@ -48,3 +48,8 @@ bitnami/grafana-mimir,bitnami,https://charts.bitnami.com/bitnami
 # `securityContext.seLinuxOptions: null` where Helm omits the key entirely
 # (bitnami-common null securityContext field handling). (#31)
 bitnami/jasperreports,bitnami,https://charts.bitnami.com/bitnami
+#
+# prometheus-pgbouncer-exporter: connection-string env renders
+# "%!s(<nil>):5432/..." under Helm (printf %s of a nil host) but ":5432/..." under
+# jhelm; same nil-arg printf gap as linkerd-crds (#29).
+prometheus-community/prometheus-pgbouncer-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
