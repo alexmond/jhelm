@@ -2,6 +2,80 @@
 
 This document outlines the planned improvements, feature priorities, and strategic vision for jhelm.
 
+== 0.1.0 Prerelease Target
+
+The first published prerelease (`0.1.0`, on Maven Central, marked _pre-release_) is defined
+by two things being true at once: a *broad real-world conformance bar* and a *stable,
+extraction-ready engine*. The release is cut via `maven_release.yml`
+(`releaseVersion=0.1.0`, `nextVersion=0.2.0-SNAPSHOT`).
+
+=== Exit criteria (Definition of Done)
+
+[cols="1,3,1"]
+|===
+| Area | Criterion | Status
+
+| Conformance gate
+| *≥ 300 charts* render byte-identical to `helm template` in CI (the `KpsComparisonTest`
+  suite, `charts.csv`), order-independent and with only the documented comparison-ignores
+  (random/timestamp names, generated secrets/certs).
+| 90 / 300
+
+| Engine maturity
+| The Go template engine (`jhelm-gotemplate` + `-sprig` + `-helm`) is in a *very advanced,
+  extraction-ready state* — see "`gotmpl4j` readiness" below. The 300-chart suite is its
+  de-facto conformance test.
+| In progress
+
+| Supported surface
+| All modules ship as supported: `gotemplate`/`sprig`/`helm` (engine), `core` (chart
+  lifecycle: install/upgrade/rollback/uninstall/list/status/history), `kube` (apply/wait),
+  `rest`, `plugin`, `cli`, plus the Spring Boot starter.
+| —
+
+| Repo + deps
+| HTTP and OCI repositories with digest verification; Helm-faithful SemVer version
+  selection; recursive dependency value coalescing; hooks; JSON-Schema validation.
+| Mostly done
+
+| Quality gates
+| `spring-javaformat`, Checkstyle, PMD, and JaCoCo coverage all green on a full
+  `./mvnw clean verify`.
+| Green
+
+| Docs
+| Antora docs current; `CHANGELOG.adoc` `0.1.0` section; README "`Status`" reflects the
+  prerelease.
+| In progress
+|===
+
+=== `gotmpl4j` readiness (engine extraction)
+
+The Go template engine is planned to be extracted into a standalone library
+(`gotmpl4j`, with a Spring Boot starter) _after_ `0.1.0`. Splitting it later complicates
+cross-repo development, so `0.1.0` requires the engine to already be in a *very advanced
+state* so the eventual extraction is mechanical, not a redesign:
+
+* *Correctness* — no known rendering gaps; the 300-chart parity suite is the conformance
+  bar.
+* *Clean boundary* — `jhelm-gotemplate` has zero dependencies on `sprig`, `helm`, or
+  `core`; Sprig (priority 100) and Helm (priority 200) functions load only via
+  `ServiceLoader`. (Enforced by the gotemplate-module rule.)
+* *Stable API* — `GoTemplate`, `Function`, `FunctionProvider` are settled; no breaking
+  churn expected post-split.
+* *Coverage* — comprehensive unit tests for lexer/parser/executor and every function
+  category, independent of the chart suite.
+
+=== Explicit non-goals for 0.1.0
+
+* Full *gitlab* parity — blocked on a complete Helm `CoalesceValues`/`ProcessDependencies`
+  reimplementation (deep, high-risk); tracked separately.
+* The `gotmpl4j` *extraction itself* — `0.1.0` makes the engine _ready_; the split lands
+  post-`0.1.0`.
+* Charts that are inherently uncomparable to a separate `helm template` run (wall-clock
+  timestamps or random suffixes in resource _names_).
+* Server-Side Apply, WASM plugins, post-renderers, and chart signing (later phases below).
+
 == Recommended Implementation Roadmap
 
 The roadmap is divided into several phases focusing on compatibility, feature completeness, and architectural modernization.
