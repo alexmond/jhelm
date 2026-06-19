@@ -53,3 +53,12 @@ bitnami/jasperreports,bitnami,https://charts.bitnami.com/bitnami
 # "%!s(<nil>):5432/..." under Helm (printf %s of a nil host) but ":5432/..." under
 # jhelm; same nil-arg printf gap as linkerd-crds (#29).
 prometheus-community/prometheus-pgbouncer-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+#
+# bitnami/osclass: same bundled-mariadb seLinuxOptions: null vs omitted-key quirk
+# as jasperreports (#31).
+bitnami/osclass,bitnami,https://charts.bitnami.com/bitnami
+#
+# pomerium/pomerium: the per-Deployment config `checksum` annotation differs because
+# the checksummed config embeds generated shared/cookie secrets (randAlphaNum),
+# same #237 class as checksum/* but with a bare `checksum` key.
+pomerium/pomerium,pomerium,https://helm.pomerium.io
