@@ -127,3 +127,17 @@ grafana/grafana-agent-operator,grafana,https://grafana.github.io/helm-charts
 grafana/k6-operator,grafana,https://grafana.github.io/helm-charts
 minio/minio,minio,https://charts.min.io/
 fluxcd/flux2,fluxcd,https://fluxcd-community.github.io/helm-charts
+prometheus-community/prometheus-json-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+prometheus-community/prometheus-statsd-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+prometheus-community/prometheus-nats-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+prometheus-community/prometheus-cloudwatch-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+prometheus-community/prometheus-memcached-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+prometheus-community/prometheus-couchdb-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+prometheus-community/prometheus-rabbitmq-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+prometheus-community/prometheus-pingdom-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+argo/argo-rollouts,argo,https://argoproj.github.io/argo-helm
+jaegertracing/jaeger-operator,jaegertracing,https://jaegertracing.github.io/helm-charts
+oauth2-proxy/oauth2-proxy,oauth2-proxy,https://oauth2-proxy.github.io/manifests
+dexidp/dex,dexidp,https://charts.dexidp.io
+kubernetes-dashboard/kubernetes-dashboard,kubernetes-dashboard,https://kubernetes.github.io/dashboard/
+grafana/rollout-operator,grafana,https://grafana.github.io/helm-charts
