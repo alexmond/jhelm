@@ -33,13 +33,15 @@ jobs:
       - name: Build with Maven
         run: ./mvnw clean install -B --fail-at-end
 
-      - name: Report tests + coverage to UniTrack
+      - name: Report coverage to UniTrack
         if: always()
         uses: alexmond/unitrack/action@v0
         with:
           url: ${{ vars.UNITRACK_URL }}
           token: ${{ secrets.UNITRACK_TOKEN }}
-          junit: './**/surefire-reports/TEST-*.xml'
+          # Coverage only for now: the CI integration/parity suite (Kind, 173 charts) emits
+          # surefire XML larger than Cloudflare's 100MB request cap. jacoco scales with code,
+          # not test output, so it stays small. Re-add junit once the uploader gzips/shards.
           jacoco: './**/target/site/jacoco/jacoco.xml'
 
 #      - name: Publish Test Results
