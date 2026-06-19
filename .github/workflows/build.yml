@@ -39,11 +39,8 @@ jobs:
         with:
           url: ${{ vars.UNITRACK_URL }}
           token: ${{ secrets.UNITRACK_TOKEN }}
-          # Coverage for all modules + unit-test results from the pure-unit gotemplate module.
-          # The Kind-based integration/parity suite (173 charts) emits surefire XML larger than
-          # Cloudflare's 100MB request cap; widen `junit` to **/ once the gzip uploader ships.
-          junit: 'jhelm-gotemplate/**/surefire-reports/TEST-*.xml'
-          jacoco: './**/target/site/jacoco/jacoco.xml'
+          junit: '**/surefire-reports/TEST-*.xml'
+          jacoco: '**/target/site/jacoco/jacoco.xml'
 
 #      - name: Publish Test Results
 #        uses: EnricoMi/publish-unit-test-result-action@v2
