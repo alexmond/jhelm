@@ -113,3 +113,17 @@ gatekeeper/gatekeeper,gatekeeper,https://open-policy-agent.github.io/gatekeeper/
 dapr/dapr,dapr,https://dapr.github.io/helm-charts
 bitnami/jaeger,bitnami,https://charts.bitnami.com/bitnami
 bitnami/grafana,bitnami,https://charts.bitnami.com/bitnami
+bitnami/wildfly,bitnami,https://charts.bitnami.com/bitnami
+bitnami/kubernetes-event-exporter,bitnami,https://charts.bitnami.com/bitnami
+bitnami/fluentd,bitnami,https://charts.bitnami.com/bitnami
+bitnami/logstash,bitnami,https://charts.bitnami.com/bitnami
+bitnami/kibana,bitnami,https://charts.bitnami.com/bitnami
+bitnami/metrics-server,bitnami,https://charts.bitnami.com/bitnami
+bitnami/external-dns,bitnami,https://charts.bitnami.com/bitnami
+bitnami/contour,bitnami,https://charts.bitnami.com/bitnami
+bitnami/argo-cd,bitnami,https://charts.bitnami.com/bitnami
+bitnami/spring-cloud-dataflow,bitnami,https://charts.bitnami.com/bitnami
+grafana/grafana-agent-operator,grafana,https://grafana.github.io/helm-charts
+grafana/k6-operator,grafana,https://grafana.github.io/helm-charts
+minio/minio,minio,https://charts.min.io/
+fluxcd/flux2,fluxcd,https://fluxcd-community.github.io/helm-charts
