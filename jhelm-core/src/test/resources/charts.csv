@@ -240,3 +240,16 @@ victoria-metrics/victoria-metrics-cluster,vm,https://victoriametrics.github.io/h
 victoria-metrics/victoria-metrics-operator,vm,https://victoriametrics.github.io/helm-charts
 victoria-metrics/victoria-metrics-single,vm,https://victoriametrics.github.io/helm-charts
 kuberay/kuberay-operator,kuberay,https://ray-project.github.io/kuberay-helm
+apisix/apisix-ingress-controller,apisix,https://charts.apiseven.com
+bitnami/jupyterhub,bitnami,https://charts.bitnami.com/bitnami
+bitnami/mastodon,bitnami,https://charts.bitnami.com/bitnami
+bitnami/odoo,bitnami,https://charts.bitnami.com/bitnami
+elastic/apm-server,elastic,https://helm.elastic.co
+elastic/filebeat,elastic,https://helm.elastic.co
+elastic/kibana,elastic,https://helm.elastic.co
+elastic/logstash,elastic,https://helm.elastic.co
+elastic/metricbeat,elastic,https://helm.elastic.co
+mariadb-operator/mariadb-operator,mariadb-operator,https://helm.mariadb.com/mariadb-operator
+newrelic/nri-statsd,newrelic,https://helm-charts.newrelic.com
+ory/oathkeeper,ory,https://k8s.ory.sh/helm/charts
+prometheus-community/prometheus-ipmi-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts

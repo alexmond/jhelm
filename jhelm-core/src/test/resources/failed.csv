@@ -62,3 +62,8 @@ bitnami/osclass,bitnami,https://charts.bitnami.com/bitnami
 # the checksummed config embeds generated shared/cookie secrets (randAlphaNum),
 # same #237 class as checksum/* but with a bare `checksum` key.
 pomerium/pomerium,pomerium,https://helm.pomerium.io
+#
+# kong/ingress: jhelm omits the bundled `gateway` subchart resources
+# (Deployment/Service/ServiceAccount for *-gateway*); subchart-enablement gap
+# (same class as the bitnami grafana memcached omission, #30).
+kong/ingress,kong,https://charts.konghq.com
