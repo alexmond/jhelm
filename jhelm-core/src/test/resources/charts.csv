@@ -171,3 +171,16 @@ percona/pxc-operator,percona,https://percona.github.io/percona-helm-charts
 percona/pg-operator,percona,https://percona.github.io/percona-helm-charts
 cockroachdb/cockroachdb,cockroachdb,https://charts.cockroachdb.com
 prometheus-community/prometheus-windows-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+autoscaler/cluster-autoscaler,autoscaler,https://kubernetes.github.io/autoscaler
+haproxytech/kubernetes-ingress,haproxytech,https://haproxytech.github.io/helm-charts
+haproxy-ingress/haproxy-ingress,haproxy-ingress,https://haproxy-ingress.github.io/charts
+istio/gateway,istio,https://istio-release.storage.googleapis.com/charts
+istio/cni,istio,https://istio-release.storage.googleapis.com/charts
+aquasecurity/trivy-operator,aquasecurity,https://aquasecurity.github.io/helm-charts
+projectcalico/tigera-operator,projectcalico,https://docs.tigera.io/calico/charts
+fairwinds/vpa,fairwinds,https://charts.fairwinds.com/stable
+prometheus-community/prometheus-operator-crds,prometheus-community,https://prometheus-community.github.io/helm-charts
+bitnami/mlflow,bitnami,https://charts.bitnami.com/bitnami
+bitnami/scylladb,bitnami,https://charts.bitnami.com/bitnami
+bitnami/whereabouts,bitnami,https://charts.bitnami.com/bitnami
+kuberhealthy/kuberhealthy,kuberhealthy,https://kuberhealthy.github.io/kuberhealthy/helm-repos

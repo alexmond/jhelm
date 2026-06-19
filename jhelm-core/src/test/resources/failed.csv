@@ -32,3 +32,8 @@ kyverno/kyverno-policies,kyverno,https://kyverno.github.io/kyverno/
 # (`%!s(<nil>)`). jhelm renders a nil %s arg as empty. Matching Go's printf error
 # formatting for nil is a niche parity gap. (#29)
 linkerd/linkerd-crds,linkerd,https://helm.linkerd.io/stable
+#
+# zalando/postgres-operator: same large-int->scientific-notation gap as argo-events
+# (#27) -- the pod PriorityClass `value: 1000000` renders as `1e+06` under Helm
+# (values numbers are float64) but `1000000` under jhelm.
+zalando/postgres-operator,zalando,https://opensource.zalando.com/postgres-operator/charts/postgres-operator
