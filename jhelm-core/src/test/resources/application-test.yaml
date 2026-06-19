@@ -56,6 +56,11 @@ jhelmtest:
       - resource: "Deployment/*"
         path: "spec.template.metadata.annotations.hooks-hash"
         reason: "content hash differs by toYaml serialization, not semantics (#237)"
+    "[cetic/nifi]":
+      # flow.xml embeds uuidv4-generated registry/rootGroup ids that differ every render.
+      - resource: "ConfigMap/*"
+        path: "data.flow.xml"
+        reason: "flow.xml contains uuidv4-generated ids regenerated per render"
   # Value overrides for charts that Helm cannot render with default values. The same
   # overrides are applied to both Helm and jhelm, so any divergence is a real jhelm bug.
   comparison-values:
