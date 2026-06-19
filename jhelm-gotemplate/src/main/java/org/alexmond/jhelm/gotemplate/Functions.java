@@ -10,6 +10,7 @@ import java.util.IllegalFormatException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.MissingFormatArgumentException;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.regex.Matcher;
@@ -438,6 +439,21 @@ public final class Functions {
 			try {
 				return String.format(format, realArgs);
 			}
+			catch (MissingFormatArgumentException ex) {
+				// Go's printf tolerates more verbs than arguments, emitting
+				// `%!verb(MISSING)` for each surplus verb instead of aborting (e.g.
+				// bitnami
+				// harbor's noProxy helper passes 7 args to 11 %s verbs). Substitute the
+				// Go
+				// markers and retry; fall back to neutralising if other bad verbs remain.
+				String filled = fillMissingSpecifiers(format, realArgs.length);
+				try {
+					return String.format(filled, realArgs);
+				}
+				catch (IllegalFormatException ex2) {
+					return String.format(neutralizeInvalidFormatSpecifiers(filled), realArgs);
+				}
+			}
 			catch (IllegalFormatException ex) {
 				// Go's fmt never aborts on malformed verbs (it emits best-effort
 				// markers),
@@ -448,6 +464,30 @@ public final class Functions {
 				return String.format(neutralizeInvalidFormatSpecifiers(format), realArgs);
 			}
 		};
+	}
+
+	/**
+	 * Replaces format specifiers that have no corresponding argument with Go's
+	 * {@code %!verb(MISSING)} marker, so a {@code printf} with more verbs than arguments
+	 * renders like Go instead of throwing. The surplus markers are emitted as escaped
+	 * literals ({@code %%...}) so the subsequent {@link String#format} passes them
+	 * through.
+	 * @param format the (already Java-translated) format string
+	 * @param argCount the number of available arguments
+	 * @return the format string with surplus verbs turned into literal MISSING markers
+	 */
+	private static String fillMissingSpecifiers(String format, int argCount) {
+		Matcher m = Pattern.compile("%[^%]*?([a-zA-Z])").matcher(format);
+		StringBuilder sb = new StringBuilder(format.length());
+		int idx = 0;
+		while (m.find()) {
+			if (idx >= argCount) {
+				m.appendReplacement(sb, Matcher.quoteReplacement("%%!" + m.group(1) + "(MISSING)"));
+			}
+			idx++;
+		}
+		m.appendTail(sb);
+		return sb.toString();
 	}
 
 	/**

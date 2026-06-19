@@ -95,6 +95,14 @@ class FunctionsTest {
 	}
 
 	@Test
+	void testPrintfEmitsMissingMarkerForSurplusVerbs() {
+		// Go prints `%!s(MISSING)` for a verb with no argument instead of aborting;
+		// bitnami harbor's noProxy helper feeds 7 args to an 11-verb format string.
+		Function printf = Functions.GO_BUILTINS.get("printf");
+		assertEquals("a,b,%!s(MISSING)", printf.invoke(new Object[] { "%s,%s,%s", "a", "b" }));
+	}
+
+	@Test
 	void testPrintfToleratesErbStyleLiterals() {
 		// gitlab routes an ERB literal through printf; %= and %> are not Java
 		// conversions.
