@@ -403,6 +403,8 @@ public final class Functions {
 			format = format.replaceAll("%#?v", "%s"); // %v and %#(v) -> %s
 			format = format.replaceAll("%T", "%s"); // %(T) -> %s
 			format = format.replaceAll("%p", "%s"); // %(p) -> %s
+			format = format.replaceAll("%t", "%b"); // Go bool verb %t -> Java %b (Java %t
+													// is dates)
 			// %q is kept for now — unlike %s it double-quotes its argument (Go strconv.
 			// Quote), so the corresponding arg is quoted below before %q -> %s.
 
@@ -420,19 +422,7 @@ public final class Functions {
 			for (int i = 0; i < realArgs.length; i++) {
 				Object arg = (args[i + 1] != null) ? args[i + 1] : "";
 				char spec = (i < specTypes.size()) ? specTypes.get(i) : '\0';
-				if (spec == 'q') {
-					// Go's %q double-quotes the value with Go-syntax escaping.
-					arg = goQuote(arg);
-				}
-				else if (arg instanceof Number) {
-					if ("eEfgG".indexOf(spec) >= 0 && (arg instanceof Integer || arg instanceof Long)) {
-						arg = ((Number) arg).doubleValue();
-					}
-					else if ("doxXb".indexOf(spec) >= 0 && (arg instanceof Double || arg instanceof Float)) {
-						arg = ((Number) arg).longValue();
-					}
-				}
-				realArgs[i] = arg;
+				realArgs[i] = coercePrintfArg(arg, spec);
 			}
 			// The %q arguments are now pre-quoted strings, so render them with %s.
 			format = format.replaceAll("%q", "%s");
@@ -464,6 +454,38 @@ public final class Functions {
 				return String.format(neutralizeInvalidFormatSpecifiers(format), realArgs);
 			}
 		};
+	}
+
+	/**
+	 * Coerces a single {@code printf} argument so Java's {@link String#format} matches
+	 * Go's {@code fmt} for the given (already Java-translated) verb: {@code %q}
+	 * pre-quotes, integer/float verbs widen/narrow as Go would, and {@code %s} (also the
+	 * rewritten {@code %v}) renders a whole {@code float64} without a trailing
+	 * {@code .0}.
+	 * @param arg the argument value (never {@code null} — callers pass {@code ""})
+	 * @param spec the format verb the argument is bound to
+	 * @return the coerced argument
+	 */
+	private static Object coercePrintfArg(Object arg, char spec) {
+		if (spec == 'q') {
+			return goQuote(arg);
+		}
+		if (!(arg instanceof Number)) {
+			return arg;
+		}
+		if ("eEfgG".indexOf(spec) >= 0 && (arg instanceof Integer || arg instanceof Long)) {
+			return ((Number) arg).doubleValue();
+		}
+		if ("doxXb".indexOf(spec) >= 0 && (arg instanceof Double || arg instanceof Float)) {
+			return ((Number) arg).longValue();
+		}
+		if (spec == 's' && (arg instanceof Double || arg instanceof Float)) {
+			double d = ((Number) arg).doubleValue();
+			if (d == Math.rint(d) && !Double.isInfinite(d) && Math.abs(d) < 1e15) {
+				return (long) d;
+			}
+		}
+		return arg;
 	}
 
 	/**
