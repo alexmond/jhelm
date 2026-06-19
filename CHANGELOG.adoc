@@ -1,0 +1,35 @@
+= Changelog
+
+== Unreleased (targeting 0.1.0)
+
+Toward the *0.1.0 prerelease target* (see the Roadmap in the docs): a *≥ 300-chart*
+byte-parity gate against `helm template` plus an extraction-ready template engine.
+
+=== Engine — Helm byte-parity
+
+* `toYaml` now matches Helm's `sigs.k8s.io/yaml` output byte-for-byte: keys are sorted,
+  whole-number floats render as integers (`1.0` -> `1`), non-plain scalars use single-quote
+  style (reserving double quotes for empty/numeric/keyword strings), and values ending in
+  `:` are quoted so they round-trip.
+* `printf` implements the `%q` (quote) verb and tolerates Go/ERB format strings such as
+  `"<%= ... %>"` (`%=`, `%>`) instead of aborting the render.
+* `.Files.Get` (and other behavioural objects) work inside pipelines and after
+  `deepCopy $` — method calls now receive the piped value and `deepCopy` preserves the
+  object type.
+* Subchart values are coalesced recursively, so a parent sees the full nested default tree
+  at `.Values.<sub>.<nestedsub>.*` (Helm `CoalesceValues` behaviour).
+* Templates parse in Helm's full-path order, so a named template defined by multiple
+  subcharts resolves to the same winner as Helm; like-named umbrella/subchart helper files
+  no longer drop each other's `define`s.
+* `.Capabilities.APIVersions` matches Helm's built-in `DefaultVersionSet`; chart versions
+  are selected by SemVer (leading `v` and pre-releases handled).
+* YAML document splitting tolerates a `---` separator with trailing whitespace, so the
+  following resource is no longer glued onto the previous document.
+* `merge`/`mergeOverwrite`/`fromYaml` no longer throw on immutable maps.
+
+=== Build & coverage
+
+* Spring Boot 4.0.6; `spring-retry` migrated to the `spring-core` retry API.
+* Comparison-suite coverage grown from 54 to 90 charts, all rendering identically to Helm
+  (k8s-monitoring, kube-prometheus-stack, victoria-metrics-k8s-stack, istio, consul,
+  airflow, datadog, and more).
