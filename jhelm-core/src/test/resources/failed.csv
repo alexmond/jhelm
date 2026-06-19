@@ -38,15 +38,6 @@ zalando/postgres-operator,zalando,https://opensource.zalando.com/postgres-operat
 bitnami/grafana-loki,bitnami,https://charts.bitnami.com/bitnami
 bitnami/grafana-mimir,bitnami,https://charts.bitnami.com/bitnami
 #
-# bitnami/jasperreports: the bundled mariadb StatefulSet renders
-# `securityContext.seLinuxOptions: null` where Helm omits the key entirely
-# (bitnami-common null securityContext field handling). (#31)
-bitnami/jasperreports,bitnami,https://charts.bitnami.com/bitnami
-#
-# bitnami/osclass: same bundled-mariadb seLinuxOptions: null vs omitted-key quirk
-# as jasperreports (#31).
-bitnami/osclass,bitnami,https://charts.bitnami.com/bitnami
-#
 # pomerium/pomerium: the per-Deployment config `checksum` annotation differs because
 # the checksummed config embeds generated shared/cookie secrets (randAlphaNum),
 # same #237 class as checksum/* but with a bare `checksum` key.

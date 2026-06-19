@@ -510,6 +510,15 @@ public class Engine {
 		// .Values.<subchartName>.*
 		mergeSubchartDefaults(chart, mergedValues);
 
+		// Helm nil-prunes a chart's values while *coalescing a subchart* ("setting a key
+		// to null removes it"), so a subchart default like `seLinuxOptions: null` never
+		// reaches a `toYaml`/`hasKey`. The top-level release chart's own values are used
+		// as-is and keep their nulls, so only prune for subcharts (depth > 0). Deep-copy
+		// because mergeValues shares nested map references with the cached chart values.
+		if (depth > 0) {
+			mergedValues = pruneNullValues(mergedValues);
+		}
+
 		// Validate merged values against the chart's JSON Schema (if present)
 		if (chart.getValuesSchema() != null) {
 			try {
@@ -893,6 +902,44 @@ public class Engine {
 		}
 		// No condition path resolved — include by default
 		return true;
+	}
+
+	/**
+	 * Returns a deep copy of a values map with every null-valued map entry removed,
+	 * recursing through nested maps and lists. Mirrors Helm's coalesce behaviour where a
+	 * {@code null} value removes its key (so it is absent from
+	 * {@code toYaml}/{@code hasKey}). Null elements inside lists are preserved, as Helm
+	 * only prunes table keys. A copy is made because {@link #mergeValues} shares nested
+	 * map references with cached chart values, which must not be mutated.
+	 * @param values the merged values map
+	 * @return a pruned deep copy
+	 */
+	@SuppressWarnings("unchecked")
+	private Map<String, Object> pruneNullValues(Map<String, Object> values) {
+		return (Map<String, Object>) pruneNullsDeep(values);
+	}
+
+	@SuppressWarnings("unchecked")
+	private Object pruneNullsDeep(Object node) {
+		if (node instanceof Map) {
+			Map<String, Object> src = (Map<String, Object>) node;
+			Map<String, Object> out = new LinkedHashMap<>();
+			for (Map.Entry<String, Object> entry : src.entrySet()) {
+				if (entry.getValue() != null) {
+					out.put(entry.getKey(), pruneNullsDeep(entry.getValue()));
+				}
+			}
+			return out;
+		}
+		if (node instanceof List) {
+			List<Object> src = (List<Object>) node;
+			List<Object> out = new ArrayList<>(src.size());
+			for (Object item : src) {
+				out.add(pruneNullsDeep(item));
+			}
+			return out;
+		}
+		return node;
 	}
 
 	private Map<String, Object> mergeValues(Map<String, Object> defaults, Map<String, Object> overrides) {

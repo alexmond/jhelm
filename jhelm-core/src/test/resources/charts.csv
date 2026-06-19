@@ -300,3 +300,5 @@ percona/psmdb-db,percona,https://percona.github.io/percona-helm-charts
 percona/pxc-db,percona,https://percona.github.io/percona-helm-charts
 linkerd/linkerd-crds,linkerd,https://helm.linkerd.io/stable
 prometheus-community/prometheus-pgbouncer-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+bitnami/jasperreports,bitnami,https://charts.bitnami.com/bitnami
+bitnami/osclass,bitnami,https://charts.bitnami.com/bitnami
