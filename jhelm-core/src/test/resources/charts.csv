@@ -298,3 +298,5 @@ ory/oathkeeper-maester,ory,https://k8s.ory.sh/helm/charts
 parca/parca,parca,https://parca-dev.github.io/helm-charts
 percona/psmdb-db,percona,https://percona.github.io/percona-helm-charts
 percona/pxc-db,percona,https://percona.github.io/percona-helm-charts
+linkerd/linkerd-crds,linkerd,https://helm.linkerd.io/stable
+prometheus-community/prometheus-pgbouncer-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts

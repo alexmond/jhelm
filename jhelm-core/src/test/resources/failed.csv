@@ -27,12 +27,6 @@ argo/argo-events,argo,https://argoproj.github.io/argo-helm
 # Needs investigation. (#28)
 kyverno/kyverno-policies,kyverno,https://kyverno.github.io/kyverno/
 #
-# linkerd-crds: the CRDs stamp `linkerd.io/created-by: linkerd/helm %!s(<nil>)` --
-# Helm's printf hits a nil arg for %s and emits Go's bad-verb error string
-# (`%!s(<nil>)`). jhelm renders a nil %s arg as empty. Matching Go's printf error
-# formatting for nil is a niche parity gap. (#29)
-linkerd/linkerd-crds,linkerd,https://helm.linkerd.io/stable
-#
 # zalando/postgres-operator: same large-int->scientific-notation gap as argo-events
 # (#27) -- the pod PriorityClass `value: 1000000` renders as `1e+06` under Helm
 # (values numbers are float64) but `1000000` under jhelm.
@@ -48,11 +42,6 @@ bitnami/grafana-mimir,bitnami,https://charts.bitnami.com/bitnami
 # `securityContext.seLinuxOptions: null` where Helm omits the key entirely
 # (bitnami-common null securityContext field handling). (#31)
 bitnami/jasperreports,bitnami,https://charts.bitnami.com/bitnami
-#
-# prometheus-pgbouncer-exporter: connection-string env renders
-# "%!s(<nil>):5432/..." under Helm (printf %s of a nil host) but ":5432/..." under
-# jhelm; same nil-arg printf gap as linkerd-crds (#29).
-prometheus-community/prometheus-pgbouncer-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
 #
 # bitnami/osclass: same bundled-mariadb seLinuxOptions: null vs omitted-key quirk
 # as jasperreports (#31).
