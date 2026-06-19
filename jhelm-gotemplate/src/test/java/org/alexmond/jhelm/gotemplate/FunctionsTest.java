@@ -95,6 +95,24 @@ class FunctionsTest {
 	}
 
 	@Test
+	void testPrintfBooleanVerb() {
+		// Go's %t prints true/false; Java's %t is a date prefix, so jhelm maps it to %b.
+		Function printf = Functions.GO_BUILTINS.get("printf");
+		assertEquals("--enable-leader-election=true",
+				printf.invoke(new Object[] { "--enable-leader-election=%t", true }));
+		assertEquals("x=false", printf.invoke(new Object[] { "x=%t", false }));
+	}
+
+	@Test
+	void testPrintfWholeFloatHasNoTrailingZero() {
+		// Go's %v prints a whole float64 without ".0" (values.yaml `qps: 100.0` ->
+		// "100").
+		Function printf = Functions.GO_BUILTINS.get("printf");
+		assertEquals("--qps=100", printf.invoke(new Object[] { "--qps=%v", 100.0 }));
+		assertEquals("1.5", printf.invoke(new Object[] { "%v", 1.5 }));
+	}
+
+	@Test
 	void testPrintfEmitsMissingMarkerForSurplusVerbs() {
 		// Go prints `%!s(MISSING)` for a verb with no argument instead of aborting;
 		// bitnami harbor's noProxy helper feeds 7 args to an 11-verb format string.
