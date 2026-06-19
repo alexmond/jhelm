@@ -20,3 +20,15 @@ gitlab/gitlab,gitlab,https://charts.gitlab.io
 # treating every values.yaml integer as a double (risky, affects all direct
 # interpolations); deferred. (#27)
 argo/argo-events,argo,https://argoproj.github.io/argo-helm
+#
+# kyverno-policies: several ClusterPolicy resources carry a
+# `kyverno.io/kubernetes-version` annotation (e.g. ">=1.25.0-0") that jhelm renders
+# empty. The value comes from each policy's own annotations block; jhelm drops it.
+# Needs investigation. (#28)
+kyverno/kyverno-policies,kyverno,https://kyverno.github.io/kyverno/
+#
+# linkerd-crds: the CRDs stamp `linkerd.io/created-by: linkerd/helm %!s(<nil>)` --
+# Helm's printf hits a nil arg for %s and emits Go's bad-verb error string
+# (`%!s(<nil>)`). jhelm renders a nil %s arg as empty. Matching Go's printf error
+# formatting for nil is a niche parity gap. (#29)
+linkerd/linkerd-crds,linkerd,https://helm.linkerd.io/stable

@@ -157,3 +157,17 @@ argo/argocd-image-updater,argo,https://argoproj.github.io/argo-helm
 kedacore/keda-add-ons-http,kedacore,https://kedacore.github.io/charts
 descheduler/descheduler,descheduler,https://kubernetes-sigs.github.io/descheduler/
 elastic/eck-operator,elastic,https://helm.elastic.co
+cilium/tetragon,cilium,https://helm.cilium.io
+fairwinds/polaris,fairwinds,https://charts.fairwinds.com/stable
+fairwinds/goldilocks,fairwinds,https://charts.fairwinds.com/stable
+falcosecurity/falcosidekick,falcosecurity,https://falcosecurity.github.io/charts
+fluent/fluent-operator,fluent,https://fluent.github.io/helm-charts
+hashicorp/terraform-cloud-operator,hashicorp,https://helm.releases.hashicorp.com
+hashicorp/vault-secrets-operator,hashicorp,https://helm.releases.hashicorp.com
+influxdata/influxdb2,influxdata,https://helm.influxdata.com
+minio-operator/operator,minio-operator,https://operator.min.io
+percona/psmdb-operator,percona,https://percona.github.io/percona-helm-charts
+percona/pxc-operator,percona,https://percona.github.io/percona-helm-charts
+percona/pg-operator,percona,https://percona.github.io/percona-helm-charts
+cockroachdb/cockroachdb,cockroachdb,https://charts.cockroachdb.com
+prometheus-community/prometheus-windows-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
