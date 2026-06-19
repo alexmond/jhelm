@@ -268,3 +268,16 @@ prometheus-community/prometheus-operator-admission-webhook,prometheus-community,
 spark-operator/spark-operator,spark-operator,https://kubeflow.github.io/spark-operator
 victoria-metrics/victoria-logs-single,vm,https://victoriametrics.github.io/helm-charts
 victoria-metrics/victoria-metrics-auth,vm,https://victoriametrics.github.io/helm-charts
+apisix/apisix-dashboard,apisix,https://charts.apiseven.com
+backstage/backstage,backstage,https://backstage.github.io/charts
+bitnami/kubeapps,bitnami,https://charts.bitnami.com/bitnami
+bitnami/seaweedfs,bitnami,https://charts.bitnami.com/bitnami
+grafana/loki-stack,grafana,https://grafana.github.io/helm-charts
+istio/ztunnel,istio,https://istio-release.storage.googleapis.com/charts
+jetstack/cert-manager-google-cas-issuer,jetstack,https://charts.jetstack.io
+k8up/k8up,k8up,https://k8up-io.github.io/k8up
+nats/nack,nats,https://nats-io.github.io/k8s/helm/charts
+prometheus-community/prometheus-fastly-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+prometheus-community/prometheus-modbus-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+prometheus-community/prometheus-yet-another-cloudwatch-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+victoria-metrics/victoria-logs-cluster,vm,https://victoriametrics.github.io/helm-charts

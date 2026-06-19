@@ -71,3 +71,18 @@ kong/ingress,kong,https://charts.konghq.com
 # redpanda/console: jhelm renders zero resources where Helm renders the console
 # Deployment/Service/ConfigMap/Secret/SA; a top-level conditional-enablement gap.
 redpanda/console,redpanda,https://charts.redpanda.com
+#
+# gloo/gloo: Settings.validationServerGrpcMaxSizeBytes (104857600) renders as
+# `1.048576E8` under Helm (values float64 scientific notation) vs `104857600`
+# under jhelm; same large-int gap as argo-events/zalando (#27).
+gloo/gloo,gloo,https://storage.googleapis.com/solo-public-helm
+#
+# yugabyte/yugabyte: render error "d != java.lang.String" in tserver-gflags-secret.yaml (#32).
+yugabyte/yugabyte,yugabyte,https://charts.yugabyte.com
+#
+# redpanda/operator: jhelm renders zero resources where Helm renders the full
+# operator (Deployment/RBAC/Job/etc.); conditional-enablement gap (as redpanda/console).
+redpanda/operator,redpanda,https://charts.redpanda.com
+#
+# victoria-metrics-distributed: jhelm omits one VMRule (victoria-node.rules).
+victoria-metrics/victoria-metrics-distributed,vm,https://victoriametrics.github.io/helm-charts
