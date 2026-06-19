@@ -184,3 +184,16 @@ bitnami/mlflow,bitnami,https://charts.bitnami.com/bitnami
 bitnami/scylladb,bitnami,https://charts.bitnami.com/bitnami
 bitnami/whereabouts,bitnami,https://charts.bitnami.com/bitnami
 kuberhealthy/kuberhealthy,kuberhealthy,https://kuberhealthy.github.io/kuberhealthy/helm-repos
+bitnami/harbor,bitnami,https://charts.bitnami.com/bitnami
+bitnami/grafana-tempo,bitnami,https://charts.bitnami.com/bitnami
+bitnami/opensearch,bitnami,https://charts.bitnami.com/bitnami
+bitnami/cert-manager,bitnami,https://charts.bitnami.com/bitnami
+bitnami/argo-workflows,bitnami,https://charts.bitnami.com/bitnami
+bitnami/prometheus,bitnami,https://charts.bitnami.com/bitnami
+bitnami/multus-cni,bitnami,https://charts.bitnami.com/bitnami
+bitnami/aspnet-core,bitnami,https://charts.bitnami.com/bitnami
+apisix/apisix,apisix,https://charts.apiseven.com
+kubereboot/kured,kubereboot,https://kubereboot.github.io/charts
+emqx/emqx,emqx,https://repos.emqx.io/charts
+nats/nats,nats,https://nats-io.github.io/k8s/helm/charts
+localstack/localstack,localstack,https://localstack.github.io/helm-charts
