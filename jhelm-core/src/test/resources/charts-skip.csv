@@ -13,3 +13,4 @@ stakater/application,Helm fails with default values: "Undefined image for applic
 # --- Download failures (external repo issues) ---
 twuni/docker-registry,Repo DNS failure
 jupyterhub/jupyterhub,Helm fails on fetched version (.Release.Time.Seconds removed in modern Helm)
+robusta/robusta,Helm fails with default values: "At least one sink must be defined"

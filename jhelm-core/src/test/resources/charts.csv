@@ -197,3 +197,9 @@ kubereboot/kured,kubereboot,https://kubereboot.github.io/charts
 emqx/emqx,emqx,https://repos.emqx.io/charts
 nats/nats,nats,https://nats-io.github.io/k8s/helm/charts
 localstack/localstack,localstack,https://localstack.github.io/helm-charts
+bitnami/dokuwiki,bitnami,https://charts.bitnami.com/bitnami
+bitnami/parse,bitnami,https://charts.bitnami.com/bitnami
+bitnami/kong,bitnami,https://charts.bitnami.com/bitnami
+bitnami/grafana-operator,bitnami,https://charts.bitnami.com/bitnami
+emqx/emqx-operator,emqx,https://repos.emqx.io/charts
+newrelic/nri-metadata-injection,newrelic,https://helm-charts.newrelic.com

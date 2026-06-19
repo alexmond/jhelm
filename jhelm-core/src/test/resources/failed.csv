@@ -43,3 +43,8 @@ zalando/postgres-operator,zalando,https://opensource.zalando.com/postgres-operat
 # and the matching ConfigMap cache stanzas that Helm renders by default. (#30)
 bitnami/grafana-loki,bitnami,https://charts.bitnami.com/bitnami
 bitnami/grafana-mimir,bitnami,https://charts.bitnami.com/bitnami
+#
+# bitnami/jasperreports: the bundled mariadb StatefulSet renders
+# `securityContext.seLinuxOptions: null` where Helm omits the key entirely
+# (bitnami-common null securityContext field handling). (#31)
+bitnami/jasperreports,bitnami,https://charts.bitnami.com/bitnami
