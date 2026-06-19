@@ -32,10 +32,11 @@ class NullHandlingTest {
 	}
 
 	@Test
-	void testNullInPrintfProducesEmpty() throws Exception {
+	void testNullInPrintfMatchesGoFmtMarker() throws Exception {
+		// Go's fmt prints `%!s(<nil>)` for a nil %s argument (not an empty string).
 		Map<String, Object> data = new HashMap<>();
 		data.put("name", null);
-		assertEquals("release-", render("{{ printf \"%s-%s\" \"release\" .name }}", data));
+		assertEquals("release-%!s(<nil>)", render("{{ printf \"%s-%s\" \"release\" .name }}", data));
 	}
 
 	@Test

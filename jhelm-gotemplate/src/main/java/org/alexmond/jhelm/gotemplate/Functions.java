@@ -398,6 +398,9 @@ public final class Functions {
 				return "";
 			}
 			String format = String.valueOf(args[0]);
+			// Verbs as written, before translation — needed to render a nil argument the
+			// way Go does (it keys the marker off the original verb, e.g. %v vs %s).
+			List<Character> origVerbs = extractVerbs(format);
 
 			// Translate Go format verbs to Java equivalents
 			format = format.replaceAll("%#?v", "%s"); // %v and %#(v) -> %s
@@ -412,17 +415,23 @@ public final class Functions {
 			// Go's printf is lenient (any numeric type for %d/%g); Java is strict.
 			// Must track non-numeric specs (%s, %c, etc.) to maintain correct
 			// positional alignment with arguments.
-			Matcher specMatcher = Pattern.compile("%[^%]*?([a-zA-Z])").matcher(format);
-			List<Character> specTypes = new ArrayList<>();
-			while (specMatcher.find()) {
-				specTypes.add(specMatcher.group(1).charAt(0));
-			}
+			List<Character> specTypes = extractVerbs(format);
 
 			Object[] realArgs = new Object[args.length - 1];
 			for (int i = 0; i < realArgs.length; i++) {
-				Object arg = (args[i + 1] != null) ? args[i + 1] : "";
 				char spec = (i < specTypes.size()) ? specTypes.get(i) : '\0';
-				realArgs[i] = coercePrintfArg(arg, spec);
+				if (args[i + 1] == null) {
+					// Go prints a bad-verb marker for a nil argument: `%v` -> `<nil>`,
+					// every other verb -> `%!verb(<nil>)`. We only have a plain-string
+					// slot
+					// here (spec 's', also the rewritten %v), so emit the marker as text;
+					// other verbs keep the historical empty-string rendering.
+					char ov = (i < origVerbs.size()) ? origVerbs.get(i) : spec;
+					realArgs[i] = (spec == 's') ? goNilMarker(ov) : "";
+				}
+				else {
+					realArgs[i] = coercePrintfArg(args[i + 1], spec);
+				}
 			}
 			// The %q arguments are now pre-quoted strings, so render them with %s.
 			format = format.replaceAll("%q", "%s");
@@ -454,6 +463,32 @@ public final class Functions {
 				return String.format(neutralizeInvalidFormatSpecifiers(format), realArgs);
 			}
 		};
+	}
+
+	/**
+	 * Extracts the conversion verb (trailing letter) of each {@code %} specifier in a
+	 * format string, in order, skipping escaped {@code %%}. Used to align arguments with
+	 * their verbs for per-argument coercion.
+	 * @param format the format string
+	 * @return the verbs in left-to-right order
+	 */
+	private static List<Character> extractVerbs(String format) {
+		Matcher m = Pattern.compile("%[^%]*?([a-zA-Z])").matcher(format);
+		List<Character> verbs = new ArrayList<>();
+		while (m.find()) {
+			verbs.add(m.group(1).charAt(0));
+		}
+		return verbs;
+	}
+
+	/**
+	 * Renders Go's bad-verb marker for a {@code nil} argument: {@code %v} yields
+	 * {@code <nil>}; every other verb yields {@code %!verb(<nil>)}.
+	 * @param verb the original (pre-translation) format verb
+	 * @return the Go nil marker text
+	 */
+	private static String goNilMarker(char verb) {
+		return (verb == 'v') ? "<nil>" : "%!" + verb + "(<nil>)";
 	}
 
 	/**
