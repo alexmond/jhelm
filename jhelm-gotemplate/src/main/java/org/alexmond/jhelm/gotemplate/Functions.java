@@ -9,9 +9,11 @@ import java.util.Collection;
 import java.util.IllegalFormatException;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.MissingFormatArgumentException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -417,24 +419,16 @@ public final class Functions {
 			// positional alignment with arguments.
 			List<Character> specTypes = extractVerbs(format);
 
-			Object[] realArgs = new Object[args.length - 1];
-			for (int i = 0; i < realArgs.length; i++) {
-				char spec = (i < specTypes.size()) ? specTypes.get(i) : '\0';
-				if (args[i + 1] == null) {
-					// Go prints a bad-verb marker for a nil argument: `%v` -> `<nil>`,
-					// every other verb -> `%!verb(<nil>)`. We only have a plain-string
-					// slot
-					// here (spec 's', also the rewritten %v), so emit the marker as text;
-					// other verbs keep the historical empty-string rendering.
-					char ov = (i < origVerbs.size()) ? origVerbs.get(i) : spec;
-					realArgs[i] = (spec == 's') ? goNilMarker(ov) : "";
-				}
-				else {
-					realArgs[i] = coercePrintfArg(args[i + 1], spec);
-				}
-			}
+			// Positions holding a literal Go bad-verb marker; their specifier is forced
+			// to
+			// %s so String.format prints the marker text verbatim.
+			Set<Integer> markerSlots = new HashSet<>();
+			Object[] realArgs = buildPrintfArgs(args, specTypes, origVerbs, markerSlots);
 			// The %q arguments are now pre-quoted strings, so render them with %s.
 			format = format.replaceAll("%q", "%s");
+			if (!markerSlots.isEmpty()) {
+				format = forceSpecifiersToString(format, markerSlots);
+			}
 			try {
 				return String.format(format, realArgs);
 			}
@@ -466,6 +460,50 @@ public final class Functions {
 	}
 
 	/**
+	 * Builds the {@link String#format} argument array for {@code printf}, mapping each
+	 * argument to its verb: a {@code null} becomes Go's nil marker on a string slot, a
+	 * non-numeric value on a numeric verb becomes Go's {@code %!verb(type=value)} marker
+	 * (its index recorded in {@code markerSlots} so its specifier is later forced to
+	 * {@code %s}), and everything else is coerced by {@link #coercePrintfArg}.
+	 * @param args the raw {@code printf} arguments ({@code args[0]} is the format)
+	 * @param specTypes the translated verbs, one per argument slot
+	 * @param origVerbs the original (pre-translation) verbs
+	 * @param markerSlots out-param collecting positions that hold a literal marker
+	 * @return the coerced argument array
+	 */
+	private static Object[] buildPrintfArgs(Object[] args, List<Character> specTypes, List<Character> origVerbs,
+			Set<Integer> markerSlots) {
+		Object[] realArgs = new Object[args.length - 1];
+		for (int i = 0; i < realArgs.length; i++) {
+			char spec = (i < specTypes.size()) ? specTypes.get(i) : '\0';
+			char ov = (i < origVerbs.size()) ? origVerbs.get(i) : spec;
+			Object raw = args[i + 1];
+			if (raw == null) {
+				// Go prints a bad-verb marker for a nil argument: %v -> <nil>, every
+				// other
+				// verb -> %!verb(<nil>). We only have a plain-string slot here (spec 's',
+				// also the rewritten %v), so emit the marker as text; other verbs keep
+				// the
+				// historical empty-string rendering.
+				realArgs[i] = (spec == 's') ? goNilMarker(ov) : "";
+			}
+			else if ("doxXeEfgG".indexOf(spec) >= 0 && !(raw instanceof Number)) {
+				// Go prints %!verb(gotype=value) for a non-numeric arg on a numeric verb
+				// (e.g. yugabyte's `printf "%d" "4Gi"` -> %!d(string=4Gi), whose digits a
+				// following regexFind extracts). Java's Formatter throws, so substitute
+				// the
+				// marker and render it through %s.
+				realArgs[i] = "%!" + ov + "(" + goTypeName(raw) + "=" + raw + ")";
+				markerSlots.add(i);
+			}
+			else {
+				realArgs[i] = coercePrintfArg(raw, spec);
+			}
+		}
+		return realArgs;
+	}
+
+	/**
 	 * Extracts the conversion verb (trailing letter) of each {@code %} specifier in a
 	 * format string, in order, skipping escaped {@code %%}. Used to align arguments with
 	 * their verbs for per-argument coercion.
@@ -489,6 +527,54 @@ public final class Functions {
 	 */
 	private static String goNilMarker(char verb) {
 		return (verb == 'v') ? "<nil>" : "%!" + verb + "(<nil>)";
+	}
+
+	/**
+	 * Go type name used inside a bad-verb marker (e.g. {@code %!d(string=4Gi)}).
+	 * @param value the offending argument
+	 * @return the Go type name for {@code value}
+	 */
+	private static String goTypeName(Object value) {
+		if (value instanceof String) {
+			return "string";
+		}
+		if (value instanceof Boolean) {
+			return "bool";
+		}
+		if (value instanceof Double || value instanceof Float) {
+			return "float64";
+		}
+		if (value instanceof Integer || value instanceof Long) {
+			return "int";
+		}
+		if (value instanceof Map) {
+			return "map[string]interface {}";
+		}
+		if (value instanceof List) {
+			return "[]interface {}";
+		}
+		return "interface {}";
+	}
+
+	/**
+	 * Rewrites the format specifiers at the given argument positions to a bare
+	 * {@code %s}, so a pre-formatted literal (a Go bad-verb marker) prints verbatim.
+	 * @param format the (already Java-translated) format string
+	 * @param positions the zero-based specifier indices to force to {@code %s}
+	 * @return the format with those specifiers replaced by {@code %s}
+	 */
+	private static String forceSpecifiersToString(String format, Set<Integer> positions) {
+		Matcher m = Pattern.compile("%[^%]*?[a-zA-Z]").matcher(format);
+		StringBuilder sb = new StringBuilder(format.length());
+		int idx = 0;
+		while (m.find()) {
+			if (positions.contains(idx)) {
+				m.appendReplacement(sb, "%s");
+			}
+			idx++;
+		}
+		m.appendTail(sb);
+		return sb.toString();
 	}
 
 	/**

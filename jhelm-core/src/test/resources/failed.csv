@@ -57,7 +57,10 @@ redpanda/console,redpanda,https://charts.redpanda.com
 # under jhelm; same large-int gap as argo-events/zalando (#27).
 gloo/gloo,gloo,https://storage.googleapis.com/solo-public-helm
 #
-# yugabyte/yugabyte: render error "d != java.lang.String" in tserver-gflags-secret.yaml (#32).
+# yugabyte/yugabyte: renders end-to-end now (the printf wrong-type marker fix removed
+# the `%d`-of-string crash), but still omits two serviceEndpoints Services
+# (yb-tserver-service, yugabyted-ui-service) -- a deep service-scope conditional gap
+# in service-endpoints.yaml (`if eq $service "true"` over an include result). (#32)
 yugabyte/yugabyte,yugabyte,https://charts.yugabyte.com
 #
 # redpanda/operator: jhelm renders zero resources where Helm renders the full
