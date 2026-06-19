@@ -139,11 +139,29 @@ public final class StringFunctions {
 			if (s.isEmpty()) {
 				return s;
 			}
-			return Arrays.stream(s.split("\\s+"))
-				.map((word) -> word.isEmpty() ? word
-						: Character.toUpperCase(word.charAt(0)) + word.substring(1).toLowerCase(Locale.ROOT))
-				.collect(Collectors.joining(" "));
+			// Mirror Go's strings.Title (used by sprig's `title`): title-case the letter
+			// after a separator, leaving everything else untouched. So mixed-case
+			// "xtrabackupSidecar" -> "XtrabackupSidecar", not "Xtrabackupsidecar".
+			StringBuilder sb = new StringBuilder(s.length());
+			int prev = ' ';
+			int i = 0;
+			while (i < s.length()) {
+				int cp = s.codePointAt(i);
+				sb.appendCodePoint(isTitleSeparator(prev) ? Character.toTitleCase(cp) : cp);
+				prev = cp;
+				i += Character.charCount(cp);
+			}
+			return sb.toString();
 		};
+	}
+
+	// Mirrors Go's strings.isSeparator: letters, digits and '_' are part of a word; any
+	// other ASCII character separates words, and for non-ASCII only spaces separate.
+	private static boolean isTitleSeparator(int r) {
+		if (Character.isLetterOrDigit(r) || r == '_') {
+			return false;
+		}
+		return r <= 0x7F || Character.isSpaceChar(r) || Character.isWhitespace(r);
 	}
 
 	private static Function untitle() {
