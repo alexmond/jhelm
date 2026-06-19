@@ -102,3 +102,14 @@ falcosecurity/falco,falcosecurity,https://falcosecurity.github.io/charts
 grafana/pyroscope,grafana,https://grafana.github.io/helm-charts
 bitnami/redis-cluster,bitnami,https://charts.bitnami.com/bitnami
 prometheus-community/prometheus-snmp-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+bitnami/solr,bitnami,https://charts.bitnami.com/bitnami
+bitnami/mariadb-galera,bitnami,https://charts.bitnami.com/bitnami
+bitnami/mongodb-sharded,bitnami,https://charts.bitnami.com/bitnami
+bitnami/postgresql-ha,bitnami,https://charts.bitnami.com/bitnami
+bitnami/rabbitmq-cluster-operator,bitnami,https://charts.bitnami.com/bitnami
+prometheus-community/prometheus-mysql-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+prometheus-community/prometheus-kafka-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
+gatekeeper/gatekeeper,gatekeeper,https://open-policy-agent.github.io/gatekeeper/charts
+dapr/dapr,dapr,https://dapr.github.io/helm-charts
+bitnami/jaeger,bitnami,https://charts.bitnami.com/bitnami
+bitnami/grafana,bitnami,https://charts.bitnami.com/bitnami
