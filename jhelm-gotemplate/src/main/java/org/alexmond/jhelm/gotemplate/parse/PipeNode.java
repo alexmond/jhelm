@@ -16,8 +16,17 @@ public class PipeNode implements Node {
 
 	private final List<CommandNode> commands = new LinkedList<>();
 
+	// true for a `:=` declaration (and range vars), false for a `=` assignment. A
+	// declaration is scoped to its enclosing block; an assignment updates the existing
+	// variable and persists past the block (Go text/template semantics).
+	private boolean declare = true;
+
 	public PipeNode(String context) {
 		this.context = context;
+	}
+
+	public void setDeclare(boolean declare) {
+		this.declare = declare;
 	}
 
 	public void append(VariableNode variableNode) {
