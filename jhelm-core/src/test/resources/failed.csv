@@ -18,21 +18,16 @@ gitlab/gitlab,gitlab,https://charts.gitlab.io
 # Needs investigation. (#28)
 kyverno/kyverno-policies,kyverno,https://kyverno.github.io/kyverno/
 #
-# bitnami grafana-loki / grafana-mimir: jhelm omits the bundled memcached
-# subcomponents (memcachedfrontend/chunks/index StatefulSet/Service/SA/PDB/NetworkPolicy)
-# and the matching ConfigMap cache stanzas that Helm renders by default. (#30)
-bitnami/grafana-loki,bitnami,https://charts.bitnami.com/bitnami
+# bitnami/grafana-mimir: the multi-alias memcached subcomponents now render (the
+# subchart multi-alias fix), but the mimir.yaml ConfigMap is still mostly empty —
+# jhelm omits ~16 config stanzas (activity_tracker, *_storage, blocks_storage, …)
+# that Helm builds. A separate mimir config-generation gap, not the memcached one.
 bitnami/grafana-mimir,bitnami,https://charts.bitnami.com/bitnami
 #
 # pomerium/pomerium: the per-Deployment config `checksum` annotation differs because
 # the checksummed config embeds generated shared/cookie secrets (randAlphaNum),
 # same #237 class as checksum/* but with a bare `checksum` key.
 pomerium/pomerium,pomerium,https://helm.pomerium.io
-#
-# kong/ingress: jhelm omits the bundled `gateway` subchart resources
-# (Deployment/Service/ServiceAccount for *-gateway*); subchart-enablement gap
-# (same class as the bitnami grafana memcached omission, #30).
-kong/ingress,kong,https://charts.konghq.com
 #
 # redpanda/console: jhelm renders zero resources where Helm renders the console
 # Deployment/Service/ConfigMap/Secret/SA; a top-level conditional-enablement gap.

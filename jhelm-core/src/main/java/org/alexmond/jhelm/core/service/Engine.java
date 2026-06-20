@@ -859,12 +859,21 @@ public class Engine {
 		if (deps == null) {
 			return null;
 		}
-		String chartName = subchart.getMetadata().getName();
+		// An exact alias match wins over any name match — when one subchart is aliased
+		// several times (e.g. grafana-loki's memcached -> memcachedfrontend/chunks/…),
+		// the
+		// alias is the only thing that tells the instances apart, so it must be checked
+		// across ALL dependencies before falling back to the chart name.
 		String chartAlias = subchart.getAlias();
-		for (Dependency dep : deps) {
-			if (dep.getAlias() != null && dep.getAlias().equals(chartAlias)) {
-				return dep;
+		if (chartAlias != null) {
+			for (Dependency dep : deps) {
+				if (chartAlias.equals(dep.getAlias())) {
+					return dep;
+				}
 			}
+		}
+		String chartName = subchart.getMetadata().getName();
+		for (Dependency dep : deps) {
 			if (dep.getName().equals(chartName)) {
 				return dep;
 			}

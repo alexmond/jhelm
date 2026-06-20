@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.ChartLoadException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
+import org.alexmond.jhelm.core.model.Dependency;
 import org.alexmond.jhelm.core.util.ValuesLoader;
 
 @Slf4j
@@ -80,7 +81,7 @@ public class ChartLoader {
 		}
 
 		// Load dependencies (subcharts)
-		List<Chart> dependencies = loadDependencies(chartDir);
+		List<Chart> dependencies = loadDependencies(chartDir, metadata.getDependencies());
 
 		// Load README
 		String readme = null;
@@ -119,7 +120,7 @@ public class ChartLoader {
 			.build();
 	}
 
-	private List<Chart> loadDependencies(File chartDir) throws IOException {
+	private List<Chart> loadDependencies(File chartDir, List<Dependency> metaDeps) throws IOException {
 		File chartsDir = new File(chartDir, "charts");
 		List<Chart> dependencies = new ArrayList<>();
 		if (!chartsDir.exists() || !chartsDir.isDirectory()) {
@@ -133,9 +134,43 @@ public class ChartLoader {
 					subchart.setAlias(subchartDir.getName());
 				}
 				dependencies.add(subchart);
+				addAliasInstances(dependencies, subchart, metaDeps);
 			}
 		}
 		return dependencies;
+	}
+
+	/**
+	 * Helm stores a subchart aliased multiple times (e.g. grafana-loki aliases the single
+	 * {@code memcached} chart as {@code memcachedfrontend}/{@code memcachedchunks}/…) as
+	 * one directory, instantiated once per alias at render time. The on-disk chart is
+	 * loaded once, so for every alias beyond the first add a copy (with its own metadata)
+	 * addressed by that alias; the base keeps the first alias. A single (or no) alias is
+	 * left to the engine's alias application.
+	 * @param dependencies the dependency list being built (appended to)
+	 * @param base the subchart loaded once from disk
+	 * @param metaDeps the parent's Chart.yaml dependency declarations
+	 */
+	private void addAliasInstances(List<Chart> dependencies, Chart base, List<Dependency> metaDeps) {
+		if (metaDeps == null) {
+			return;
+		}
+		List<Dependency> aliases = new ArrayList<>();
+		for (Dependency dep : metaDeps) {
+			if (base.getMetadata().getName().equals(dep.getName()) && dep.getAlias() != null
+					&& !dep.getAlias().isEmpty()) {
+				aliases.add(dep);
+			}
+		}
+		if (aliases.size() <= 1) {
+			return;
+		}
+		base.setAlias(aliases.get(0).getAlias());
+		for (int i = 1; i < aliases.size(); i++) {
+			ChartMetadata metaCopy = base.getMetadata().toBuilder().build();
+			Chart copy = base.toBuilder().metadata(metaCopy).alias(aliases.get(i).getAlias()).build();
+			dependencies.add(copy);
+		}
 	}
 
 	private void loadTemplatesRecursive(File dir, String path, List<Chart.Template> templates) throws IOException {
