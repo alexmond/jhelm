@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.claude/scripts/parity/chart-test.sh:*)",
+      "Bash(.claude/scripts/parity/chart-diff.sh:*)",
+      "Bash(.claude/scripts/parity/parity-run.sh:*)",
+      "Bash(./.claude/scripts/parity/chart-test.sh:*)",
+      "Bash(./.claude/scripts/parity/chart-diff.sh:*)",
+      "Bash(./.claude/scripts/parity/parity-run.sh:*)",
+      "Bash(python3 .claude/scripts/fix_fqn.py:*)",
+      "Bash(python3 .claude/scripts/fix_violations.py:*)",
+      "Bash(python3 .claude/scripts/test_500_charts.py:*)"
+    ]
+  }
+}
