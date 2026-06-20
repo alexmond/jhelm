@@ -12,12 +12,6 @@
 # object is missing a couple of listeners, and a test-hook Pod has a random name suffix.
 gitlab/gitlab,gitlab,https://charts.gitlab.io
 #
-# kyverno-policies: several ClusterPolicy resources carry a
-# `kyverno.io/kubernetes-version` annotation (e.g. ">=1.25.0-0") that jhelm renders
-# empty. The value comes from each policy's own annotations block; jhelm drops it.
-# Needs investigation. (#28)
-kyverno/kyverno-policies,kyverno,https://kyverno.github.io/kyverno/
-#
 # bitnami/grafana-mimir: the multi-alias memcached subcomponents now render (the
 # subchart multi-alias fix), but the mimir.yaml ConfigMap is still mostly empty —
 # jhelm omits ~16 config stanzas (activity_tracker, *_storage, blocks_storage, …)
