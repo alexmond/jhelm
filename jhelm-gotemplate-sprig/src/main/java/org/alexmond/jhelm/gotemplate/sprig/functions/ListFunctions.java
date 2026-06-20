@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.jhelm.gotemplate.GoFmt;
 import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
 
 /**
@@ -607,6 +608,11 @@ public final class ListFunctions {
 		};
 	}
 
+	// Go-style stringify so a float64 element renders like helm template (8 -> "8").
+	private static String goStr(Object value) {
+		return (value instanceof Number n) ? GoFmt.number(n) : String.valueOf(value);
+	}
+
 	private static Function join() {
 		return (args) -> {
 			if (args.length < 2) {
@@ -618,17 +624,17 @@ public final class ListFunctions {
 			}
 			String sep = String.valueOf(args[0]);
 			if (listObj instanceof Collection) {
-				return ((Collection<?>) listObj).stream().map(String::valueOf).collect(Collectors.joining(sep));
+				return ((Collection<?>) listObj).stream().map(ListFunctions::goStr).collect(Collectors.joining(sep));
 			}
 			else if (listObj.getClass().isArray()) {
 				int len = Array.getLength(listObj);
 				List<String> strs = new ArrayList<>();
 				for (int i = 0; i < len; i++) {
-					strs.add(String.valueOf(Array.get(listObj, i)));
+					strs.add(goStr(Array.get(listObj, i)));
 				}
 				return String.join(sep, strs);
 			}
-			return String.valueOf(listObj);
+			return goStr(listObj);
 		};
 	}
 

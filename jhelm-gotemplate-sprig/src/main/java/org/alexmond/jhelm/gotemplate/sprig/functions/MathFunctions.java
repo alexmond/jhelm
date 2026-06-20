@@ -10,6 +10,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.jhelm.gotemplate.GoFmt;
 
 /**
  * Math and numeric conversion functions from Sprig library. Includes basic arithmetic,
@@ -137,7 +138,10 @@ public final class MathFunctions {
 			// "null". Charts rely on this, e.g. `eq (toString .x) "<nil>"` to test
 			// whether
 			// a value is unset (opentelemetry-collector.serviceEnabled).
-			return (args[0] == null) ? "<nil>" : String.valueOf(args[0]);
+			if (args[0] == null) {
+				return "<nil>";
+			}
+			return (args[0] instanceof Number n) ? GoFmt.number(n) : String.valueOf(args[0]);
 		};
 	}
 

@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.jhelm.gotemplate.GoFmt;
 import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
 
 /**
@@ -318,6 +319,12 @@ public final class StringFunctions {
 		return (args) -> args.length >= 2 && String.valueOf(args[1]).endsWith(String.valueOf(args[0]));
 	}
 
+	// Stringify Go-style so a float64 renders like helm template (8080 -> "8080",
+	// 1000000 -> "1e+06") instead of Java's "8080.0".
+	private static String goStr(Object value) {
+		return (value instanceof Number n) ? GoFmt.number(n) : String.valueOf(value);
+	}
+
 	private static Function quote() {
 		return (args) -> {
 			StringBuilder out = new StringBuilder();
@@ -328,8 +335,7 @@ public final class StringFunctions {
 				if (!out.isEmpty()) {
 					out.append(' ');
 				}
-				String escaped = String.valueOf(arg)
-					.replace("\\", "\\\\")
+				String escaped = goStr(arg).replace("\\", "\\\\")
 					.replace("\"", "\\\"")
 					.replace("\n", "\\n")
 					.replace("\r", "\\r")
@@ -350,7 +356,7 @@ public final class StringFunctions {
 				if (!out.isEmpty()) {
 					out.append(' ');
 				}
-				out.append('\'').append(arg).append('\'');
+				out.append('\'').append(goStr(arg)).append('\'');
 			}
 			return out.toString();
 		};
@@ -359,7 +365,7 @@ public final class StringFunctions {
 	private static Function cat() {
 		return (args) -> Arrays.stream(args)
 			.filter((arg) -> arg != null)
-			.map(String::valueOf)
+			.map(StringFunctions::goStr)
 			.filter((s) -> !s.isEmpty())
 			.collect(Collectors.joining(" "));
 	}

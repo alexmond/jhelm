@@ -83,7 +83,7 @@ public class SchemaValidator {
 		if (schema.has("enum")) {
 			boolean valid = false;
 			for (JsonNode enumVal : schema.get("enum")) {
-				if (enumVal.equals(value)) {
+				if (jsonValueEquals(enumVal, value)) {
 					valid = true;
 					break;
 				}
@@ -130,7 +130,7 @@ public class SchemaValidator {
 	private void validateType(String type, JsonNode value, String path, List<String> errors) {
 		boolean valid = switch (type) {
 			case "string" -> value.isString();
-			case "integer" -> value.isIntegralNumber();
+			case "integer" -> isIntegerValue(value);
 			case "number" -> value.isNumber();
 			case "boolean" -> value.isBoolean();
 			case "array" -> value.isArray();
@@ -141,6 +141,40 @@ public class SchemaValidator {
 		if (!valid) {
 			errors.add(path + ": expected type " + type + " but was " + nodeTypeName(value));
 		}
+	}
+
+	/**
+	 * Equality for {@code enum}/{@code const} that compares numbers by value, so a schema
+	 * integer like {@code 443} matches a values float64 {@code 443.0} (Helm loads values
+	 * as float64; JSON-Schema enum equality is numeric, not type-strict).
+	 * @param a one node
+	 * @param b the other node
+	 * @return whether they are equal for schema purposes
+	 */
+	private static boolean jsonValueEquals(JsonNode a, JsonNode b) {
+		if (a.isNumber() && b.isNumber()) {
+			return a.doubleValue() == b.doubleValue();
+		}
+		return a.equals(b);
+	}
+
+	/**
+	 * JSON Schema's {@code integer} matches any number with zero fractional part,
+	 * including a float like {@code 8080.0}. Helm loads values as float64, so chart
+	 * ports/replicas arrive as whole doubles; accept them as integers (the validator must
+	 * not be stricter than Helm's).
+	 * @param value the value node
+	 * @return whether {@code value} is an integer for schema purposes
+	 */
+	private static boolean isIntegerValue(JsonNode value) {
+		if (value.isIntegralNumber()) {
+			return true;
+		}
+		if (value.isFloatingPointNumber()) {
+			double d = value.doubleValue();
+			return !Double.isInfinite(d) && !Double.isNaN(d) && d == Math.floor(d);
+		}
+		return false;
 	}
 
 	private String nodeTypeName(JsonNode node) {

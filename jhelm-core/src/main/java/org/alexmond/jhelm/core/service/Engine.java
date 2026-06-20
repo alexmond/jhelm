@@ -10,6 +10,7 @@ import org.alexmond.jhelm.gotemplate.GoTemplate;
 import org.alexmond.jhelm.gotemplate.parse.Node;
 
 import java.io.StringWriter;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -510,14 +511,17 @@ public class Engine {
 		// .Values.<subchartName>.*
 		mergeSubchartDefaults(chart, mergedValues);
 
-		// Helm nil-prunes a chart's values while *coalescing a subchart* ("setting a key
-		// to null removes it"), so a subchart default like `seLinuxOptions: null` never
-		// reaches a `toYaml`/`hasKey`. The top-level release chart's own values are used
-		// as-is and keep their nulls, so only prune for subcharts (depth > 0). Deep-copy
-		// because mergeValues shares nested map references with the cached chart values.
-		if (depth > 0) {
-			mergedValues = pruneNullValues(mergedValues);
-		}
+		// Normalise the merged values to match Helm's value model (deep copy —
+		// mergeValues
+		// shares nested map references with the cached chart values):
+		// * Numbers become Double, because Helm loads values via JSON where every number
+		// is a float64. Interpolated directly this changes large ints (>=1e6) to Go's
+		// scientific notation (`1000000` -> `1e+06`); `int`/`len` results stay Long and
+		// render plain.
+		// * Null map entries are pruned for a subchart (depth > 0) but kept for the
+		// top-level release chart, mirroring Helm's coalesce ("a null key removes it",
+		// applied while coalescing subcharts).
+		mergedValues = prepareRenderValues(mergedValues, depth > 0);
 
 		// Validate merged values against the chart's JSON Schema (if present)
 		if (chart.getValuesSchema() != null) {
@@ -905,28 +909,31 @@ public class Engine {
 	}
 
 	/**
-	 * Returns a deep copy of a values map with every null-valued map entry removed,
-	 * recursing through nested maps and lists. Mirrors Helm's coalesce behaviour where a
-	 * {@code null} value removes its key (so it is absent from
-	 * {@code toYaml}/{@code hasKey}). Null elements inside lists are preserved, as Helm
-	 * only prunes table keys. A copy is made because {@link #mergeValues} shares nested
-	 * map references with cached chart values, which must not be mutated.
+	 * Returns a deep copy of the merged values normalised to Helm's value model: every
+	 * integer-typed number becomes a {@code Double} (Helm loads values via JSON, where
+	 * all numbers are {@code float64}), and — when {@code pruneNulls} is set (subchart
+	 * render) — null-valued map entries are dropped (Helm's "a null key removes it"
+	 * coalesce rule; the top-level chart keeps its nulls). Null elements inside lists are
+	 * preserved, as Helm only prunes table keys. A copy is made because
+	 * {@link #mergeValues} shares nested map references with cached chart values, which
+	 * must not be mutated.
 	 * @param values the merged values map
-	 * @return a pruned deep copy
+	 * @param pruneNulls whether to drop null map entries (true for subcharts)
+	 * @return a normalised deep copy
 	 */
 	@SuppressWarnings("unchecked")
-	private Map<String, Object> pruneNullValues(Map<String, Object> values) {
-		return (Map<String, Object>) pruneNullsDeep(values);
+	private Map<String, Object> prepareRenderValues(Map<String, Object> values, boolean pruneNulls) {
+		return (Map<String, Object>) prepareValueNode(values, pruneNulls);
 	}
 
 	@SuppressWarnings("unchecked")
-	private Object pruneNullsDeep(Object node) {
+	private Object prepareValueNode(Object node, boolean pruneNulls) {
 		if (node instanceof Map) {
 			Map<String, Object> src = (Map<String, Object>) node;
 			Map<String, Object> out = new LinkedHashMap<>();
 			for (Map.Entry<String, Object> entry : src.entrySet()) {
-				if (entry.getValue() != null) {
-					out.put(entry.getKey(), pruneNullsDeep(entry.getValue()));
+				if (!pruneNulls || entry.getValue() != null) {
+					out.put(entry.getKey(), prepareValueNode(entry.getValue(), pruneNulls));
 				}
 			}
 			return out;
@@ -935,9 +942,17 @@ public class Engine {
 			List<Object> src = (List<Object>) node;
 			List<Object> out = new ArrayList<>(src.size());
 			for (Object item : src) {
-				out.add(pruneNullsDeep(item));
+				out.add(prepareValueNode(item, pruneNulls));
 			}
 			return out;
+		}
+		// Helm's values numbers are all float64; integer types become Double so a direct
+		// interpolation matches Go's float formatting. Double/Float and BigDecimal are
+		// left
+		// as-is (already floating), and booleans/strings are untouched.
+		if (node instanceof Integer || node instanceof Long || node instanceof Short || node instanceof Byte
+				|| node instanceof BigInteger) {
+			return ((Number) node).doubleValue();
 		}
 		return node;
 	}

@@ -12,25 +12,11 @@
 # object is missing a couple of listeners, and a test-hook Pod has a random name suffix.
 gitlab/gitlab,gitlab,https://charts.gitlab.io
 #
-# argo-events: Helm renders a large integer values default in scientific notation.
-# The controller-config ConfigMap interpolates
-# `{{ .Values.configs.jetstream.streamConfig.maxMsgs }}` (default 1000000) directly;
-# Helm loads values numbers as float64 so it prints `1e+06`, jhelm keeps the integer
-# and prints `1000000`. Matching Helm's large-int->scientific gotcha would require
-# treating every values.yaml integer as a double (risky, affects all direct
-# interpolations); deferred. (#27)
-argo/argo-events,argo,https://argoproj.github.io/argo-helm
-#
 # kyverno-policies: several ClusterPolicy resources carry a
 # `kyverno.io/kubernetes-version` annotation (e.g. ">=1.25.0-0") that jhelm renders
 # empty. The value comes from each policy's own annotations block; jhelm drops it.
 # Needs investigation. (#28)
 kyverno/kyverno-policies,kyverno,https://kyverno.github.io/kyverno/
-#
-# zalando/postgres-operator: same large-int->scientific-notation gap as argo-events
-# (#27) -- the pod PriorityClass `value: 1000000` renders as `1e+06` under Helm
-# (values numbers are float64) but `1000000` under jhelm.
-zalando/postgres-operator,zalando,https://opensource.zalando.com/postgres-operator/charts/postgres-operator
 #
 # bitnami grafana-loki / grafana-mimir: jhelm omits the bundled memcached
 # subcomponents (memcachedfrontend/chunks/index StatefulSet/Service/SA/PDB/NetworkPolicy)
@@ -51,11 +37,6 @@ kong/ingress,kong,https://charts.konghq.com
 # redpanda/console: jhelm renders zero resources where Helm renders the console
 # Deployment/Service/ConfigMap/Secret/SA; a top-level conditional-enablement gap.
 redpanda/console,redpanda,https://charts.redpanda.com
-#
-# gloo/gloo: Settings.validationServerGrpcMaxSizeBytes (104857600) renders as
-# `1.048576E8` under Helm (values float64 scientific notation) vs `104857600`
-# under jhelm; same large-int gap as argo-events/zalando (#27).
-gloo/gloo,gloo,https://storage.googleapis.com/solo-public-helm
 #
 # yugabyte/yugabyte: renders end-to-end now (the printf wrong-type marker fix removed
 # the `%d`-of-string crash), but still omits two serviceEndpoints Services
