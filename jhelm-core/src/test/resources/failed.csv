@@ -22,12 +22,6 @@ bitnami/grafana-mimir,bitnami,https://charts.bitnami.com/bitnami
 # Deployment/Service/ConfigMap/Secret/SA; a top-level conditional-enablement gap.
 redpanda/console,redpanda,https://charts.redpanda.com
 #
-# yugabyte/yugabyte: renders end-to-end now (the printf wrong-type marker fix removed
-# the `%d`-of-string crash), but still omits two serviceEndpoints Services
-# (yb-tserver-service, yugabyted-ui-service) -- a deep service-scope conditional gap
-# in service-endpoints.yaml (`if eq $service "true"` over an include result). (#32)
-yugabyte/yugabyte,yugabyte,https://charts.yugabyte.com
-#
 # redpanda/operator: jhelm renders zero resources where Helm renders the full
 # operator (Deployment/RBAC/Job/etc.); conditional-enablement gap (as redpanda/console).
 redpanda/operator,redpanda,https://charts.redpanda.com

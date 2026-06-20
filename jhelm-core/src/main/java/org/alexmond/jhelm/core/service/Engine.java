@@ -202,43 +202,31 @@ public class Engine {
 			return manifest;
 		}
 
-		// Normalize the manifest first - ensure it doesn't start/end with ---
 		String normalized = manifest.trim();
 
-		// Fix any ---# patterns (separator immediately followed by comment)
-		// This happens when templates use {{- if -}} around separators
-		normalized = normalized.replace("---#", "---\n#");
-
-		// Remove leading --- if present
-		while (normalized.startsWith("---")) {
-			normalized = normalized.substring(3).trim();
-		}
-
-		// Remove trailing --- if present
-		while (normalized.endsWith("---")) {
-			normalized = normalized.substring(0, normalized.length() - 3).trim();
-		}
-
-		// Split by YAML document separator patterns:
-		// 1. \n---\n (standard separator with blank line)
-		// 2. \n--- followed by newline with content (template-generated separator)
-		// Trailing whitespace after the --- is allowed (YAML treats "--- " as a
-		// separator;
-		// some charts emit it literally), otherwise the following resource is glued onto
-		// the previous document and disappears from the resource set.
-		String[] docs = normalized.split("\\n---[ \\t]*(?=\\n)");
+		// Split on YAML document separators the way Helm does. Helm's splitter
+		// (regexp "(?:^|\\s*\\n)---\\s*") treats any line that begins with "---" as a
+		// separator and consumes the trailing whitespace, so an inline "--- # comment"
+		// (e.g. yugabyte's templates/secrets.yaml) is a separator whose comment becomes
+		// the next document's content — the preceding resource is terminated cleanly.
+		// Splitting only on a "---" alone on its own line glued such inline separators
+		// onto the previous document (producing "------ # comment"), corrupting it so it
+		// no longer parsed as a resource. The "---" must be at column 0; an indented
+		// "---" inside a block scalar is content, not a separator (Helm behaves the
+		// same).
+		String[] docs = normalized.split("(?m)^---[ \\t]*");
 		StringBuilder cleaned = new StringBuilder();
 
 		for (String doc : docs) {
-			String trimmed = doc.trim();
-			// Skip empty documents, standalone separators, and documents that are just
-			// comments after a separator
-			if (!trimmed.isEmpty() && !trimmed.equals("---") && !trimmed.startsWith("---")) {
-				if (cleaned.length() > 0) {
-					cleaned.append("\n---\n");
-				}
-				cleaned.append(trimmed);
+			String trimmed = doc.strip();
+			// Skip empty documents and comment-only documents (no resource content).
+			if (trimmed.isEmpty() || isCommentOnly(trimmed)) {
+				continue;
 			}
+			if (cleaned.length() > 0) {
+				cleaned.append("\n---\n");
+			}
+			cleaned.append(trimmed);
 		}
 
 		// Add final newline if there's content
@@ -247,6 +235,20 @@ public class Engine {
 		}
 
 		return cleaned.toString();
+	}
+
+	/**
+	 * @return {@code true} if every non-blank line of the document is a YAML comment, so
+	 * the document carries no resource content and can be dropped
+	 */
+	private boolean isCommentOnly(String doc) {
+		for (String line : doc.split("\n")) {
+			String stripped = line.strip();
+			if (!stripped.isEmpty() && !stripped.startsWith("#")) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private void collectNamedTemplates(Chart chart) {

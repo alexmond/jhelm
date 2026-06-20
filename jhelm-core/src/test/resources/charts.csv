@@ -310,3 +310,4 @@ kong/ingress,kong,https://charts.konghq.com
 pomerium/pomerium,pomerium,https://helm.pomerium.io
 kyverno/kyverno-policies,kyverno,https://kyverno.github.io/kyverno/
 victoria-metrics/victoria-metrics-distributed,vm,https://victoriametrics.github.io/helm-charts
+yugabyte/yugabyte,yugabyte,https://charts.yugabyte.com
