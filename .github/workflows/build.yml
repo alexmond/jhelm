@@ -33,6 +33,21 @@ jobs:
       - name: Build with Maven
         run: ./mvnw clean install -B --fail-at-end
 
+      - name: Report tests + coverage to UniTrack
+        if: always()
+        uses: alexmond/unitrack/action@v0
+        with:
+          url: ${{ vars.UNITRACK_URL }}
+          token: ${{ secrets.UNITRACK_TOKEN }}
+          # soft-fail: reporting to UniTrack must never fail the build.
+          # jhelm's tests embed full rendered charts in surefire system-out — ~GBs of XML,
+          # >100MB even gzipped. Until surefire <redirectTestOutputToFile>true</...> trims that
+          # (or you shard per-module with a shared run-key), upload coverage for everything plus
+          # tests from one small module; widen `junit` to **/ afterwards.
+          soft-fail: "true"
+          junit: 'jhelm-gotemplate-helm/**/surefire-reports/TEST-*.xml'
+          jacoco: '**/target/site/jacoco/jacoco.xml'
+
 #      - name: Publish Test Results
 #        uses: EnricoMi/publish-unit-test-result-action@v2
 #        if: always()
