@@ -18,17 +18,22 @@ total="$(grep -cv '^$' "$CHARTS_CSV")"
 echo "${c_dim}running the full parity suite over $total charts (this takes a few minutes)...${c_off}" >&2
 log="$(mktemp)"; run_full_parity > "$log"
 
-summary="$(grep -E 'Tests run: [0-9]+, Failures' "$log" | tail -1)"
-echo "${summary:-(no surefire summary — build may have failed; see below)}"
+# The Maven run is quiet (no "Tests run:" line), but the surefire XML always has the
+# counts and the per-chart pass/fail is logged by the test itself. Read the XML.
+report="$(ls -t "$REPO_ROOT"/jhelm-core/target/surefire-reports/TEST-*KpsComparison*.xml 2>/dev/null | head -1 || true)"
+if [[ -n "$report" ]]; then
+  attr() { grep -oE "$1=\"[0-9]+\"" "$report" | head -1 | grep -oE '[0-9]+'; }
+  echo "Surefire: tests=$(attr tests) failures=$(attr failures) errors=$(attr errors)"
+else
+  echo "${c_red}no surefire report — the build likely failed before tests ran:${c_off}"
+  grep -E '\[ERROR\]' "$log" | grep -vE 'For more information|Re-run|help|See ' | head -8
+  rm -f "$log"; exit 1
+fi
 
-# Categorised failure list.
+# Categorised failure list (these lines are slf4j output, present even under -q).
 mapfile -t failing < <(grep -Eo '[a-z0-9._/-]+ - ([0-9]+ comparison failure|JHelm rendering failed)' "$log" | sort -u)
 if [[ ${#failing[@]} -eq 0 ]]; then
-  if grep -q 'BUILD FAILURE' "$log" && [[ -z "$summary" ]]; then
-    echo "${c_red}build failed before tests ran:${c_off}"; grep -E '\[ERROR\]' "$log" | grep -vE 'For more information|Re-run|help' | head -8
-    rm -f "$log"; exit 1
-  fi
-  echo "${c_green}All charts pass.${c_off}"; rm -f "$log"; exit 0
+  echo "${c_green}All $total charts pass.${c_off}"; rm -f "$log"; exit 0
 fi
 
 echo "${c_red}${#failing[@]} failing:${c_off}"
