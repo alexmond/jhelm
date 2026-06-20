@@ -3,6 +3,8 @@ package org.alexmond.jhelm.core.util;
 import org.snakeyaml.engine.v2.api.ConstructNode;
 import org.snakeyaml.engine.v2.api.Load;
 import org.snakeyaml.engine.v2.api.LoadSettings;
+import org.snakeyaml.engine.v2.nodes.Node;
+import org.snakeyaml.engine.v2.nodes.ScalarNode;
 import org.snakeyaml.engine.v2.nodes.Tag;
 import org.snakeyaml.engine.v2.resolver.CoreScalarResolver;
 import org.snakeyaml.engine.v2.resolver.ScalarResolver;
@@ -20,9 +22,12 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Utility for loading Helm values YAML files, including multi-document files.
@@ -37,10 +42,28 @@ import java.util.Map;
  */
 public final class ValuesLoader {
 
-	private static final Schema HELM_SCHEMA = createHelmSchema();
-
 	private ValuesLoader() {
 	}
+
+	/**
+	 * YAML 1.1 boolean tokens, matching Helm's value parser (sigs.k8s.io/yaml -> yaml.v2,
+	 * which is YAML 1.1). Helm resolves {@code yes/no/on/off/y/n} (and case variants) as
+	 * booleans, not strings — e.g. yugabyte/yugaware's {@code huge_pages: off} renders as
+	 * {@code 'false'}. SnakeYAML Engine's core schema (YAML 1.2) only knows true/false,
+	 * so jhelm kept the literal strings and diverged.
+	 */
+	private static final Set<String> YAML11_TRUE = Set.of("y", "Y", "yes", "Yes", "YES", "true", "True", "TRUE", "on",
+			"On", "ON");
+
+	private static final Set<String> YAML11_FALSE = Set.of("n", "N", "no", "No", "NO", "false", "False", "FALSE", "off",
+			"Off", "OFF");
+
+	private static final Pattern YAML11_BOOL = Pattern
+		.compile("^(?:y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)$");
+
+	// Declared after the YAML11_* constants it depends on: static fields initialise in
+	// source order, so createHelmSchema() must not run before those are set.
+	private static final Schema HELM_SCHEMA = createHelmSchema();
 
 	private static Schema createHelmSchema() {
 		CoreScalarResolver resolver = new CoreScalarResolver(true);
@@ -48,7 +71,12 @@ public final class ValuesLoader {
 		// includes ~. Add ~ to the first-char lookup so the resolver checks
 		// the NULL regex for tilde values (YAML 1.1/1.2 null literal).
 		resolver.addImplicitResolver(Tag.NULL, CoreScalarResolver.NULL, "~");
-		Map<Tag, ConstructNode> constructors = new CoreSchema().getSchemaTagConstructors();
+		// Resolve YAML 1.1 boolean tokens (yes/no/on/off/y/n) as booleans like Helm.
+		resolver.addImplicitResolver(Tag.BOOL, YAML11_BOOL, "yYnNtTfFoO");
+		Map<Tag, ConstructNode> constructors = new HashMap<>(new CoreSchema().getSchemaTagConstructors());
+		// The core BOOL constructor only understands true/false; replace it with one that
+		// also maps the YAML 1.1 tokens this resolver now tags as BOOL.
+		constructors.put(Tag.BOOL, new Yaml11BoolConstructor());
 		return new Schema() {
 			@Override
 			public ScalarResolver getScalarResolver() {
@@ -148,6 +176,28 @@ public final class ValuesLoader {
 				base.put(entry.getKey(), overrideVal);
 			}
 		}
+	}
+
+	/**
+	 * Constructs a Boolean from a scalar the {@link #YAML11_BOOL} resolver tagged as
+	 * {@code !!bool} — handles the YAML 1.1 tokens (yes/no/on/off/y/n) in addition to
+	 * true/false, matching Helm's yaml.v2 value parsing.
+	 */
+	private static final class Yaml11BoolConstructor implements ConstructNode {
+
+		@Override
+		public Object construct(Node node) {
+			String value = ((ScalarNode) node).getValue();
+			if (YAML11_TRUE.contains(value)) {
+				return Boolean.TRUE;
+			}
+			if (YAML11_FALSE.contains(value)) {
+				return Boolean.FALSE;
+			}
+			// Should not happen — the resolver only tags the tokens above as BOOL.
+			return Boolean.parseBoolean(value);
+		}
+
 	}
 
 }
