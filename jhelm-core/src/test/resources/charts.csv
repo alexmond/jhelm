@@ -305,3 +305,5 @@ bitnami/osclass,bitnami,https://charts.bitnami.com/bitnami
 argo/argo-events,argo,https://argoproj.github.io/argo-helm
 zalando/postgres-operator,zalando,https://opensource.zalando.com/postgres-operator/charts/postgres-operator
 gloo/gloo,gloo,https://storage.googleapis.com/solo-public-helm
+bitnami/grafana-loki,bitnami,https://charts.bitnami.com/bitnami
+kong/ingress,kong,https://charts.konghq.com
