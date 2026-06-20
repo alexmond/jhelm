@@ -314,3 +314,9 @@ yugabyte/yugabyte,yugabyte,https://charts.yugabyte.com
 redpanda/console,redpanda,https://charts.redpanda.com
 redpanda/operator,redpanda,https://charts.redpanda.com
 bitnami/grafana-mimir,bitnami,https://charts.bitnami.com/bitnami
+coredns/coredns,coredns,https://coredns.github.io/helm
+aws-ebs-csi-driver/aws-ebs-csi-driver,aws-ebs-csi-driver,https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+grafana/tempo-distributed,grafana,https://grafana.github.io/helm-charts
+fluxcd-community/flux2,fluxcd-community,https://fluxcd-community.github.io/helm-charts
+headlamp/headlamp,headlamp,https://kubernetes-sigs.github.io/headlamp/
+dragonfly/dragonfly,dragonfly,https://dragonflyoss.github.io/helm-charts/
