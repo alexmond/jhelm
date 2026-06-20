@@ -28,6 +28,11 @@ public class ChartMetadata {
 
 	private String appVersion;
 
+	// The chart's supported Kubernetes version range from Chart.yaml (Helm's
+	// .Chart.KubeVersion), e.g. ">=1.25.0-0". Charts interpolate it directly, e.g.
+	// kyverno-policies' `default .Chart.KubeVersion .Values.kubeVersionOverride`.
+	private String kubeVersion;
+
 	private List<Dependency> dependencies;
 
 	private Map<String, String> annotations;
