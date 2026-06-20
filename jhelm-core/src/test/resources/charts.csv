@@ -321,3 +321,8 @@ fluxcd-community/flux2,fluxcd-community,https://fluxcd-community.github.io/helm-
 headlamp/headlamp,headlamp,https://kubernetes-sigs.github.io/headlamp/
 dragonfly/dragonfly,dragonfly,https://dragonflyoss.github.io/helm-charts/
 projectcapsule/capsule,projectcapsule,https://projectcapsule.github.io/charts
+kubevela/vela-core,kubevela,https://kubevela.github.io/charts
+karmada/karmada,karmada,https://raw.githubusercontent.com/karmada-io/karmada/master/charts
+ot-helm/redis-operator,ot-helm,https://ot-container-kit.github.io/helm-charts/
+runix/pgadmin4,runix,https://helm.runix.net
+agones/agones,agones,https://agones.dev/chart/stable
