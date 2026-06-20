@@ -17,11 +17,3 @@ gitlab/gitlab,gitlab,https://charts.gitlab.io
 # jhelm omits ~16 config stanzas (activity_tracker, *_storage, blocks_storage, …)
 # that Helm builds. A separate mimir config-generation gap, not the memcached one.
 bitnami/grafana-mimir,bitnami,https://charts.bitnami.com/bitnami
-#
-# redpanda/console: jhelm renders zero resources where Helm renders the console
-# Deployment/Service/ConfigMap/Secret/SA; a top-level conditional-enablement gap.
-redpanda/console,redpanda,https://charts.redpanda.com
-#
-# redpanda/operator: jhelm renders zero resources where Helm renders the full
-# operator (Deployment/RBAC/Job/etc.); conditional-enablement gap (as redpanda/console).
-redpanda/operator,redpanda,https://charts.redpanda.com

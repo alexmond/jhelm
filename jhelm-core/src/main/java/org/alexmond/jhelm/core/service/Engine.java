@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartFiles;
 import org.alexmond.jhelm.core.model.Dependency;
+import org.alexmond.jhelm.core.model.Values;
 import org.alexmond.jhelm.core.model.VersionSet;
 
 @Slf4j
@@ -287,13 +288,23 @@ public class Engine {
 			if (aExtra != bExtra) {
 				return aExtra ? -1 : 1;
 			}
-			// Within a group, parse in Helm's full-path order so that a same-name define
-			// shared by distinct subcharts (e.g. gitlab's umbrella vs openbao
-			// gitlab.gatewayApi.route.enabled) resolves to the same winner as Helm.
+			// Reproduce Helm's same-name define winner (last Parse wins). Two rules,
+			// both verified against `helm template`:
+			// * Across directories (parent templates/ vs subchart charts/<x>/templates/):
+			// ascending directory order, so the parent's define is parsed last and wins
+			// (e.g. gitlab umbrella vs openbao; define-order regression #21).
+			// * Within one directory: the alphabetically SMALLER filename wins, so parse
+			// filenames in DESCENDING order (the smaller is parsed last). This is how
+			// one chart shipping two files for the same template resolves — e.g. redpanda
+			// console's _console.serviceaccount.tpl beats the stale
+			// _serviceaccount.go.tpl.
+			// Directory-then-reverse-filename is a proper total order (transitive).
 			String aPath = templateFullPath.getOrDefault(a, a);
 			String bPath = templateFullPath.getOrDefault(b, b);
-			int cmp = aPath.compareTo(bPath);
-			return (cmp != 0) ? cmp : a.compareTo(b);
+			String aDir = aPath.substring(0, aPath.lastIndexOf('/') + 1);
+			String bDir = bPath.substring(0, bPath.lastIndexOf('/') + 1);
+			int dirCmp = aDir.compareTo(bDir);
+			return (dirCmp != 0) ? dirCmp : bPath.compareTo(aPath);
 		}).toList();
 
 		for (String name : sortedNames) {
@@ -536,6 +547,10 @@ public class Engine {
 			}
 		}
 
+		// Wrap as Helm's chartutil.Values so `.Values.AsMap` resolves (gotohelm charts
+		// such as redpanda's console/operator read the raw map via {{ .Values.AsMap }}).
+		mergedValues = new Values(mergedValues);
+
 		Map<String, Object> context = new HashMap<>();
 		context.put("Values", mergedValues);
 		context.put("Chart", chart.getMetadata());
@@ -562,7 +577,7 @@ public class Engine {
 					new HashMap<>());
 			Map<String, Object> subchartContext = new HashMap<>();
 			subchartContext.put("Chart", dep.getMetadata());
-			subchartContext.put("Values", subchartValues);
+			subchartContext.put("Values", new Values(subchartValues));
 			subchartContext.put("Release", releaseInfo);
 			subcharts.put(depKey, subchartContext);
 		}
