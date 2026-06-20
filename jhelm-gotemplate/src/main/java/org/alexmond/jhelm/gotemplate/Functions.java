@@ -727,10 +727,7 @@ public final class Functions {
 	 * {@code fmt.Sprint(nil)} which produces {@code "<nil>"} for nil values.
 	 */
 	static String sprintValue(Object value) {
-		if (value == null) {
-			return "<nil>";
-		}
-		return (value instanceof Number n) ? GoFmt.number(n) : String.valueOf(value);
+		return GoFmt.sprint(value);
 	}
 
 	public static boolean isTrue(Object arg) {

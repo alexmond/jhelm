@@ -307,3 +307,4 @@ zalando/postgres-operator,zalando,https://opensource.zalando.com/postgres-operat
 gloo/gloo,gloo,https://storage.googleapis.com/solo-public-helm
 bitnami/grafana-loki,bitnami,https://charts.bitnami.com/bitnami
 kong/ingress,kong,https://charts.konghq.com
+pomerium/pomerium,pomerium,https://helm.pomerium.io

@@ -610,7 +610,7 @@ public final class ListFunctions {
 
 	// Go-style stringify so a float64 element renders like helm template (8 -> "8").
 	private static String goStr(Object value) {
-		return (value instanceof Number n) ? GoFmt.number(n) : String.valueOf(value);
+		return GoFmt.sprint(value);
 	}
 
 	private static Function join() {
