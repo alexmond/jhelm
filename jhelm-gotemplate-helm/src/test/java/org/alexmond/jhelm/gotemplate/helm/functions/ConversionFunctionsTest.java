@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -365,6 +366,39 @@ class ConversionFunctionsTest {
 		assertEquals(Map.of(), fromYaml.invoke(new Object[] {}));
 		assertEquals(Map.of(), fromYaml.invoke(new Object[] { null }));
 		assertEquals(Map.of(), fromYaml.invoke(new Object[] { "  " }));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testFromYamlDuplicateKeyTakesLast() {
+		// Helm parses via sigs.k8s.io/yaml where a repeated key silently takes the last
+		// value (bitnami/grafana-mimir's mimir.yaml repeats `ingester:`). SnakeYAML
+		// Engine
+		// rejects duplicates by default; jhelm must allow them and keep the last.
+		Function fromYaml = functions().get("fromYaml");
+		Map<String, Object> result = (Map<String, Object>) fromYaml
+			.invoke(new Object[] { "a:\n  first: 1\na:\n  second: 2\n" });
+		Map<String, Object> a = (Map<String, Object>) result.get("a");
+		assertEquals(2, ((Number) a.get("second")).intValue(), "last duplicate key value wins");
+		assertFalse(a.containsKey("first"), "earlier duplicate key is dropped, not merged");
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void testFromYamlParseErrorReturnsErrorKey() {
+		// Helm's fromYaml surfaces a parse failure under an "Error" key rather than
+		// silently returning an empty map (which would hide the failure).
+		Function fromYaml = functions().get("fromYaml");
+		Map<String, Object> result = (Map<String, Object>) fromYaml.invoke(new Object[] { "a: b: c" });
+		assertNotNull(result.get("Error"), "parse failure must surface under an Error key");
+	}
+
+	@Test
+	void testFromYamlArrayParseErrorReturnsError() {
+		// Helm's fromYamlArray returns [err] on a parse failure, not an empty list.
+		Function fromYamlArray = functions().get("fromYamlArray");
+		List<?> result = (List<?>) fromYamlArray.invoke(new Object[] { "- a: b: c" });
+		assertEquals(1, result.size(), "parse failure must surface as a single-element error list");
 	}
 
 	@Test

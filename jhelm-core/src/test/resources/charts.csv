@@ -313,3 +313,4 @@ victoria-metrics/victoria-metrics-distributed,vm,https://victoriametrics.github.
 yugabyte/yugabyte,yugabyte,https://charts.yugabyte.com
 redpanda/console,redpanda,https://charts.redpanda.com
 redpanda/operator,redpanda,https://charts.redpanda.com
+bitnami/grafana-mimir,bitnami,https://charts.bitnami.com/bitnami

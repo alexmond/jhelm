@@ -113,7 +113,14 @@ public final class ConversionFunctions {
 			}
 		};
 
-		return LoadSettings.builder().setSchema(schema).build();
+		// Allow duplicate mapping keys (last wins), matching Helm's fromYaml. Helm parses
+		// via sigs.k8s.io/yaml (YAML -> JSON -> Go), where a repeated key silently takes
+		// the last value; SnakeYAML Engine rejects duplicates by default. Some charts
+		// legitimately emit a key twice in a generated config (e.g.
+		// bitnami/grafana-mimir's
+		// mimir.yaml repeats `ingester:`), so rejecting it would discard the whole
+		// document.
+		return LoadSettings.builder().setSchema(schema).setAllowDuplicateKeys(true).build();
 	}
 
 	/**
@@ -288,8 +295,16 @@ public final class ConversionFunctions {
 				return (result instanceof Map<?, ?> map) ? map : new LinkedHashMap<>();
 			}
 			catch (Exception ex) {
+				// Match Helm's fromYaml, which surfaces a parse failure under an "Error"
+				// key
+				// (m["Error"] = err) rather than silently returning an empty map — a
+				// silent
+				// empty map hides real bugs (it wiped bitnami/grafana-mimir's whole
+				// config).
 				log.debug("fromYaml failed: {}", ex.getMessage());
-				return new LinkedHashMap<>();
+				Map<String, Object> error = new LinkedHashMap<>();
+				error.put("Error", ex.getMessage());
+				return error;
 			}
 		};
 	}
@@ -340,8 +355,11 @@ public final class ConversionFunctions {
 				return (result instanceof List<?> list) ? list : Collections.emptyList();
 			}
 			catch (Exception ex) {
+				// Match Helm's fromYamlArray, which returns [err.Error()] on a parse
+				// failure
+				// rather than silently swallowing it into an empty list.
 				log.debug("fromYamlArray failed: {}", ex.getMessage());
-				return Collections.emptyList();
+				return List.of(String.valueOf(ex.getMessage()));
 			}
 		};
 	}
