@@ -43,6 +43,32 @@ class ValuesLoaderTest {
 	}
 
 	@Test
+	void testYaml11BooleansParsedLikeHelm() throws IOException {
+		// Helm's value parser (sigs.k8s.io/yaml -> yaml.v2, YAML 1.1) resolves
+		// yes/no/on/off/y/n (and case variants) as booleans, not strings.
+		File f = writeValues("""
+				a: on
+				b: off
+				c: yes
+				d: no
+				e: "on"
+				f: y
+				g: Off
+				h: true
+				""");
+		Map<String, Object> result = ValuesLoader.load(f);
+		assertEquals(Boolean.TRUE, result.get("a"));
+		assertEquals(Boolean.FALSE, result.get("b"));
+		assertEquals(Boolean.TRUE, result.get("c"));
+		assertEquals(Boolean.FALSE, result.get("d"));
+		// A quoted token stays a string (the resolver only fires on plain scalars).
+		assertEquals("on", result.get("e"));
+		assertEquals(Boolean.TRUE, result.get("f"));
+		assertEquals(Boolean.FALSE, result.get("g"));
+		assertEquals(Boolean.TRUE, result.get("h"));
+	}
+
+	@Test
 	void testMultiDocumentNonOverlapping() throws IOException {
 		File f = writeValues("""
 				key1: value1

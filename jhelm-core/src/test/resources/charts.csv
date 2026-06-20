@@ -337,3 +337,4 @@ openfunction/openfunction,openfunction,https://openfunction.github.io/charts/
 weaviate/weaviate,weaviate,https://weaviate.github.io/weaviate-helm
 qdrant/qdrant,qdrant,https://qdrant.github.io/qdrant-helm
 milvus/milvus,milvus,https://zilliztech.github.io/milvus-helm/
+yugabyte/yugaware,yugabyte,https://charts.yugabyte.com
