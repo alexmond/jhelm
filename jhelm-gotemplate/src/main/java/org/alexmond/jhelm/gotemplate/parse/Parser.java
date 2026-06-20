@@ -496,6 +496,13 @@ public class Parser {
 
 		switch (nextToken.type()) {
 			case ASSIGN:
+				// `$x = …` updates an existing variable (persists past the block),
+				// unlike `:=` which declares a block-scoped one.
+				pipeNode.setDeclare(false);
+				moveToNextNonSpaceToken(lexer, state);
+				pipeNode.append(new VariableNode(variableToken.value()));
+				state.variables.add(variableToken.value());
+				break;
 			case DECLARE:
 				moveToNextNonSpaceToken(lexer, state);
 				pipeNode.append(new VariableNode(variableToken.value()));

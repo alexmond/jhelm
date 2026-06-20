@@ -59,6 +59,30 @@ public class Executor {
 	// Variable storage for template execution context
 	private final Map<String, Object> variables = new HashMap<>();
 
+	// Block-scope undo logs. Each {{if}}/{{with}}/range-iteration pushes a frame; a `:=`
+	// declaration inside records how to undo itself, so the declaration is unwound when
+	// the
+	// block exits (Go scopes `:=` to its block). `=` assignments are not logged and
+	// persist.
+	private final java.util.Deque<List<ScopeUndo>> scopeStack = new java.util.ArrayDeque<>();
+
+	private void pushScope() {
+		scopeStack.push(new ArrayList<>());
+	}
+
+	private void popScope() {
+		List<ScopeUndo> frame = scopeStack.pop();
+		for (int i = frame.size() - 1; i >= 0; i--) {
+			ScopeUndo u = frame.get(i);
+			if (u.existed()) {
+				variables.put(u.name(), u.previous());
+			}
+			else {
+				variables.remove(u.name());
+			}
+		}
+	}
+
 	// Root data for $ variable
 	private Object rootData;
 
@@ -169,12 +193,21 @@ public class Executor {
 
 	private void writeIf(Writer writer, IfNode ifNode, Object data, BeanInfo beanInfo)
 			throws IOException, TemplateExecutionException, TemplateNotFoundException {
-		Object value = executePipe(ifNode.getPipeNode(), data, beanInfo);
-		if (isTrue(value)) {
-			writeNode(writer, ifNode.getIfListNode(), data, beanInfo);
+		// `{{ if $x := … }}` scopes the declaration to the if/else; body `:=`
+		// declarations
+		// are block-scoped too. Push a scope over the whole construct and unwind on exit.
+		pushScope();
+		try {
+			Object value = executePipe(ifNode.getPipeNode(), data, beanInfo);
+			if (isTrue(value)) {
+				writeNode(writer, ifNode.getIfListNode(), data, beanInfo);
+			}
+			else if (ifNode.getElseListNode() != null) {
+				writeNode(writer, ifNode.getElseListNode(), data, beanInfo);
+			}
 		}
-		else if (ifNode.getElseListNode() != null) {
-			writeNode(writer, ifNode.getElseListNode(), data, beanInfo);
+		finally {
+			popScope();
 		}
 	}
 
@@ -319,6 +352,11 @@ public class Executor {
 	 */
 	private boolean writeRangeItem(Writer writer, RangeNode rangeNode, Object value)
 			throws IOException, TemplateExecutionException, TemplateNotFoundException {
+		// Each iteration body is its own scope, so a `:=` inside does not leak to the
+		// next
+		// iteration or past the range (the loop variables themselves are managed
+		// separately).
+		pushScope();
 		try {
 			writeRangeValue(writer, rangeNode, value);
 		}
@@ -327,6 +365,9 @@ public class Executor {
 		}
 		catch (BreakSignal ex) {
 			return true;
+		}
+		finally {
+			popScope();
 		}
 		return false;
 	}
@@ -346,13 +387,19 @@ public class Executor {
 
 	private void writeWith(Writer writer, WithNode withNode, Object data, BeanInfo beanInfo)
 			throws IOException, TemplateExecutionException, TemplateNotFoundException {
-		Object value = executePipe(withNode.getPipeNode(), data, beanInfo);
-		if (isTrue(value)) {
-			BeanInfo valueBeanInfo = getBeanInfo(value);
-			writeNode(writer, withNode.getIfListNode(), value, valueBeanInfo);
+		pushScope();
+		try {
+			Object value = executePipe(withNode.getPipeNode(), data, beanInfo);
+			if (isTrue(value)) {
+				BeanInfo valueBeanInfo = getBeanInfo(value);
+				writeNode(writer, withNode.getIfListNode(), value, valueBeanInfo);
+			}
+			else if (withNode.getElseListNode() != null) {
+				writeNode(writer, withNode.getElseListNode(), data, beanInfo);
+			}
 		}
-		else if (withNode.getElseListNode() != null) {
-			writeNode(writer, withNode.getElseListNode(), data, beanInfo);
+		finally {
+			popScope();
 		}
 	}
 
@@ -367,9 +414,13 @@ public class Executor {
 
 		Object value = executePipe(templateNode.getPipeNode(), data, beanInfo);
 		BeanInfo valueBeanInfo = (value != null) ? getBeanInfo(value) : null;
-		// Go resets $ and clears outer variables when entering a nested template
+		// Go resets $ and clears outer variables when entering a nested template; its
+		// block
+		// scopes belong to the callee, so swap in a fresh scope stack too.
 		Map<String, Object> savedVariables = new HashMap<>(this.variables);
+		java.util.Deque<List<ScopeUndo>> savedScopes = new java.util.ArrayDeque<>(this.scopeStack);
 		this.variables.clear();
+		this.scopeStack.clear();
 		this.variables.put("$", value);
 		try {
 			writeNode(writer, listNode, value, valueBeanInfo);
@@ -377,6 +428,8 @@ public class Executor {
 		finally {
 			this.variables.clear();
 			this.variables.putAll(savedVariables);
+			this.scopeStack.clear();
+			this.scopeStack.addAll(savedScopes);
 		}
 	}
 
@@ -405,6 +458,13 @@ public class Executor {
 			for (VariableNode variable : pipeNode.getVariables()) {
 				if (variable != null) {
 					String varName = variable.getIdentifier(0);
+					// A `:=` declaration inside a block records an undo entry so it is
+					// unwound on block exit (Go scopes it to the block). A top-level
+					// declaration (no open scope) and any `=` assignment just persist.
+					if (pipeNode.isDeclare() && !scopeStack.isEmpty()) {
+						scopeStack.peek()
+							.add(new ScopeUndo(varName, variables.containsKey(varName), variables.get(varName)));
+					}
 					// Store the value even if it's null or empty string, matching Helm
 					// behavior
 					variables.put(varName, value);
@@ -875,6 +935,12 @@ public class Executor {
 
 	private void printValue(Writer writer, Object value) throws IOException {
 		ValuePrinter.printValue(writer, value);
+	}
+
+	// One block-scoped `:=` declaration's undo record: restore {@code previous} if the
+	// name
+	// {@code existed} before the declaration, otherwise remove it, when the block exits.
+	private record ScopeUndo(String name, boolean existed, Object previous) {
 	}
 
 }
