@@ -322,7 +322,7 @@ public final class StringFunctions {
 	// Stringify Go-style so a float64 renders like helm template (8080 -> "8080",
 	// 1000000 -> "1e+06") instead of Java's "8080.0".
 	private static String goStr(Object value) {
-		return (value instanceof Number n) ? GoFmt.number(n) : String.valueOf(value);
+		return GoFmt.sprint(value);
 	}
 
 	private static Function quote() {

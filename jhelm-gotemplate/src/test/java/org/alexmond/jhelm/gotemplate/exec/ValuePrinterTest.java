@@ -55,6 +55,16 @@ class ValuePrinterTest {
 	}
 
 	@Test
+	void testMapKeysSortedLikeGoFmt() throws Exception {
+		// Go's fmt.Sprint sorts map keys for stable output; insertion order is b,c,a.
+		java.util.LinkedHashMap<String, Object> m = new java.util.LinkedHashMap<>();
+		m.put("b", 2);
+		m.put("c", 3);
+		m.put("a", 1);
+		assertEquals("map[a:1 b:2 c:3]", render("{{ .val }}", Map.of("val", m)));
+	}
+
+	@Test
 	void testStringConcatenation() throws Exception {
 		Map<String, Object> data = Map.of("val", 1.0);
 		assertEquals("value=1", render("value={{ .val }}", data));

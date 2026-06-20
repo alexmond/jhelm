@@ -138,10 +138,8 @@ public final class MathFunctions {
 			// "null". Charts rely on this, e.g. `eq (toString .x) "<nil>"` to test
 			// whether
 			// a value is unset (opentelemetry-collector.serviceEnabled).
-			if (args[0] == null) {
-				return "<nil>";
-			}
-			return (args[0] instanceof Number n) ? GoFmt.number(n) : String.valueOf(args[0]);
+			// Go's fmt.Sprint: nil -> "<nil>", a map -> "map[k:v …]" (sorted), etc.
+			return GoFmt.sprint(args[0]);
 		};
 	}
 

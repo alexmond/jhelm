@@ -1,6 +1,12 @@
 package org.alexmond.jhelm.gotemplate;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Formats values the way Go's {@code fmt} package does, so template output matches
@@ -18,6 +24,61 @@ import java.math.BigDecimal;
 public final class GoFmt {
 
 	private GoFmt() {
+	}
+
+	/**
+	 * Formats a value the way Go's {@code fmt.Sprint}/{@code %v} does, recursively: a map
+	 * renders as {@code map[k1:v1 k2:v2]} with keys sorted (Go sorts map keys for stable
+	 * output), a slice/array as {@code [e1 e2 e3]}, {@code nil} as {@code <nil>}, numbers
+	 * via {@link #number}, and everything else via {@link String#valueOf}. Used by
+	 * {@code toString}/{@code print}/{@code quote}/… so e.g. {@code toString} of a map
+	 * matches {@code helm template} instead of Java's {@code {k=v}}.
+	 * @param value the value
+	 * @return the Go-formatted string
+	 */
+	public static String sprint(Object value) {
+		if (value == null) {
+			return "<nil>";
+		}
+		if (value instanceof Number n) {
+			return number(n);
+		}
+		if (value instanceof Map<?, ?> map) {
+			List<Map.Entry<?, ?>> entries = new ArrayList<>(map.entrySet());
+			entries.sort(Comparator.comparing((e) -> String.valueOf(e.getKey())));
+			StringBuilder sb = new StringBuilder("map[");
+			for (int i = 0; i < entries.size(); i++) {
+				if (i > 0) {
+					sb.append(' ');
+				}
+				sb.append(sprint(entries.get(i).getKey())).append(':').append(sprint(entries.get(i).getValue()));
+			}
+			return sb.append(']').toString();
+		}
+		if (value instanceof Collection<?> coll) {
+			StringBuilder sb = new StringBuilder("[");
+			boolean first = true;
+			for (Object e : coll) {
+				if (!first) {
+					sb.append(' ');
+				}
+				sb.append(sprint(e));
+				first = false;
+			}
+			return sb.append(']').toString();
+		}
+		if (value.getClass().isArray()) {
+			StringBuilder sb = new StringBuilder("[");
+			int len = Array.getLength(value);
+			for (int i = 0; i < len; i++) {
+				if (i > 0) {
+					sb.append(' ');
+				}
+				sb.append(sprint(Array.get(value, i)));
+			}
+			return sb.append(']').toString();
+		}
+		return String.valueOf(value);
 	}
 
 	/**
