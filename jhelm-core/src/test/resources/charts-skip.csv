@@ -9,6 +9,8 @@
 argo/argocd-apps,Renders 0 documents with default values (creates CRs from empty lists)
 bitnami/common,Helm fails: library charts are not installable
 stakater/application,Helm fails with default values: "Undefined image for application container" (requires image value)
+zitadel/zitadel,Helm fails with default values (requires masterkey / external domain config)
+kubecost/cost-analyzer,Helm fails with default values (requires kubecostToken / provider config)
 #
 # --- Download failures (external repo issues) ---
 twuni/docker-registry,Repo DNS failure
