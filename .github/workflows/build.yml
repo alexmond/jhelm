@@ -40,6 +40,7 @@ jobs:
           url: ${{ vars.UNITRACK_URL }}
           token: ${{ secrets.UNITRACK_TOKEN }}
           # soft-fail: reporting to UniTrack must never fail the build.
+          split-by-module: "true"
           # jhelm's tests embed full rendered charts in surefire system-out — ~GBs of XML,
           # >100MB even gzipped. Until surefire <redirectTestOutputToFile>true</...> trims that
           # (or you shard per-module with a shared run-key), upload coverage for everything plus
