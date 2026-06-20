@@ -66,6 +66,12 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.config.yaml.login_token.signing_key"
         reason: "signing_key is a randAlphaNum value regenerated per render"
+    "[redpanda/console]":
+      # The JWT signing key defaults to randAlphaNum 32 when unset (chart.DotToState),
+      # so Helm and jhelm each generate a different value every render.
+      - resource: "Secret/*"
+        path: "stringData.authentication-jwt-signingkey"
+        reason: "JWT signing key is a randAlphaNum value generated per render"
   # Value overrides for charts that Helm cannot render with default values. The same
   # overrides are applied to both Helm and jhelm, so any divergence is a real jhelm bug.
   comparison-values:

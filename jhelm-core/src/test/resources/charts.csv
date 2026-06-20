@@ -311,3 +311,5 @@ pomerium/pomerium,pomerium,https://helm.pomerium.io
 kyverno/kyverno-policies,kyverno,https://kyverno.github.io/kyverno/
 victoria-metrics/victoria-metrics-distributed,vm,https://victoriametrics.github.io/helm-charts
 yugabyte/yugabyte,yugabyte,https://charts.yugabyte.com
+redpanda/console,redpanda,https://charts.redpanda.com
+redpanda/operator,redpanda,https://charts.redpanda.com
