@@ -302,3 +302,6 @@ linkerd/linkerd-crds,linkerd,https://helm.linkerd.io/stable
 prometheus-community/prometheus-pgbouncer-exporter,prometheus-community,https://prometheus-community.github.io/helm-charts
 bitnami/jasperreports,bitnami,https://charts.bitnami.com/bitnami
 bitnami/osclass,bitnami,https://charts.bitnami.com/bitnami
+argo/argo-events,argo,https://argoproj.github.io/argo-helm
+zalando/postgres-operator,zalando,https://opensource.zalando.com/postgres-operator/charts/postgres-operator
+gloo/gloo,gloo,https://storage.googleapis.com/solo-public-helm

@@ -601,10 +601,9 @@ public final class Functions {
 			return ((Number) arg).longValue();
 		}
 		if (spec == 's' && (arg instanceof Double || arg instanceof Float)) {
-			double d = ((Number) arg).doubleValue();
-			if (d == Math.rint(d) && !Double.isInfinite(d) && Math.abs(d) < 1e15) {
-				return (long) d;
-			}
+			// Go's %v (rewritten to %s) prints a float64 with %g, so a values number
+			// renders like helm template (3.0 -> "3", 1000000 -> "1e+06").
+			return GoFmt.floatString(((Number) arg).doubleValue());
 		}
 		return arg;
 	}
@@ -728,7 +727,10 @@ public final class Functions {
 	 * {@code fmt.Sprint(nil)} which produces {@code "<nil>"} for nil values.
 	 */
 	static String sprintValue(Object value) {
-		return (value != null) ? String.valueOf(value) : "<nil>";
+		if (value == null) {
+			return "<nil>";
+		}
+		return (value instanceof Number n) ? GoFmt.number(n) : String.valueOf(value);
 	}
 
 	public static boolean isTrue(Object arg) {

@@ -5,6 +5,8 @@ import java.io.Writer;
 import java.util.Collection;
 import java.util.Map;
 
+import org.alexmond.jhelm.gotemplate.GoFmt;
+
 final class ValuePrinter {
 
 	private ValuePrinter() {
@@ -60,17 +62,13 @@ final class ValuePrinter {
 	}
 
 	/**
-	 * Format a value to match Go's fmt.Sprint behavior. Whole-number floating-point
-	 * values are rendered without a decimal point (e.g. 1.0 → "1").
+	 * Format a value to match Go's {@code fmt.Sprint}. Numbers are formatted by
+	 * {@link GoFmt#number} (a values {@code float64} uses Go's %g, so e.g.
+	 * {@code 1000000 -> 1e+06}); other types fall back to {@link String#valueOf}.
 	 */
-	private static String formatScalar(Object value) {
-		if (value instanceof Double d && d == Math.floor(d) && !Double.isInfinite(d) && d >= Long.MIN_VALUE
-				&& d <= Long.MAX_VALUE) {
-			return String.valueOf(d.longValue());
-		}
-		if (value instanceof Float f && f == Math.floor(f) && !Float.isInfinite(f) && f >= Long.MIN_VALUE
-				&& f <= Long.MAX_VALUE) {
-			return String.valueOf(f.longValue());
+	static String formatScalar(Object value) {
+		if (value instanceof Number n) {
+			return GoFmt.number(n);
 		}
 		return String.valueOf(value);
 	}
