@@ -332,3 +332,8 @@ fluent/fluentd,fluent,https://fluent.github.io/helm-charts
 couchbase/couchbase-operator,couchbase,https://couchbase-partners.github.io/helm-charts/
 netdata/netdata,netdata,https://netdata.github.io/helmchart/
 timescale/timescaledb-single,timescale,https://charts.timescale.com
+cnpg/cloudnative-pg,cnpg,https://cloudnative-pg.github.io/charts
+openfunction/openfunction,openfunction,https://openfunction.github.io/charts/
+weaviate/weaviate,weaviate,https://weaviate.github.io/weaviate-helm
+qdrant/qdrant,qdrant,https://qdrant.github.io/qdrant-helm
+milvus/milvus,milvus,https://zilliztech.github.io/milvus-helm/
