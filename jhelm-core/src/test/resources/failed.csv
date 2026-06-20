@@ -6,8 +6,12 @@
 # Both render under `helm template` with the comparison-values in application-test.yaml,
 # so the remaining failure is a real jhelm bug (tracked here until fixed).
 #
-# gitlab: renders end-to-end and now emits the Gateway API resources Helm does
-# (HTTPRoute/TCPRoute/BackendTrafficPolicy — the parse-order #21 fix), but still diverges:
-# several shared-secrets/migrations/issuer Jobs differ by content-hash suffix, the Gateway
-# object is missing a couple of listeners, and a test-hook Pod has a random name suffix.
+# gitlab: renders end-to-end; the only remaining divergence is the shared-secrets/
+# migrations/issuer Jobs whose names carry a content-hash suffix from
+# `gitlab.jobNameSuffix` = sha256(.Chart.Version-.AppVersion-b64(toYaml(unset .Values
+# "local"))) | trunc 7. jhelm's coalesced .Values tree is ~5850 lines vs Helm's ~13029
+# (jhelm omits ~half the recursively-coalesced subchart defaults), so toYaml(.Values)
+# and thus the hash can never match — this needs a full Helm CoalesceValues/
+# ProcessDependencies reimplementation (the real scope of #21, a multi-session effort).
+# Also a webservice-test-runner Pod has a random name suffix (helm test hook).
 gitlab/gitlab,gitlab,https://charts.gitlab.io

@@ -83,6 +83,13 @@ public final class MathFunctions {
 			if (args[0] instanceof Number) {
 				return ((Number) args[0]).intValue();
 			}
+			// Sprig's int is cast.ToInt: a bool coerces to 1/0 (gitlab's sidekiq uses
+			// `int .Values.memoryKiller.daemonMode`). Without this a Boolean falls
+			// through
+			// to parseInt("true") and wrongly yields 0.
+			if (args[0] instanceof Boolean b) {
+				return b ? 1 : 0;
+			}
 			try {
 				return Integer.parseInt(String.valueOf(args[0]));
 			}
@@ -100,6 +107,10 @@ public final class MathFunctions {
 			}
 			if (args[0] instanceof Number) {
 				return ((Number) args[0]).longValue();
+			}
+			// Sprig's int64 is cast.ToInt64: a bool coerces to 1/0, matching int above.
+			if (args[0] instanceof Boolean b) {
+				return b ? 1L : 0L;
 			}
 			try {
 				return Long.parseLong(String.valueOf(args[0]));
