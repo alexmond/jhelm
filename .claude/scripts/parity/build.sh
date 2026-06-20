@@ -40,5 +40,9 @@ pl=$(IFS=,; echo "${modules[*]}")
 cd "$REPO_ROOT"
 echo "[build.sh] spring-javaformat:apply -pl $pl"
 ./mvnw -q spring-javaformat:apply -pl "$pl"
+# When tests are skipped there is no coverage data, so the jacoco check goal would
+# fail the build — skip it too (it runs in full CI / when -t is passed).
+jacoco_skip=""
+[ -n "$skip_tests" ] && jacoco_skip="-Djacoco.skip=true"
 echo "[build.sh] $goal -pl $pl ${skip_tests:-(with tests)}"
-./mvnw -q "$goal" -pl "$pl" $skip_tests
+./mvnw -q "$goal" -pl "$pl" $skip_tests $jacoco_skip
