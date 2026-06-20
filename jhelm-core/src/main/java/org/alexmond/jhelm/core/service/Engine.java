@@ -659,7 +659,14 @@ public class Engine {
 		List<Chart.Template> sorted = new ArrayList<>(chart.getTemplates());
 		sorted.sort(Comparator.comparing(Chart.Template::getName, Comparator.reverseOrder()));
 		for (Chart.Template t : sorted) {
-			if (!t.getName().endsWith(".yaml") && !t.getName().endsWith(".yml")) {
+			// Helm renders every file under templates/ as a manifest source EXCEPT
+			// partials (basename starts with `_`) and NOTES.txt — the extension is
+			// irrelevant, so a non-underscore `.tpl` is rendered too (e.g.
+			// projectcapsule/capsule's crds.tpl, which emits the CRD ConfigMaps).
+			String name = t.getName();
+			int slash = name.lastIndexOf('/');
+			String base = (slash >= 0) ? name.substring(slash + 1) : name;
+			if (base.startsWith("_") || "NOTES.txt".equals(base)) {
 				continue;
 			}
 			try {

@@ -194,7 +194,12 @@ public class ChartLoader {
 		}
 	}
 
-	private static final Set<String> EXCLUDED_DIRS = Set.of("templates", "charts", "crds");
+	// Dirs whose files are NOT exposed via .Files. Helm excludes only templates/ and
+	// charts/ — crds/ files ARE included in .Files (Helm's loader routes them to the
+	// default/Files case), so templates can read them: e.g. projectcapsule/capsule wraps
+	// each CRD in a ConfigMap via `.Files.Glob "crds/**.yaml"`. crds/ is still loaded
+	// separately as Chart.Crd for CRD installation; this only governs .Files visibility.
+	private static final Set<String> EXCLUDED_DIRS = Set.of("templates", "charts");
 
 	private static final Set<String> EXCLUDED_FILES = Set.of("Chart.yaml", "Chart.lock", "values.yaml",
 			"values.schema.json", "README.md", ".helmignore");
