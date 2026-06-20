@@ -11,9 +11,3 @@
 # several shared-secrets/migrations/issuer Jobs differ by content-hash suffix, the Gateway
 # object is missing a couple of listeners, and a test-hook Pod has a random name suffix.
 gitlab/gitlab,gitlab,https://charts.gitlab.io
-#
-# bitnami/grafana-mimir: the multi-alias memcached subcomponents now render (the
-# subchart multi-alias fix), but the mimir.yaml ConfigMap is still mostly empty —
-# jhelm omits ~16 config stanzas (activity_tracker, *_storage, blocks_storage, …)
-# that Helm builds. A separate mimir config-generation gap, not the memcached one.
-bitnami/grafana-mimir,bitnami,https://charts.bitnami.com/bitnami
