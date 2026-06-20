@@ -320,3 +320,4 @@ grafana/tempo-distributed,grafana,https://grafana.github.io/helm-charts
 fluxcd-community/flux2,fluxcd-community,https://fluxcd-community.github.io/helm-charts
 headlamp/headlamp,headlamp,https://kubernetes-sigs.github.io/headlamp/
 dragonfly/dragonfly,dragonfly,https://dragonflyoss.github.io/helm-charts/
+projectcapsule/capsule,projectcapsule,https://projectcapsule.github.io/charts
