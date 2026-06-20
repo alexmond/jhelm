@@ -31,6 +31,3 @@ yugabyte/yugabyte,yugabyte,https://charts.yugabyte.com
 # redpanda/operator: jhelm renders zero resources where Helm renders the full
 # operator (Deployment/RBAC/Job/etc.); conditional-enablement gap (as redpanda/console).
 redpanda/operator,redpanda,https://charts.redpanda.com
-#
-# victoria-metrics-distributed: jhelm omits one VMRule (victoria-node.rules).
-victoria-metrics/victoria-metrics-distributed,vm,https://victoriametrics.github.io/helm-charts

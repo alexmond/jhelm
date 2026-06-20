@@ -309,3 +309,4 @@ bitnami/grafana-loki,bitnami,https://charts.bitnami.com/bitnami
 kong/ingress,kong,https://charts.konghq.com
 pomerium/pomerium,pomerium,https://helm.pomerium.io
 kyverno/kyverno-policies,kyverno,https://kyverno.github.io/kyverno/
+victoria-metrics/victoria-metrics-distributed,vm,https://victoriametrics.github.io/helm-charts
