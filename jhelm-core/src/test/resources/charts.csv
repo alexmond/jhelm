@@ -326,3 +326,9 @@ karmada/karmada,karmada,https://raw.githubusercontent.com/karmada-io/karmada/mas
 ot-helm/redis-operator,ot-helm,https://ot-container-kit.github.io/helm-charts/
 runix/pgadmin4,runix,https://helm.runix.net
 agones/agones,agones,https://agones.dev/chart/stable
+trino/trino,trino,https://trinodb.github.io/charts
+community-charts/mlflow,community-charts,https://community-charts.github.io/helm-charts
+fluent/fluentd,fluent,https://fluent.github.io/helm-charts
+couchbase/couchbase-operator,couchbase,https://couchbase-partners.github.io/helm-charts/
+netdata/netdata,netdata,https://netdata.github.io/helmchart/
+timescale/timescaledb-single,timescale,https://charts.timescale.com

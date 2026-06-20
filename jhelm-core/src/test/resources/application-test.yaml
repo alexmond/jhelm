@@ -72,6 +72,15 @@ jhelmtest:
       - resource: "APIService/*"
         path: "spec.caBundle"
         reason: "caBundle is a generated TLS cert that differs every render"
+    "[timescale/timescaledb-single]":
+      # The certificate Secret holds a genSignedCert TLS cert/key and the credentials
+      # Secret holds randAlphaNum passwords — both regenerated per render.
+      - resource: "Secret/release-timescale-timescaledb-single-certificate"
+        path: "stringData.*"
+        reason: "TLS cert/key generated per render"
+      - resource: "Secret/release-timescale-timescaledb-single-credentials"
+        path: "stringData.*"
+        reason: "Patroni passwords are randAlphaNum, generated per render"
     "[redpanda/console]":
       # The JWT signing key defaults to randAlphaNum 32 when unset (chart.DotToState),
       # so Helm and jhelm each generate a different value every render.
