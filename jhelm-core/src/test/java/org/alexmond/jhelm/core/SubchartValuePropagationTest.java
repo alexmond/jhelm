@@ -90,6 +90,23 @@ class SubchartValuePropagationTest {
 	}
 
 	@Test
+	void testParentNullOverrideDeletesSubchartDefault() throws Exception {
+		// Helm's coalesce deletes a key whose override is null, even against the
+		// subchart's
+		// OWN default. The database subchart renders `port: {{ .Values.service.port }}`
+		// from its default 5432; a null override on database.service.port must delete it,
+		// not fall back to 5432. (Regression: jhelm pruned the null at the parent level
+		// before the subchart re-merged its default, re-introducing 5432.)
+		Chart chart = loadChart();
+		Map<String, Object> service = new HashMap<>();
+		service.put("port", null);
+		Map<String, Object> overrides = Map.of("database", Map.of("service", service));
+		String manifest = renderManifest(chart, overrides);
+		assertFalse(manifest.contains("port: 5432"),
+				"null override must delete the subchart's default port, not fall back to 5432: " + manifest);
+	}
+
+	@Test
 	void testGlobalValuePropagation() throws Exception {
 		Chart chart = loadChart();
 		String manifest = renderManifest(chart, Map.of());

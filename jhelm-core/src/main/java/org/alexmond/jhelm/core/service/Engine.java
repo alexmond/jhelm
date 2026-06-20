@@ -534,12 +534,21 @@ public class Engine {
 		// * Null map entries are pruned for a subchart (depth > 0) but kept for the
 		// top-level release chart, mirroring Helm's coalesce ("a null key removes it",
 		// applied while coalescing subcharts).
-		mergedValues = prepareRenderValues(mergedValues, depth > 0);
+		// Pruned view for THIS chart's own rendering: Helm removes null keys while
+		// coalescing a subchart (depth > 0); the top-level release chart keeps them.
+		Map<String, Object> renderValues = prepareRenderValues(mergedValues, depth > 0);
+		// Unpruned view (null tombstones retained) for slicing down to subcharts. A
+		// parent's null override must survive to DELETE the subchart's same-named default
+		// (Helm's coalesce nil-deletion). Pruning before slicing drops the tombstone and
+		// lets the subchart re-introduce its default — e.g. signoz nulls
+		// clickhouse.zookeeper.image.registry to drop bitnami zookeeper's docker.io. The
+		// subchart prunes the null itself when it renders.
+		Map<String, Object> subchartSliceValues = prepareRenderValues(mergedValues, false);
 
 		// Validate merged values against the chart's JSON Schema (if present)
 		if (chart.getValuesSchema() != null) {
 			try {
-				schemaValidator.validate(chart.getMetadata().getName(), chart.getValuesSchema(), mergedValues);
+				schemaValidator.validate(chart.getMetadata().getName(), chart.getValuesSchema(), renderValues);
 			}
 			catch (SchemaValidationException ex) {
 				throw new TemplateRenderException("Values schema validation failed: " + ex.getMessage(), ex,
@@ -549,7 +558,7 @@ public class Engine {
 
 		// Wrap as Helm's chartutil.Values so `.Values.AsMap` resolves (gotohelm charts
 		// such as redpanda's console/operator read the raw map via {{ .Values.AsMap }}).
-		mergedValues = new Values(mergedValues);
+		mergedValues = new Values(renderValues);
 
 		Map<String, Object> context = new HashMap<>();
 		context.put("Values", mergedValues);
@@ -609,9 +618,11 @@ public class Engine {
 				}
 			}
 
-			// Subcharts are only rendered if enabled in Values
+			// Subcharts are only rendered if enabled in Values. Slice from the unpruned
+			// view so a parent's null override reaches the subchart and deletes its
+			// default.
 			@SuppressWarnings("unchecked")
-			Map<String, Object> subchartOverrides = (Map<String, Object>) mergedValues.getOrDefault(subchartName,
+			Map<String, Object> subchartOverrides = (Map<String, Object>) subchartSliceValues.getOrDefault(subchartName,
 					new HashMap<>());
 
 			if (log.isDebugEnabled()) {
