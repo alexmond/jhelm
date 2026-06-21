@@ -27,6 +27,18 @@ class Gotmpl4jAutoConfigurationTest {
 	}
 
 	@Test
+	void rendersViewLoadedByNameWithReferencedTemplate() {
+		runner.run((context) -> {
+			GoTemplateService service = context.getBean(GoTemplateService.class);
+			// `hello.gotmpl` lives under the default classpath:/templates/ location and
+			// pulls in `layouts/footer.gotmpl` via {{ template }} — proving the loader
+			// assembles the whole location into one set and resolves a view by name.
+			String out = service.render("hello", Map.of("Name", "world", "Site", "gotmpl4j"));
+			assertEquals("Hi WORLD from gotmpl4j", out);
+		});
+	}
+
+	@Test
 	void renderWrapsEngineFailuresInGoTemplateException() {
 		runner.run((context) -> {
 			GoTemplateService service = context.getBean(GoTemplateService.class);
