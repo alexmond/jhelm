@@ -244,7 +244,15 @@ public final class DictFunctions {
 					dst.put(key, srcVal);
 				}
 			}
-			else {
+			else if (overwrite || srcVal != null) {
+				// Plain `merge` (overwrite=false) does not add an absent key whose source
+				// value is nil — e.g. kuma `merge`s an env name->value dict where
+				// KUMA_MULTIZONE_ZONE_GLOBAL_ADDRESS is null, which Helm drops and jhelm
+				// previously kept as an extra env var. mergeOverwrite/mustMergeOverwrite
+				// still add nil (gotohelm builds structs with nil fields via
+				// mustMergeOverwrite, e.g. redpanda); other empty values ("", false, 0)
+				// are
+				// added in both modes.
 				dst.put(key, srcVal);
 			}
 		}
