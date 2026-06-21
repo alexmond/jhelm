@@ -2,6 +2,7 @@ package org.alexmond.gotmpl4j.html;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.alexmond.gotmpl4j.parse.Node;
 
@@ -99,7 +100,7 @@ public final class Context {
 	public boolean eq(Context d) {
 		return this.state == d.state && this.delim == d.delim && this.urlPart == d.urlPart && this.jsCtx == d.jsCtx
 				&& jsBraceDepthEquals(this.jsBraceDepth, d.jsBraceDepth) && this.attr == d.attr
-				&& this.element == d.element && this.err == d.err;
+				&& this.element == d.element && Objects.equals(this.err, d.err);
 	}
 
 	/**

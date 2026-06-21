@@ -38,7 +38,19 @@ final class Transitions {
 	 * @return the new context and bytes consumed
 	 */
 	static Result transition(Context c, byte[] s) {
-		return switch (c.state) {
+		return transitionFor(c.state, c, s);
+	}
+
+	/**
+	 * Like {@link #transition} but dispatches on an explicit state, which
+	 * {@code stripTags} uses to force RCDATA scanning inside special element bodies.
+	 * @param state the state to dispatch on
+	 * @param c the current context (may be mutated)
+	 * @param s the literal text bytes
+	 * @return the new context and bytes consumed
+	 */
+	static Result transitionFor(State state, Context c, byte[] s) {
+		return switch (state) {
 			case TEXT -> tText(c, s);
 			case TAG -> tTag(c, s);
 			case ATTR_NAME -> tAttrName(c, s);
