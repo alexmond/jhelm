@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.alexmond</groupId>
+        <artifactId>jhelm-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+    <artifactId>gotmpl4j-spring-boot-starter</artifactId>
+
+    <name>gotmpl4j Spring Boot Starter</name>
+    <description>Spring Boot autoconfiguration for the gotmpl4j Go template engine</description>
+
+    <dependencies>
+        <!-- The Spring-free engine + the sprig function library -->
+        <dependency>
+            <groupId>org.alexmond</groupId>
+            <artifactId>gotmpl4j-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.alexmond</groupId>
+            <artifactId>gotmpl4j-sprig</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>
