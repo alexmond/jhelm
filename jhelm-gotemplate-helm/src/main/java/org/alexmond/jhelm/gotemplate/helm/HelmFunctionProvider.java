@@ -2,9 +2,9 @@ package org.alexmond.jhelm.gotemplate.helm;
 
 import java.util.Map;
 
-import org.alexmond.jhelm.gotemplate.Function;
-import org.alexmond.jhelm.gotemplate.FunctionProvider;
-import org.alexmond.jhelm.gotemplate.GoTemplate;
+import org.alexmond.gotmpl4j.Function;
+import org.alexmond.gotmpl4j.FunctionProvider;
+import org.alexmond.gotmpl4j.GoTemplate;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
 
 /**

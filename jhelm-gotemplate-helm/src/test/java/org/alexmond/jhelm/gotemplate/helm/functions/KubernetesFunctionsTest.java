@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 
-import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.gotmpl4j.Function;
 import org.junit.jupiter.api.Test;
 
 class KubernetesFunctionsTest {

@@ -8,7 +8,7 @@
         <artifactId>jhelm-parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
     </parent>
-    <artifactId>jhelm-gotemplate</artifactId>
+    <artifactId>gotmpl4j-core</artifactId>
 
     <name>Go Template for Java</name>
     <description>Go template engine for Java</description>
@@ -54,8 +54,8 @@
             <artifactId>slf4j-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

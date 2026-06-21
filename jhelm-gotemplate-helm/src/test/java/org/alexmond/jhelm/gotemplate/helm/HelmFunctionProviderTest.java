@@ -9,9 +9,9 @@ import java.io.StringWriter;
 import java.util.Map;
 import java.util.ServiceLoader;
 
-import org.alexmond.jhelm.gotemplate.Function;
-import org.alexmond.jhelm.gotemplate.FunctionProvider;
-import org.alexmond.jhelm.gotemplate.GoTemplate;
+import org.alexmond.gotmpl4j.Function;
+import org.alexmond.gotmpl4j.FunctionProvider;
+import org.alexmond.gotmpl4j.GoTemplate;
 import org.junit.jupiter.api.Test;
 
 class HelmFunctionProviderTest {

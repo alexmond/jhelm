@@ -3,8 +3,8 @@ package org.alexmond.jhelm.gotemplate.helm.functions;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.alexmond.jhelm.gotemplate.Function;
-import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
+import org.alexmond.gotmpl4j.Function;
+import org.alexmond.gotmpl4j.FunctionExecutionException;
 
 /**
  * Helm Kubernetes-specific functions Based on: <a href=

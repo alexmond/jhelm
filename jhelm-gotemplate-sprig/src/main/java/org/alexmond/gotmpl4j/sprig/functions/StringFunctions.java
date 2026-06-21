@@ -1,0 +1,800 @@
+package org.alexmond.gotmpl4j.sprig.functions;
+
+import java.util.Locale;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.alexmond.gotmpl4j.Function;
+import org.alexmond.gotmpl4j.GoFmt;
+import org.alexmond.gotmpl4j.FunctionExecutionException;
+
+/**
+ * Sprig String manipulation functions Based on: <a href=
+ * "https://masterminds.github.io/sprig/strings.html">https://masterminds.github.io/sprig/strings.html</a>
+ */
+@Slf4j
+public final class StringFunctions {
+
+	private StringFunctions() {
+	}
+
+	public static Map<String, Function> getFunctions() {
+		Map<String, Function> functions = new HashMap<>();
+
+		// Basic string operations
+		functions.put("trim", trim());
+		functions.put("trimAll", trimAll());
+		functions.put("trimPrefix", trimPrefix());
+		functions.put("trimSuffix", trimSuffix());
+		functions.put("upper", upper());
+		functions.put("lower", lower());
+		functions.put("title", title());
+		functions.put("untitle", untitle());
+		functions.put("repeat", repeat());
+		functions.put("substr", substr());
+		functions.put("trunc", trunc());
+		functions.put("abbrev", abbrev());
+		functions.put("abbrevboth", abbrevboth());
+		functions.put("initials", initials());
+		functions.put("wrap", wrap());
+		functions.put("wrapWith", wrapWith());
+		functions.put("contains", contains());
+		functions.put("hasPrefix", hasPrefix());
+		functions.put("hasSuffix", hasSuffix());
+		functions.put("quote", quote());
+		functions.put("squote", squote());
+		functions.put("cat", cat());
+		functions.put("indent", indent());
+		functions.put("nindent", nindent());
+		functions.put("replace", replace());
+		functions.put("plural", plural());
+		functions.put("snakecase", snakecase());
+		functions.put("camelcase", camelcase());
+		functions.put("kebabcase", kebabcase());
+		functions.put("shuffle", shuffle());
+
+		functions.put("nospace", nospace());
+		functions.put("swapcase", swapcase());
+
+		// Aliases
+		functions.put("trimall", trimAll());
+
+		// Regex functions
+		functions.put("regexMatch", regexMatch());
+		functions.put("mustRegexMatch", mustRegexMatch());
+		functions.put("regexFindAll", regexFindAll());
+		functions.put("mustRegexFindAll", mustRegexFindAll());
+		functions.put("regexFind", regexFind());
+		functions.put("mustRegexFind", mustRegexFind());
+		functions.put("regexReplaceAll", regexReplaceAll());
+		functions.put("mustRegexReplaceAll", mustRegexReplaceAll());
+		functions.put("regexReplaceAllLiteral", regexReplaceAllLiteral());
+		functions.put("mustRegexReplaceAllLiteral", mustRegexReplaceAllLiteral());
+		functions.put("regexSplit", regexSplit());
+		functions.put("mustRegexSplit", mustRegexSplit());
+		functions.put("regexQuoteMeta", regexQuoteMeta());
+
+		return functions;
+	}
+
+	private static Function trim() {
+		return (args) -> (args.length == 0 || args[0] == null) ? "" : String.valueOf(args[0]).trim();
+	}
+
+	private static Function trimAll() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			String cutset = String.valueOf(args[0]);
+			String s = String.valueOf(args[1]);
+			return s.replaceAll("^[" + Pattern.quote(cutset) + "]+|[" + Pattern.quote(cutset) + "]+$", "");
+		};
+	}
+
+	private static Function trimPrefix() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			String prefix = String.valueOf(args[0]);
+			String text = String.valueOf(args[1]);
+			return (text.startsWith(prefix)) ? text.substring(prefix.length()) : text;
+		};
+	}
+
+	private static Function trimSuffix() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			String suffix = String.valueOf(args[0]);
+			String text = String.valueOf(args[1]);
+			return (text.endsWith(suffix)) ? text.substring(0, text.length() - suffix.length()) : text;
+		};
+	}
+
+	private static Function upper() {
+		return (args) -> (args.length == 0 || args[0] == null) ? "" : String.valueOf(args[0]).toUpperCase(Locale.ROOT);
+	}
+
+	private static Function lower() {
+		return (args) -> (args.length == 0 || args[0] == null) ? "" : String.valueOf(args[0]).toLowerCase(Locale.ROOT);
+	}
+
+	private static Function title() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			String s = String.valueOf(args[0]);
+			if (s.isEmpty()) {
+				return s;
+			}
+			// Mirror Go's strings.Title (used by sprig's `title`): title-case the letter
+			// after a separator, leaving everything else untouched. So mixed-case
+			// "xtrabackupSidecar" -> "XtrabackupSidecar", not "Xtrabackupsidecar".
+			StringBuilder sb = new StringBuilder(s.length());
+			int prev = ' ';
+			int i = 0;
+			while (i < s.length()) {
+				int cp = s.codePointAt(i);
+				sb.appendCodePoint(isTitleSeparator(prev) ? Character.toTitleCase(cp) : cp);
+				prev = cp;
+				i += Character.charCount(cp);
+			}
+			return sb.toString();
+		};
+	}
+
+	// Mirrors Go's strings.isSeparator: letters, digits and '_' are part of a word; any
+	// other ASCII character separates words, and for non-ASCII only spaces separate.
+	private static boolean isTitleSeparator(int r) {
+		if (Character.isLetterOrDigit(r) || r == '_') {
+			return false;
+		}
+		return r <= 0x7F || Character.isSpaceChar(r) || Character.isWhitespace(r);
+	}
+
+	private static Function untitle() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			String s = String.valueOf(args[0]);
+			if (s.isEmpty()) {
+				return s;
+			}
+			return Character.toLowerCase(s.charAt(0)) + s.substring(1);
+		};
+	}
+
+	private static Function repeat() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			int count = ((Number) args[0]).intValue();
+			String s = String.valueOf(args[1]);
+			return s.repeat(Math.max(0, count));
+		};
+	}
+
+	private static Function substr() {
+		return (args) -> {
+			if (args.length < 3) {
+				return "";
+			}
+			int start = ((Number) args[0]).intValue();
+			int end = ((Number) args[1]).intValue();
+			String s = String.valueOf(args[2]);
+			if (start < 0) {
+				start = 0;
+			}
+			if (end > s.length()) {
+				end = s.length();
+			}
+			if (start > end) {
+				return "";
+			}
+			return s.substring(start, end);
+		};
+	}
+
+	private static Function trunc() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			int len = ((Number) args[0]).intValue();
+			String s = String.valueOf(args[1]);
+			return (s.length() > len) ? s.substring(0, len) : s;
+		};
+	}
+
+	private static Function abbrev() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			int max = ((Number) args[0]).intValue();
+			String s = String.valueOf(args[1]);
+			if (s.length() <= max) {
+				return s;
+			}
+			return s.substring(0, max - 3) + "...";
+		};
+	}
+
+	private static Function abbrevboth() {
+		return (args) -> {
+			if (args.length < 3) {
+				return "";
+			}
+			int left = ((Number) args[0]).intValue();
+			int right = ((Number) args[1]).intValue();
+			String s = String.valueOf(args[2]);
+			if (s.length() <= left + right) {
+				return s;
+			}
+			return "..." + s.substring(s.length() - right);
+		};
+	}
+
+	private static Function initials() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			String s = String.valueOf(args[0]);
+			return Arrays.stream(s.split("\\s+"))
+				.filter((word) -> !word.isEmpty())
+				.map((word) -> String.valueOf(word.charAt(0)).toUpperCase(Locale.ROOT))
+				.collect(Collectors.joining(""));
+		};
+	}
+
+	private static Function wrap() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			int col = ((Number) args[0]).intValue();
+			String s = String.valueOf(args[1]);
+			return wrapText(s, col, "");
+		};
+	}
+
+	private static Function wrapWith() {
+		return (args) -> {
+			if (args.length < 3) {
+				return "";
+			}
+			int col = ((Number) args[0]).intValue();
+			String indent = String.valueOf(args[1]);
+			String s = String.valueOf(args[2]);
+			return wrapText(s, col, indent);
+		};
+	}
+
+	private static String wrapText(String text, int col, String indent) {
+		String[] words = text.split("\\s+");
+		StringBuilder result = new StringBuilder();
+		StringBuilder line = new StringBuilder(indent);
+
+		for (String word : words) {
+			if (line.length() + word.length() + 1 > col && line.length() > indent.length()) {
+				result.append(line).append('\n');
+				line = new StringBuilder(indent);
+			}
+			if (line.length() > indent.length()) {
+				line.append(' ');
+			}
+			line.append(word);
+		}
+		if (line.length() > indent.length()) {
+			result.append(line);
+		}
+		return result.toString();
+	}
+
+	private static Function contains() {
+		return (args) -> args.length >= 2 && String.valueOf(args[1]).contains(String.valueOf(args[0]));
+	}
+
+	private static Function hasPrefix() {
+		return (args) -> args.length >= 2 && String.valueOf(args[1]).startsWith(String.valueOf(args[0]));
+	}
+
+	private static Function hasSuffix() {
+		return (args) -> args.length >= 2 && String.valueOf(args[1]).endsWith(String.valueOf(args[0]));
+	}
+
+	// Stringify Go-style so a float64 renders like helm template (8080 -> "8080",
+	// 1000000 -> "1e+06") instead of Java's "8080.0".
+	private static String goStr(Object value) {
+		return GoFmt.sprint(value);
+	}
+
+	private static Function quote() {
+		return (args) -> {
+			StringBuilder out = new StringBuilder();
+			for (Object arg : args) {
+				if (arg == null) {
+					continue;
+				}
+				if (!out.isEmpty()) {
+					out.append(' ');
+				}
+				String escaped = goStr(arg).replace("\\", "\\\\")
+					.replace("\"", "\\\"")
+					.replace("\n", "\\n")
+					.replace("\r", "\\r")
+					.replace("\t", "\\t");
+				out.append('"').append(escaped).append('"');
+			}
+			return out.toString();
+		};
+	}
+
+	private static Function squote() {
+		return (args) -> {
+			StringBuilder out = new StringBuilder();
+			for (Object arg : args) {
+				if (arg == null) {
+					continue;
+				}
+				if (!out.isEmpty()) {
+					out.append(' ');
+				}
+				out.append('\'').append(goStr(arg)).append('\'');
+			}
+			return out.toString();
+		};
+	}
+
+	private static Function cat() {
+		return (args) -> Arrays.stream(args)
+			.filter((arg) -> arg != null)
+			.map(StringFunctions::goStr)
+			.filter((s) -> !s.isEmpty())
+			.collect(Collectors.joining(" "));
+	}
+
+	private static Function indent() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			int spaces = ((Number) args[0]).intValue();
+			String text = String.valueOf(args[1]);
+			String indentStr = " ".repeat(spaces);
+			// Indent all lines including the first one
+			return indentStr + text.replace("\n", "\n" + indentStr);
+		};
+	}
+
+	private static Function nindent() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			int spaces = ((Number) args[0]).intValue();
+			String text = String.valueOf(args[1]);
+			return "\n" + " ".repeat(spaces) + text.replace("\n", "\n" + " ".repeat(spaces));
+		};
+	}
+
+	private static Function replace() {
+		return (args) -> {
+			if (args.length < 3) {
+				return "";
+			}
+			String old = String.valueOf(args[0]);
+			String newStr = String.valueOf(args[1]);
+			String text = String.valueOf(args[2]);
+
+			// Handle common escape sequences that appear as literals in templates
+			old = unescapeString(old);
+			newStr = unescapeString(newStr);
+
+			return text.replace(old, newStr);
+		};
+	}
+
+	/**
+	 * Convert common escape sequences from literal strings to actual characters. In Go
+	 * templates, string literals like "\n" are passed as literal backslash-n, but
+	 * functions like replace need to treat them as the actual escape character.
+	 */
+	private static String unescapeString(String s) {
+		return s.replace("\\n", "\n").replace("\\t", "\t").replace("\\r", "\r").replace("\\\\", "\\");
+	}
+
+	private static Function plural() {
+		return (args) -> {
+			if (args.length < 3) {
+				return "";
+			}
+			String singular = String.valueOf(args[0]);
+			String plural = String.valueOf(args[1]);
+			int count = ((Number) args[2]).intValue();
+			return (count == 1) ? singular : plural;
+		};
+	}
+
+	private static Function snakecase() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			String s = String.valueOf(args[0]);
+			return s.replaceAll("([a-z])([A-Z])", "$1_$2").replaceAll("\\s+", "_").toLowerCase(Locale.ROOT);
+		};
+	}
+
+	private static Function camelcase() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			String s = String.valueOf(args[0]);
+			String[] parts = s.split("[\\s_-]+");
+			return parts[0].toLowerCase(Locale.ROOT) + Arrays.stream(parts)
+				.skip(1)
+				.map((p) -> p.isEmpty() ? p
+						: Character.toUpperCase(p.charAt(0)) + p.substring(1).toLowerCase(Locale.ROOT))
+				.collect(Collectors.joining(""));
+		};
+	}
+
+	private static Function kebabcase() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			String s = String.valueOf(args[0]);
+			return s.replaceAll("([a-z])([A-Z])", "$1-$2").replaceAll("[\\s_]+", "-").toLowerCase(Locale.ROOT);
+		};
+	}
+
+	private static Function shuffle() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			String s = String.valueOf(args[0]);
+			List<Character> chars = new ArrayList<>();
+			for (char c : s.toCharArray()) {
+				chars.add(c);
+			}
+			Collections.shuffle(chars);
+			StringBuilder sb = new StringBuilder();
+			for (char c : chars) {
+				sb.append(c);
+			}
+			return sb.toString();
+		};
+	}
+
+	private static Function nospace() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			return String.valueOf(args[0]).replaceAll("\\s+", "");
+		};
+	}
+
+	private static Function swapcase() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			String s = String.valueOf(args[0]);
+			StringBuilder sb = new StringBuilder(s.length());
+			for (char c : s.toCharArray()) {
+				if (Character.isUpperCase(c)) {
+					sb.append(Character.toLowerCase(c));
+				}
+				else if (Character.isLowerCase(c)) {
+					sb.append(Character.toUpperCase(c));
+				}
+				else {
+					sb.append(c);
+				}
+			}
+			return sb.toString();
+		};
+	}
+
+	// Regex functions
+	private static Function regexMatch() {
+		return (args) -> {
+			try {
+				return args.length >= 2
+						&& Pattern.compile(String.valueOf(args[0])).matcher(String.valueOf(args[1])).find();
+			}
+			catch (Exception ex) {
+				log.debug("regexMatch failed: {}", ex.getMessage());
+				return false;
+			}
+		};
+	}
+
+	private static Function mustRegexMatch() {
+		return (args) -> {
+			if (args.length < 2) {
+				throw new FunctionExecutionException("mustRegexMatch: insufficient arguments");
+			}
+			try {
+				return Pattern.compile(String.valueOf(args[0])).matcher(String.valueOf(args[1])).find();
+			}
+			catch (Exception ex) {
+				throw new FunctionExecutionException("mustRegexMatch: " + ex.getMessage(), ex);
+			}
+		};
+	}
+
+	private static Function regexFind() {
+		return (args) -> {
+			if (args.length < 2) {
+				return "";
+			}
+			try {
+				Matcher m = Pattern.compile(String.valueOf(args[0])).matcher(String.valueOf(args[1]));
+				return (m.find()) ? m.group() : "";
+			}
+			catch (Exception ex) {
+				log.debug("regexFind failed: {}", ex.getMessage());
+				return "";
+			}
+		};
+	}
+
+	private static Function mustRegexFind() {
+		return (args) -> {
+			if (args.length < 2) {
+				throw new FunctionExecutionException("mustRegexFind: insufficient arguments");
+			}
+			try {
+				Matcher m = Pattern.compile(String.valueOf(args[0])).matcher(String.valueOf(args[1]));
+				if (!m.find()) {
+					throw new FunctionExecutionException("mustRegexFind: no match found");
+				}
+				return m.group();
+			}
+			catch (Exception ex) {
+				throw new FunctionExecutionException("mustRegexFind: " + ex.getMessage(), ex);
+			}
+		};
+	}
+
+	private static Function regexFindAll() {
+		return (args) -> {
+			if (args.length < 3) {
+				return Collections.emptyList();
+			}
+			try {
+				String regex = String.valueOf(args[0]);
+				String text = String.valueOf(args[1]);
+				int n = ((Number) args[2]).intValue();
+
+				Pattern pattern = Pattern.compile(regex);
+				Matcher matcher = pattern.matcher(text);
+				List<String> results = new ArrayList<>();
+
+				while (matcher.find() && (n < 0 || results.size() < n)) {
+					results.add(matcher.group());
+				}
+				return results;
+			}
+			catch (Exception ex) {
+				log.debug("regexFindAll failed: {}", ex.getMessage());
+				return Collections.emptyList();
+			}
+		};
+	}
+
+	private static Function mustRegexFindAll() {
+		return (args) -> {
+			if (args.length < 3) {
+				throw new FunctionExecutionException("mustRegexFindAll: insufficient arguments");
+			}
+			try {
+				String regex = String.valueOf(args[0]);
+				String text = String.valueOf(args[1]);
+				int n = ((Number) args[2]).intValue();
+				Pattern pattern = Pattern.compile(regex);
+				Matcher matcher = pattern.matcher(text);
+				List<String> results = new ArrayList<>();
+				while (matcher.find() && (n < 0 || results.size() < n)) {
+					results.add(matcher.group());
+				}
+				return results;
+			}
+			catch (Exception ex) {
+				throw new FunctionExecutionException("mustRegexFindAll: " + ex.getMessage(), ex);
+			}
+		};
+	}
+
+	private static Function regexQuoteMeta() {
+		return (args) -> {
+			if (args.length == 0 || args[0] == null) {
+				return "";
+			}
+			return Pattern.quote(String.valueOf(args[0]));
+		};
+	}
+
+	private static Function regexReplaceAll() {
+		return (args) -> {
+			if (args.length < 3) {
+				return "";
+			}
+			try {
+				// Sprig signature: regexReplaceAll pattern text replacement
+				// So args are: [0]=pattern, [1]=text, [2]=replacement
+				String pattern = String.valueOf(args[0]);
+				String text = String.valueOf(args[1]);
+				String replacement = convertGoReplacementToJava(String.valueOf(args[2]));
+
+				return text.replaceAll(pattern, replacement);
+			}
+			catch (Exception ex) {
+				log.debug("regexReplaceAll failed: {}", ex.getMessage());
+				return String.valueOf(args[1]); // Return original text on error
+			}
+		};
+	}
+
+	private static Function mustRegexReplaceAll() {
+		return (args) -> {
+			if (args.length < 3) {
+				throw new FunctionExecutionException("mustRegexReplaceAll: insufficient arguments");
+			}
+			try {
+				// Sprig signature: mustRegexReplaceAll pattern text replacement
+				String pattern = String.valueOf(args[0]);
+				String text = String.valueOf(args[1]);
+				String replacement = convertGoReplacementToJava(String.valueOf(args[2]));
+				return text.replaceAll(pattern, replacement);
+			}
+			catch (Exception ex) {
+				throw new FunctionExecutionException("mustRegexReplaceAll: " + ex.getMessage(), ex);
+			}
+		};
+	}
+
+	/**
+	 * Convert Go regex replacement syntax to Java replacement syntax. Go uses
+	 * {@code ${N}} for numbered groups and {@code $$} for literal {@code $}, while Java
+	 * uses {@code $N} for numbered groups and {@code \$} for literal {@code $}.
+	 */
+	static String convertGoReplacementToJava(String replacement) {
+		if (!replacement.contains("$")) {
+			return replacement;
+		}
+		StringBuilder sb = new StringBuilder(replacement.length());
+		for (int i = 0; i < replacement.length(); i++) {
+			char c = replacement.charAt(i);
+			if (c == '$' && i + 1 < replacement.length()) {
+				char next = replacement.charAt(i + 1);
+				if (next == '$') {
+					// Go: $$ → Java: \$ (literal dollar sign)
+					sb.append("\\$");
+					i++;
+				}
+				else if (next == '{') {
+					// Check for ${digits} → $digits (numbered group reference)
+					int end = replacement.indexOf('}', i + 2);
+					if (end != -1) {
+						String content = replacement.substring(i + 2, end);
+						if (content.matches("\\d+")) {
+							sb.append('$').append(content);
+							i = end;
+						}
+						else {
+							sb.append(c);
+						}
+					}
+					else {
+						sb.append(c);
+					}
+				}
+				else {
+					sb.append(c);
+				}
+			}
+			else {
+				sb.append(c);
+			}
+		}
+		return sb.toString();
+	}
+
+	private static Function regexReplaceAllLiteral() {
+		return (args) -> {
+			if (args.length < 3) {
+				return "";
+			}
+			try {
+				// Sprig signature: regexReplaceAllLiteral pattern text replacement
+				String pattern = String.valueOf(args[0]);
+				String text = String.valueOf(args[1]);
+				String replacement = Matcher.quoteReplacement(String.valueOf(args[2]));
+				return text.replaceAll(pattern, replacement);
+			}
+			catch (Exception ex) {
+				log.debug("regexReplaceAllLiteral failed: {}", ex.getMessage());
+				return String.valueOf(args[1]); // Return original text on error
+			}
+		};
+	}
+
+	private static Function mustRegexReplaceAllLiteral() {
+		return (args) -> {
+			if (args.length < 3) {
+				throw new FunctionExecutionException("mustRegexReplaceAllLiteral: insufficient arguments");
+			}
+			try {
+				// Sprig signature: mustRegexReplaceAllLiteral pattern text replacement
+				String pattern = String.valueOf(args[0]);
+				String text = String.valueOf(args[1]);
+				String replacement = Matcher.quoteReplacement(String.valueOf(args[2]));
+				return text.replaceAll(pattern, replacement);
+			}
+			catch (Exception ex) {
+				throw new FunctionExecutionException("mustRegexReplaceAllLiteral: " + ex.getMessage(), ex);
+			}
+		};
+	}
+
+	private static Function regexSplit() {
+		return (args) -> {
+			if (args.length < 3) {
+				return Collections.emptyList();
+			}
+			try {
+				String regex = String.valueOf(args[0]);
+				String text = String.valueOf(args[1]);
+				int n = ((Number) args[2]).intValue();
+				String[] parts = text.split(regex, n);
+				return Arrays.asList(parts);
+			}
+			catch (Exception ex) {
+				log.debug("regexSplit failed: {}", ex.getMessage());
+				return Collections.singletonList(String.valueOf(args[1]));
+			}
+		};
+	}
+
+	private static Function mustRegexSplit() {
+		return (args) -> {
+			if (args.length < 3) {
+				throw new FunctionExecutionException("mustRegexSplit: insufficient arguments");
+			}
+			try {
+				String regex = String.valueOf(args[0]);
+				String text = String.valueOf(args[1]);
+				int n = ((Number) args[2]).intValue();
+				String[] parts = text.split(regex, n);
+				return Arrays.asList(parts);
+			}
+			catch (Exception ex) {
+				throw new FunctionExecutionException("mustRegexSplit: " + ex.getMessage(), ex);
+			}
+		};
+	}
+
+}

@@ -73,6 +73,7 @@
     <modules>
         <module>jhelm-gotemplate</module>
         <module>jhelm-gotemplate-sprig</module>
+        <module>gotmpl4j-spring-boot-starter</module>
         <module>jhelm-gotemplate-helm</module>
         <module>jhelm-core</module>
         <module>jhelm-kube</module>
@@ -94,12 +95,17 @@
             <!-- Internal Modules -->
             <dependency>
                 <groupId>org.alexmond</groupId>
-                <artifactId>jhelm-gotemplate</artifactId>
+                <artifactId>gotmpl4j-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.alexmond</groupId>
-                <artifactId>jhelm-gotemplate-sprig</artifactId>
+                <artifactId>gotmpl4j-sprig</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.alexmond</groupId>
+                <artifactId>gotmpl4j-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

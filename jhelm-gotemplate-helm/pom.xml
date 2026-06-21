@@ -17,7 +17,7 @@
         <!-- Core template engine (Function interface, FunctionProvider SPI) -->
         <dependency>
             <groupId>org.alexmond</groupId>
-            <artifactId>jhelm-gotemplate</artifactId>
+            <artifactId>gotmpl4j-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -4,8 +4,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.alexmond.jhelm.gotemplate.Function;
-import org.alexmond.jhelm.gotemplate.GoTemplate;
+import org.alexmond.gotmpl4j.Function;
+import org.alexmond.gotmpl4j.GoTemplate;
 import org.alexmond.jhelm.gotemplate.helm.functions.ConversionFunctions;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesFunctions;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
