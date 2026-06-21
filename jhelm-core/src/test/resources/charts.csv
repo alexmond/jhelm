@@ -342,3 +342,4 @@ datawire/emissary-ingress,datawire,https://app.getambassador.io
 bitnami/fluent-bit,bitnami,https://charts.bitnami.com/bitnami
 signoz/signoz,signoz,https://charts.signoz.io
 signoz/k8s-infra,signoz,https://charts.signoz.io
+kuma/kuma,kuma,https://kumahq.github.io/charts
