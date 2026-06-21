@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.alexmond.jhelm.gotemplate.Function;
+import org.alexmond.gotmpl4j.Function;
 import org.snakeyaml.engine.v2.api.ConstructNode;
 import org.snakeyaml.engine.v2.api.Load;
 import org.snakeyaml.engine.v2.api.LoadSettings;
@@ -35,7 +35,7 @@ import tools.jackson.databind.ser.std.StdSerializer;
 import tools.jackson.dataformat.toml.TomlMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.dataformat.yaml.YAMLWriteFeature;
-import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
+import org.alexmond.gotmpl4j.FunctionExecutionException;
 
 /**
  * Helm conversion functions for YAML/JSON operations Includes Helm 4 new functions:

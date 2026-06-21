@@ -6,8 +6,8 @@ import org.alexmond.jhelm.core.cache.TemplateCache;
 import org.alexmond.jhelm.core.exception.SchemaValidationException;
 import org.alexmond.jhelm.core.exception.TemplateRenderException;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
-import org.alexmond.jhelm.gotemplate.GoTemplate;
-import org.alexmond.jhelm.gotemplate.parse.Node;
+import org.alexmond.gotmpl4j.GoTemplate;
+import org.alexmond.gotmpl4j.parse.Node;
 
 import java.io.StringWriter;
 import java.math.BigInteger;

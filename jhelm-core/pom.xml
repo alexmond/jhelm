@@ -41,11 +41,11 @@
         </dependency>
         <dependency>
             <groupId>org.alexmond</groupId>
-            <artifactId>jhelm-gotemplate</artifactId>
+            <artifactId>gotmpl4j-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.alexmond</groupId>
-            <artifactId>jhelm-gotemplate-sprig</artifactId>
+            <artifactId>gotmpl4j-sprig</artifactId>
         </dependency>
         <dependency>
             <groupId>org.alexmond</groupId>

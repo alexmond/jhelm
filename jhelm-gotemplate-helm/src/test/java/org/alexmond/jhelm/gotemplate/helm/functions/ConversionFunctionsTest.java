@@ -16,9 +16,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.alexmond.jhelm.gotemplate.Function;
-import org.alexmond.jhelm.gotemplate.GoTemplate;
-import org.alexmond.jhelm.gotemplate.TemplateException;
+import org.alexmond.gotmpl4j.Function;
+import org.alexmond.gotmpl4j.GoTemplate;
+import org.alexmond.gotmpl4j.TemplateException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

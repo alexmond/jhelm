@@ -4,9 +4,9 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.alexmond.jhelm.gotemplate.Function;
-import org.alexmond.jhelm.gotemplate.GoTemplate;
-import org.alexmond.jhelm.gotemplate.FunctionExecutionException;
+import org.alexmond.gotmpl4j.Function;
+import org.alexmond.gotmpl4j.GoTemplate;
+import org.alexmond.gotmpl4j.FunctionExecutionException;
 
 /**
  * Helm template-specific functions for template inclusion and evaluation Based on:

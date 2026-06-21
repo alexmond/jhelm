@@ -7,7 +7,7 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.alexmond.jhelm.gotemplate.GoTemplate;
+import org.alexmond.gotmpl4j.GoTemplate;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 
@@ -137,7 +137,7 @@ public class Helm4FunctionsTest {
 	public void testCategoryBasedOrganization() {
 		// Test that we can get all Helm functions from the refactored structure
 		GoTemplate template = new GoTemplate();
-		Map<String, org.alexmond.jhelm.gotemplate.Function> helmFunctions = HelmFunctions.getFunctions(template);
+		Map<String, org.alexmond.gotmpl4j.Function> helmFunctions = HelmFunctions.getFunctions(template);
 
 		// Verify new Helm 4 functions are present
 		assertTrue(helmFunctions.containsKey("mustToYaml"), "mustToYaml function should be available");

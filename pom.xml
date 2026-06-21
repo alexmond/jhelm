@@ -94,12 +94,12 @@
             <!-- Internal Modules -->
             <dependency>
                 <groupId>org.alexmond</groupId>
-                <artifactId>jhelm-gotemplate</artifactId>
+                <artifactId>gotmpl4j-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.alexmond</groupId>
-                <artifactId>jhelm-gotemplate-sprig</artifactId>
+                <artifactId>gotmpl4j-sprig</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
