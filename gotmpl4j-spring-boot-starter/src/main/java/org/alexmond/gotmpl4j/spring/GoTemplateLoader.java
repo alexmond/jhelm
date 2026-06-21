@@ -24,13 +24,18 @@ public class GoTemplateLoader {
 
 	private final Gotmpl4jProperties properties;
 
-	public GoTemplateLoader(ResourcePatternResolver resolver, Gotmpl4jProperties properties) {
+	private final GoTemplateFactory factory;
+
+	public GoTemplateLoader(ResourcePatternResolver resolver, Gotmpl4jProperties properties,
+			GoTemplateFactory factory) {
 		this.resolver = resolver;
 		this.properties = properties;
+		this.factory = factory;
 	}
 
-	public GoTemplateLoader(org.springframework.core.io.ResourceLoader resourceLoader, Gotmpl4jProperties properties) {
-		this(new PathMatchingResourcePatternResolver(resourceLoader), properties);
+	public GoTemplateLoader(org.springframework.core.io.ResourceLoader resourceLoader, Gotmpl4jProperties properties,
+			GoTemplateFactory factory) {
+		this(new PathMatchingResourcePatternResolver(resourceLoader), properties, factory);
 	}
 
 	/**
@@ -42,7 +47,7 @@ public class GoTemplateLoader {
 		String location = withTrailingSlash(this.properties.getTemplateLocation());
 		String pattern = toPatternPrefix(location) + "**/*" + this.properties.getSuffix();
 		try {
-			GoTemplate goTemplate = new GoTemplate();
+			GoTemplate goTemplate = this.factory.create();
 			Resource[] resources = this.resolver.getResources(pattern);
 			for (Resource resource : resources) {
 				String name = templateName(resource, location);

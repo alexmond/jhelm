@@ -23,13 +23,28 @@ public class GoTemplateService {
 
 	private final TemplateCache templates;
 
-	/** Constructs a service with no template loader (inline rendering only). */
+	private final GoTemplateFactory factory;
+
+	/**
+	 * Constructs a service with no template loader (inline rendering only), using engine
+	 * default functions.
+	 */
 	public GoTemplateService() {
-		this.templates = null;
+		this(new GoTemplateFactory());
 	}
 
-	public GoTemplateService(GoTemplateLoader loader, boolean cache) {
+	/**
+	 * Constructs a service with no template loader (inline rendering only).
+	 * @param factory builds configured templates for inline rendering
+	 */
+	public GoTemplateService(GoTemplateFactory factory) {
+		this.templates = null;
+		this.factory = factory;
+	}
+
+	public GoTemplateService(GoTemplateLoader loader, GoTemplateFactory factory, boolean cache) {
 		this.templates = new TemplateCache(loader::load, cache);
+		this.factory = factory;
 	}
 
 	/**
@@ -58,7 +73,7 @@ public class GoTemplateService {
 	 */
 	public String render(String name, String template, Object data) {
 		try {
-			GoTemplate goTemplate = new GoTemplate();
+			GoTemplate goTemplate = this.factory.create();
 			goTemplate.parse(name, template);
 			return execute(goTemplate, name, data);
 		}
