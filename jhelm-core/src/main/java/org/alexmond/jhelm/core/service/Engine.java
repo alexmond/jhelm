@@ -597,10 +597,16 @@ public class Engine {
 
 		StringBuilder sb = new StringBuilder();
 
-		// Render current chart templates
-		renderChartTemplates(chart, context, sb);
-
-		// Render subcharts
+		// Render subcharts first, then this chart's own templates, so that when an
+		// umbrella
+		// and a subchart emit a resource with the SAME name (e.g. grafana/oncall: the
+		// grafana subchart's fullname collapses to the release name because it contains
+		// "grafana", so both create ServiceAccount/release-grafana-oncall) the PARENT's
+		// resource is the one that survives a kind+name dedup — matching Helm, whose
+		// manifest orders charts/<sub>/... before templates/... within each kind.
+		// Subchart
+		// values are sliced from subchartSliceValues (computed before any rendering), so
+		// order does not affect them.
 		List<Dependency> parentDepMeta = (chart.getMetadata() != null) ? chart.getMetadata().getDependencies() : null;
 		for (Chart subchart : chart.getDependencies()) {
 			// Use alias as lookup key when set (alias takes precedence over chart name)
@@ -657,6 +663,9 @@ public class Engine {
 			}
 			sb.append(renderWithSubcharts(subchart, subchartOverrides, releaseInfo, renderedCharts, depth + 1));
 		}
+
+		// This chart's own templates render last (see the ordering note above).
+		renderChartTemplates(chart, context, sb);
 
 		return sb.toString();
 	}

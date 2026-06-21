@@ -87,6 +87,12 @@ jhelmtest:
       - resource: "Secret/*"
         path: "stringData.authentication-jwt-signingkey"
         reason: "JWT signing key is a randAlphaNum value generated per render"
+    "[grafana/oncall]":
+      # The migrate Job name embeds `now | date` (job-migrate.yaml), so Helm and jhelm
+      # each produce a different timestamp suffix and the resource key never matches.
+      - resource: "Job/release-grafana-oncall-engine-migrate-*"
+        path: "*"
+        reason: "migrate Job name has a per-render now-timestamp suffix"
   # Value overrides for charts that Helm cannot render with default values. The same
   # overrides are applied to both Helm and jhelm, so any divergence is a real jhelm bug.
   comparison-values:
