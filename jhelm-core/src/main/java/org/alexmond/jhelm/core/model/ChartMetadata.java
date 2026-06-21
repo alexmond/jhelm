@@ -3,6 +3,7 @@ package org.alexmond.jhelm.core.model;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,5 +37,25 @@ public class ChartMetadata {
 	private List<Dependency> dependencies;
 
 	private Map<String, String> annotations;
+
+	// Helm's .Chart.IsRoot: true for the chart being installed (the top-level release
+	// chart), false when rendered as a subchart. Set per render by the engine, so it is
+	// excluded from Chart.yaml (de)serialization. Charts branch on it, e.g.
+	// signoz/k8s-infra's otel.endpoint only builds a default `{{ if not .Chart.IsRoot
+	// }}`.
+	// The explicit getIsRoot() exposes it to templates as `.Chart.IsRoot` (Lombok's
+	// boolean getter would be isRoot()/property "root", resolving as .Chart.Root
+	// instead).
+	// Boxed Boolean (not primitive) so Lombok's @AllArgsConstructor — which Jackson uses
+	// as the creator — accepts a null when the key is absent from Chart.yaml instead of
+	// failing FAIL_ON_NULL_FOR_PRIMITIVES.
+	@JsonIgnore
+	private Boolean root;
+
+	@JsonIgnore
+	@SuppressWarnings("PMD.BooleanGetMethodName")
+	public boolean getIsRoot() {
+		return Boolean.TRUE.equals(this.root);
+	}
 
 }

@@ -560,6 +560,9 @@ public class Engine {
 		// such as redpanda's console/operator read the raw map via {{ .Values.AsMap }}).
 		mergedValues = new Values(renderValues);
 
+		// Helm's .Chart.IsRoot: true only for the top-level release chart (depth 0).
+		chart.getMetadata().setRoot(depth == 0);
+
 		Map<String, Object> context = new HashMap<>();
 		context.put("Values", mergedValues);
 		context.put("Chart", chart.getMetadata());
