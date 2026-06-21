@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class Gotmpl4jAutoConfigurationTest {
 
@@ -22,6 +23,16 @@ class Gotmpl4jAutoConfigurationTest {
 			// ServiceLoader through the starter.
 			String out = service.render("t", "Hello {{ .Name | upper }}", Map.of("Name", "world"));
 			assertEquals("Hello WORLD", out);
+		});
+	}
+
+	@Test
+	void renderWrapsEngineFailuresInGoTemplateException() {
+		runner.run((context) -> {
+			GoTemplateService service = context.getBean(GoTemplateService.class);
+			// An unterminated action is a parse error; the checked engine exception is
+			// wrapped as an unchecked GoTemplateException for callers.
+			assertThrows(GoTemplateException.class, () -> service.render("bad", "{{ .Name ", Map.of()));
 		});
 	}
 
