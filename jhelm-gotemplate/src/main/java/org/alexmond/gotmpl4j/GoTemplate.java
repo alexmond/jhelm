@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -166,6 +167,54 @@ public class GoTemplate {
 		}
 		Executor executor = new Executor(rootNodes, functions);
 		executor.execute(name, data, writer);
+	}
+
+	/**
+	 * Execute the main template and return the result as a {@code String}. Convenience
+	 * over {@link #execute(Object, Writer)} for callers that want a string rather than
+	 * supplying a {@link Writer}.
+	 * @param data the root data object (the template's {@code .})
+	 * @return the rendered output
+	 * @throws TemplateNotFoundException if no main template has been parsed
+	 * @throws TemplateExecutionException if execution fails
+	 */
+	public String render(Object data) throws TemplateNotFoundException, TemplateExecutionException {
+		return render(name, data);
+	}
+
+	/**
+	 * Execute a named template from this set and return the result as a {@code String}.
+	 * Convenience over {@link #execute(String, Object, Writer)}.
+	 * @param name the template name
+	 * @param data the root data object (the template's {@code .})
+	 * @return the rendered output
+	 * @throws TemplateNotFoundException if no template with the given name exists
+	 * @throws TemplateExecutionException if execution fails
+	 */
+	public String render(String name, Object data) throws TemplateNotFoundException, TemplateExecutionException {
+		StringWriter writer = new StringWriter();
+		try {
+			execute(name, data, writer);
+		}
+		catch (IOException ex) {
+			// A StringWriter never performs I/O; an IOException here is not expected.
+			throw new TemplateExecutionException("Unexpected I/O error rendering '" + name + "'", ex);
+		}
+		return writer.toString();
+	}
+
+	/**
+	 * Return an immutable handle to a named template in this set, bound once so it can be
+	 * rendered repeatedly without repeating the name.
+	 * @param name the template name
+	 * @return a handle bound to the named template
+	 * @throws TemplateNotFoundException if no template with the given name exists
+	 */
+	public CompiledTemplate compiled(String name) throws TemplateNotFoundException {
+		if (name == null || !rootNodes.containsKey(name)) {
+			throw new TemplateNotFoundException(String.format("Template '%s' not found.", name));
+		}
+		return new CompiledTemplate(this, name);
 	}
 
 	/**
