@@ -10,10 +10,6 @@ import org.alexmond.gotmpl4j.Function;
  * {@code html/template} uses (e.g. {@code _html_template_htmlescaper}). The escape pass
  * appends these by name to action pipelines; the executor resolves them like any
  * function.
- *
- * <p>
- * {@code _html_template_jsvalescaper} (the JSON-marshaling JS value escaper) is
- * registered separately once implemented.
  */
 public final class Escapers {
 
@@ -43,6 +39,7 @@ public final class Escapers {
 		m.put("_html_template_jsregexpescaper", JsEscapers::jsRegexpEscaper);
 		m.put("_html_template_jsstrescaper", JsEscapers::jsStrEscaper);
 		m.put("_html_template_jstmpllitescaper", JsEscapers::jsTmplLitEscaper);
+		m.put("_html_template_jsvalescaper", JsEscapers::jsValEscaper);
 		m.put("_html_template_urlescaper", UrlEscapers::urlEscaper);
 		m.put("_html_template_urlfilter", UrlEscapers::urlFilter);
 		m.put("_html_template_urlnormalizer", UrlEscapers::urlNormalizer);
