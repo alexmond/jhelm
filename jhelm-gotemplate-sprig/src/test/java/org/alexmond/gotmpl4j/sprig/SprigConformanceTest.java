@@ -39,7 +39,7 @@ class SprigConformanceTest {
 			Set.of("{{ 1.2 | mulf \"2.4\" 10 \"4\"}}"));
 
 	@ParameterizedTest
-	@ValueSource(strings = { "strings", "numeric", "defaults", "list", "dict" })
+	@ValueSource(strings = { "strings", "numeric", "defaults", "list", "dict", "crypto" })
 	void sprigConformance(String category) throws Exception {
 		Set<String> pinned = EXPECTED.getOrDefault(category, Set.of());
 		Set<String> failures = new TreeSet<>();
