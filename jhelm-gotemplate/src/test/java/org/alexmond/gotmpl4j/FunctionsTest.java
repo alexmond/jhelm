@@ -338,8 +338,11 @@ class FunctionsTest {
 	@Test
 	void testEqMultipleArgs() throws Exception {
 		Function eq = Functions.GO_BUILTINS.get("eq");
+		// Go's multi-arg eq is "first equals ANY of the rest" (arg1==arg2 || arg1==arg3).
 		assertEquals(true, eq.invoke(new Object[] { "x", "x", "x" }));
-		assertEquals(false, eq.invoke(new Object[] { "x", "x", "y" }));
+		assertEquals(true, eq.invoke(new Object[] { "x", "x", "y" }));
+		assertEquals(true, eq.invoke(new Object[] { "x", "y", "x" }));
+		assertEquals(false, eq.invoke(new Object[] { "x", "y", "z" }));
 	}
 
 	@Test

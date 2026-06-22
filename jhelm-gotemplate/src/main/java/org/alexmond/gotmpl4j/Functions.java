@@ -144,13 +144,15 @@ public final class Functions {
 			if (args.length < 2) {
 				return false;
 			}
+			// Go's multi-arg eq compares the first argument to each of the rest and
+			// returns true if it equals ANY of them (arg1==arg2 || arg1==arg3 || ...).
 			Object first = args[0];
 			for (int i = 1; i < args.length; i++) {
-				if (!valuesEqual(first, args[i])) {
-					return false;
+				if (valuesEqual(first, args[i])) {
+					return true;
 				}
 			}
-			return true;
+			return false;
 		};
 	}
 
