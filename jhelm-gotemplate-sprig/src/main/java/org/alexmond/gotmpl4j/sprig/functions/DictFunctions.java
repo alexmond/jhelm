@@ -305,8 +305,16 @@ public final class DictFunctions {
 	}
 
 	private static Function keys() {
-		return (args) -> (args.length > 0 && args[0] instanceof Map) ? new ArrayList<>(((Map<?, ?>) args[0]).keySet())
-				: Collections.emptyList();
+		// Sprig's keys is variadic: it returns the keys of all supplied dicts.
+		return (args) -> {
+			List<Object> result = new ArrayList<>();
+			for (Object arg : args) {
+				if (arg instanceof Map) {
+					result.addAll(((Map<?, ?>) arg).keySet());
+				}
+			}
+			return result;
+		};
 	}
 
 	private static Function mustKeys() {
