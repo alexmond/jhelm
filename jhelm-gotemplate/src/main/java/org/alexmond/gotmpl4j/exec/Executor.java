@@ -619,8 +619,46 @@ public class Executor {
 			}
 		}
 
+		// No JavaBean getter matched. Go templates resolve `.Name` as a method named Name
+		// first, then an exported struct field — so for plain POJOs (no getters) fall
+		// back
+		// to a no-arg method, then a public field, by exact name.
+		Object methodValue = invokeNoArgHelperMethod(current, identifier);
+		if (methodValue != NO_METHOD) {
+			return methodValue;
+		}
+		Object fieldValue = readPublicField(current, identifier);
+		if (fieldValue != NO_FIELD) {
+			return fieldValue;
+		}
+
 		// In Helm, missing fields return nil instead of throwing an error
 		return null;
+	}
+
+	/**
+	 * Sentinel marking "no matching public field found" (distinct from a null field
+	 * value).
+	 */
+	private static final Object NO_FIELD = new Object();
+
+	/**
+	 * Read a public field named {@code name} (exact match, including inherited) from the
+	 * target, mirroring Go's access to an exported struct field. JDK-declared fields are
+	 * skipped so engine internals are not exposed.
+	 * @return the field value, or {@link #NO_FIELD} if no such accessible field exists
+	 */
+	private static Object readPublicField(Object target, String name) {
+		try {
+			java.lang.reflect.Field field = target.getClass().getField(name);
+			if (field.getDeclaringClass().getName().startsWith("java.")) {
+				return NO_FIELD;
+			}
+			return field.get(target);
+		}
+		catch (NoSuchFieldException | IllegalAccessException ex) {
+			return NO_FIELD;
+		}
 	}
 
 	/**
