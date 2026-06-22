@@ -45,9 +45,7 @@ class TvalConformanceTest {
 			// closed).
 			"parens in pipeline", "parens: $ in paren in pipe", "parens: spaces and args",
 			// #441 octal integer literal (0377) lexed as decimal.
-			"octal0",
-			// #438 range '=' assignment does not update the outer variable.
-			"issue56490");
+			"octal0");
 
 	// Tokens that indicate a Go-only feature gotmpl4j's Map data model cannot express.
 	private static final List<String> UNSUPPORTED = List.of(".Method", ".MAdd", ".Copy", ".GetU", ".MyError",
@@ -137,7 +135,7 @@ class TvalConformanceTest {
 			}
 		}
 		assertTrue(unexpected.isEmpty(), () -> "unexpected text/template field-access divergences (regressions):\n"
-				+ String.join("\n", unexpected) + "\n(known divergences: #431, #438, #441)");
+				+ String.join("\n", unexpected) + "\n(known divergences: #431, #441)");
 	}
 
 	private static String decode(String b64) {
