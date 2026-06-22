@@ -31,7 +31,12 @@ class TvalConformanceTest {
 	// Known divergences (each tracked by a ticket); a failure NOT in this set is a
 	// regression and fails the test.
 	private static final Set<String> EXPECTED_DIVERGENCES = Set.of(
-			// Undefined field/key -> "" vs Go "<no value>"/"<nil>" (#431).
+			// Undefined field/key -> "" (Helm's missingkey=zero) vs Go's default option,
+			// which renders "<no value>"/"<nil>". Intended, not a bug: jhelm targets Helm
+			// semantics (verified `helm template` renders a missing key empty), #431
+			// closed.
+			// A configurable Go-default missingkey mode would be future general-engine
+			// work.
 			"map .NO", "empty nil", "html untyped nil", "NIL", "html typed nil",
 			// Go struct fmt / zero-value map index / slice-cap — not expressible with Map
 			// data.
