@@ -1,0 +1,223 @@
+.X	LXt7Llh9fS0=	LXgt
+.U.V	LXt7LlUuVn19LQ==	LXYt
+map .one	e3suTVNJLm9uZX19	MQ==
+map .two	e3suTVNJLnR3b319	Mg==
+map .NO	e3suTVNJLk5PfX0=	PG5vIHZhbHVlPg==
+map .one interface	e3suTVhJLm9uZX19	MQ==
+$.I	e3skLkl9fQ==	MTc=
+$.U.V	e3skLlUuVn19	dg==
+declare in action	e3skeCA6PSAkLlUuVn19e3skeH19	dg==
+simple assignment	e3skeCA6PSAyfX17eyR4ID0gM319e3skeH19	Mw==
+nested assignment	e3skeCA6PSAyfX17e2lmIHRydWV9fXt7JHggPSAzfX17e2VuZH19e3skeH19	Mw==
+nested assignment changes the last declaration	e3skeCA6PSAxfX17e2lmIHRydWV9fXt7JHggOj0gMn19e3tpZiB0cnVlfX17eyR4ID0gM319e3tlbmR9fXt7ZW5kfX17eyR4fX0=	MQ==
+V{6666}.String()	LXt7LlYwfX0t	LTw2NjY2Pi0=
+&V{7777}.String()	LXt7LlYxfX0t	LTw3Nzc3Pi0=
+(*V)(nil).String()	LXt7LlYyfX0t	LW5pbFYt
+W{888}.Error()	LXt7LlcwfX0t	LVs4ODhdLQ==
+&W{999}.Error()	LXt7LlcxfX0t	LVs5OTldLQ==
+(*W)(nil).Error()	LXt7LlcyfX0t	LW5pbFct
+*int	e3suUEl9fQ==	MjM=
+*string	e3suUFN9fQ==	YSBzdHJpbmc=
+*[]int	e3suUFNJfX0=	WzIxIDIyIDIzXQ==
+*[]int[1]	e3tpbmRleCAuUFNJIDF9fQ==	MjI=
+NIL	e3suTklMfX0=	PG5pbD4=
+empty nil	e3suRW1wdHkwfX0=	PG5vIHZhbHVlPg==
+empty with int	e3suRW1wdHkxfX0=	Mw==
+empty with string	e3suRW1wdHkyfX0=	ZW1wdHky
+empty with slice	e3suRW1wdHkzfX0=	WzcgOF0=
+empty with struct	e3suRW1wdHk0fX0=	e1VpbkVtcHR5fQ==
+empty with struct, field	e3suRW1wdHk0LlZ9fQ==	VWluRW1wdHk=
+.Method0	LXt7Lk1ldGhvZDB9fS0=	LU0wLQ==
+.Method1(1234)	LXt7Lk1ldGhvZDEgMTIzNH19LQ==	LTEyMzQt
+.Method1(.I)	LXt7Lk1ldGhvZDEgLkl9fS0=	LTE3LQ==
+.Method2(3, .X)	LXt7Lk1ldGhvZDIgMyAuWH19LQ==	LU1ldGhvZDI6IDMgeC0=
+.Method2(.U16, `str`)	LXt7Lk1ldGhvZDIgLlUxNiBgc3RyYH19LQ==	LU1ldGhvZDI6IDE2IHN0ci0=
+.Method2(.U16, $x)	e3tpZiAkeCA6PSAuWH19LXt7Lk1ldGhvZDIgLlUxNiAkeH19e3tlbmR9fS0=	LU1ldGhvZDI6IDE2IHgt
+.Method3(nil constant)	LXt7Lk1ldGhvZDMgbmlsfX0t	LU1ldGhvZDM6IDxuaWw+LQ==
+.Method3(nil value)	LXt7Lk1ldGhvZDMgLk1YSS51bnNldH19LQ==	LU1ldGhvZDM6IDxuaWw+LQ==
+method on var	e3tpZiAkeCA6PSAufX0te3skeC5NZXRob2QyIC5VMTYgJHguWH19e3tlbmR9fS0=	LU1ldGhvZDI6IDE2IHgt
+method on chained var	e3tyYW5nZSAuTVNJb25lfX17e2lmICQuVS5UcnVlRmFsc2UgJC5UcnVlfX17eyQuVS5UcnVlRmFsc2UgJC5UcnVlfX17e2Vsc2V9fVdST05He3tlbmR9fXt7ZW5kfX0=	dHJ1ZQ==
+chained method	e3tyYW5nZSAuTVNJb25lfX17e2lmICQuR2V0VS5UcnVlRmFsc2UgJC5UcnVlfX17eyQuVS5UcnVlRmFsc2UgJC5UcnVlfX17e2Vsc2V9fVdST05He3tlbmR9fXt7ZW5kfX0=	dHJ1ZQ==
+chained method on variable	e3t3aXRoICR4IDo9IC59fXt7d2l0aCAuU0l9fXt7JC5HZXRVLlRydWVGYWxzZSAkLlRydWV9fXt7ZW5kfX17e2VuZH19	dHJ1ZQ==
+.NilOKFunc not nil	e3tjYWxsIC5OaWxPS0Z1bmMgLlBJfX0=	ZmFsc2U=
+.NilOKFunc nil	e3tjYWxsIC5OaWxPS0Z1bmMgbmlsfX0=	dHJ1ZQ==
+method on typed nil interface value	e3suTm9uRW1wdHlJbnRlcmZhY2VUeXBlZE5pbC5NZXRob2QwfX0=	TTA=
+.BinaryFunc	e3tjYWxsIC5CaW5hcnlGdW5jIGAxYCBgMmB9fQ==	WzE9Ml0=
+.VariadicFunc0	e3tjYWxsIC5WYXJpYWRpY0Z1bmN9fQ==	PD4=
+.VariadicFunc2	e3tjYWxsIC5WYXJpYWRpY0Z1bmMgYGhlYCBgbGxvYH19	PGhlK2xsbz4=
+.VariadicFuncInt	e3tjYWxsIC5WYXJpYWRpY0Z1bmNJbnQgMzMgYGhlYCBgbGxvYH19	MzM9PGhlK2xsbz4=
+if .BinaryFunc call	e3sgaWYgLkJpbmFyeUZ1bmN9fXt7Y2FsbCAuQmluYXJ5RnVuYyBgMWAgYDJgfX17e2VuZH19	WzE9Ml0=
+if not .BinaryFunc call	e3sgaWYgbm90IC5CaW5hcnlGdW5jfX17e2NhbGwgLkJpbmFyeUZ1bmMgYDFgIGAyYH19e3tlbHNlfX1Ob3t7ZW5kfX0=	Tm8=
+.ErrFunc	e3tjYWxsIC5FcnJGdW5jfX0=	Ymxh
+empty call after pipe valid	e3suRXJyRnVuYyB8IGNhbGx9fQ==	Ymxh
+pipeline	LXt7Lk1ldGhvZDAgfCAuTWV0aG9kMiAuVTE2fX0t	LU1ldGhvZDI6IDE2IE0wLQ==
+pipeline func	LXt7Y2FsbCAuVmFyaWFkaWNGdW5jIGBsbG9gIHwgY2FsbCAuVmFyaWFkaWNGdW5jIGBoZWAgfX0t	LTxoZSs8bGxvPj4t
+nil pipeline	e3sgLkVtcHR5MCB8IGNhbGwgLk5pbE9LRnVuYyB9fQ==	dHJ1ZQ==
+nil call arg	e3sgY2FsbCAuTmlsT0tGdW5jIC5FbXB0eTAgfX0=	dHJ1ZQ==
+parens in pipeline	e3twcmludGYgYCVkICVkICVkYCAoMSkgKDIgfCBhZGQgMykgKGFkZCA0IChhZGQgNSA2KSl9fQ==	MSA1IDE1
+parens: $ in paren	e3soJCkuWH19	eA==
+parens: $.GetU in paren	e3soJC5HZXRVKS5WfX0=	dg==
+parens: $ in paren in pipe	e3soJCB8IGVjaG8pLlh9fQ==	eA==
+parens: spaces and args	e3sobWFrZW1hcCAidXAiICJkb3duIiAibGVmdCIgInJpZ2h0IikubGVmdH19	cmlnaHQ=
+if true	e3tpZiB0cnVlfX1UUlVFe3tlbmR9fQ==	VFJVRQ==
+if false	e3tpZiBmYWxzZX19VFJVRXt7ZWxzZX19RkFMU0V7e2VuZH19	RkFMU0U=
+if on typed nil interface value	e3tpZiAuTm9uRW1wdHlJbnRlcmZhY2VUeXBlZE5pbH19VFJVRXt7IGVuZCB9fQ==	
+if 1	e3tpZiAxfX1OT04tWkVST3t7ZWxzZX19WkVST3t7ZW5kfX0=	Tk9OLVpFUk8=
+if 0	e3tpZiAwfX1OT04tWkVST3t7ZWxzZX19WkVST3t7ZW5kfX0=	WkVSTw==
+if 1.5	e3tpZiAxLjV9fU5PTi1aRVJPe3tlbHNlfX1aRVJPe3tlbmR9fQ==	Tk9OLVpFUk8=
+if 0.0	e3tpZiAuRmxvYXRaZXJvfX1OT04tWkVST3t7ZWxzZX19WkVST3t7ZW5kfX0=	WkVSTw==
+if 1.5i	e3tpZiAxLjVpfX1OT04tWkVST3t7ZWxzZX19WkVST3t7ZW5kfX0=	Tk9OLVpFUk8=
+if 0.0i	e3tpZiAuQ29tcGxleFplcm99fU5PTi1aRVJPe3tlbHNlfX1aRVJPe3tlbmR9fQ==	WkVSTw==
+if nonNilPointer	e3tpZiAuUEl9fU5PTi1aRVJPe3tlbHNlfX1aRVJPe3tlbmR9fQ==	Tk9OLVpFUk8=
+if nilPointer	e3tpZiAuTklMfX1OT04tWkVST3t7ZWxzZX19WkVST3t7ZW5kfX0=	WkVSTw==
+if UPI	e3tpZiAuVVBJfX1OT04tWkVST3t7ZWxzZX19WkVST3t7ZW5kfX0=	Tk9OLVpFUk8=
+if EmptyUPI	e3tpZiAuRW1wdHlVUEl9fU5PTi1aRVJPe3tlbHNlfX1aRVJPe3tlbmR9fQ==	WkVSTw==
+if emptystring	e3tpZiBgYH19Tk9OLUVNUFRZe3tlbHNlfX1FTVBUWXt7ZW5kfX0=	RU1QVFk=
+if string	e3tpZiBgbm90ZW1wdHlgfX1OT04tRU1QVFl7e2Vsc2V9fUVNUFRZe3tlbmR9fQ==	Tk9OLUVNUFRZ
+if emptyslice	e3tpZiAuU0lFbXB0eX19Tk9OLUVNUFRZe3tlbHNlfX1FTVBUWXt7ZW5kfX0=	RU1QVFk=
+if slice	e3tpZiAuU0l9fU5PTi1FTVBUWXt7ZWxzZX19RU1QVFl7e2VuZH19	Tk9OLUVNUFRZ
+if emptymap	e3tpZiAuTVNJRW1wdHl9fU5PTi1FTVBUWXt7ZWxzZX19RU1QVFl7e2VuZH19	RU1QVFk=
+if map	e3tpZiAuTVNJfX1OT04tRU1QVFl7e2Vsc2V9fUVNUFRZe3tlbmR9fQ==	Tk9OLUVNUFRZ
+if map unset	e3tpZiAuTVhJLm5vbmV9fU5PTi1aRVJPe3tlbHNlfX1aRVJPe3tlbmR9fQ==	WkVSTw==
+if map not unset	e3tpZiBub3QgLk1YSS5ub25lfX1aRVJPe3tlbHNlfX1OT04tWkVST3t7ZW5kfX0=	WkVSTw==
+if $x with $y int	e3tpZiAkeCA6PSB0cnVlfX17e3dpdGggJHkgOj0gLkl9fXt7JHh9fSx7eyR5fX17e2VuZH19e3tlbmR9fQ==	dHJ1ZSwxNw==
+if $x with $x int	e3tpZiAkeCA6PSB0cnVlfX17e3dpdGggJHggOj0gLkl9fXt7JHh9fSx7e2VuZH19e3skeH19e3tlbmR9fQ==	MTcsdHJ1ZQ==
+if else if	e3tpZiBmYWxzZX19RkFMU0V7e2Vsc2UgaWYgdHJ1ZX19VFJVRXt7ZW5kfX0=	VFJVRQ==
+if else chain	e3tpZiBlcSAxIDN9fTF7e2Vsc2UgaWYgZXEgMiAzfX0ye3tlbHNlIGlmIGVxIDMgM319M3t7ZW5kfX0=	Mw==
+print	e3twcmludCAiaGVsbG8sIHByaW50In19	aGVsbG8sIHByaW50
+print 123	e3twcmludCAxIDIgM319	MSAyIDM=
+print nil	e3twcmludCBuaWx9fQ==	PG5pbD4=
+println	e3twcmludGxuIDEgMiAzfX0=	MSAyIDMK
+printf int	e3twcmludGYgIiUwNHgiIDEyN319	MDA3Zg==
+printf float	e3twcmludGYgIiVnIiAzLjV9fQ==	My41
+printf complex	e3twcmludGYgIiVnIiAxKzdpfX0=	KDErN2kp
+printf string	e3twcmludGYgIiVzIiAiaGVsbG8ifX0=	aGVsbG8=
+printf function	e3twcmludGYgIiUjcSIgemVyb0FyZ3N9fQ==	YHplcm9BcmdzYA==
+printf field	e3twcmludGYgIiVzIiAuVS5WfX0=	dg==
+printf method	e3twcmludGYgIiVzIiAuTWV0aG9kMH19	TTA=
+printf dot	e3t3aXRoIC5JfX17e3ByaW50ZiAiJWQiIC59fXt7ZW5kfX0=	MTc=
+printf var	e3t3aXRoICR4IDo9IC5JfX17e3ByaW50ZiAiJWQiICR4fX17e2VuZH19	MTc=
+printf lots	e3twcmludGYgIiVkICVzICVnICVzIiAxMjcgImhlbGxvIiA3LTNpIC5NZXRob2QwfX0=	MTI3IGhlbGxvICg3LTNpKSBNMA==
+html	e3todG1sIC5QU319	YSBzdHJpbmc=
+html typed nil	e3todG1sIC5OSUx9fQ==	Jmx0O25pbCZndDs=
+html untyped nil	e3todG1sIC5FbXB0eTB9fQ==	Jmx0O25vIHZhbHVlJmd0Ow==
+boolean if	e3tpZiBhbmQgdHJ1ZSAxIGBoaWB9fVRSVUV7e2Vsc2V9fUZBTFNFe3tlbmR9fQ==	VFJVRQ==
+slice[0]	e3tpbmRleCAuU0kgMH19	Mw==
+slice[1]	e3tpbmRleCAuU0kgMX19	NA==
+map[one]	e3tpbmRleCAuTVNJIGBvbmVgfX0=	MQ==
+map[two]	e3tpbmRleCAuTVNJIGB0d29gfX0=	Mg==
+map[NO]	e3tpbmRleCAuTVNJIGBYWFhgfX0=	MA==
+map[``]	e3tpbmRleCAuTVNJIGBgfX0=	MA==
+double index	e3tpbmRleCAuU01TSSAxIGBlbGV2ZW5gfX0=	MTE=
+map MI64S	e3tpbmRleCAuTUk2NFMgMn19	aTY0Mg==
+map MI32S	e3tpbmRleCAuTUkzMlMgMn19	dHdv
+map MUI64S	e3tpbmRleCAuTVVJNjRTIDN9fQ==	dWk2NDM=
+map MI8S	e3tpbmRleCAuTUk4UyAzfX0=	aTgz
+map MUI8S	e3tpbmRleCAuTVVJOFMgMn19	dTgy
+index of an interface field	e3tpbmRleCAuRW1wdHkzIDB9fQ==	Nw==
+slice[:]	e3tzbGljZSAuU0l9fQ==	WzMgNCA1XQ==
+slice[1:]	e3tzbGljZSAuU0kgMX19	WzQgNV0=
+slice[1:2]	e3tzbGljZSAuU0kgMSAyfX0=	WzRd
+len(s) < indexes < cap(s)	e3tzbGljZSAuU0lDYXAgNiAxMH19	WzAgMCAwIDBd
+len(s) < indexes < cap(s)	e3tzbGljZSAuU0lDYXAgNiAxMCAxMH19	WzAgMCAwIDBd
+array[:]	e3tzbGljZSAuQUl9fQ==	WzMgNCA1XQ==
+array[1:]	e3tzbGljZSAuQUkgMX19	WzQgNV0=
+array[1:2]	e3tzbGljZSAuQUkgMSAyfX0=	WzRd
+pointer to array[:]	e3tzbGljZSAuUEFJfX0=	WzMgNCA1XQ==
+pointer to array[1:]	e3tzbGljZSAuUEFJIDF9fQ==	WzQgNV0=
+pointer to array[1:2]	e3tzbGljZSAuUEFJIDEgMn19	WzRd
+string[:]	e3tzbGljZSAuU319	eHl6
+string[0:1]	e3tzbGljZSAuUyAwIDF9fQ==	eA==
+string[1:]	e3tzbGljZSAuUyAxfX0=	eXo=
+string[1:2]	e3tzbGljZSAuUyAxIDJ9fQ==	eQ==
+slice of an interface field	e3tzbGljZSAuRW1wdHkzIDAgMX19	Wzdd
+slice	e3tsZW4gLlNJfX0=	Mw==
+map	e3tsZW4gLk1TSSB9fQ==	Mw==
+len of an interface field	e3tsZW4gLkVtcHR5M319	Mg==
+with true	e3t3aXRoIHRydWV9fXt7Ln19e3tlbmR9fQ==	dHJ1ZQ==
+with false	e3t3aXRoIGZhbHNlfX17ey59fXt7ZWxzZX19RkFMU0V7e2VuZH19	RkFMU0U=
+with 1	e3t3aXRoIDF9fXt7Ln19e3tlbHNlfX1aRVJPe3tlbmR9fQ==	MQ==
+with 0	e3t3aXRoIDB9fXt7Ln19e3tlbHNlfX1aRVJPe3tlbmR9fQ==	WkVSTw==
+with 1.5	e3t3aXRoIDEuNX19e3sufX17e2Vsc2V9fVpFUk97e2VuZH19	MS41
+with 0.0	e3t3aXRoIC5GbG9hdFplcm99fXt7Ln19e3tlbHNlfX1aRVJPe3tlbmR9fQ==	WkVSTw==
+with 1.5i	e3t3aXRoIDEuNWl9fXt7Ln19e3tlbHNlfX1aRVJPe3tlbmR9fQ==	KDArMS41aSk=
+with 0.0i	e3t3aXRoIC5Db21wbGV4WmVyb319e3sufX17e2Vsc2V9fVpFUk97e2VuZH19	WkVSTw==
+with emptystring	e3t3aXRoIGBgfX17ey59fXt7ZWxzZX19RU1QVFl7e2VuZH19	RU1QVFk=
+with string	e3t3aXRoIGBub3RlbXB0eWB9fXt7Ln19e3tlbHNlfX1FTVBUWXt7ZW5kfX0=	bm90ZW1wdHk=
+with emptyslice	e3t3aXRoIC5TSUVtcHR5fX17ey59fXt7ZWxzZX19RU1QVFl7e2VuZH19	RU1QVFk=
+with slice	e3t3aXRoIC5TSX19e3sufX17e2Vsc2V9fUVNUFRZe3tlbmR9fQ==	WzMgNCA1XQ==
+with emptymap	e3t3aXRoIC5NU0lFbXB0eX19e3sufX17e2Vsc2V9fUVNUFRZe3tlbmR9fQ==	RU1QVFk=
+with map	e3t3aXRoIC5NU0lvbmV9fXt7Ln19e3tlbHNlfX1FTVBUWXt7ZW5kfX0=	bWFwW29uZToxXQ==
+with empty interface, struct field	e3t3aXRoIC5FbXB0eTR9fXt7LlZ9fXt7ZW5kfX0=	VWluRW1wdHk=
+with $x int	e3t3aXRoICR4IDo9IC5JfX17eyR4fX17e2VuZH19	MTc=
+with $x struct.U.V	e3t3aXRoICR4IDo9ICR9fXt7JHguVS5WfX17e2VuZH19	dg==
+with variable and action	e3t3aXRoICR4IDo9ICR9fXt7JHkgOj0gJC5VLlZ9fXt7JHl9fXt7ZW5kfX0=	dg==
+with on typed nil interface value	e3t3aXRoIC5Ob25FbXB0eUludGVyZmFjZVR5cGVkTmlsfX1UUlVFe3sgZW5kIH19	
+with else with	e3t3aXRoIDB9fXt7Ln19e3tlbHNlIHdpdGggdHJ1ZX19e3sufX17e2VuZH19	dHJ1ZQ==
+with else with chain	e3t3aXRoIDB9fXt7Ln19e3tlbHNlIHdpdGggZmFsc2V9fXt7Ln19e3tlbHNlIHdpdGggYG5vdGVtcHR5YH19e3sufX17e2VuZH19	bm90ZW1wdHk=
+range []int	e3tyYW5nZSAuU0l9fS17ey59fS17e2VuZH19	LTMtLTQtLTUt
+range empty no else	e3tyYW5nZSAuU0lFbXB0eX19LXt7Ln19LXt7ZW5kfX0=	
+range []int else	e3tyYW5nZSAuU0l9fS17ey59fS17e2Vsc2V9fUVNUFRZe3tlbmR9fQ==	LTMtLTQtLTUt
+range empty else	e3tyYW5nZSAuU0lFbXB0eX19LXt7Ln19LXt7ZWxzZX19RU1QVFl7e2VuZH19	RU1QVFk=
+range []int break else	e3tyYW5nZSAuU0l9fS17ey59fS17e2JyZWFrfX1OT1RSRUFDSEVEe3tlbHNlfX1FTVBUWXt7ZW5kfX0=	LTMt
+range []int continue else	e3tyYW5nZSAuU0l9fS17ey59fS17e2NvbnRpbnVlfX1OT1RSRUFDSEVEe3tlbHNlfX1FTVBUWXt7ZW5kfX0=	LTMtLTQtLTUt
+range []bool	e3tyYW5nZSAuU0J9fS17ey59fS17e2VuZH19	LXRydWUtLWZhbHNlLQ==
+range []int method	e3tyYW5nZSAuU0kgfCAuTUFkZCAuSX19LXt7Ln19LXt7ZW5kfX0=	LTIwLS0yMS0tMjIt
+range map	e3tyYW5nZSAuTVNJfX0te3sufX0te3tlbmR9fQ==	LTEtLTMtLTIt
+range empty map no else	e3tyYW5nZSAuTVNJRW1wdHl9fS17ey59fS17e2VuZH19	
+range map else	e3tyYW5nZSAuTVNJfX0te3sufX0te3tlbHNlfX1FTVBUWXt7ZW5kfX0=	LTEtLTMtLTIt
+range empty map else	e3tyYW5nZSAuTVNJRW1wdHl9fS17ey59fS17e2Vsc2V9fUVNUFRZe3tlbmR9fQ==	RU1QVFk=
+range empty interface	e3tyYW5nZSAuRW1wdHkzfX0te3sufX0te3tlbHNlfX1FTVBUWXt7ZW5kfX0=	LTctLTgt
+range empty nil	e3tyYW5nZSAuRW1wdHkwfX0te3sufX0te3tlbmR9fQ==	
+range $x SI	e3tyYW5nZSAkeCA6PSAuU0l9fTx7eyR4fX0+e3tlbmR9fQ==	PDM+PDQ+PDU+
+range $x $y SI	e3tyYW5nZSAkeCwgJHkgOj0gLlNJfX08e3skeH19PXt7JHl9fT57e2VuZH19	PDA9Mz48MT00PjwyPTU+
+range $x MSIone	e3tyYW5nZSAkeCA6PSAuTVNJb25lfX08e3skeH19Pnt7ZW5kfX0=	PDE+
+range $x $y MSIone	e3tyYW5nZSAkeCwgJHkgOj0gLk1TSW9uZX19PHt7JHh9fT17eyR5fX0+e3tlbmR9fQ==	PG9uZT0xPg==
+range $x PSI	e3tyYW5nZSAkeCA6PSAuUFNJfX08e3skeH19Pnt7ZW5kfX0=	PDIxPjwyMj48MjM+
+declare in range	e3tyYW5nZSAkeCA6PSAuUFNJfX08e3skZm9vOj0keH19e3skeH19Pnt7ZW5kfX0=	PDIxPjwyMj48MjM+
+range count	e3tyYW5nZSAkaSwgJHggOj0gY291bnQgNX19W3t7JGl9fV17eyR4fX17e2VuZH19	WzBdYVsxXWJbMl1jWzNdZFs0XWU=
+range nil count	e3tyYW5nZSAkaSwgJHggOj0gY291bnQgMH19e3tlbHNlfX1lbXB0eXt7ZW5kfX0=	ZW1wdHk=
+or as if true	e3tvciAuU0kgInNsaWNlIGlzIGVtcHR5In19	WzMgNCA1XQ==
+or as if false	e3tvciAuU0lFbXB0eSAic2xpY2UgaXMgZW1wdHkifX0=	c2xpY2UgaXMgZW1wdHk=
+error method, no error	e3suTXlFcnJvciBmYWxzZX19	ZmFsc2U=
+decimal	e3twcmludCAxMjM0fX0=	MTIzNA==
+decimal _	e3twcmludCAxMl8zNH19	MTIzNA==
+binary	e3twcmludCAwYjEwMX19	NQ==
+binary _	e3twcmludCAwYl8xXzBfMX19	NQ==
+BINARY	e3twcmludCAwQjEwMX19	NQ==
+octal0	e3twcmludCAwMzc3fX0=	MjU1
+octal	e3twcmludCAwbzM3N319	MjU1
+octal _	e3twcmludCAwb18zXzdfN319	MjU1
+OCTAL	e3twcmludCAwTzM3N319	MjU1
+hex	e3twcmludCAweDEyM319	Mjkx
+hex _	e3twcmludCAweDFfMjN9fQ==	Mjkx
+HEX	e3twcmludCAwWDEyM0FCQ319	MTE5NDY4NA==
+float	e3twcmludCAxMjMuNH19	MTIzLjQ=
+float _	e3twcmludCAwXzBfMV8yXzMuNH19	MTIzLjQ=
+hex float	e3twcmludCArMHgxLmVwKzJ9fQ==	Ny41
+hex float _	e3twcmludCArMHhfMS5lXzBwKzBfMn19	Ny41
+HEX float	e3twcmludCArMFgxLkVQKzJ9fQ==	Ny41
+print multi	e3twcmludCAxXzJfM180IDcuNV8wMF8wMF8wMH19	MTIzNCA3LjU=
+print multi2	e3twcmludCAxMjM0IDB4MF8xLmVfMHArMDJ9fQ==	MTIzNCA3LjU=
+bug0	e3tyYW5nZSAuTVNJb25lfX17e2lmICQuTWV0aG9kMSAufX1Ye3tlbmR9fXt7ZW5kfX0=	WA==
+bug2	e3skLk5vbkVtcHR5SW50ZXJmYWNlLk1ldGhvZDB9fQ==	TTA=
+bug3	e3t3aXRoICR9fXt7Lk1ldGhvZDB9fXt7ZW5kfX0=	TTA=
+bug4	e3tpZiAuRW1wdHkwfX1ub24tbmlse3tlbHNlfX1uaWx7e2VuZH19	bmls
+bug5	e3suU3RyfX0=	Zm9vemxl
+bug5a	e3suRXJyfX0=	ZXJyb296bGU=
+bug6a	e3t2ZnVuYyAuVjAgLlYxfX0=	dmZ1bmM=
+bug6b	e3t2ZnVuYyAuVjAgLlYwfX0=	dmZ1bmM=
+bug6c	e3t2ZnVuYyAuVjEgLlYwfX0=	dmZ1bmM=
+bug6d	e3t2ZnVuYyAuVjEgLlYxfX0=	dmZ1bmM=
+bug13	e3twcmludCAoLkNvcHkpLkl9fQ==	MTc=
+bug16g	e3siYWFhIiB8dHdvQXJncyAiYmJiIn19	dHdvQXJncz1iYmJhYWE=
+bug16i	e3siYWFhInxvbmVBcmd9fQ==	b25lQXJnPWFhYQ==
+bug16j	e3sxKzJpfHByaW50ZiAiJXYifX0=	KDErMmkp
+bug16k	e3siYWFhInxwcmludGYgfX0=	YWFh
+bug17a	e3suTm9uRW1wdHlJbnRlcmZhY2UuWH19	eA==
+bug17b	LXt7Lk5vbkVtcHR5SW50ZXJmYWNlLk1ldGhvZDEgMTIzNH19LQ==	LTEyMzQt
+bug17c	e3tsZW4gLk5vbkVtcHR5SW50ZXJmYWNlUHRTfX0=	Mg==
+bug17d	e3tpbmRleCAuTm9uRW1wdHlJbnRlcmZhY2VQdFMgMH19	YQ==
+bug17e	e3tyYW5nZSAuTm9uRW1wdHlJbnRlcmZhY2VQdFN9fS17ey59fS17e2VuZH19	LWEtLWIt
+issue56490	e3skaSA6PSAwfX17eyR4IDo9IDB9fXt7cmFuZ2UgJGkgPSAuQUl9fXt7ZW5kfX17eyRpfX0=	NQ==
+issue60801	e3skayA6PSAwfX17eyR2IDo9IDB9fXt7cmFuZ2UgJGssICR2ID0gLkFJfX17eyRrfX09e3skdn19IHt7ZW5kfX0=	MD0zIDE9NCAyPTUg
