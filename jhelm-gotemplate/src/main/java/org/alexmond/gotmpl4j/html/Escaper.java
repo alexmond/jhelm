@@ -418,7 +418,11 @@ public final class Escaper {
 		int i = 0;
 		ByteArrayOutputStream b = new ByteArrayOutputStream();
 		while (i != s.length) {
-			Transitions.Result tr = contextAfterText(c, Arrays.copyOfRange(s, i, s.length));
+			// contextAfterText mutates the context it is given (the transition machine
+			// updates in place), so pass a copy and keep c as the pre-transition context
+			// —
+			// Go passes context by value.
+			Transitions.Result tr = contextAfterText(c.copy(), Arrays.copyOfRange(s, i, s.length));
 			Context c1 = tr.context();
 			int i1 = i + tr.consumed();
 			if (c.state == State.TEXT || c.state == State.RCDATA) {
