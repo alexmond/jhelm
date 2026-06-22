@@ -52,8 +52,10 @@ class EscaperConformanceTest {
 	private static String apply(String fn, String input) {
 		return switch (fn) {
 			case "cssEscaper" -> CssEscapers.cssEscaper(input);
+			case "cssValueFilter" -> CssEscapers.cssValueFilter(input);
 			case "urlEscaper" -> UrlEscapers.urlEscaper(input);
 			case "urlNormalizer" -> UrlEscapers.urlNormalizer(input);
+			case "srcsetFilterAndEscaper" -> UrlEscapers.srcsetFilterAndEscaper(input);
 			default -> throw new IllegalArgumentException("unknown escaper " + fn);
 		};
 	}
