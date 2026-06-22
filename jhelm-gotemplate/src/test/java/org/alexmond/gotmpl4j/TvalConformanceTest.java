@@ -44,8 +44,8 @@ class TvalConformanceTest {
 			"parens in pipeline", "parens: $ in paren in pipe", "parens: spaces and args",
 			// #434 {{else with}} chains not parsed.
 			"with else with", "with else with chain",
-			// #435 print missing operand spaces / octal+underscore literals.
-			"print 123", "print multi", "print multi2", "octal0",
+			// #441 octal integer literal (0377) lexed as decimal.
+			"octal0",
 			// #437 slice does not support strings.
 			"string[:]", "string[0:1]", "string[1:]", "string[1:2]",
 			// #438 range '=' assignment does not update the outer variable.
@@ -139,7 +139,7 @@ class TvalConformanceTest {
 			}
 		}
 		assertTrue(unexpected.isEmpty(), () -> "unexpected text/template field-access divergences (regressions):\n"
-				+ String.join("\n", unexpected) + "\n(known divergences are tracked in #431, #433-#438)");
+				+ String.join("\n", unexpected) + "\n(known divergences: #431, #433, #434, #437, #438, #441)");
 	}
 
 	private static String decode(String b64) {
