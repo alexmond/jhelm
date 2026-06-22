@@ -143,17 +143,23 @@ public final class StringFunctions {
 			// Mirror Go's strings.Title (used by sprig's `title`): title-case the letter
 			// after a separator, leaving everything else untouched. So mixed-case
 			// "xtrabackupSidecar" -> "XtrabackupSidecar", not "Xtrabackupsidecar".
-			StringBuilder sb = new StringBuilder(s.length());
-			int prev = ' ';
-			int i = 0;
-			while (i < s.length()) {
-				int cp = s.codePointAt(i);
-				sb.appendCodePoint(isTitleSeparator(prev) ? Character.toTitleCase(cp) : cp);
-				prev = cp;
-				i += Character.charCount(cp);
-			}
-			return sb.toString();
+			return mapWordStarts(s, Character::toTitleCase);
 		};
+	}
+
+	// Apply {@code first} to the first letter after each title-separator (used by
+	// title/untitle), leaving the rest of each word untouched.
+	private static String mapWordStarts(String s, java.util.function.IntUnaryOperator first) {
+		StringBuilder sb = new StringBuilder(s.length());
+		int prev = ' ';
+		int i = 0;
+		while (i < s.length()) {
+			int cp = s.codePointAt(i);
+			sb.appendCodePoint(isTitleSeparator(prev) ? first.applyAsInt(cp) : cp);
+			prev = cp;
+			i += Character.charCount(cp);
+		}
+		return sb.toString();
 	}
 
 	// Mirrors Go's strings.isSeparator: letters, digits and '_' are part of a word; any
@@ -174,7 +180,9 @@ public final class StringFunctions {
 			if (s.isEmpty()) {
 				return s;
 			}
-			return Character.toLowerCase(s.charAt(0)) + s.substring(1);
+			// Inverse of title(): lower-case the first letter after each separator, so
+			// "First Try" -> "first try" (not just the first word).
+			return mapWordStarts(s, Character::toLowerCase);
 		};
 	}
 

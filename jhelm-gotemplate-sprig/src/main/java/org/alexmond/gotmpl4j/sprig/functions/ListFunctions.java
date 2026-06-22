@@ -370,11 +370,9 @@ public final class ListFunctions {
 			if (args.length < 2) {
 				throw new FunctionExecutionException("mustHas: insufficient arguments");
 			}
-			boolean result = (boolean) has().invoke(args);
-			if (!result) {
-				throw new FunctionExecutionException("mustHas: element not found");
-			}
-			return result;
+			// Sprig's mustHas returns false when the element is absent (only type errors
+			// fail), so a not-found result is not an exception.
+			return has().invoke(args);
 		};
 	}
 
@@ -486,12 +484,35 @@ public final class ListFunctions {
 			}
 			List<Object> result = new ArrayList<>();
 			for (Object item : (Collection<?>) args[0]) {
-				if (item != null && !"".equals(item) && !Boolean.FALSE.equals(item)) {
+				if (!isSprigEmpty(item)) {
 					result.add(item);
 				}
 			}
 			return result;
 		};
+	}
+
+	// Sprig's empty(): nil, false, a zero number, "", or an empty collection/map.
+	private static boolean isSprigEmpty(Object o) {
+		if (o == null) {
+			return true;
+		}
+		if (o instanceof Boolean b) {
+			return !b;
+		}
+		if (o instanceof String s) {
+			return s.isEmpty();
+		}
+		if (o instanceof Number n) {
+			return n.doubleValue() == 0.0;
+		}
+		if (o instanceof Collection<?> c) {
+			return c.isEmpty();
+		}
+		if (o instanceof Map<?, ?> m) {
+			return m.isEmpty();
+		}
+		return false;
 	}
 
 	private static Function mustCompact() {

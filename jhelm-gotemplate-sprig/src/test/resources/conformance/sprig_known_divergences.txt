@@ -5,13 +5,8 @@
 #
 # --- BUGS (to fix) ---
 # untitle: lowercase the first letter of EVERY word, not just the first.
-e3t1bnRpdGxlICJGaXJzdCBUcnkifX0=  // {{untitle "First Try"}} want=first try got=first Try
 # compact / mustCompact: drop all empty values (0, "", nil, false), not just "".
-e3sgbGlzdCAxIDAgIiIgImhlbGxvIiB8IGNvbXBhY3QgfX0=  // {{ list 1 0 "" "hello" | compact }} want=[1 hello] got=[1 0 hello]
-e3sgbGlzdCAxIDAgIiIgImhlbGxvIiB8IG11c3RDb21wYWN0IH19  // {{ list 1 0 "" "hello" | mustCompact }} want=[1 hello] got=[1 0 hello]
 # mustHas: return false when the element is absent / list is nil, not an error.
-e3sgbGlzdCAxIDIgMyB8IG11c3RIYXMgNCB9fQ==  // {{ list 1 2 3 | mustHas 4 }} want=false got=throws
-e3sgbXVzdEhhcyAiYmFyIiBuaWwgfX0=  // {{ mustHas "bar" nil }} want=false got=throws
 # mustWithout / mustSlice with only the list: return the list unchanged, not an error.
 e3sgbXVzdFdpdGhvdXQgbGlzdCB9fQ==  // {{ mustWithout list }} want=[] got=throws
 e3sgbXVzdFdpdGhvdXQgKGxpc3QgMSAyIDMpIH19  // {{ mustWithout (list 1 2 3) }} want=[1 2 3] got=throws
