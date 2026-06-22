@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ResourceLoader;
 
 /**
@@ -33,6 +34,7 @@ import org.springframework.core.io.ResourceLoader;
 @AutoConfiguration
 @EnableConfigurationProperties(Gotmpl4jProperties.class)
 @ConditionalOnProperty(prefix = "gotmpl4j", name = "enabled", matchIfMissing = true)
+@Import(GoTemplateServletWebConfiguration.class)
 public class Gotmpl4jAutoConfiguration {
 
 	@Bean

@@ -44,7 +44,7 @@ public class GoTemplateLoader {
 	 * @throws GoTemplateException if a template cannot be read or parsed
 	 */
 	public GoTemplate load() {
-		String location = withTrailingSlash(this.properties.getTemplateLocation());
+		String location = withTrailingSlash(this.properties.getPrefix());
 		String pattern = toPatternPrefix(location) + "**/*" + this.properties.getSuffix();
 		try {
 			GoTemplate goTemplate = this.factory.create();
