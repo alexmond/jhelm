@@ -12,10 +12,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.gotmpl4j.exec.Executor;
+import org.alexmond.gotmpl4j.html.Escaper;
+import org.alexmond.gotmpl4j.html.Escapers;
 import org.alexmond.gotmpl4j.parse.Node;
 import org.alexmond.gotmpl4j.parse.Parser;
 import org.alexmond.gotmpl4j.util.IOUtils;
@@ -48,6 +54,17 @@ public class GoTemplate {
 	private final Map<String, Node> rootNodes;
 
 	private String name;
+
+	private boolean htmlEscape;
+
+	@Getter(AccessLevel.NONE)
+	private Escaper escaper;
+
+	@Getter(AccessLevel.NONE)
+	private final Set<String> escapedNames = ConcurrentHashMap.newKeySet();
+
+	@Getter(AccessLevel.NONE)
+	private final ReentrantLock escapeLock = new ReentrantLock();
 
 	/**
 	 * Create a new GoTemplate with default settings. Auto-discovers
@@ -165,8 +182,39 @@ public class GoTemplate {
 		if (name == null || !rootNodes.containsKey(name)) {
 			throw new TemplateNotFoundException(String.format("Template '%s' not found.", name));
 		}
+		if (htmlEscape) {
+			ensureEscaped(name);
+		}
 		Executor executor = new Executor(rootNodes, functions);
 		executor.execute(name, data, writer);
+	}
+
+	/**
+	 * Enables opt-in {@code html/template} contextual auto-escaping: the named template
+	 * is rewritten (lazily, on first execution) so interpolated values are escaped for
+	 * the HTML/JS/CSS/URL context they appear in, and the internal escaper functions are
+	 * registered. The default mode is {@code text/template} (no escaping), matching Helm.
+	 */
+	void enableHtmlEscaping() {
+		this.htmlEscape = true;
+		this.functions.putAll(Escapers.escapers());
+		this.escaper = new Escaper(this.rootNodes);
+	}
+
+	private void ensureEscaped(String name) {
+		if (escapedNames.contains(name)) {
+			return;
+		}
+		escapeLock.lock();
+		try {
+			if (!escapedNames.contains(name)) {
+				escaper.escapeOne(name);
+				escapedNames.add(name);
+			}
+		}
+		finally {
+			escapeLock.unlock();
+		}
 	}
 
 	/**
@@ -254,7 +302,19 @@ public class GoTemplate {
 
 		private boolean autoDiscovery = true;
 
+		private boolean htmlEscaping;
+
 		Builder() {
+		}
+
+		/**
+		 * Enable opt-in {@code html/template} contextual auto-escaping. The default is
+		 * {@code text/template} (no escaping), which is what Helm uses.
+		 * @return this builder
+		 */
+		public Builder htmlEscaping() {
+			this.htmlEscaping = true;
+			return this;
 		}
 
 		/**
@@ -328,6 +388,10 @@ public class GoTemplate {
 			// Raw functions override everything
 			if (extraFunctions != null) {
 				template.functions.putAll(extraFunctions);
+			}
+
+			if (htmlEscaping) {
+				template.enableHtmlEscaping();
 			}
 
 			return template;
