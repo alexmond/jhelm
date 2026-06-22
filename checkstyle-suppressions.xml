@@ -53,6 +53,9 @@
          plus the Go-faithful serialization post-processing — long by nature -->
     <suppress checks="FileLength" files="ConversionFunctions\.java"/>
 
+    <!-- StringFunctions is a flat registry of the ~80 Sprig string functions — long by nature -->
+    <suppress checks="FileLength" files="StringFunctions\.java"/>
+
     <!-- Test files are exempt from size limits: test methods are short but files accumulate many of them -->
     <suppress checks="MethodLength" files=".*Test\.java"/>
     <suppress checks="FileLength" files=".*Test\.java"/>
