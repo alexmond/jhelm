@@ -1,21 +1,23 @@
 package org.alexmond.gotmpl4j.html;
 
-import org.alexmond.gotmpl4j.TemplateException;
 import org.alexmond.gotmpl4j.parse.Node;
 
 /**
  * Describes a problem encountered while contextually escaping a template (HTML mode).
  * Mirrors Go {@code html/template}'s {@code Error} (error.go). It is both stored on a
  * {@link Context} to mark the infectious {@link State#ERROR} state and thrown by the
- * escape pass, so it extends the engine's {@link TemplateException} hierarchy.
+ * escape pass. It is unchecked, since the escape pass threads it through lambdas and
+ * recursion.
  */
-public final class EscapeError extends TemplateException {
+public final class EscapeError extends RuntimeException {
 
 	private final transient EscapeErrorCode code;
 
 	private final transient Node node;
 
 	private final String name;
+
+	private final int line;
 
 	private final transient String description;
 
@@ -28,10 +30,11 @@ public final class EscapeError extends TemplateException {
 	 * @param description a human-readable description
 	 */
 	public EscapeError(EscapeErrorCode code, Node node, String name, int line, String description) {
-		super(format(name, line, description), line, -1);
+		super(format(name, line, description));
 		this.code = code;
 		this.node = node;
 		this.name = name;
+		this.line = line;
 		this.description = description;
 	}
 
@@ -71,6 +74,14 @@ public final class EscapeError extends TemplateException {
 	 */
 	public String templateName() {
 		return this.name;
+	}
+
+	/**
+	 * The source line of the error, or 0.
+	 * @return the line number
+	 */
+	public int getLine() {
+		return this.line;
 	}
 
 	/**

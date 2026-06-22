@@ -1,11 +1,19 @@
 package org.alexmond.gotmpl4j.parse;
 
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 public class TextNode implements Node {
 
-	private final String text;
+	// Mutable so the html/template escape pass can rewrite literal text (e.g. a stray '<'
+	// in HTML text node content becomes "&lt;").
+	private String text;
+
+	public TextNode(String text) {
+		this.text = text;
+	}
 
 	@Override
 	public String toString() {

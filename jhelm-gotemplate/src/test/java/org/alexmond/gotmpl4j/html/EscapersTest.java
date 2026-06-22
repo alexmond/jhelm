@@ -85,7 +85,7 @@ class EscapersTest {
 
 	@Test
 	void registryExposesGoNames() {
-		assertEquals(16, Escapers.escapers().size());
+		assertEquals(17, Escapers.escapers().size());
 		assertEquals("&lt;x&gt;", Escapers.escapers().get("_html_template_htmlescaper").invoke("<x>"));
 	}
 

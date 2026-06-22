@@ -42,8 +42,19 @@ final class Transitions {
 	}
 
 	/**
+	 * Runs the special-tag-end transition ({@code </script>} etc.), which the escape
+	 * pass's {@code contextAfterText} needs directly.
+	 * @param c the current context
+	 * @param s the literal text bytes
+	 * @return the new context and bytes consumed
+	 */
+	static Result specialTagEnd(Context c, byte[] s) {
+		return tSpecialTagEnd(c, s);
+	}
+
+	/**
 	 * Like {@link #transition} but dispatches on an explicit state, which
-	 * {@code stripTags} uses to force RCDATA scanning inside special element bodies.
+	 * {@code stripTags} and the escape pass use to scan with a forced state.
 	 * @param state the state to dispatch on
 	 * @param c the current context (may be mutated)
 	 * @param s the literal text bytes

@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.alexmond.gotmpl4j.Function;
+import org.alexmond.gotmpl4j.GoFmt;
 
 /**
  * Registry of the internal contextual escaper functions, keyed by the same names Go
@@ -44,7 +45,24 @@ public final class Escapers {
 		m.put("_html_template_urlfilter", UrlEscapers::urlFilter);
 		m.put("_html_template_urlnormalizer", UrlEscapers::urlNormalizer);
 		m.put("_html_template_srcsetescaper", UrlEscapers::srcsetFilterAndEscaper);
+		m.put("_eval_args_", Escapers::evalArgs);
 		return m;
+	}
+
+	// Renders pipeline arguments to a string when merging a predefined escaper into the
+	// contextual pipeline (mirrors Go's evalArgs / fmt.Sprint).
+	private static String evalArgs(Object... args) {
+		if (args.length == 1 && args[0] instanceof String s) {
+			return s;
+		}
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < args.length; i++) {
+			if (i > 0 && !(args[i - 1] instanceof String) && !(args[i] instanceof String)) {
+				sb.append(' ');
+			}
+			sb.append(GoFmt.sprint(args[i]));
+		}
+		return sb.toString();
 	}
 
 }
