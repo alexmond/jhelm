@@ -46,8 +46,6 @@ class TvalConformanceTest {
 			"with else with", "with else with chain",
 			// #441 octal integer literal (0377) lexed as decimal.
 			"octal0",
-			// #437 slice does not support strings.
-			"string[:]", "string[0:1]", "string[1:]", "string[1:2]",
 			// #438 range '=' assignment does not update the outer variable.
 			"issue56490");
 
@@ -139,7 +137,7 @@ class TvalConformanceTest {
 			}
 		}
 		assertTrue(unexpected.isEmpty(), () -> "unexpected text/template field-access divergences (regressions):\n"
-				+ String.join("\n", unexpected) + "\n(known divergences: #431, #433, #434, #437, #438, #441)");
+				+ String.join("\n", unexpected) + "\n(known divergences: #431, #433, #434, #438, #441)");
 	}
 
 	private static String decode(String b64) {
