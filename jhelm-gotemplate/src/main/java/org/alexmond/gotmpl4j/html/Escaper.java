@@ -79,20 +79,25 @@ public final class Escaper {
 
 	private RangeContext rangeContext;
 
-	private Escaper(Map<String, Node> templates) {
+	/**
+	 * Creates an escaper over a template set. One instance may escape several entry
+	 * templates ({@link #escapeOne}); its output cache persists so a template reached
+	 * from more than one entry is escaped only once.
+	 * @param templates the template set (rootNodes), mutated in place
+	 */
+	public Escaper(Map<String, Node> templates) {
 		this.templates = templates;
 	}
 
 	/**
-	 * Rewrites the named template (and the templates it reaches) so all output is
-	 * contextually escaped. Mutates the nodes in {@code templates} in place.
-	 * @param templates the template set (rootNodes)
+	 * Rewrites a single named template (and the templates it reaches) so all output is
+	 * contextually escaped. Idempotent: re-escaping an already-escaped entry is a cheap
+	 * cache hit.
 	 * @param name the entry template name
 	 * @throws EscapeError if the template cannot be safely escaped
 	 */
-	public static void escape(Map<String, Node> templates, String name) {
-		Escaper e = new Escaper(templates);
-		Tree res = e.escapeTree(new Context(), templates.get(name), name, 0);
+	public void escapeOne(String name) {
+		Tree res = escapeTree(new Context(), this.templates.get(name), name, 0);
 		Context c = res.context();
 		if (c.err != null) {
 			EscapeError ce = c.err;
@@ -101,7 +106,18 @@ public final class Escaper {
 		if (c.state != State.TEXT) {
 			throw new EscapeError(EscapeErrorCode.ERR_END_CONTEXT, null, name, 0, "ends in a non-text context: " + c);
 		}
-		e.commit();
+		commit();
+	}
+
+	/**
+	 * Rewrites the named template (and the templates it reaches) so all output is
+	 * contextually escaped. Convenience for a single entry.
+	 * @param templates the template set (rootNodes)
+	 * @param name the entry template name
+	 * @throws EscapeError if the template cannot be safely escaped
+	 */
+	public static void escape(Map<String, Node> templates, String name) {
+		new Escaper(templates).escapeOne(name);
 	}
 
 	private Context escapeNode(Context c, Node n) {
@@ -556,6 +572,11 @@ public final class Escaper {
 		for (Map.Entry<TextNode, String> en : this.textNodeEdits.entrySet()) {
 			en.getKey().setText(en.getValue());
 		}
+		// Keep the output cache (so shared templates are not re-escaped) but clear the
+		// per-pass edits and call set so a later escapeOne does not re-apply them.
+		this.actionNodeEdits.clear();
+		this.textNodeEdits.clear();
+		this.called.clear();
 	}
 
 	// Ensures the pipeline ends with the escaper commands in s, merging a trailing
