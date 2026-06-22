@@ -43,9 +43,7 @@ class TvalConformanceTest {
 			// Sprig (add) / exec_test-only (echo, makemap) funcs are not on the
 			// gotmpl4j-core test classpath; parens themselves work (verified, #433
 			// closed).
-			"parens in pipeline", "parens: $ in paren in pipe", "parens: spaces and args",
-			// #441 octal integer literal (0377) lexed as decimal.
-			"octal0");
+			"parens in pipeline", "parens: $ in paren in pipe", "parens: spaces and args");
 
 	// Tokens that indicate a Go-only feature gotmpl4j's Map data model cannot express.
 	private static final List<String> UNSUPPORTED = List.of(".Method", ".MAdd", ".Copy", ".GetU", ".MyError",
@@ -135,7 +133,7 @@ class TvalConformanceTest {
 			}
 		}
 		assertTrue(unexpected.isEmpty(), () -> "unexpected text/template field-access divergences (regressions):\n"
-				+ String.join("\n", unexpected) + "\n(known divergences: #431, #441)");
+				+ String.join("\n", unexpected) + "\n(known divergences: #431)");
 	}
 
 	private static String decode(String b64) {
