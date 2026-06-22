@@ -352,6 +352,13 @@ public final class Functions {
 				return null;
 			}
 			Object container = args[0];
+			if (container instanceof String str) {
+				// Go's slice also works on strings (a byte slice): slice "xyz" 1 2 ->
+				// "y".
+				int from = (args.length > 1) ? ((Number) args[1]).intValue() : 0;
+				int to = (args.length > 2) ? ((Number) args[2]).intValue() : str.length();
+				return str.substring(from, to);
+			}
 			int size;
 			if (container instanceof List) {
 				size = ((List<?>) container).size();
