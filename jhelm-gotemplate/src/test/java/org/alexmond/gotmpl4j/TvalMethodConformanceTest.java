@@ -39,17 +39,13 @@ class TvalMethodConformanceTest {
 			"if 0.0i", "with 0.0i", "printf lots",
 			// *uint pointer truthiness — not modelled.
 			"if UPI", "if EmptyUPI",
-			// func-typed struct fields invoked via `call` — not yet supported.
-			".BinaryFunc", ".VariadicFunc0", ".VariadicFunc2", ".VariadicFuncInt", "if .BinaryFunc call",
-			"if not .BinaryFunc call", ".ErrFunc", "empty call after pipe valid", "pipeline func", ".NilOKFunc not nil",
-			".NilOKFunc nil", "nil pipeline", "nil call arg",
+			// #449: a nil pipeline value is not threaded as the final call argument.
+			"nil pipeline",
 			// typed-nil interface dispatch (call method on nil concrete receiver).
 			"method on typed nil interface value", "if on typed nil interface value",
 			"with on typed nil interface value",
 			// exec_test-only `vfunc` function (harness, not engine).
-			"bug6a", "bug6b", "bug6c", "bug6d",
-			// Go (bool,error) two-result method — only the no-error case is modelled.
-			"error method, no error");
+			"bug6a", "bug6b", "bug6c", "bug6d");
 
 	// Same token set the Map harness skips; here we RUN them against the POJO instead.
 	private static final List<String> METHOD_TOKENS = List.of(".Method", ".MAdd", ".Copy", ".GetU", ".MyError",
@@ -118,6 +114,17 @@ class TvalMethodConformanceTest {
 
 	private static String decode(String b64) {
 		return new String(Base64.getDecoder().decode(b64), StandardCharsets.UTF_8);
+	}
+
+	private static String joinFrom(Object[] args, int from) {
+		StringBuilder sb = new StringBuilder();
+		for (int i = from; i < args.length; i++) {
+			if (i > from) {
+				sb.append('+');
+			}
+			sb.append(args[i]);
+		}
+		return sb.toString();
 	}
 
 	/** Go's exec_test {@code U} struct: a field plus a method taking an argument. */
@@ -203,6 +210,25 @@ class TvalMethodConformanceTest {
 		public boolean MyError(boolean err) {
 			return err;
 		}
+
+		// Go func-typed struct fields, invoked via the `call` builtin. The JVM-natural
+		// representation is a gotmpl4j Function value, which `call` already dispatches
+		// to.
+
+		/** Go {@code func(string, string) string}. */
+		public Function BinaryFunc = (a) -> "[" + a[0] + "=" + a[1] + "]";
+
+		/** Go {@code func(...string) string}. */
+		public Function VariadicFunc = (a) -> "<" + joinFrom(a, 0) + ">";
+
+		/** Go {@code func(int, ...string) string}. */
+		public Function VariadicFuncInt = (a) -> a[0] + "=<" + joinFrom(a, 1) + ">";
+
+		/** Go {@code func(*int) bool} — nil pointer is OK. */
+		public Function NilOKFunc = (a) -> a[0] == null;
+
+		/** Go {@code func() (string, error)} — the no-error path returns the string. */
+		public Function ErrFunc = (a) -> "bla";
 
 	}
 
