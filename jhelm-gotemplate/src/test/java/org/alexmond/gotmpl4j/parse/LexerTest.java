@@ -223,7 +223,8 @@ class LexerTest {
 		Token[] expectedTokens = { makeToken(TokenType.LEFT_DELIM, "{{", 0, 1, 0),
 				makeToken(TokenType.FIELD, ".x", 2, 1, 0), makeToken(TokenType.SPACE, " ", 4, 1, 0),
 				makeToken(TokenType.DOT, ".", 5, 1, 0), makeToken(TokenType.SPACE, " ", 6, 1, 0),
-				makeToken(TokenType.FIELD, ".2", 7, 1, 0), makeToken(TokenType.SPACE, " ", 9, 1, 0),
+				// `.2` is the number 0.2 (leading-dot float), not a field — matches Go.
+				makeToken(TokenType.NUMBER, ".2", 7, 1, 0), makeToken(TokenType.SPACE, " ", 9, 1, 0),
 				makeToken(TokenType.FIELD, ".x", 10, 1, 0), makeToken(TokenType.FIELD, ".y", 12, 1, 0),
 				makeToken(TokenType.FIELD, ".z", 14, 1, 0), makeToken(TokenType.RIGHT_DELIM, "}}", 16, 1, 0),
 				makeToken(TokenType.EOF, "", 18, 1, 0) };

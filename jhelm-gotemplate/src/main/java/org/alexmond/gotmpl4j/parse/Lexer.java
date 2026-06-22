@@ -534,7 +534,10 @@ public class Lexer {
 			return this::parseField;
 		}
 
-		return this::parseIdentifier;
+		// A field name cannot start with a digit, so Go lexes `.2` as the number 0.2 (a
+		// leading-dot float) rather than a field.
+		movePosToStart();
+		return this::parseNumber;
 	}
 
 	private State parseField() {
