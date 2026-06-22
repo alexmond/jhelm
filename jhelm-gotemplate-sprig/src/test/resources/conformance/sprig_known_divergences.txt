@@ -1,0 +1,59 @@
+# Known gotmpl4j-sprig divergences from Masterminds/sprig, found by SprigConformanceTest.
+# Format: <base64 template>  // <description>.  Each line is excluded from the conformance
+# assertion. Most are real gotmpl4j-sprig bugs to fix incrementally (tracking issue #474);
+# a few are intended (Helm nil-rendering "" vs Go "<no value>", and a float-ulp edge).
+#
+# --- BUGS (to fix) ---
+# untitle: lowercase the first letter of EVERY word, not just the first.
+e3t1bnRpdGxlICJGaXJzdCBUcnkifX0=  // {{untitle "First Try"}} want=first try got=first Try
+# compact / mustCompact: drop all empty values (0, "", nil, false), not just "".
+e3sgbGlzdCAxIDAgIiIgImhlbGxvIiB8IGNvbXBhY3QgfX0=  // {{ list 1 0 "" "hello" | compact }} want=[1 hello] got=[1 0 hello]
+e3sgbGlzdCAxIDAgIiIgImhlbGxvIiB8IG11c3RDb21wYWN0IH19  // {{ list 1 0 "" "hello" | mustCompact }} want=[1 hello] got=[1 0 hello]
+# mustHas: return false when the element is absent / list is nil, not an error.
+e3sgbGlzdCAxIDIgMyB8IG11c3RIYXMgNCB9fQ==  // {{ list 1 2 3 | mustHas 4 }} want=false got=throws
+e3sgbXVzdEhhcyAiYmFyIiBuaWwgfX0=  // {{ mustHas "bar" nil }} want=false got=throws
+# mustWithout / mustSlice with only the list: return the list unchanged, not an error.
+e3sgbXVzdFdpdGhvdXQgbGlzdCB9fQ==  // {{ mustWithout list }} want=[] got=throws
+e3sgbXVzdFdpdGhvdXQgKGxpc3QgMSAyIDMpIH19  // {{ mustWithout (list 1 2 3) }} want=[1 2 3] got=throws
+e3sgbXVzdFNsaWNlIChsaXN0IDEgMiAzKSB9fQ==  // {{ mustSlice (list 1 2 3) }} want=[1 2 3] got=throws
+# slice with only the list (no indices): return the whole list.
+e3sgc2xpY2UgKGxpc3QgMSAyIDMpIH19  // {{ slice (list 1 2 3) }} want=[1 2 3] got=[]
+# mustFirst / mustLast on an empty list: return nil, not an error.
+e3sgbGlzdCB8IG11c3RGaXJzdCB9fQ==  // {{ list | mustFirst }} want=<no value> got=throws
+e3sgbGlzdCB8IG11c3RMYXN0IH19  // {{ list | mustLast }} want=<no value> got=throws
+# keys: accept multiple dicts and return the keys of all of them.
+e3sga2V5cyAoZGljdCAiZm9vIiAxKSAoZGljdCAiYmFyIiAyKSAoZGljdCAiYmFyIiAzKSB8IHVuaXEgfCBzb3J0QWxwaGEgfX0=  // {{ keys (dict ...) (dict ...) ... }} want=[bar foo] got=[foo]
+# seq: return a space-joined sequence string; handle 1/2/3 args and negative steps.
+e3tzZXF9fQ==  // {{seq}} want= got=[]
+e3tzZXEgNX19  // {{seq 5}} want=1 2 3 4 5 got=[1 2 3 4 5]
+e3tzZXEgMH19  // {{seq 0}} want=1 0 got=[]
+e3tzZXEgLTV9fQ==  // {{seq -5}} want=1 0 -1 -2 -3 -4 -5 got=[]
+e3tzZXEgMCA0fX0=  // {{seq 0 4}} want=0 1 2 3 4 got=[0 1 2 3 4]
+e3tzZXEgMCAtNH19  // {{seq 0 -4}} want=0 -1 -2 -3 -4 got=[]
+e3tzZXEgMCAxIDN9fQ==  // {{seq 0 1 3}} want=0 1 2 3 got=[0]
+e3tzZXEgMCAzIDEwfX0=  // {{seq 0 3 10}} want=0 3 6 9 got=[0]
+e3tzZXEgMyAtMyAyfX0=  // {{seq 3 -3 2}} want=3 got=[]
+e3tzZXEgMyAzIDJ9fQ==  // {{seq 3 3 2}} want= got=[3]
+e3tzZXEgMCAxIDIgM319  // {{seq 0 1 2 3}} want= got=[0]
+# until: a negative argument counts down (0 -1 -2 ...).
+e3tyYW5nZSAkaSwgJGUgOj0gdW50aWwgLTV9fXt7JGl9fXt7JGV9fSB7e2VuZH19  // {{range until -5}}... want=00 1-1 2-2 3-3 4-4 got=
+# abbrevboth: abbreviate with leading+trailing ellipsis around a window.
+e3thYmJyZXZib3RoIDUgMTAgIjEyMzQgNTY3OCA5MTIzIn19  // {{abbrevboth 5 10 "1234 5678 9123"}} want=...5678... got=1234 5678 9123
+# wrapWith: wrap at the width using the separator, not a leading newline.
+e3t3cmFwV2l0aCA1ICJcdCIgIkhlbGxvIFdvcmxkIn19  // {{wrapWith 5 "\t" "Hello World"}} want=Hello\tWorld got=\tHello\nWorld
+# derivePassword: implement the Master Password (MPW) algorithm, not a hash hex dump.
+e3tkZXJpdmVQYXNzd29yZCAxICJiYXNpYyIgInBhc3N3b3JkIiAidXNlciIgImV4YW1wbGUuY29tIn19  // derivePassword basic
+e3tkZXJpdmVQYXNzd29yZCAxICJsb25nIiAicGFzc3dvcmQiICJ1c2VyIiAiZXhhbXBsZS5jb20ifX0=  // derivePassword long
+e3tkZXJpdmVQYXNzd29yZCAxICJtYXhpbXVtIiAicGFzc3dvcmQiICJ1c2VyIiAiZXhhbXBsZS5jb20ifX0=  // derivePassword maximum
+e3tkZXJpdmVQYXNzd29yZCAxICJtZWRpdW0iICJwYXNzd29yZCIgInVzZXIiICJleGFtcGxlLmNvbSJ9fQ==  // derivePassword medium
+e3tkZXJpdmVQYXNzd29yZCAxICJwaW4iICJwYXNzd29yZCIgInVzZXIiICJleGFtcGxlLmNvbSJ9fQ==  // derivePassword pin
+e3tkZXJpdmVQYXNzd29yZCAxICJzaG9ydCIgInBhc3N3b3JkIiAidXNlciIgImV4YW1wbGUuY29tIn19  // derivePassword short
+e3tkZXJpdmVQYXNzd29yZCAyICJsb25nIiAicGFzc3dvcmQiICJ1c2VyIiAiZXhhbXBsZS5jb20ifX0=  // derivePassword long seed 2
+#
+# --- INTENDED (Helm semantics / float edge; not bugs) ---
+# Helm renders a nil/absent value as "" (missingkey=zero), not Go's "<no value>" (cf. #431).
+e3sgbGlzdCB8IGZpcnN0IH19  // {{ list | first }} want=<no value> got=  (empty list -> nil -> "")
+e3sgbGlzdCB8IGxhc3QgfX0=  // {{ list | last }} want=<no value> got=
+e3sgY29hbGVzY2UgfX0=  // {{ coalesce }} want=<no value> got=
+# Sub-ulp float-accumulation: 2.4*10*4*1.2 = 115.19999999999999 (Java shortest); Go prints 115.2.
+e3sgMS4yIHwgbXVsZiAiMi40IiAxMCAiNCJ9fQ==  // {{ 1.2 | mulf "2.4" 10 "4"}} want=115.2 got=115.19999999999999

@@ -66,6 +66,17 @@ def main():
                 continue
             seen.add(key)
             rows.append(key)
+    # map[string]string{ `{{ ... }}`: "expect", ... } tables iterated via runt(tpl, expect).
+    # The key is the (no-variable) template, the value the expected output.
+    for m in re.finditer(r'(' + GOLIT + r')\s*:\s*(' + GOLIT + r')', src):
+        tpl, expect = godec(m.group(1)), godec(m.group(2))
+        if not tpl.lstrip().startswith('{{'):
+            continue
+        key = (tpl, expect)
+        if key in seen:
+            continue
+        seen.add(key)
+        rows.append(key)
     with open(sys.argv[2], 'w') as f:
         for tpl, expect in rows:
             f.write(base64.b64encode(tpl.encode()).decode() + '\t'
