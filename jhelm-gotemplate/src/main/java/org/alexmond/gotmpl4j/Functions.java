@@ -385,13 +385,19 @@ public final class Functions {
 	}
 
 	private static Function print() {
-		// In Go, fmt.Sprint adds spaces between operands when neither is a string.
-		// For Helm templates, all values are typically strings, so concatenate without
-		// spaces.
-		// NOTE: This fixes grafana/grafana but may cause issues with charts using Bitnami
-		// common helpers
-		// that rely on specific print behavior with regexReplaceAll
-		return (args) -> Arrays.stream(args).map(Functions::sprintValue).collect(Collectors.joining(""));
+		// Go's fmt.Sprint inserts a space between two adjacent operands when neither is a
+		// string. (Helm values are usually strings, so this rarely adds spaces in
+		// practice.)
+		return (args) -> {
+			StringBuilder sb = new StringBuilder();
+			for (int i = 0; i < args.length; i++) {
+				if (i > 0 && !(args[i - 1] instanceof String) && !(args[i] instanceof String)) {
+					sb.append(' ');
+				}
+				sb.append(sprintValue(args[i]));
+			}
+			return sb.toString();
+		};
 	}
 
 	private static Function printf() {
