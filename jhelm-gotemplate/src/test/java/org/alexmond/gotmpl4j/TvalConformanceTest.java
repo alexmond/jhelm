@@ -40,7 +40,9 @@ class TvalConformanceTest {
 			"if 1.5i", "with 1.5i", "printf complex", "bug16j",
 			// exec_test-only funcs (count/zeroArgs/twoArgs/oneArg) — harness, not engine.
 			"printf function", "range count", "range nil count", "bug16g", "bug16i",
-			// #433 parens around a function/pipeline not parsed.
+			// Sprig (add) / exec_test-only (echo, makemap) funcs are not on the
+			// gotmpl4j-core test classpath; parens themselves work (verified, #433
+			// closed).
 			"parens in pipeline", "parens: $ in paren in pipe", "parens: spaces and args",
 			// #441 octal integer literal (0377) lexed as decimal.
 			"octal0",
@@ -135,7 +137,7 @@ class TvalConformanceTest {
 			}
 		}
 		assertTrue(unexpected.isEmpty(), () -> "unexpected text/template field-access divergences (regressions):\n"
-				+ String.join("\n", unexpected) + "\n(known divergences: #431, #433, #438, #441)");
+				+ String.join("\n", unexpected) + "\n(known divergences: #431, #438, #441)");
 	}
 
 	private static String decode(String b64) {
