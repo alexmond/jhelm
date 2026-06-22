@@ -467,9 +467,15 @@ public class Executor {
 			return data;
 		}
 
-		Object value = null;
+		// Start from NO_PIPELINE so the first command sees "no upstream input" — distinct
+		// from an upstream command that produces null. Go threads a piped value as the
+		// next command's final argument even when that value is nil.
+		Object value = NO_PIPELINE;
 		for (CommandNode command : pipeNode.getCommands()) {
 			value = executeCommand(command, data, beanInfo, value);
+		}
+		if (value == NO_PIPELINE) {
+			value = null;
 		}
 
 		// Store variables in execution context (e.g., {{$x := .Value}})
@@ -503,7 +509,7 @@ public class Executor {
 		// A method call on the receiver applies when there are explicit arguments
 		// (.obj.Method arg) or when an upstream pipeline value is threaded in as the
 		// final argument (arg | .obj.Method).
-		boolean methodCallPossible = command.getArgumentCount() > 1 || currentPipelineValue != null;
+		boolean methodCallPossible = command.getArgumentCount() > 1 || currentPipelineValue != NO_PIPELINE;
 		if (firstArgument instanceof FieldNode fieldNode) {
 			// Go templates: .obj.Method arg → call Method(arg) on obj
 			if (methodCallPossible) {
@@ -700,6 +706,10 @@ public class Executor {
 	// Sentinel value indicating that no matching method was found
 	private static final Object INVOKE_NOT_FOUND = new Object();
 
+	// Sentinel for "this command has no upstream pipeline input" — distinct from an
+	// upstream command that produced null, which Go still threads as the final argument.
+	private static final Object NO_PIPELINE = new Object();
+
 	/**
 	 * Try to invoke the last identifier in a field chain as a method call. Go templates
 	 * support method calls on values: {@code .Obj.Method arg1 arg2} calls
@@ -782,7 +792,7 @@ public class Executor {
 		// In a chained pipeline the upstream value is passed as the method's final
 		// argument (Go: "arg | .Method x" calls Method(x, arg)).
 		List<Node> argNodes = cmdArgNodes.subList(1, cmdArgNodes.size());
-		int extra = (pipelineValue != null) ? 1 : 0;
+		int extra = (pipelineValue != NO_PIPELINE) ? 1 : 0;
 		Object[] args = new Object[argNodes.size() + extra];
 		executeArguments(data, beanInfo, argNodes, args);
 		if (extra == 1) {
@@ -822,13 +832,14 @@ public class Executor {
 					: Collections.emptyList();
 
 			Object[] functionArgs;
-			if (finalValue != null) {
+			if (finalValue != NO_PIPELINE) {
 
 				// per https://pkg.go.dev/text/template, "In a chained pipeline, the
 				// result of
 				// each command is passed as the last argument of the following command."
 				// (This is necessary
-				// when implementing functions like 'default', for example.)
+				// when implementing functions like 'default', for example.) The value is
+				// threaded even when it is null — Go passes a nil pipeline value through.
 
 				functionArgs = new Object[functionArgNodes.size() + 1];
 				executeArguments(data, beanInfo, functionArgNodes, functionArgs);
@@ -904,7 +915,7 @@ public class Executor {
 
 		if (argument instanceof CommandNode) {
 			CommandNode commandNode = (CommandNode) argument;
-			return executeCommand(commandNode, data, beanInfo, null);
+			return executeCommand(commandNode, data, beanInfo, NO_PIPELINE);
 		}
 
 		if (argument instanceof IdentifierNode) {
