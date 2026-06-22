@@ -256,6 +256,13 @@ public class Parser {
 
 		switch (token.type()) {
 			case IF:
+			case WITH:
+			case RANGE:
+				// {{else if}} / {{else with}} / {{else range}} chains: push the keyword
+				// back
+				// and mark the else; the next parse iteration nests the branch, sharing
+				// the
+				// outer {{end}} (as Go does).
 				moveToPrevItem(lexer, state);
 				listNode.append(new ElseNode());
 				break;
@@ -358,7 +365,7 @@ public class Parser {
 		moveToPrevItem(lexer, state);
 
 		WithNode withNode = new WithNode();
-		parseBranch(withNode, lexer, "with", false, state);
+		parseBranch(withNode, lexer, "with", true, state);
 		listNode.append(withNode);
 	}
 
@@ -388,11 +395,24 @@ public class Parser {
 					throwUnexpectError("missing token", state);
 				}
 
-				if (token.type() == TokenType.IF) {
+				// {{else if}} / {{else with}} / {{else range}} chains share the outer
+				// {{end}}: parse the keyword's branch as the else clause (as Go does).
+				TokenType elseBranch = token.type();
+				if (elseBranch == TokenType.IF || elseBranch == TokenType.WITH || elseBranch == TokenType.RANGE) {
 					moveToNextNonSpaceToken(lexer, state);
 
 					ListNode elseListNode = new ListNode();
-					parseIf(elseListNode, lexer, state);
+					switch (elseBranch) {
+						case IF:
+							parseIf(elseListNode, lexer, state);
+							break;
+						case WITH:
+							parseWith(elseListNode, lexer, state);
+							break;
+						default:
+							parseRange(elseListNode, lexer, state);
+							break;
+					}
 					branchNode.setElseListNode(elseListNode);
 
 					return;

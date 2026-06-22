@@ -42,8 +42,6 @@ class TvalConformanceTest {
 			"printf function", "range count", "range nil count", "bug16g", "bug16i",
 			// #433 parens around a function/pipeline not parsed.
 			"parens in pipeline", "parens: $ in paren in pipe", "parens: spaces and args",
-			// #434 {{else with}} chains not parsed.
-			"with else with", "with else with chain",
 			// #441 octal integer literal (0377) lexed as decimal.
 			"octal0",
 			// #438 range '=' assignment does not update the outer variable.
@@ -137,7 +135,7 @@ class TvalConformanceTest {
 			}
 		}
 		assertTrue(unexpected.isEmpty(), () -> "unexpected text/template field-access divergences (regressions):\n"
-				+ String.join("\n", unexpected) + "\n(known divergences: #431, #433, #434, #438, #441)");
+				+ String.join("\n", unexpected) + "\n(known divergences: #431, #433, #438, #441)");
 	}
 
 	private static String decode(String b64) {
