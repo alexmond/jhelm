@@ -39,8 +39,6 @@ class TvalMethodConformanceTest {
 			"if 0.0i", "with 0.0i", "printf lots",
 			// *uint pointer truthiness — not modelled.
 			"if UPI", "if EmptyUPI",
-			// #449: a nil pipeline value is not threaded as the final call argument.
-			"nil pipeline",
 			// typed-nil interface dispatch (call method on nil concrete receiver).
 			"method on typed nil interface value", "if on typed nil interface value",
 			"with on typed nil interface value",
