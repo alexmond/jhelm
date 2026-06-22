@@ -2,9 +2,11 @@ package org.alexmond.gotmpl4j.spring;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.DeprecatedConfigurationProperty;
+import org.springframework.http.MediaType;
 
 /**
  * Configuration for the gotmpl4j Spring Boot starter, mirroring the conventions of
@@ -45,6 +47,9 @@ public class Gotmpl4jProperties {
 
 	/** Servlet-specific (Spring MVC) view settings. */
 	private final Servlet servlet = new Servlet();
+
+	/** Reactive-specific (Spring WebFlux) view settings. */
+	private final Reactive reactive = new Reactive();
 
 	public boolean isEnabled() {
 		return this.enabled;
@@ -139,6 +144,10 @@ public class Gotmpl4jProperties {
 		return this.servlet;
 	}
 
+	public Reactive getReactive() {
+		return this.reactive;
+	}
+
 	/**
 	 * Servlet (Spring MVC) view-resolver settings, mirroring
 	 * {@code spring.mustache.servlet}.
@@ -202,6 +211,27 @@ public class Gotmpl4jProperties {
 
 		public void setAllowSessionOverride(boolean allowSessionOverride) {
 			this.allowSessionOverride = allowSessionOverride;
+		}
+
+	}
+
+	/**
+	 * Reactive (Spring WebFlux) view-resolver settings, mirroring
+	 * {@code spring.mustache.reactive}.
+	 */
+	public static class Reactive {
+
+		/**
+		 * Media types supported by the view technology (null uses the resolver default).
+		 */
+		private List<MediaType> mediaTypes;
+
+		public List<MediaType> getMediaTypes() {
+			return this.mediaTypes;
+		}
+
+		public void setMediaTypes(List<MediaType> mediaTypes) {
+			this.mediaTypes = mediaTypes;
 		}
 
 	}
