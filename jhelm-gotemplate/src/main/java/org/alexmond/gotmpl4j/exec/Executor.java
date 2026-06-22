@@ -222,19 +222,26 @@ public class Executor {
 			throws IOException, TemplateExecutionException, TemplateNotFoundException {
 		PipeNode pipeNode = rangeNode.getPipeNode();
 		List<VariableNode> rangeVars = pipeNode.getVariables();
+		// `range $i := x` declares loop-local variables (saved/restored around the loop);
+		// `range $i = x` ASSIGNS an existing outer variable, which keeps the last
+		// iterated
+		// value after the loop (and is unchanged for an empty range), so it is not
+		// saved/restored.
+		boolean declare = rangeVars.isEmpty() || pipeNode.isDeclare();
 
-		// Save current variable values to restore later
+		// Save current variable values to restore later (declarations only).
 		Map<String, Object> savedVars = new HashMap<>();
-		for (VariableNode varNode : rangeVars) {
-			String varName = varNode.getIdentifier(0);
-			if (variables.containsKey(varName)) {
-				savedVars.put(varName, variables.get(varName));
+		if (declare) {
+			for (VariableNode varNode : rangeVars) {
+				String varName = varNode.getIdentifier(0);
+				if (variables.containsKey(varName)) {
+					savedVars.put(varName, variables.get(varName));
+				}
 			}
-		}
-
-		// Initialize range variables to null in case the range is empty
-		for (VariableNode varNode : rangeVars) {
-			variables.put(varNode.getIdentifier(0), null);
+			// Initialize range variables to null in case the range is empty
+			for (VariableNode varNode : rangeVars) {
+				variables.put(varNode.getIdentifier(0), null);
+			}
 		}
 
 		// Execute pipe but don't set variables yet - we'll set them per iteration
@@ -244,24 +251,30 @@ public class Executor {
 			if (rangeNode.getElseListNode() != null) {
 				writeNode(writer, rangeNode.getElseListNode(), data, beanInfo);
 			}
-			restoreVariables(rangeVars, savedVars);
+			if (declare) {
+				restoreVariables(rangeVars, savedVars);
+			}
 			return;
 		}
 
-		iterateRange(writer, rangeNode, rangeVars, arrayOrList, data, beanInfo, savedVars);
+		iterateRange(writer, rangeNode, rangeVars, arrayOrList, data, beanInfo, savedVars, declare);
 
-		// Restore variables after range
-		restoreVariables(rangeVars, savedVars);
+		// Restore declared variables after range (assignments keep their last value).
+		if (declare) {
+			restoreVariables(rangeVars, savedVars);
+		}
 	}
 
 	private void iterateRange(Writer writer, RangeNode rangeNode, List<VariableNode> rangeVars, Object arrayOrList,
-			Object data, BeanInfo beanInfo, Map<String, Object> savedVars)
+			Object data, BeanInfo beanInfo, Map<String, Object> savedVars, boolean declare)
 			throws IOException, TemplateExecutionException, TemplateNotFoundException {
 		if (arrayOrList.getClass().isArray()) {
 			int length = Array.getLength(arrayOrList);
 			if (length == 0 && rangeNode.getElseListNode() != null) {
 				writeNode(writer, rangeNode.getElseListNode(), data, beanInfo);
-				restoreVariables(rangeVars, savedVars);
+				if (declare) {
+					restoreVariables(rangeVars, savedVars);
+				}
 				return;
 			}
 			for (int i = 0; i < length; i++) {
@@ -273,24 +286,28 @@ public class Executor {
 			}
 		}
 		else if (arrayOrList instanceof Collection<?> collection) {
-			iterateCollection(writer, rangeNode, rangeVars, collection, data, beanInfo, savedVars);
+			iterateCollection(writer, rangeNode, rangeVars, collection, data, beanInfo, savedVars, declare);
 		}
 		else if (arrayOrList instanceof Map<?, ?> map) {
-			iterateMap(writer, rangeNode, rangeVars, map, data, beanInfo, savedVars);
+			iterateMap(writer, rangeNode, rangeVars, map, data, beanInfo, savedVars, declare);
 		}
 		else {
-			restoreVariables(rangeVars, savedVars);
+			if (declare) {
+				restoreVariables(rangeVars, savedVars);
+			}
 			throw new TemplateExecutionException(
 					String.format("can't iterate over %s", arrayOrList.getClass().getName()));
 		}
 	}
 
 	private void iterateCollection(Writer writer, RangeNode rangeNode, List<VariableNode> rangeVars,
-			Collection<?> collection, Object data, BeanInfo beanInfo, Map<String, Object> savedVars)
+			Collection<?> collection, Object data, BeanInfo beanInfo, Map<String, Object> savedVars, boolean declare)
 			throws IOException, TemplateExecutionException, TemplateNotFoundException {
 		if (collection.isEmpty() && rangeNode.getElseListNode() != null) {
 			writeNode(writer, rangeNode.getElseListNode(), data, beanInfo);
-			restoreVariables(rangeVars, savedVars);
+			if (declare) {
+				restoreVariables(rangeVars, savedVars);
+			}
 			return;
 		}
 		int index = 0;
@@ -303,11 +320,13 @@ public class Executor {
 	}
 
 	private void iterateMap(Writer writer, RangeNode rangeNode, List<VariableNode> rangeVars, Map<?, ?> map,
-			Object data, BeanInfo beanInfo, Map<String, Object> savedVars)
+			Object data, BeanInfo beanInfo, Map<String, Object> savedVars, boolean declare)
 			throws IOException, TemplateExecutionException, TemplateNotFoundException {
 		if (map.isEmpty() && rangeNode.getElseListNode() != null) {
 			writeNode(writer, rangeNode.getElseListNode(), data, beanInfo);
-			restoreVariables(rangeVars, savedVars);
+			if (declare) {
+				restoreVariables(rangeVars, savedVars);
+			}
 			return;
 		}
 		// Go text/template guarantees sorted-key iteration for maps with
