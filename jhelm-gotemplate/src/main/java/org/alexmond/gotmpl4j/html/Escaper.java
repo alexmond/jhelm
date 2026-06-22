@@ -412,6 +412,12 @@ public final class Escaper {
 		return escapeListConditionally(c, root, filter);
 	}
 
+	// Visible for testing: run the literal-text transition machine over `text` from `c`
+	// and return the resulting context (mirrors Go html/template's TestEscapeText).
+	static Context escapeTextForTest(Context c, String text) {
+		return new Escaper(Map.of()).escapeText(c, new TextNode(text));
+	}
+
 	private Context escapeText(Context c, TextNode n) {
 		byte[] s = n.getText().getBytes(StandardCharsets.UTF_8);
 		int written = 0;
