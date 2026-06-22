@@ -410,6 +410,12 @@ public final class Functions {
 			format = format.replaceAll("%p", "%s"); // %(p) -> %s
 			format = format.replaceAll("%t", "%b"); // Go bool verb %t -> Java %b (Java %t
 													// is dates)
+			// A bare %g/%G prints the shortest float64 in Go, but Java's %g uses fixed
+			// precision (3.5 -> "3.50000"). Route it through %s, which formats a float
+			// via
+			// GoFmt (Go's shortest %g). Specifiers with flags/precision (%.3g) are
+			// untouched.
+			format = format.replaceAll("(?<!%)%([gG])(?![0-9a-zA-Z.])", "%s");
 			// %q is kept for now — unlike %s it double-quotes its argument (Go strconv.
 			// Quote), so the corresponding arg is quoted below before %q -> %s.
 
