@@ -46,8 +46,6 @@ class TvalConformanceTest {
 			"with else with", "with else with chain",
 			// #435 print missing operand spaces / octal+underscore literals.
 			"print 123", "print multi", "print multi2", "octal0",
-			// #436 printf %g not Go-shortest.
-			"printf float",
 			// #437 slice does not support strings.
 			"string[:]", "string[0:1]", "string[1:]", "string[1:2]",
 			// #438 range '=' assignment does not update the outer variable.

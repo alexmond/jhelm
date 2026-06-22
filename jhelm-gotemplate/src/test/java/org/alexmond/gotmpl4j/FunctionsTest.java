@@ -460,10 +460,11 @@ class FunctionsTest {
 
 	@Test
 	void testPrintfFloatFormatWithInteger() throws Exception {
-		// Go's %g accepts any numeric type; Java's requires float/double (#304)
+		// Go's %g accepts any numeric type and prints the shortest float (#304, #436);
+		// 5432 -> "5432", not Java's fixed-precision "5432.00".
 		Function printf = Functions.GO_BUILTINS.get("printf");
-		assertEquals("5432.00", printf.invoke(new Object[] { "%g", 5432 }));
-		assertEquals("5432.00", printf.invoke(new Object[] { "%g", 5432L }));
+		assertEquals("5432", printf.invoke(new Object[] { "%g", 5432 }));
+		assertEquals("5432", printf.invoke(new Object[] { "%g", 5432L }));
 		assertEquals("3.000000", printf.invoke(new Object[] { "%f", 3 }));
 	}
 
@@ -479,9 +480,11 @@ class FunctionsTest {
 		// Mixed %d and %g in same format string — each arg coerced independently
 		Function printf = Functions.GO_BUILTINS.get("printf");
 		assertEquals("port=9092 rate=1.500000", printf.invoke(new Object[] { "port=%d rate=%f", 9092.0, 1.5 }));
-		assertEquals("count=3 ratio=42.0000", printf.invoke(new Object[] { "count=%d ratio=%g", 3.0, 42 }));
-		// Gitea postgresql-ha.dns pattern: %s args before %g with Integer port
-		assertEquals("host.ns.svc.cluster:5432.00",
+		assertEquals("count=3 ratio=42", printf.invoke(new Object[] { "count=%d ratio=%g", 3.0, 42 }));
+		// Gitea postgresql-ha.dns pattern: %s args before %g with port (Helm loads values
+		// as
+		// float64, so %g prints the shortest form -> "5432", matching helm).
+		assertEquals("host.ns.svc.cluster:5432",
 				printf.invoke(new Object[] { "%s.%s.svc.%s:%g", "host", "ns", "cluster", 5432 }));
 	}
 
