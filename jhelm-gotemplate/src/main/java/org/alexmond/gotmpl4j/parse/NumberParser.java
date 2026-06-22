@@ -137,7 +137,28 @@ final class NumberParser {
 			return Long.parseLong(trimmed.substring(offset + 2), 16);
 		}
 
-		return Long.parseLong(trimmed.substring(offset), 10);
+		String body = trimmed.substring(offset);
+		// Go's legacy octal form: a leading 0 followed only by octal digits (0377 ==
+		// 255).
+		// The 0b/0o/0x prefixes above are handled first; a lone "0" stays decimal.
+		if (isLegacyOctal(body)) {
+			return Long.parseLong(body, 8);
+		}
+
+		return Long.parseLong(body, 10);
+	}
+
+	private static boolean isLegacyOctal(String body) {
+		if (body.length() < 2 || body.charAt(0) != '0') {
+			return false;
+		}
+		for (int i = 1; i < body.length(); i++) {
+			char c = body.charAt(i);
+			if (c < '0' || c > '7') {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private static double parseFloatValue(String text) {
