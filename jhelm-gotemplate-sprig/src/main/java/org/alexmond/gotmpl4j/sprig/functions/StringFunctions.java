@@ -215,9 +215,11 @@ public final class StringFunctions {
 			if (args.length < 2) {
 				return "";
 			}
-			int len = ((Number) args[0]).intValue();
+			int c = ((Number) args[0]).intValue();
 			String s = String.valueOf(args[1]);
-			return (s.length() > len) ? s.substring(0, len) : s;
+			// Sprig: negative c keeps the last |c| chars; non-negative keeps the first c.
+			int from = (c < 0) ? Math.max(0, s.length() + c) : 0;
+			return s.substring(from, (c < 0) ? s.length() : Math.min(c, s.length()));
 		};
 	}
 
@@ -228,10 +230,7 @@ public final class StringFunctions {
 			}
 			int max = ((Number) args[0]).intValue();
 			String s = String.valueOf(args[1]);
-			if (s.length() <= max) {
-				return s;
-			}
-			return s.substring(0, max - 3) + "...";
+			return (s.length() <= max) ? s : s.substring(0, max - 3) + "...";
 		};
 	}
 
