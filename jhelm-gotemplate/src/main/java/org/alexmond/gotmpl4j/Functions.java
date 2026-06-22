@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.IllegalFormatException;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -340,10 +341,27 @@ public final class Functions {
 					case '>' -> sb.append("\\u003E");
 					case '&' -> sb.append("\\u0026");
 					case '=' -> sb.append("\\u003D");
-					default -> sb.append(c);
+					// Go's JSEscapeString escapes any non-printable rune to \\uXXXX;
+					// surrogates pass through so astral chars (e.g. emoji) stay intact.
+					default -> sb.append((!Character.isSurrogate(c) && !isPrintableForJs(c))
+							? String.format(Locale.ROOT, "\\u%04X", (int) c) : String.valueOf(c));
 				}
 			}
 			return sb.toString();
+		};
+	}
+
+	// Mirror Go's unicode.IsPrint: only the ASCII space is printable among separators;
+	// control/format/surrogate/private-use/unassigned code points are not.
+	private static boolean isPrintableForJs(char c) {
+		if (c == ' ') {
+			return true;
+		}
+		return switch (Character.getType(c)) {
+			case Character.CONTROL, Character.FORMAT, Character.SURROGATE, Character.PRIVATE_USE, Character.UNASSIGNED,
+					Character.LINE_SEPARATOR, Character.PARAGRAPH_SEPARATOR, Character.SPACE_SEPARATOR ->
+				false;
+			default -> true;
 		};
 	}
 
