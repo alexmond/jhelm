@@ -1,0 +1,31 @@
+empty	nil		
+text	nil	c29tZSB0ZXh0	c29tZSB0ZXh0
+ideal int	0	e3t0eXBlT2YgM319	aW50
+ideal float	0	e3t0eXBlT2YgMS4wfX0=	ZmxvYXQ2NA==
+ideal exp float	0	e3t0eXBlT2YgMWUxfX0=	ZmxvYXQ2NA==
+ideal complex	0	e3t0eXBlT2YgMWl9fQ==	Y29tcGxleDEyOA==
+dot int	13	PHt7Ln19Pg==	PDEzPg==
+dot float	15.1	PHt7Ln19Pg==	PDE1LjE+
+dot bool	true	PHt7Ln19Pg==	PHRydWU+
+$ int	123	e3skfX0=	MTIz
+field on interface	nil	e3suZm9vfX0=	PG5vIHZhbHVlPg==
+field on parenthesized interface	nil	e3soLikuZm9vfX0=	PG5vIHZhbHVlPg==
+parenthesized non-function with no args	nil	e3soMSl9fQ==	MQ==
+html	nil	e3todG1sICI8c2NyaXB0PmFsZXJ0KFwiWFNTXCIpOzwvc2NyaXB0PiJ9fQ==	Jmx0O3NjcmlwdCZndDthbGVydCgmIzM0O1hTUyYjMzQ7KTsmbHQ7L3NjcmlwdCZndDs=
+html pipeline	nil	e3twcmludGYgIjxzY3JpcHQ+YWxlcnQoXCJYU1NcIik7PC9zY3JpcHQ+IiB8IGh0bWx9fQ==	Jmx0O3NjcmlwdCZndDthbGVydCgmIzM0O1hTUyYjMzQ7KTsmbHQ7L3NjcmlwdCZndDs=
+urlquery	nil	e3siaHR0cDovL3d3dy5leGFtcGxlLm9yZy8ifHVybHF1ZXJ5fX0=	aHR0cCUzQSUyRiUyRnd3dy5leGFtcGxlLm9yZyUyRg==
+not	nil	e3tub3QgdHJ1ZX19IHt7bm90IGZhbHNlfX0=	ZmFsc2UgdHJ1ZQ==
+and	nil	e3thbmQgZmFsc2UgMH19IHt7YW5kIDEgMH19IHt7YW5kIDAgdHJ1ZX19IHt7YW5kIDEgMX19	ZmFsc2UgMCAwIDE=
+or	nil	e3tvciAwIDB9fSB7e29yIDEgMH19IHt7b3IgMCB0cnVlfX0ge3tvciAxIDF9fQ==	MCAxIHRydWUgMQ==
+or short-circuit	nil	e3tvciAwIDEgKGRpZSl9fQ==	MQ==
+and short-circuit	nil	e3thbmQgMSAwIChkaWUpfX0=	MA==
+and pipe-true	nil	e3sxIHwgYW5kIDF9fQ==	MQ==
+and pipe-false	nil	e3swIHwgYW5kIDF9fQ==	MA==
+or pipe-true	nil	e3sxIHwgb3IgMH19	MQ==
+or pipe-false	nil	e3swIHwgb3IgMH19	MA==
+and undef	nil	e3thbmQgMSAuVW5rbm93bn19	PG5vIHZhbHVlPg==
+or undef	nil	e3tvciAwIC5Vbmtub3dufX0=	PG5vIHZhbHVlPg==
+boolean if not	nil	e3tpZiBhbmQgdHJ1ZSAxIGBoaWAgfCBub3R9fVRSVUV7e2Vsc2V9fUZBTFNFe3tlbmR9fQ==	RkFMU0U=
+boolean if pipe	nil	e3tpZiB0cnVlIHwgbm90IHwgYW5kIDF9fVRSVUV7e2Vsc2V9fUZBTFNFe3tlbmR9fQ==	RkFMU0U=
+range 5	nil	e3tyYW5nZSAkdiA6PSA1fX17e3ByaW50ZiAiJVQlZCIgJHYgJHZ9fXt7ZW5kfX0=	cmFuZ2VUZXN0RGF0YVtpbnRdKCk=
+bug10	0	e3ttYXBPZlRocmVlLnRocmVlfX0te3sobWFwT2ZUaHJlZSkudGhyZWV9fQ==	My0z
