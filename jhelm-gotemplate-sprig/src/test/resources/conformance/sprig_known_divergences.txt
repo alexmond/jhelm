@@ -7,17 +7,6 @@
 # untitle: lowercase the first letter of EVERY word, not just the first.
 # compact / mustCompact: drop all empty values (0, "", nil, false), not just "".
 # mustHas: return false when the element is absent / list is nil, not an error.
-# mustWithout / mustSlice with only the list: return the list unchanged, not an error.
-e3sgbXVzdFdpdGhvdXQgbGlzdCB9fQ==  // {{ mustWithout list }} want=[] got=throws
-e3sgbXVzdFdpdGhvdXQgKGxpc3QgMSAyIDMpIH19  // {{ mustWithout (list 1 2 3) }} want=[1 2 3] got=throws
-e3sgbXVzdFNsaWNlIChsaXN0IDEgMiAzKSB9fQ==  // {{ mustSlice (list 1 2 3) }} want=[1 2 3] got=throws
-# slice with only the list (no indices): return the whole list.
-e3sgc2xpY2UgKGxpc3QgMSAyIDMpIH19  // {{ slice (list 1 2 3) }} want=[1 2 3] got=[]
-# mustFirst / mustLast on an empty list: return nil, not an error.
-e3sgbGlzdCB8IG11c3RGaXJzdCB9fQ==  // {{ list | mustFirst }} want=<no value> got=throws
-e3sgbGlzdCB8IG11c3RMYXN0IH19  // {{ list | mustLast }} want=<no value> got=throws
-# keys: accept multiple dicts and return the keys of all of them.
-e3sga2V5cyAoZGljdCAiZm9vIiAxKSAoZGljdCAiYmFyIiAyKSAoZGljdCAiYmFyIiAzKSB8IHVuaXEgfCBzb3J0QWxwaGEgfX0=  // {{ keys (dict ...) (dict ...) ... }} want=[bar foo] got=[foo]
 # seq: return a space-joined sequence string; handle 1/2/3 args and negative steps.
 e3tzZXF9fQ==  // {{seq}} want= got=[]
 e3tzZXEgNX19  // {{seq 5}} want=1 2 3 4 5 got=[1 2 3 4 5]
@@ -47,8 +36,11 @@ e3tkZXJpdmVQYXNzd29yZCAyICJsb25nIiAicGFzc3dvcmQiICJ1c2VyIiAiZXhhbXBsZS5jb20ifX0=
 #
 # --- INTENDED (Helm semantics / float edge; not bugs) ---
 # Helm renders a nil/absent value as "" (missingkey=zero), not Go's "<no value>" (cf. #431).
+# (first/last/mustFirst/mustLast on an empty list, and coalesce of nothing, all return nil.)
 e3sgbGlzdCB8IGZpcnN0IH19  // {{ list | first }} want=<no value> got=  (empty list -> nil -> "")
 e3sgbGlzdCB8IGxhc3QgfX0=  // {{ list | last }} want=<no value> got=
+e3sgbGlzdCB8IG11c3RGaXJzdCB9fQ==  // {{ list | mustFirst }} want=<no value> got=  (now returns nil, not an error)
+e3sgbGlzdCB8IG11c3RMYXN0IH19  // {{ list | mustLast }} want=<no value> got=
 e3sgY29hbGVzY2UgfX0=  // {{ coalesce }} want=<no value> got=
 # Sub-ulp float-accumulation: 2.4*10*4*1.2 = 115.19999999999999 (Java shortest); Go prints 115.2.
 e3sgMS4yIHwgbXVsZiAiMi40IiAxMCAiNCJ9fQ==  // {{ 1.2 | mulf "2.4" 10 "4"}} want=115.2 got=115.19999999999999

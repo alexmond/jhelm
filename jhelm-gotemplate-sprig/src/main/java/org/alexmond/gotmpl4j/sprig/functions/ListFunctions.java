@@ -107,13 +107,8 @@ public final class ListFunctions {
 	}
 
 	private static Function mustFirst() {
-		return (args) -> {
-			Object result = first().invoke(args);
-			if (result == null) {
-				throw new FunctionExecutionException("mustFirst: list is empty");
-			}
-			return result;
-		};
+		// Sprig's mustFirst returns nil for an empty list (only type errors fail).
+		return (args) -> first().invoke(args);
 	}
 
 	private static Function rest() {
@@ -167,13 +162,8 @@ public final class ListFunctions {
 	}
 
 	private static Function mustLast() {
-		return (args) -> {
-			Object result = last().invoke(args);
-			if (result == null) {
-				throw new FunctionExecutionException("mustLast: list is empty");
-			}
-			return result;
-		};
+		// Sprig's mustLast returns nil for an empty list (only type errors fail).
+		return (args) -> last().invoke(args);
 	}
 
 	private static Function initial() {
@@ -344,8 +334,8 @@ public final class ListFunctions {
 
 	private static Function mustWithout() {
 		return (args) -> {
-			if (args.length < 2) {
-				throw new FunctionExecutionException("mustWithout: insufficient arguments");
+			if (args.length < 1) {
+				throw new FunctionExecutionException("mustWithout: a list is required");
 			}
 			return without().invoke(args);
 		};
@@ -378,7 +368,8 @@ public final class ListFunctions {
 
 	private static Function slice() {
 		return (args) -> {
-			if (args.length < 2) {
+			// Sprig's slice with only the list returns the whole list (list[0:]).
+			if (args.length == 0) {
 				return Collections.emptyList();
 			}
 			Object list = args[0];
@@ -397,8 +388,8 @@ public final class ListFunctions {
 
 	private static Function mustSlice() {
 		return (args) -> {
-			if (args.length < 2) {
-				throw new FunctionExecutionException("mustSlice: insufficient arguments");
+			if (args.length < 1) {
+				throw new FunctionExecutionException("mustSlice: a list is required");
 			}
 			return slice().invoke(args);
 		};
