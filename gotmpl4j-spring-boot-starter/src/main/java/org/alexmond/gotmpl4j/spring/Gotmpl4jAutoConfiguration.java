@@ -34,7 +34,7 @@ import org.springframework.core.io.ResourceLoader;
 @AutoConfiguration
 @EnableConfigurationProperties(Gotmpl4jProperties.class)
 @ConditionalOnProperty(prefix = "gotmpl4j", name = "enabled", matchIfMissing = true)
-@Import(GoTemplateServletWebConfiguration.class)
+@Import({ GoTemplateServletWebConfiguration.class, GoTemplateReactiveWebConfiguration.class })
 public class Gotmpl4jAutoConfiguration {
 
 	@Bean
