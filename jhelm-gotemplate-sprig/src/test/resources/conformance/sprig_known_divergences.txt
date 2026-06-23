@@ -7,14 +7,6 @@
 # untitle: lowercase the first letter of EVERY word, not just the first.
 # compact / mustCompact: drop all empty values (0, "", nil, false), not just "".
 # mustHas: return false when the element is absent / list is nil, not an error.
-# derivePassword: implement the Master Password (MPW) algorithm, not a hash hex dump.
-e3tkZXJpdmVQYXNzd29yZCAxICJiYXNpYyIgInBhc3N3b3JkIiAidXNlciIgImV4YW1wbGUuY29tIn19  // derivePassword basic
-e3tkZXJpdmVQYXNzd29yZCAxICJsb25nIiAicGFzc3dvcmQiICJ1c2VyIiAiZXhhbXBsZS5jb20ifX0=  // derivePassword long
-e3tkZXJpdmVQYXNzd29yZCAxICJtYXhpbXVtIiAicGFzc3dvcmQiICJ1c2VyIiAiZXhhbXBsZS5jb20ifX0=  // derivePassword maximum
-e3tkZXJpdmVQYXNzd29yZCAxICJtZWRpdW0iICJwYXNzd29yZCIgInVzZXIiICJleGFtcGxlLmNvbSJ9fQ==  // derivePassword medium
-e3tkZXJpdmVQYXNzd29yZCAxICJwaW4iICJwYXNzd29yZCIgInVzZXIiICJleGFtcGxlLmNvbSJ9fQ==  // derivePassword pin
-e3tkZXJpdmVQYXNzd29yZCAxICJzaG9ydCIgInBhc3N3b3JkIiAidXNlciIgImV4YW1wbGUuY29tIn19  // derivePassword short
-e3tkZXJpdmVQYXNzd29yZCAyICJsb25nIiAicGFzc3dvcmQiICJ1c2VyIiAiZXhhbXBsZS5jb20ifX0=  // derivePassword long seed 2
 #
 # semver: (semver X).Compare piped needs a bound-method value. Our semver returns a
 # plain Map (keys Major/Minor/Patch/Prerelease/...), so `.Compare` resolves to a missing

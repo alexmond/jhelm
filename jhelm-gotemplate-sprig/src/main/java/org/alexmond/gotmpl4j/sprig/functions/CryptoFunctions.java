@@ -1,5 +1,6 @@
 package org.alexmond.gotmpl4j.sprig.functions;
 
+import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -26,6 +27,7 @@ import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.crypto.generators.OpenBSDBCrypt;
+import org.bouncycastle.crypto.generators.SCrypt;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import java.nio.charset.StandardCharsets;
@@ -34,7 +36,6 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
-import org.apache.commons.codec.binary.Hex;
 
 /**
  * Cryptographic and random generation functions from Sprig library. Includes password
@@ -184,31 +185,85 @@ public final class CryptoFunctions {
 		};
 	}
 
+	private static final String MASTER_PASSWORD_SEED = "com.lyndir.masterpassword";
+
+	// Master Password (MPW) password-type templates and character classes, ported
+	// verbatim
+	// from Masterminds/sprig (which ports Maarten Billemont's algorithm).
+	private static final Map<String, String[]> PASSWORD_TYPE_TEMPLATES = Map.of("maximum",
+			new String[] { "anoxxxxxxxxxxxxxxxxx", "axxxxxxxxxxxxxxxxxno" }, "long",
+			new String[] { "CvcvnoCvcvCvcv", "CvcvCvcvnoCvcv", "CvcvCvcvCvcvno", "CvccnoCvcvCvcv", "CvccCvcvnoCvcv",
+					"CvccCvcvCvcvno", "CvcvnoCvccCvcv", "CvcvCvccnoCvcv", "CvcvCvccCvcvno", "CvcvnoCvcvCvcc",
+					"CvcvCvcvnoCvcc", "CvcvCvcvCvccno", "CvccnoCvccCvcv", "CvccCvccnoCvcv", "CvccCvccCvcvno",
+					"CvcvnoCvccCvcc", "CvcvCvccnoCvcc", "CvcvCvccCvccno", "CvccnoCvcvCvcc", "CvccCvcvnoCvcc",
+					"CvccCvcvCvccno" },
+			"medium", new String[] { "CvcnoCvc", "CvcCvcno" }, "short", new String[] { "Cvcn" }, "basic",
+			new String[] { "aaanaaan", "aannaaan", "aaannaaa" }, "pin", new String[] { "nnnn" });
+
+	private static final Map<Character, String> TEMPLATE_CHARACTERS = Map.of('V', "AEIOU", 'C', "BCDFGHJKLMNPQRSTVWXYZ",
+			'v', "aeiou", 'c', "bcdfghjklmnpqrstvwxyz", 'A', "AEIOUBCDFGHJKLMNPQRSTVWXYZ", 'a',
+			"AEIOUaeiouBCDFGHJKLMNPQRSTVWXYZbcdfghjklmnpqrstvwxyz", 'n', "0123456789", 'o', "@&%?,=[]_:-+*$#!'^~;()/.",
+			'x', "AEIOUaeiouBCDFGHJKLMNPQRSTVWXYZbcdfghjklmnpqrstvwxyz0123456789!@#$%^&*()");
+
 	/**
-	 * Derives a password based on input parameters using a simple HMAC-SHA256 approach.
+	 * Derives a site password with the Master Password (MPW) algorithm, matching Sprig:
+	 * scrypt(masterPassword, seed+len(user)+user) -&gt; key, then HMAC-SHA256 over
+	 * seed+len(site)+site+counter selects a template and fills each class slot.
 	 */
 	private static Function derivePassword() {
 		return (args) -> {
-			if (args.length < 4) {
+			if (args.length < 5) {
 				return "";
 			}
-			long counter = (args[0] instanceof Number) ? ((Number) args[0]).longValue() : 1;
-			String context = String.valueOf(args[1]);
-			String masterPassword = String.valueOf(args[2]);
+			long counter = (args[0] instanceof Number) ? ((Number) args[0]).longValue() : 1L;
+			String passwordType = String.valueOf(args[1]);
+			String[] templates = PASSWORD_TYPE_TEMPLATES.get(passwordType);
+			if (templates == null) {
+				return "cannot find password template " + passwordType;
+			}
+			String password = String.valueOf(args[2]);
 			String user = String.valueOf(args[3]);
+			String site = String.valueOf(args[4]);
 			try {
-				String combined = counter + context + masterPassword + user;
+				byte[] seedBytes = MASTER_PASSWORD_SEED.getBytes(StandardCharsets.UTF_8);
+				byte[] userBytes = user.getBytes(StandardCharsets.UTF_8);
+				ByteArrayOutputStream salt = new ByteArrayOutputStream();
+				salt.writeBytes(seedBytes);
+				salt.writeBytes(beUint32(userBytes.length));
+				salt.writeBytes(userBytes);
+				byte[] key = SCrypt.generate(password.getBytes(StandardCharsets.UTF_8), salt.toByteArray(), 32768, 8, 2,
+						64);
+
+				byte[] siteBytes = site.getBytes(StandardCharsets.UTF_8);
+				ByteArrayOutputStream message = new ByteArrayOutputStream();
+				message.writeBytes(seedBytes);
+				message.writeBytes(beUint32(siteBytes.length));
+				message.writeBytes(siteBytes);
+				message.writeBytes(beUint32(counter));
+
 				Mac mac = Mac.getInstance("HmacSHA256");
-				SecretKeySpec key = new SecretKeySpec(masterPassword.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-				mac.init(key);
-				byte[] raw = mac.doFinal(combined.getBytes(StandardCharsets.UTF_8));
-				return Hex.encodeHexString(raw).substring(0, 20);
+				mac.init(new SecretKeySpec(key, "HmacSHA256"));
+				byte[] seed = mac.doFinal(message.toByteArray());
+
+				// Go treats the HMAC bytes as unsigned when indexing (int(seed[i])).
+				String template = templates[(seed[0] & 0xFF) % templates.length];
+				StringBuilder out = new StringBuilder(template.length());
+				for (int i = 0; i < template.length(); i++) {
+					String passChars = TEMPLATE_CHARACTERS.get(template.charAt(i));
+					out.append(passChars.charAt((seed[i + 1] & 0xFF) % passChars.length()));
+				}
+				return out.toString();
 			}
 			catch (Exception ex) {
 				log.debug("derivePassword failed: {}", ex.getMessage());
 				return "";
 			}
 		};
+	}
+
+	// 4-byte big-endian encoding, matching Go's binary.Write(BigEndian, uint32(v)).
+	private static byte[] beUint32(long v) {
+		return new byte[] { (byte) (v >>> 24), (byte) (v >>> 16), (byte) (v >>> 8), (byte) v };
 	}
 
 	// ========== Key Generation ==========

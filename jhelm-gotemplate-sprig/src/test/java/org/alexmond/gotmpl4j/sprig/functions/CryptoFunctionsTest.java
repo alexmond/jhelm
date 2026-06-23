@@ -69,16 +69,17 @@ class CryptoFunctionsTest {
 
 	@Test
 	void testDerivePassword() throws IOException, TemplateException {
-		String result = exec("{{ derivePassword 1 \"long\" \"masterpass\" \"user\" }}");
-		assertNotNull(result);
-		assertFalse(result.isEmpty());
-		assertEquals(20, result.length());
+		// Master Password (MPW) algorithm: exact values match Sprig/upstream.
+		assertEquals("ZedaFaxcZaso9*", exec("{{ derivePassword 1 \"long\" \"password\" \"user\" \"example.com\" }}"));
+		assertEquals("pf4zS1LjCg&LjhsZ7T2~",
+				exec("{{ derivePassword 1 \"maximum\" \"password\" \"user\" \"example.com\" }}"));
+		assertEquals("6685", exec("{{ derivePassword 1 \"pin\" \"password\" \"user\" \"example.com\" }}"));
 	}
 
 	@Test
 	void testDerivePasswordDeterministic() throws IOException, TemplateException {
-		String result1 = exec("{{ derivePassword 1 \"long\" \"master\" \"user1\" }}");
-		String result2 = exec("{{ derivePassword 1 \"long\" \"master\" \"user1\" }}");
+		String result1 = exec("{{ derivePassword 1 \"long\" \"master\" \"user1\" \"site.example\" }}");
+		String result2 = exec("{{ derivePassword 1 \"long\" \"master\" \"user1\" \"site.example\" }}");
 		assertEquals(result1, result2);
 	}
 
