@@ -16,6 +16,14 @@ e3tkZXJpdmVQYXNzd29yZCAxICJwaW4iICJwYXNzd29yZCIgInVzZXIiICJleGFtcGxlLmNvbSJ9fQ==
 e3tkZXJpdmVQYXNzd29yZCAxICJzaG9ydCIgInBhc3N3b3JkIiAidXNlciIgImV4YW1wbGUuY29tIn19  // derivePassword short
 e3tkZXJpdmVQYXNzd29yZCAyICJsb25nIiAicGFzc3dvcmQiICJ1c2VyIiAiZXhhbXBsZS5jb20ifX0=  // derivePassword long seed 2
 #
+# semver: (semver X).Compare piped needs a bound-method value. Our semver returns a
+# plain Map (keys Major/Minor/Patch/Prerelease/...), so `.Compare` resolves to a missing
+# key -> nil -> "". Supporting it needs an object wrapper exposing a reflective
+# Compare(other) plus engine method-value support; no chart uses this form.
+e3sgc2VtdmVyICIxLjIuMyIgfCAoc2VtdmVyICIxLjIuMyIpLkNvbXBhcmUgfX0=  // {{ semver "1.2.3" | (semver "1.2.3").Compare }} want=0 got=
+e3sgc2VtdmVyICIxLjIuMyIgfCAoc2VtdmVyICIxLjMuMyIpLkNvbXBhcmUgfX0=  // {{ semver "1.2.3" | (semver "1.3.3").Compare }} want=1 got=
+e3sgc2VtdmVyICIxLjQuMyIgfCAoc2VtdmVyICIxLjIuMyIpLkNvbXBhcmUgfX0=  // {{ semver "1.4.3" | (semver "1.2.3").Compare }} want=-1 got=
+#
 # --- INTENDED (Helm semantics / float edge; not bugs) ---
 # Helm renders a nil/absent value as "" (missingkey=zero), not Go's "<no value>" (cf. #431).
 # (first/last/mustFirst/mustLast on an empty list, and coalesce of nothing, all return nil.)

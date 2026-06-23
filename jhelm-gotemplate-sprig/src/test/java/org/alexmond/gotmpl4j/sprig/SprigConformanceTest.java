@@ -32,7 +32,7 @@ class SprigConformanceTest {
 	private static final Set<String> KNOWN = loadKnownDivergences();
 
 	@ParameterizedTest
-	@ValueSource(strings = { "strings", "numeric", "defaults", "list", "dict", "crypto" })
+	@ValueSource(strings = { "strings", "numeric", "defaults", "list", "dict", "crypto", "semver", "url", "date" })
 	void sprigConformance(String category) throws Exception {
 		Set<String> failures = new TreeSet<>();
 		int total = 0;

@@ -50,9 +50,17 @@ public final class NetworkFunctions {
 				URIBuilder uriBuilder = new URIBuilder(String.valueOf(args[0]));
 				Map<String, Object> result = new HashMap<>();
 				result.put("scheme", (uriBuilder.getScheme() != null) ? uriBuilder.getScheme() : "");
-				result.put("host", (uriBuilder.getHost() != null) ? uriBuilder.getHost() : "");
-				result.put("port", (uriBuilder.getPort() > 0) ? String.valueOf(uriBuilder.getPort()) : "");
+				// Go's url.URL.Host includes the port (e.g. "host:80"); Sprig exposes it
+				// verbatim as "host", with "hostname" holding the bare host.
+				String hostname = (uriBuilder.getHost() != null) ? uriBuilder.getHost() : "";
+				int port = uriBuilder.getPort();
+				result.put("hostname", hostname);
+				result.put("host", (port > 0) ? hostname + ":" + port : hostname);
+				result.put("port", (port > 0) ? String.valueOf(port) : "");
 				result.put("path", (uriBuilder.getPath() != null) ? uriBuilder.getPath() : "");
+				result.put("fragment", (uriBuilder.getFragment() != null) ? uriBuilder.getFragment() : "");
+				result.put("userinfo", (uriBuilder.getUserInfo() != null) ? uriBuilder.getUserInfo() : "");
+				result.put("opaque", "");
 
 				StringBuilder queryString = new StringBuilder();
 				if (uriBuilder.getQueryParams() != null && !uriBuilder.getQueryParams().isEmpty()) {
