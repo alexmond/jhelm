@@ -625,14 +625,22 @@ public final class ListFunctions {
 				return "";
 			}
 			String sep = String.valueOf(args[0]);
+			// Sprig's strslice skips nil elements (e.g. join "-" (list "1" nil "2") ==
+			// "1-2").
 			if (listObj instanceof Collection) {
-				return ((Collection<?>) listObj).stream().map(ListFunctions::goStr).collect(Collectors.joining(sep));
+				return ((Collection<?>) listObj).stream()
+					.filter((e) -> e != null)
+					.map(ListFunctions::goStr)
+					.collect(Collectors.joining(sep));
 			}
 			else if (listObj.getClass().isArray()) {
 				int len = Array.getLength(listObj);
 				List<String> strs = new ArrayList<>();
 				for (int i = 0; i < len; i++) {
-					strs.add(goStr(Array.get(listObj, i)));
+					Object e = Array.get(listObj, i);
+					if (e != null) {
+						strs.add(goStr(e));
+					}
 				}
 				return String.join(sep, strs);
 			}
