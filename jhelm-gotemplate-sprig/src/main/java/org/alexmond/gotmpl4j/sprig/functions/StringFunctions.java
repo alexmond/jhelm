@@ -236,9 +236,10 @@ public final class StringFunctions {
 			if (args.length < 2) {
 				return "";
 			}
-			int max = ((Number) args[0]).intValue();
+			int width = ((Number) args[0]).intValue();
 			String s = String.valueOf(args[1]);
-			return (s.length() <= max) ? s : s.substring(0, max - 3) + "...";
+			// Mirrors Sprig: width < 4 returns the string unchanged.
+			return (width < 4) ? s : abbreviateFull(s, 0, width);
 		};
 	}
 
@@ -250,11 +251,34 @@ public final class StringFunctions {
 			int left = ((Number) args[0]).intValue();
 			int right = ((Number) args[1]).intValue();
 			String s = String.valueOf(args[2]);
-			if (s.length() <= left + right) {
+			// Mirrors Sprig: right<4, or (left>0 and right<7), returns unchanged.
+			if (right < 4 || (left > 0 && right < 7)) {
 				return s;
 			}
-			return "..." + s.substring(s.length() - right);
+			return abbreviateFull(s, left, right);
 		};
+	}
+
+	// Port of Masterminds/goutils AbbreviateFull (used by Sprig's abbrev/abbrevboth).
+	private static String abbreviateFull(String str, int offset, int maxWidth) {
+		if (str.isEmpty() || maxWidth < 4 || str.length() <= maxWidth) {
+			return str;
+		}
+		int off = Math.min(offset, str.length());
+		if (str.length() - off < (maxWidth - 3)) {
+			off = str.length() - (maxWidth - 3);
+		}
+		String marker = "...";
+		if (off <= 4) {
+			return str.substring(0, maxWidth - 3) + marker;
+		}
+		if (maxWidth < 7) {
+			return str;
+		}
+		if ((off + maxWidth - 3) < str.length()) {
+			return marker + abbreviateFull(str.substring(off), 0, maxWidth - 3);
+		}
+		return marker + str.substring(str.length() - (maxWidth - 3));
 	}
 
 	private static Function initials() {
@@ -277,7 +301,8 @@ public final class StringFunctions {
 			}
 			int col = ((Number) args[0]).intValue();
 			String s = String.valueOf(args[1]);
-			return wrapText(s, col, "");
+			// Sprig's wrap == goutils Wrap == WrapCustom(s, col, "\n", false).
+			return wrapCustom(s, col, "", false);
 		};
 	}
 
@@ -287,31 +312,50 @@ public final class StringFunctions {
 				return "";
 			}
 			int col = ((Number) args[0]).intValue();
-			String indent = String.valueOf(args[1]);
+			String sep = String.valueOf(args[1]);
 			String s = String.valueOf(args[2]);
-			return wrapText(s, col, indent);
+			// Sprig's wrapWith == goutils WrapCustom(s, col, sep, true).
+			return wrapCustom(s, col, sep, true);
 		};
 	}
 
-	private static String wrapText(String text, int col, String indent) {
-		String[] words = text.split("\\s+");
-		StringBuilder result = new StringBuilder();
-		StringBuilder line = new StringBuilder(indent);
-
-		for (String word : words) {
-			if (line.length() + word.length() + 1 > col && line.length() > indent.length()) {
-				result.append(line).append('\n');
-				line = new StringBuilder(indent);
-			}
-			if (line.length() > indent.length()) {
-				line.append(' ');
-			}
-			line.append(word);
+	// Port of Masterminds/goutils WrapCustom (used by Sprig's wrap/wrapWith).
+	private static String wrapCustom(String str, int wrapLength, String newLineStr, boolean wrapLongWords) {
+		if (str.isEmpty()) {
+			return "";
 		}
-		if (line.length() > indent.length()) {
-			result.append(line);
+		String nl = newLineStr.isEmpty() ? "\n" : newLineStr;
+		int width = Math.max(wrapLength, 1);
+		int inputLineLength = str.length();
+		int offset = 0;
+		StringBuilder wrappedLine = new StringBuilder();
+		while (inputLineLength - offset > width) {
+			if (str.charAt(offset) == ' ') {
+				offset++;
+				continue;
+			}
+			int spaceToWrapAt = str.substring(offset, offset + width).lastIndexOf(' ') + offset;
+			if (spaceToWrapAt >= offset) {
+				wrappedLine.append(str, offset, spaceToWrapAt).append(nl);
+				offset = spaceToWrapAt + 1;
+			}
+			else if (wrapLongWords) {
+				wrappedLine.append(str, offset, width + offset).append(nl);
+				offset += width;
+			}
+			else {
+				spaceToWrapAt = str.indexOf(' ', offset);
+				if (spaceToWrapAt >= 0) {
+					wrappedLine.append(str, offset, spaceToWrapAt).append(nl);
+					offset = spaceToWrapAt + 1;
+				}
+				else {
+					wrappedLine.append(str.substring(offset));
+					offset = inputLineLength;
+				}
+			}
 		}
-		return result.toString();
+		return wrappedLine.append(str.substring(offset)).toString();
 	}
 
 	private static Function contains() {
