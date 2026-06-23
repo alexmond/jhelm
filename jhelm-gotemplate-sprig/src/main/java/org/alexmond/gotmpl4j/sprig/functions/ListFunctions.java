@@ -400,72 +400,62 @@ public final class ListFunctions {
 			if (args.length == 0) {
 				return Collections.emptyList();
 			}
-			int n = ((Number) args[0]).intValue();
-			List<Integer> res = new ArrayList<>();
-			for (int i = 0; i < n; i++) {
-				res.add(i);
-			}
-			return res;
+			int count = ((Number) args[0]).intValue();
+			return untilStepList(0, count, (count < 0) ? -1 : 1);
 		};
+	}
+
+	// Sprig's untilStep core: [start, stop) by step, honouring direction.
+	private static List<Integer> untilStepList(int start, int stop, int step) {
+		List<Integer> v = new ArrayList<>();
+		if (stop < start) {
+			for (int i = start; step < 0 && i > stop; i += step) {
+				v.add(i);
+			}
+			return v;
+		}
+		for (int i = start; step > 0 && i < stop; i += step) {
+			v.add(i);
+		}
+		return v;
 	}
 
 	private static Function untilStep() {
-		return (args) -> {
-			if (args.length < 3) {
-				return Collections.emptyList();
-			}
-			int start = ((Number) args[0]).intValue();
-			int stop = ((Number) args[1]).intValue();
-			int step = ((Number) args[2]).intValue();
-			if (step == 0) {
-				return Collections.emptyList();
-			}
+		return (args) -> (args.length < 3) ? Collections.emptyList() : untilStepList(((Number) args[0]).intValue(),
+				((Number) args[1]).intValue(), ((Number) args[2]).intValue());
+	}
 
-			List<Integer> res = new ArrayList<>();
-			if (step > 0) {
-				for (int i = start; i < stop; i += step) {
-					res.add(i);
-				}
+	// Sprig's seq returns a space-joined sequence string (numeric.go): 1/2/3 int args,
+	// auto-direction for 1/2-arg forms, explicit step for the 3-arg form.
+	private static Function seq() {
+		return (args) -> {
+			int n = args.length;
+			if (n < 1 || n > 3) {
+				return "";
 			}
-			else {
-				for (int i = start; i > stop; i += step) {
-					res.add(i);
-				}
+			int start = (n == 1) ? 1 : ((Number) args[0]).intValue();
+			int end = ((Number) args[n - 1]).intValue();
+			int explicitStep = (n == 3) ? ((Number) args[1]).intValue() : 0;
+			// 1/2-arg forms step by the auto-direction; the 3-arg form uses its explicit
+			// step but bails when the explicit step runs the wrong way.
+			if (n == 3 && end < start && explicitStep > 0) {
+				return "";
 			}
-			return res;
+			int dir = (end < start) ? -1 : 1;
+			int step = (n == 3) ? explicitStep : dir;
+			return joinInts(untilStepList(start, end + dir, step));
 		};
 	}
 
-	private static Function seq() {
-		return (args) -> {
-			if (args.length == 0) {
-				return Collections.emptyList();
+	private static String joinInts(List<Integer> v) {
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < v.size(); i++) {
+			if (i > 0) {
+				sb.append(' ');
 			}
-			int start = 1;
-			int end = ((Number) args[0]).intValue();
-			int step = 1;
-
-			if (args.length >= 2) {
-				start = ((Number) args[0]).intValue();
-				end = ((Number) args[1]).intValue();
-			}
-			if (args.length >= 3) {
-				step = ((Number) args[2]).intValue();
-			}
-
-			List<Integer> res = new ArrayList<>();
-			if (step > 0) {
-				for (int i = start; i <= end; i += step) {
-					res.add(i);
-				}
-			}
-			else {
-				for (int i = start; i >= end; i += step) {
-					res.add(i);
-				}
-			}
-			return res;
-		};
+			sb.append((int) v.get(i));
+		}
+		return sb.toString();
 	}
 
 	private static Function compact() {

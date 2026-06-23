@@ -55,7 +55,7 @@ class MathFunctionsTest {
 	}
 
 	@ParameterizedTest
-	@CsvSource(delimiter = '|', value = { "{{ $s := seq 1 3 }}{{ len $s }}              | 3",
+	@CsvSource(delimiter = '|', value = { "{{ seq 1 3 }}                                | 1 2 3",
 			"{{ $u := until 3 }}{{ len $u }}              | 3", "{{ $u := untilStep 0 10 2 }}{{ len $u }}     | 5" })
 	void testSequenceFunction(String template, String expected) throws IOException, TemplateException {
 		assertEquals(expected, exec(template));

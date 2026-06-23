@@ -488,7 +488,7 @@ class CollectionFunctionsTest {
 
 	@ParameterizedTest
 	@CsvSource(delimiter = '|',
-			value = { "{{ $s := seq 1 5 }}{{ join \",\" $s }}                    | 1,2,3,4,5",
+			value = { "{{ seq 1 5 }}                                          | 1 2 3 4 5",
 					"{{ $u := until 5 }}{{ join \",\" $u }}                    | 0,1,2,3,4",
 					"{{ $u := untilStep 0 10 2 }}{{ join \",\" $u }}           | 0,2,4,6,8" })
 	void testSequences(String template, String expected) throws IOException, TemplateException {
