@@ -60,41 +60,56 @@ type rawCase struct {
 }
 
 func main() {
-	out := flag.String("out", ".", "directory to write *_runtv_cases.tsv files")
-	sprigVer := flag.String("sprig", "v3.3.0", "Sprig module version for the generated module")
-	includeRunt := flag.Bool("runt", false, "also emit runt() (no-data) cases")
+	out := flag.String("out", ".", "directory to write the *_cases.tsv files")
+	sprigVer := flag.String("sprig", "v3.3.0", "Sprig module version (sprig mode only)")
+	includeRunt := flag.Bool("runt", false, "sprig mode: also emit runt() (no-data) cases")
+	mode := flag.String("mode", "sprig",
+		"extraction mode: sprig (runt/runtv calls) or gotmpl (text/template execTest tables)")
 	keep := flag.Bool("keep", false, "keep the generated temp module dir")
 	flag.Parse()
 	if flag.NArg() == 0 {
-		fmt.Fprintln(os.Stderr, "usage: go run runtv_extract.go -out <dir> <sprig_*_test.go> ...")
+		fmt.Fprintln(os.Stderr, "usage: go run runtv_extract.go [-mode sprig|gotmpl] -out <dir> <test.go> ...")
 		os.Exit(2)
 	}
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		fatal(err)
 	}
 	for _, file := range flag.Args() {
-		cat := categoryOf(file)
-		cases, err := extractFile(file, *includeRunt)
+		var cases []rawCase
+		var err error
+		if *mode == "gotmpl" {
+			cases, err = extractExecTests(file)
+		} else {
+			cases, err = extractFile(file, *includeRunt)
+		}
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s: parse error: %v\n", file, err)
+			fmt.Fprintf(os.Stderr, "%s: parse error: %v\n", filepath.Base(file), err)
 			continue
 		}
 		if len(cases) == 0 {
-			fmt.Fprintf(os.Stderr, "%s: no runtv cases found\n", filepath.Base(file))
+			fmt.Fprintf(os.Stderr, "%s: no cases found\n", filepath.Base(file))
 			continue
 		}
-		rows, dropped, err := renderCases(cases, *sprigVer, *keep)
+		rows, dropped, err := renderCases(cases, *mode, *sprigVer, *keep)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: render error: %v\n", filepath.Base(file), err)
 			continue
 		}
-		dst := filepath.Join(*out, "sprig_"+cat+"_runtv_cases.tsv")
+		dst := filepath.Join(*out, outName(*mode, file))
 		if err := os.WriteFile(dst, []byte(strings.Join(rows, "\n")+"\n"), 0o644); err != nil {
 			fatal(err)
 		}
-		fmt.Printf("%-22s %3d cases -> %s  (%d non-portable dropped)\n",
+		fmt.Printf("%-26s %3d cases -> %s  (%d non-portable dropped)\n",
 			filepath.Base(file), len(rows), dst, dropped)
 	}
+}
+
+// outName picks the fixture filename for a given mode and input file.
+func outName(mode, file string) string {
+	if mode == "gotmpl" {
+		return "gotmpl_" + categoryOf(file) + "_cases.tsv"
+	}
+	return "sprig_" + categoryOf(file) + "_runtv_cases.tsv"
 }
 
 // categoryOf turns "/tmp/sprig_dict_test.go" into "dict".
@@ -153,6 +168,70 @@ func extractFile(path string, includeRunt bool) ([]rawCase, error) {
 	return cases, nil
 }
 
+// extractExecTests pulls cases from Go's text/template-style execTest tables:
+//
+//	[]execTest{ {name, input, output, data, ok}, ... }
+//
+// keeping only the ok==true entries with a string-literal template. The data expression is
+// carried verbatim; entries whose data references a test-local fixture/type (tVal, struct
+// literals, …) are dropped later by the compiler-as-oracle build loop, and any whose Go
+// output contains "<no value>" are dropped at render time (gotmpl4j renders nil/missing as
+// "" Helm-style, a single documented divergence rather than a per-case bug).
+func extractExecTests(path string) ([]rawCase, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		return nil, err
+	}
+	var cases []rawCase
+	ast.Inspect(f, func(n ast.Node) bool {
+		cl, ok := n.(*ast.CompositeLit)
+		if !ok || len(cl.Elts) != 5 {
+			return true
+		}
+		// Positional {name, input, output, data, ok}: require an input string literal and
+		// a literal ok==true. This shape is specific enough that unrelated 5-field structs
+		// either fail these checks or get dropped by the build loop.
+		input, ok := stringLit(cl.Elts[1])
+		if !ok {
+			return true
+		}
+		okFlag, ok := boolLit(cl.Elts[4])
+		if !ok || !okFlag {
+			return true
+		}
+		data := cl.Elts[3]
+		varsSrc := exprSource(fset, data)
+		if isNilExpr(data) {
+			varsSrc = ""
+		}
+		cases = append(cases, rawCase{tpl: input, varsSrc: varsSrc})
+		return true
+	})
+	return cases, nil
+}
+
+// boolLit reads a literal true/false identifier.
+func boolLit(e ast.Expr) (bool, bool) {
+	id, ok := e.(*ast.Ident)
+	if !ok {
+		return false, false
+	}
+	switch id.Name {
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	}
+	return false, false
+}
+
+// isNilExpr reports whether an expression is the nil identifier.
+func isNilExpr(e ast.Expr) bool {
+	id, ok := e.(*ast.Ident)
+	return ok && id.Name == "nil"
+}
+
 // resolveTpl yields the template text for a runt/runtv first argument, whether it is an
 // inline string literal or an identifier previously assigned one.
 func resolveTpl(arg ast.Expr, strVars map[string]string) (string, bool) {
@@ -208,7 +287,11 @@ var buildErrLine = regexp.MustCompile(`main\.go:(\d+):`)
 
 // renderCases generates a throwaway Go module for the given cases, drops any whose vars
 // won't compile, then runs it and returns the TSV rows plus the dropped count.
-func renderCases(cases []rawCase, sprigVer string, keep bool) ([]string, int, error) {
+func renderCases(cases []rawCase, mode, sprigVer string, keep bool) ([]string, int, error) {
+	header, footer, defaultVars := genHeader, genFooter, "map[string]any{}"
+	if mode == "gotmpl" {
+		header, footer, defaultVars = gotmplHeader, gotmplFooter, "nil"
+	}
 	dir, err := os.MkdirTemp("", "runtvgen")
 	if err != nil {
 		return nil, 0, err
@@ -218,26 +301,28 @@ func renderCases(cases []rawCase, sprigVer string, keep bool) ([]string, int, er
 	} else {
 		defer os.RemoveAll(dir)
 	}
-	if err := writeModule(dir, sprigVer); err != nil {
+	if err := writeModule(dir, mode, sprigVer); err != nil {
 		return nil, 0, err
 	}
 
 	bad := map[int]bool{}
 	for {
-		src, lineOf := generateSource(cases, bad)
+		src, lineOf, origOf := generateSource(cases, bad, defaultVars, header, footer)
 		if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(src), 0o644); err != nil {
 			return nil, 0, err
 		}
-		out, err := runGo(dir, "build", "-o", os.DevNull, ".")
+		// -gcflags=-e disables the compiler's 10-error cap so every non-portable case
+		// surfaces in one pass, letting the drop loop converge immediately.
+		out, err := runGo(dir, "build", "-gcflags=-e", "-o", os.DevNull, ".")
 		if err == nil {
 			break
 		}
-		// Map each compiler-error line back to the case that owns it and drop those.
+		// Map each compiler-error line back to the original case index and drop those.
 		newlyBad := false
 		for _, m := range buildErrLine.FindAllStringSubmatch(out, -1) {
 			ln, _ := strconv.Atoi(m[1])
-			if idx := caseForLine(lineOf, ln); idx >= 0 && !bad[idx] {
-				bad[idx] = true
+			if p := caseForLine(lineOf, ln); p >= 0 && !bad[origOf[p]] {
+				bad[origOf[p]] = true
 				newlyBad = true
 			}
 		}
@@ -246,9 +331,11 @@ func renderCases(cases []rawCase, sprigVer string, keep bool) ([]string, int, er
 		}
 	}
 
-	out, err := runGo(dir, "run", ".")
+	// Capture only stdout (the TSV); the generated program logs per-case skips to stderr,
+	// which must not contaminate the fixture rows.
+	out, err := runGoStdout(dir, "run", ".")
 	if err != nil {
-		return nil, 0, fmt.Errorf("run failed: %v\n%s", err, out)
+		return nil, 0, fmt.Errorf("run failed: %v", err)
 	}
 	var rows []string
 	sc := bufio.NewScanner(strings.NewReader(out))
@@ -277,27 +364,30 @@ func caseForLine(lineOf []int, ln int) int {
 
 // generateSource emits the throwaway program and returns, for each still-live case, the
 // 1-based source line on which its struct literal begins (for error attribution).
-func generateSource(cases []rawCase, bad map[int]bool) (string, []int) {
+// generateSource returns the program text, the start line of each emitted case, and the
+// parallel original-index of each emitted case (so compiler errors map back to the right
+// entry in the full `cases` slice even after earlier cases have been dropped).
+func generateSource(cases []rawCase, bad map[int]bool, defaultVars, header, footer string) (string, []int, []int) {
 	var b strings.Builder
-	emit := func(s string) { b.WriteString(s) }
-	emit(genHeader)
-	var lineOf []int
-	line := strings.Count(genHeader, "\n") + 1
+	b.WriteString(header)
+	var lineOf, origOf []int
+	line := strings.Count(header, "\n") + 1
 	for i, c := range cases {
 		if bad[i] {
 			continue
 		}
 		vars := c.varsSrc
 		if vars == "" {
-			vars = "map[string]any{}" // runt: empty data
+			vars = defaultVars // no-data case: sprig empty map, gotmpl nil
 		}
 		entry := fmt.Sprintf("\t{tpl: %s, vars: %s},\n", strconv.Quote(c.tpl), vars)
 		lineOf = append(lineOf, line)
-		emit(entry)
+		origOf = append(origOf, i)
+		b.WriteString(entry)
 		line += strings.Count(entry, "\n")
 	}
-	emit(genFooter)
-	return b.String(), lineOf
+	b.WriteString(footer)
+	return b.String(), lineOf, origOf
 }
 
 const genHeader = `package main
@@ -350,11 +440,69 @@ func main() {
 }
 `
 
-// writeModule lays down a minimal module that requires Sprig, then fetches it.
-func writeModule(dir, sprigVer string) error {
+// gotmpl mode: render with text/template's builtin funcmap only (no custom funcs), so any
+// case using a test-defined function fails at Parse/Execute and is skipped. Cases whose Go
+// output is "<no value>" are skipped too — gotmpl4j renders nil/missing as "" (Helm-style).
+const gotmplHeader = `package main
+
+import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+	"text/template"
+)
+
+type entry struct {
+	tpl  string
+	vars any
+}
+
+var cases = []entry{
+`
+
+const gotmplFooter = `}
+
+func main() {
+	enc := base64.StdEncoding
+	for i, c := range cases {
+		t, err := template.New("test").Parse(c.tpl)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "skip %d (parse): %v\n", i, err)
+			continue
+		}
+		var buf bytes.Buffer
+		if err := t.Execute(&buf, c.vars); err != nil {
+			fmt.Fprintf(os.Stderr, "skip %d (exec): %v\n", i, err)
+			continue
+		}
+		if strings.Contains(buf.String(), "<no value>") {
+			continue
+		}
+		jv, err := json.Marshal(c.vars)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "skip %d (json): %v\n", i, err)
+			continue
+		}
+		fmt.Printf("%s\t%s\t%s\n",
+			enc.EncodeToString([]byte(c.tpl)),
+			enc.EncodeToString(buf.Bytes()),
+			enc.EncodeToString(jv))
+	}
+}
+`
+
+// writeModule lays down the throwaway module. For sprig mode it requires and fetches
+// Sprig; gotmpl mode is stdlib-only (text/template), so nothing to fetch.
+func writeModule(dir, mode, sprigVer string) error {
 	gomod := "module runtvgen\n\ngo 1.21\n"
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0o644); err != nil {
 		return err
+	}
+	if mode == "gotmpl" {
+		return nil
 	}
 	// A stub main so `go get` has a buildable package to resolve against.
 	stub := "package main\n\nimport _ \"github.com/Masterminds/sprig/v3\"\n\nfunc main() {}\n"
@@ -367,13 +515,27 @@ func writeModule(dir, sprigVer string) error {
 	return nil
 }
 
-// runGo runs `go <args...>` in dir and returns combined output.
+// runGo runs `go <args...>` in dir and returns combined output (stdout+stderr) — used for
+// build, where compiler diagnostics are the point.
 func runGo(dir string, args ...string) (string, error) {
 	cmd := exec.Command("go", args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GOFLAGS=-mod=mod")
 	out, err := cmd.CombinedOutput()
 	return string(out), err
+}
+
+// runGoStdout runs `go <args...>` and returns only stdout, forwarding the program's stderr
+// to our own — used for the render run, where stdout is the TSV and stderr is skip logs.
+func runGoStdout(dir string, args ...string) (string, error) {
+	cmd := exec.Command("go", args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOFLAGS=-mod=mod")
+	var stdout strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+	err := cmd.Run()
+	return stdout.String(), err
 }
 
 func fatal(err error) {
