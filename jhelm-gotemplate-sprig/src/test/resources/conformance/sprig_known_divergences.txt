@@ -7,10 +7,6 @@
 # untitle: lowercase the first letter of EVERY word, not just the first.
 # compact / mustCompact: drop all empty values (0, "", nil, false), not just "".
 # mustHas: return false when the element is absent / list is nil, not an error.
-# abbrevboth: abbreviate with leading+trailing ellipsis around a window.
-e3thYmJyZXZib3RoIDUgMTAgIjEyMzQgNTY3OCA5MTIzIn19  // {{abbrevboth 5 10 "1234 5678 9123"}} want=...5678... got=1234 5678 9123
-# wrapWith: wrap at the width using the separator, not a leading newline.
-e3t3cmFwV2l0aCA1ICJcdCIgIkhlbGxvIFdvcmxkIn19  // {{wrapWith 5 "\t" "Hello World"}} want=Hello\tWorld got=\tHello\nWorld
 # derivePassword: implement the Master Password (MPW) algorithm, not a hash hex dump.
 e3tkZXJpdmVQYXNzd29yZCAxICJiYXNpYyIgInBhc3N3b3JkIiAidXNlciIgImV4YW1wbGUuY29tIn19  // derivePassword basic
 e3tkZXJpdmVQYXNzd29yZCAxICJsb25nIiAicGFzc3dvcmQiICJ1c2VyIiAiZXhhbXBsZS5jb20ifX0=  // derivePassword long
