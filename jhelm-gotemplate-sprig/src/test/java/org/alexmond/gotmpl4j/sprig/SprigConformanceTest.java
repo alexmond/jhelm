@@ -7,8 +7,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.alexmond.gotmpl4j.GoTemplate;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -68,6 +71,54 @@ class SprigConformanceTest {
 		assertTrue(count > 0, "no Sprig " + category + " cases loaded");
 		assertTrue(failures.isEmpty(), () -> "Sprig " + category + " divergences (" + failures.size() + "/" + count
 				+ "):\n" + String.join("\n", failures));
+	}
+
+	// runtv conformance: cases ported from Sprig's runtv(tpl, expect, vars) tests by
+	// .claude/scripts/conformance/runtv_extract.go, which renders each through the real
+	// Sprig funcmap (ground-truth output) and records the vars as JSON. Here the JSON is
+	// parsed back into a Map and supplied as the render root (the template's "."), so
+	// gotmpl4j renders the exact same template over the exact same data Sprig did.
+	@ParameterizedTest
+	@ValueSource(strings = { "strings", "numeric", "defaults", "list", "dict", "crypto" })
+	void sprigRuntvConformance(String category) throws Exception {
+		ObjectMapper mapper = new ObjectMapper();
+		Set<String> failures = new TreeSet<>();
+		int total = 0;
+		String resource = "/conformance/sprig_" + category + "_runtv_cases.tsv";
+		try (BufferedReader r = new BufferedReader(new InputStreamReader(
+				SprigConformanceTest.class.getResourceAsStream(resource), StandardCharsets.UTF_8))) {
+			String line;
+			while ((line = r.readLine()) != null) {
+				if (line.isEmpty()) {
+					continue;
+				}
+				String[] p = line.split("\t", 3);
+				String tpl = decode(p[0]);
+				String want = decode(p[1]);
+				String json = (p.length > 2) ? decode(p[2]) : "{}";
+				total++;
+				String got;
+				try {
+					@SuppressWarnings("unchecked")
+					Map<String, Object> data = mapper.readValue(json, Map.class);
+					GoTemplate t = new GoTemplate();
+					t.parse("r" + total, tpl);
+					StringWriter w = new StringWriter();
+					t.execute("r" + total, data, w);
+					got = w.toString();
+				}
+				catch (Exception ex) {
+					got = "<<" + ex.getClass().getSimpleName() + ": " + ex.getMessage() + ">>";
+				}
+				if (!want.equals(got) && !KNOWN.contains(p[0])) {
+					failures.add("[" + tpl + "] data=[" + json + "] want=[" + want + "] got=[" + got + "]");
+				}
+			}
+		}
+		int count = total;
+		assertTrue(count > 0, "no Sprig " + category + " runtv cases loaded");
+		assertTrue(failures.isEmpty(), () -> "Sprig " + category + " runtv divergences (" + failures.size() + "/"
+				+ count + "):\n" + String.join("\n", failures));
 	}
 
 	private static String decode(String b64) {
