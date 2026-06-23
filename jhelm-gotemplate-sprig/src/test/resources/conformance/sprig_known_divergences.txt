@@ -7,20 +7,6 @@
 # untitle: lowercase the first letter of EVERY word, not just the first.
 # compact / mustCompact: drop all empty values (0, "", nil, false), not just "".
 # mustHas: return false when the element is absent / list is nil, not an error.
-# seq: return a space-joined sequence string; handle 1/2/3 args and negative steps.
-e3tzZXF9fQ==  // {{seq}} want= got=[]
-e3tzZXEgNX19  // {{seq 5}} want=1 2 3 4 5 got=[1 2 3 4 5]
-e3tzZXEgMH19  // {{seq 0}} want=1 0 got=[]
-e3tzZXEgLTV9fQ==  // {{seq -5}} want=1 0 -1 -2 -3 -4 -5 got=[]
-e3tzZXEgMCA0fX0=  // {{seq 0 4}} want=0 1 2 3 4 got=[0 1 2 3 4]
-e3tzZXEgMCAtNH19  // {{seq 0 -4}} want=0 -1 -2 -3 -4 got=[]
-e3tzZXEgMCAxIDN9fQ==  // {{seq 0 1 3}} want=0 1 2 3 got=[0]
-e3tzZXEgMCAzIDEwfX0=  // {{seq 0 3 10}} want=0 3 6 9 got=[0]
-e3tzZXEgMyAtMyAyfX0=  // {{seq 3 -3 2}} want=3 got=[]
-e3tzZXEgMyAzIDJ9fQ==  // {{seq 3 3 2}} want= got=[3]
-e3tzZXEgMCAxIDIgM319  // {{seq 0 1 2 3}} want= got=[0]
-# until: a negative argument counts down (0 -1 -2 ...).
-e3tyYW5nZSAkaSwgJGUgOj0gdW50aWwgLTV9fXt7JGl9fXt7JGV9fSB7e2VuZH19  // {{range until -5}}... want=00 1-1 2-2 3-3 4-4 got=
 # abbrevboth: abbreviate with leading+trailing ellipsis around a window.
 e3thYmJyZXZib3RoIDUgMTAgIjEyMzQgNTY3OCA5MTIzIn19  // {{abbrevboth 5 10 "1234 5678 9123"}} want=...5678... got=1234 5678 9123
 # wrapWith: wrap at the width using the separator, not a leading newline.
