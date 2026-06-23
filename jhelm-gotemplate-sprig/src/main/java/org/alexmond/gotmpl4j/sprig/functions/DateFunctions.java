@@ -318,22 +318,20 @@ public final class DateFunctions {
 			}
 			Object durationObj = args[0];
 
+			long seconds;
 			if (durationObj instanceof Duration) {
-				Duration duration = (Duration) durationObj;
-				return duration.getSeconds() + "s";
+				seconds = ((Duration) durationObj).getSeconds();
 			}
-
-			// Parse duration string (simplified)
-			String durationStr = String.valueOf(durationObj);
-			try {
-				long millis = parseDurationToMillis(durationStr);
-				long seconds = millis / 1000;
-				return seconds + "s";
+			else {
+				try {
+					seconds = parseDurationToMillis(String.valueOf(durationObj)) / 1000;
+				}
+				catch (Exception ex) {
+					log.debug("durationRound failed: {}", ex.getMessage());
+					return "0s";
+				}
 			}
-			catch (Exception ex) {
-				log.debug("durationRound failed: {}", ex.getMessage());
-				return "0s";
-			}
+			return roundDuration(seconds);
 		};
 	}
 
@@ -365,15 +363,26 @@ public final class DateFunctions {
 	 * while Java uses "yyyy-MM-dd HH:mm:ss"
 	 */
 	private static String convertGoLayoutToJava(String goLayout) {
+		// Letter and zone tokens first (longest match wins: January before Jan, Monday
+		// before Mon), then the numeric reference-date tokens. Numeric outputs are all
+		// letters, so the numeric replacements can't interfere with one another.
 		return goLayout.replace("2006", "yyyy")
+			.replace("January", "MMMM")
+			.replace("Jan", "MMM")
+			.replace("Monday", "EEEE")
+			.replace("Mon", "EEE")
+			.replace("-07:00", "XXX")
+			.replace("Z07:00", "XXX")
+			.replace("-0700", "Z")
+			.replace("MST", "zzz")
+			.replace("PM", "a")
 			.replace("06", "yy")
+			.replace("15", "HH")
+			.replace("03", "hh")
 			.replace("01", "MM")
 			.replace("02", "dd")
-			.replace("15", "HH")
 			.replace("04", "mm")
-			.replace("05", "ss")
-			.replace("MST", "zzz")
-			.replace("PM", "a");
+			.replace("05", "ss");
 	}
 
 	/**
@@ -384,7 +393,8 @@ public final class DateFunctions {
 			return (Date) dateObj;
 		}
 		else if (dateObj instanceof Number) {
-			return new Date(((Number) dateObj).longValue());
+			// Helm/Sprig unix timestamps are seconds since the epoch (Go time.Unix).
+			return new Date(((Number) dateObj).longValue() * 1000L);
 		}
 		else if (dateObj instanceof Instant) {
 			return Date.from((Instant) dateObj);
@@ -404,16 +414,47 @@ public final class DateFunctions {
 		long hours = totalSeconds / 3600;
 		long minutes = (totalSeconds % 3600) / 60;
 		long seconds = totalSeconds % 60;
+		// Go's time.Duration.String() emits every component from the largest non-zero
+		// unit
+		// down to seconds, including zeros in between (e.g. 3600s -> "1h0m0s", not "1h").
 		if (hours > 0) {
-			sb.append(hours).append('h');
+			sb.append(hours).append('h').append(minutes).append('m').append(seconds).append('s');
 		}
-		if (minutes > 0) {
-			sb.append(minutes).append('m');
+		else if (minutes > 0) {
+			sb.append(minutes).append('m').append(seconds).append('s');
 		}
-		if (seconds > 0) {
+		else {
 			sb.append(seconds).append('s');
 		}
 		return sb.toString();
+	}
+
+	/**
+	 * Collapses a duration to the single largest unit it exceeds, mirroring Sprig's
+	 * durationRound (which defines month as 30 days and year as 365 days). Operates on
+	 * the magnitude so e.g. 7205s -&gt; "2h", 86405s -&gt; "1d", 8640005s -&gt; "3mo".
+	 */
+	private static String roundDuration(long secs) {
+		long u = Math.abs(secs);
+		if (u > 365L * 24 * 3600) {
+			return (u / (365L * 24 * 3600)) + "y";
+		}
+		if (u > 30L * 24 * 3600) {
+			return (u / (30L * 24 * 3600)) + "mo";
+		}
+		if (u > 24L * 3600) {
+			return (u / (24L * 3600)) + "d";
+		}
+		if (u > 3600) {
+			return (u / 3600) + "h";
+		}
+		if (u > 60) {
+			return (u / 60) + "m";
+		}
+		if (u > 1) {
+			return u + "s";
+		}
+		return "0s";
 	}
 
 	/**
