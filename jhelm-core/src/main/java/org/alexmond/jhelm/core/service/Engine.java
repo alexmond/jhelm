@@ -536,14 +536,14 @@ public class Engine {
 		// applied while coalescing subcharts).
 		// Pruned view for THIS chart's own rendering: Helm removes null keys while
 		// coalescing a subchart (depth > 0); the top-level release chart keeps them.
-		Map<String, Object> renderValues = prepareRenderValues(mergedValues, depth > 0);
+		Map<String, Object> renderValues = prepareRenderValues(mergedValues, chartValues, depth > 0);
 		// Unpruned view (null tombstones retained) for slicing down to subcharts. A
 		// parent's null override must survive to DELETE the subchart's same-named default
 		// (Helm's coalesce nil-deletion). Pruning before slicing drops the tombstone and
 		// lets the subchart re-introduce its default — e.g. signoz nulls
 		// clickhouse.zookeeper.image.registry to drop bitnami zookeeper's docker.io. The
 		// subchart prunes the null itself when it renders.
-		Map<String, Object> subchartSliceValues = prepareRenderValues(mergedValues, false);
+		Map<String, Object> subchartSliceValues = prepareRenderValues(mergedValues, null, false);
 
 		// Validate merged values against the chart's JSON Schema (if present)
 		if (chart.getValuesSchema() != null) {
@@ -978,19 +978,32 @@ public class Engine {
 	 * @return a normalised deep copy
 	 */
 	@SuppressWarnings("unchecked")
-	private Map<String, Object> prepareRenderValues(Map<String, Object> values, boolean pruneNulls) {
-		return (Map<String, Object>) prepareValueNode(values, pruneNulls);
+	private Map<String, Object> prepareRenderValues(Map<String, Object> values, Map<String, Object> chartDefaults,
+			boolean pruneNulls) {
+		return (Map<String, Object>) prepareValueNode(values, chartDefaults, pruneNulls);
 	}
 
 	@SuppressWarnings("unchecked")
-	private Object prepareValueNode(Object node, boolean pruneNulls) {
+	private Object prepareValueNode(Object node, Object defaultNode, boolean pruneNulls) {
 		if (node instanceof Map) {
 			Map<String, Object> src = (Map<String, Object>) node;
+			Map<String, Object> defMap = (defaultNode instanceof Map) ? (Map<String, Object>) defaultNode : null;
 			Map<String, Object> out = new LinkedHashMap<>();
 			for (Map.Entry<String, Object> entry : src.entrySet()) {
-				if (!pruneNulls || entry.getValue() != null) {
-					out.put(entry.getKey(), prepareValueNode(entry.getValue(), pruneNulls));
+				Object value = entry.getValue();
+				// Helm's coalesce deletes a null only when the chart's own defaults
+				// declare
+				// that key (coalesceValues iterates c.Values, deleting matching null
+				// overrides). A standalone null — a --values null for a key the
+				// (sub)chart
+				// never declared — is never visited and is kept (#491). The blanket prune
+				// here previously dropped those too.
+				boolean deletesDefault = defMap != null && defMap.containsKey(entry.getKey());
+				if (pruneNulls && value == null && deletesDefault) {
+					continue;
 				}
+				Object dv = (defMap != null) ? defMap.get(entry.getKey()) : null;
+				out.put(entry.getKey(), prepareValueNode(value, dv, pruneNulls));
 			}
 			return out;
 		}
@@ -998,7 +1011,7 @@ public class Engine {
 			List<Object> src = (List<Object>) node;
 			List<Object> out = new ArrayList<>(src.size());
 			for (Object item : src) {
-				out.add(prepareValueNode(item, pruneNulls));
+				out.add(prepareValueNode(item, null, pruneNulls));
 			}
 			return out;
 		}
