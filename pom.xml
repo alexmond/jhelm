@@ -42,6 +42,7 @@
              dedicated CI job (see .github/workflows/parity.yml). Override with
              -Dsurefire.excludedGroups= -Dgroups=comparison to run only the parity suite. -->
         <surefire.excludedGroups>comparison</surefire.excludedGroups>
+        <gotmpl4j.version>0.1.0</gotmpl4j.version>
         <kubernetes-client.version>25.0.0</kubernetes-client.version>
         <picocli.version>4.7.7</picocli.version>
         <semver4j.version>6.0.0</semver4j.version>
@@ -71,9 +72,6 @@
         <url>https://github.com/alexmond/jhelm</url>
     </scm>
     <modules>
-        <module>jhelm-gotemplate</module>
-        <module>jhelm-gotemplate-sprig</module>
-        <module>gotmpl4j-spring-boot-starter</module>
         <module>jhelm-gotemplate-helm</module>
         <module>jhelm-core</module>
         <module>jhelm-kube</module>
@@ -92,22 +90,20 @@
                 <artifactId>picocli-spring-boot-starter</artifactId>
                 <version>${picocli.version}</version>
             </dependency>
-            <!-- Internal Modules -->
+            <!-- gotmpl4j: the Go template engine + Sprig functions, now an external
+                 library published to Maven Central (extracted from this repo; see
+                 https://github.com/alexmond/gotmpl4j). -->
             <dependency>
                 <groupId>org.alexmond</groupId>
                 <artifactId>gotmpl4j-core</artifactId>
-                <version>${project.version}</version>
+                <version>${gotmpl4j.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.alexmond</groupId>
                 <artifactId>gotmpl4j-sprig</artifactId>
-                <version>${project.version}</version>
+                <version>${gotmpl4j.version}</version>
             </dependency>
-            <dependency>
-                <groupId>org.alexmond</groupId>
-                <artifactId>gotmpl4j-spring-boot-starter</artifactId>
-                <version>${project.version}</version>
-            </dependency>
+            <!-- Internal Modules -->
             <dependency>
                 <groupId>org.alexmond</groupId>
                 <artifactId>jhelm-gotemplate-helm</artifactId>
