@@ -154,7 +154,8 @@ class DateFunctionsTest {
 	void testDurationHoursOnly() throws IOException, TemplateException {
 		StringWriter writer = new StringWriter();
 		execute("test", "{{ duration 7200 }}", new HashMap<>(), writer);
-		assertEquals("2h", writer.toString());
+		// Go's time.Duration.String() keeps the zero components: 2h0m0s, not "2h".
+		assertEquals("2h0m0s", writer.toString());
 	}
 
 	@Test

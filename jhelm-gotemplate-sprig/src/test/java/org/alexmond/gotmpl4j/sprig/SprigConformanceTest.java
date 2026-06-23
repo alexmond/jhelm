@@ -79,7 +79,7 @@ class SprigConformanceTest {
 	// parsed back into a Map and supplied as the render root (the template's "."), so
 	// gotmpl4j renders the exact same template over the exact same data Sprig did.
 	@ParameterizedTest
-	@ValueSource(strings = { "strings", "numeric", "defaults", "list", "dict", "crypto" })
+	@ValueSource(strings = { "strings", "numeric", "defaults", "list", "dict", "crypto", "date" })
 	void sprigRuntvConformance(String category) throws Exception {
 		ObjectMapper mapper = new ObjectMapper();
 		Set<String> failures = new TreeSet<>();
