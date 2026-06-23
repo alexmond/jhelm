@@ -56,6 +56,7 @@ import (
 
 type rawCase struct {
 	tpl     string // resolved template text (already unquoted)
+	expect  string // ground-truth output taken verbatim from source (helm mode only)
 	varsSrc string // verbatim Go source of the vars expression; "" for runt (no data)
 }
 
@@ -64,7 +65,8 @@ func main() {
 	sprigVer := flag.String("sprig", "v3.3.0", "Sprig module version (sprig mode only)")
 	includeRunt := flag.Bool("runt", false, "sprig mode: also emit runt() (no-data) cases")
 	mode := flag.String("mode", "sprig",
-		"extraction mode: sprig (runt/runtv calls) or gotmpl (text/template execTest tables)")
+		"extraction mode: sprig (runt/runtv calls), gotmpl (text/template execTest tables), "+
+			"or helm (Helm funcs_test.go {tpl,expect,vars} tables)")
 	keep := flag.Bool("keep", false, "keep the generated temp module dir")
 	flag.Parse()
 	if flag.NArg() == 0 {
@@ -77,9 +79,12 @@ func main() {
 	for _, file := range flag.Args() {
 		var cases []rawCase
 		var err error
-		if *mode == "gotmpl" {
+		switch *mode {
+		case "gotmpl":
 			cases, err = extractExecTests(file)
-		} else {
+		case "helm":
+			cases, err = extractHelmFuncs(file)
+		default:
 			cases, err = extractFile(file, *includeRunt)
 		}
 		if err != nil {
@@ -106,8 +111,11 @@ func main() {
 
 // outName picks the fixture filename for a given mode and input file.
 func outName(mode, file string) string {
-	if mode == "gotmpl" {
+	switch mode {
+	case "gotmpl":
 		return "gotmpl_" + categoryOf(file) + "_cases.tsv"
+	case "helm":
+		return "helm_funcs_cases.tsv"
 	}
 	return "sprig_" + categoryOf(file) + "_runtv_cases.tsv"
 }
@@ -232,6 +240,64 @@ func isNilExpr(e ast.Expr) bool {
 	return ok && id.Name == "nil"
 }
 
+// extractHelmFuncs pulls cases from Helm's funcs_test.go-style keyed tables:
+//
+//	tests := []struct{ tpl, expect string; vars any }{ {tpl: `...`, expect: `...`, vars: ...}, ... }
+//
+// The expect field is the ground-truth output, taken verbatim from source — these are not
+// re-rendered (Helm's funcMap is internal), only the vars are JSON-marshalled. Entries whose
+// vars don't compile (or carry non-portable types) are dropped by the build loop.
+func extractHelmFuncs(path string) ([]rawCase, error) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		return nil, err
+	}
+	var cases []rawCase
+	ast.Inspect(f, func(n ast.Node) bool {
+		cl, ok := n.(*ast.CompositeLit)
+		if !ok || len(cl.Elts) == 0 {
+			return true
+		}
+		var tplE, expectE, varsE ast.Expr
+		for _, e := range cl.Elts {
+			kv, ok := e.(*ast.KeyValueExpr)
+			if !ok {
+				return true // not a fully-keyed struct literal — not a {tpl,expect,vars} entry
+			}
+			if id, ok := kv.Key.(*ast.Ident); ok {
+				switch id.Name {
+				case "tpl":
+					tplE = kv.Value
+				case "expect":
+					expectE = kv.Value
+				case "vars":
+					varsE = kv.Value
+				}
+			}
+		}
+		tpl, ok1 := stringLit(tplE)
+		expect, ok2 := stringLit(expectE)
+		if !ok1 || !ok2 {
+			return true
+		}
+		vs := ""
+		if varsE != nil && !isNilExpr(varsE) {
+			// String vars (raw TOML/YAML) carry significant newlines; re-quote them to a
+			// single-line escaped literal so the source stays one line per case without
+			// collapsing whitespace the way exprSource does for composite literals.
+			if s, ok := stringLit(varsE); ok {
+				vs = strconv.Quote(s)
+			} else {
+				vs = exprSource(fset, varsE)
+			}
+		}
+		cases = append(cases, rawCase{tpl: tpl, expect: expect, varsSrc: vs})
+		return true
+	})
+	return cases, nil
+}
+
 // resolveTpl yields the template text for a runt/runtv first argument, whether it is an
 // inline string literal or an identifier previously assigned one.
 func resolveTpl(arg ast.Expr, strVars map[string]string) (string, bool) {
@@ -289,8 +355,12 @@ var buildErrLine = regexp.MustCompile(`main\.go:(\d+):`)
 // won't compile, then runs it and returns the TSV rows plus the dropped count.
 func renderCases(cases []rawCase, mode, sprigVer string, keep bool) ([]string, int, error) {
 	header, footer, defaultVars := genHeader, genFooter, "map[string]any{}"
-	if mode == "gotmpl" {
+	withExpect := false
+	switch mode {
+	case "gotmpl":
 		header, footer, defaultVars = gotmplHeader, gotmplFooter, "nil"
+	case "helm":
+		header, footer, defaultVars, withExpect = helmHeader, helmFooter, "nil", true
 	}
 	dir, err := os.MkdirTemp("", "runtvgen")
 	if err != nil {
@@ -307,7 +377,7 @@ func renderCases(cases []rawCase, mode, sprigVer string, keep bool) ([]string, i
 
 	bad := map[int]bool{}
 	for {
-		src, lineOf, origOf := generateSource(cases, bad, defaultVars, header, footer)
+		src, lineOf, origOf := generateSource(cases, bad, defaultVars, header, footer, withExpect)
 		if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(src), 0o644); err != nil {
 			return nil, 0, err
 		}
@@ -367,7 +437,7 @@ func caseForLine(lineOf []int, ln int) int {
 // generateSource returns the program text, the start line of each emitted case, and the
 // parallel original-index of each emitted case (so compiler errors map back to the right
 // entry in the full `cases` slice even after earlier cases have been dropped).
-func generateSource(cases []rawCase, bad map[int]bool, defaultVars, header, footer string) (string, []int, []int) {
+func generateSource(cases []rawCase, bad map[int]bool, defaultVars, header, footer string, withExpect bool) (string, []int, []int) {
 	var b strings.Builder
 	b.WriteString(header)
 	var lineOf, origOf []int
@@ -378,9 +448,15 @@ func generateSource(cases []rawCase, bad map[int]bool, defaultVars, header, foot
 		}
 		vars := c.varsSrc
 		if vars == "" {
-			vars = defaultVars // no-data case: sprig empty map, gotmpl nil
+			vars = defaultVars // no-data case: sprig empty map, gotmpl/helm nil
 		}
-		entry := fmt.Sprintf("\t{tpl: %s, vars: %s},\n", strconv.Quote(c.tpl), vars)
+		var entry string
+		if withExpect {
+			entry = fmt.Sprintf("\t{tpl: %s, expect: %s, vars: %s},\n",
+				strconv.Quote(c.tpl), strconv.Quote(c.expect), vars)
+		} else {
+			entry = fmt.Sprintf("\t{tpl: %s, vars: %s},\n", strconv.Quote(c.tpl), vars)
+		}
 		lineOf = append(lineOf, line)
 		origOf = append(origOf, i)
 		b.WriteString(entry)
@@ -494,6 +570,44 @@ func main() {
 }
 `
 
+// helm mode: do not render (Helm's funcMap is internal). The expect field is ground truth
+// from source; only the vars are JSON-marshalled for the Java conformance suite to feed in.
+const helmHeader = `package main
+
+import (
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
+type entry struct {
+	tpl    string
+	expect string
+	vars   any
+}
+
+var cases = []entry{
+`
+
+const helmFooter = `}
+
+func main() {
+	enc := base64.StdEncoding
+	for i, c := range cases {
+		jv, err := json.Marshal(c.vars)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "skip %d (json): %v\n", i, err)
+			continue
+		}
+		fmt.Printf("%s\t%s\t%s\n",
+			enc.EncodeToString([]byte(c.tpl)),
+			enc.EncodeToString([]byte(c.expect)),
+			enc.EncodeToString(jv))
+	}
+}
+`
+
 // writeModule lays down the throwaway module. For sprig mode it requires and fetches
 // Sprig; gotmpl mode is stdlib-only (text/template), so nothing to fetch.
 func writeModule(dir, mode, sprigVer string) error {
@@ -501,8 +615,8 @@ func writeModule(dir, mode, sprigVer string) error {
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0o644); err != nil {
 		return err
 	}
-	if mode == "gotmpl" {
-		return nil
+	if mode != "sprig" {
+		return nil // gotmpl/helm modes are stdlib-only; nothing to fetch
 	}
 	// A stub main so `go get` has a buildable package to resolve against.
 	stub := "package main\n\nimport _ \"github.com/Masterminds/sprig/v3\"\n\nfunc main() {}\n"

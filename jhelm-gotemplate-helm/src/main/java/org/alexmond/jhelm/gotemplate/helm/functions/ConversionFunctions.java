@@ -623,7 +623,7 @@ public final class ConversionFunctions {
 				return "";
 			}
 			try {
-				return TOML_MAPPER.get().writeValueAsString(args[0]);
+				return tomlToGoStyle(TOML_MAPPER.get().writeValueAsString(args[0]));
 			}
 			catch (Exception ex) {
 				log.debug("toToml failed: {}", ex.getMessage());
@@ -638,12 +638,34 @@ public final class ConversionFunctions {
 				throw new FunctionExecutionException("mustToToml: no value provided");
 			}
 			try {
-				return TOML_MAPPER.get().writeValueAsString(args[0]);
+				return tomlToGoStyle(TOML_MAPPER.get().writeValueAsString(args[0]));
 			}
 			catch (Exception ex) {
 				throw new FunctionExecutionException("mustToToml: failed to convert to TOML: " + ex.getMessage(), ex);
 			}
 		};
+	}
+
+	/**
+	 * Matches a {@code key = 'literal'} TOML line whose value is a single-quoted literal
+	 * string (no embedded single quote, since TOML literal strings can't escape one).
+	 */
+	private static final Pattern TOML_LITERAL_STRING = Pattern.compile("(?m)^(\\h*[^=\\n]*?= )'([^'\\n]*)'(\\h*)$");
+
+	/**
+	 * Rewrites Jackson's single-quoted literal strings to double-quoted basic strings,
+	 * since Go's TOML encoder (what Helm uses) always emits {@code key = "value"}.
+	 * Escapes backslashes and double quotes so the result is a valid basic string.
+	 */
+	private static String tomlToGoStyle(String toml) {
+		Matcher m = TOML_LITERAL_STRING.matcher(toml);
+		StringBuilder sb = new StringBuilder(toml.length());
+		while (m.find()) {
+			String value = m.group(2).replace("\\", "\\\\").replace("\"", "\\\"");
+			m.appendReplacement(sb, Matcher.quoteReplacement(m.group(1) + '"' + value + '"' + m.group(3)));
+		}
+		m.appendTail(sb);
+		return sb.toString();
 	}
 
 	private static Function fromToml() {
