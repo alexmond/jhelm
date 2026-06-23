@@ -119,7 +119,8 @@ public final class TemplateFunctions {
 	 * @return the rendered output
 	 */
 	private static String renderInline(GoTemplate factory, String text, Object data) throws Exception {
-		GoTemplate tplTemplate = new GoTemplate(factory.getFunctions());
+		// Match Helm's missingkey=zero: a nil/absent value renders "" inside tpl too.
+		GoTemplate tplTemplate = new GoTemplate(factory.getFunctions()).option("missingkey=zero");
 		tplTemplate.getRootNodes().putAll(factory.getRootNodes());
 		tplTemplate.parse("inline", text);
 		for (var entry : tplTemplate.getRootNodes().entrySet()) {

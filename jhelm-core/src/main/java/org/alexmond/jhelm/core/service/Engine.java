@@ -167,8 +167,9 @@ public class Engine {
 	private String doRender(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
 		namedTemplates.clear();
 		templateVersions.clear();
-		// Create a new template for each render to avoid accumulation
-		this.factory = new GoTemplate();
+		// Create a new template for each render to avoid accumulation. Helm renders a
+		// nil/absent value as "" (missingkey=zero), not Go's "<no value>".
+		this.factory = new GoTemplate().option("missingkey=zero");
 
 		// Apply aliases from dependency metadata before collecting templates, so that
 		// subchart .Chart.Name and template registration keys use the alias consistently.
