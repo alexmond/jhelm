@@ -46,6 +46,13 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Sprig functions on the test classpath so the HelmConformanceTest renders the
+             full Helm funcmap (engine + Sprig + Helm conversion), e.g. the duration helpers. -->
+        <dependency>
+            <groupId>org.alexmond</groupId>
+            <artifactId>gotmpl4j-sprig</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 </project>
