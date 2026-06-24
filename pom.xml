@@ -10,7 +10,7 @@
     </parent>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-parent</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>jhelm-parent</name>
     <description>jhelm parent POM</description>
