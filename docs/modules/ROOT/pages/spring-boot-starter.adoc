@@ -1,6 +1,8 @@
-= Spring Boot Starter (Programmatic Usage)
+= Library & Spring Boot Starter
 
-jhelm ships as a set of Spring Boot starters. Adding the right module to your classpath auto-configures all the beans you need to manage Helm charts programmatically.
+jhelm is designed to be embedded. Its modules are Spring Boot starters: adding the right one
+to your classpath auto-configures every bean you need to render templates and manage Helm
+charts and releases programmatically -- no CLI, no `helm` binary.
 
 == Module Selection
 

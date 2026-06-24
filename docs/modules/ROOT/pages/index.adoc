@@ -1,33 +1,45 @@
 = jhelm -- Java Implementation of Helm
 
 jhelm is a native Java implementation of the https://helm.sh[Helm] package manager for Kubernetes.
-It provides libraries and a CLI to work with Helm charts without the Go-based Helm CLI.
+It provides an embeddable library, a Spring Boot starter, a REST API, and a standalone CLI to
+work with Helm charts from the JVM -- without shelling out to the Go-based Helm binary.
+
+== Helm-faithful rendering
+
+jhelm renders chart templates byte-for-byte identically to `helm template` across a
+continuously-run suite of *346 real-world charts* (Bitnami, Grafana, GitLab,
+Kubernetes-monitoring, and more). Parity is enforced in CI on every change, so behaviour
+tracks upstream Helm closely rather than approximating it.
 
 == Key Features
 
-* *Full Go template engine* -- 100% Sprig and Helm function coverage
-* *Chart lifecycle management* -- install, upgrade, rollback, uninstall, list, status, history
+* *Go template engine* -- the full Go `text/template` language with Helm's Sprig function set
+  and Helm-specific functions (`include`, `tpl`, `required`, `lookup`, `toYaml`, …), provided
+  by the standalone https://github.com/alexmond/gotmpl4j[gotmpl4j] library.
+* *Chart lifecycle management* -- install, upgrade, rollback, uninstall, list, status, history, test
 * *Repository & OCI registries* -- add/remove repos, search, pull, push
 * *Dependency management* -- list, update, build chart dependencies
-* *Spring Boot auto-configuration* -- programmatic API with `@ConfigurationProperties`
+* *Packaging & provenance* -- package charts to `.tgz`, PGP sign and verify
+* *Spring Boot auto-configuration* -- programmatic action API with `@ConfigurationProperties`
+* *REST API* -- Spring MVC endpoints with OpenAPI/Swagger documentation
 * *JSON Schema validation* -- validates chart values against `values.schema.json` (Draft-07)
-* *Template caching* -- LRU cache for parsed template ASTs
 * *Async Kubernetes operations* -- Java 21 virtual threads via `AsyncKubeService`
 
 == Technology Stack
 
 * Java 21
-* Spring Boot 4.0.2
-* Kubernetes Client 25.0.0
-* Picocli 4.7.6 (CLI framework)
-* Jackson YAML 2.18.2
-* Commons Compress 1.26.1
+* Spring Boot 4.0.7
+* Kubernetes Client 26.0.0
+* gotmpl4j 0.3.0 (Go template + Sprig engine)
+* Picocli 4.7.7 (CLI framework)
 
 == Quick Links
 
 * xref:getting-started.adoc[Getting Started] -- build, run the CLI, or add jhelm as a library
 * xref:spring-boot-starter.adoc[Spring Boot Starter] -- programmatic API with auto-configured beans and code samples
+* xref:rest-api.adoc[REST API] -- HTTP endpoints and OpenAPI documentation
 * xref:cli-reference.adoc[CLI Reference] -- all commands, options, and examples
 * xref:configuration.adoc[Configuration] -- `jhelm.*` properties reference
 * xref:architecture.adoc[Architecture] -- module structure and design
+* xref:helm-functions.adoc[Helm Functions] -- the Helm-specific template function catalogue
 * xref:roadmap.adoc[Roadmap] -- planned features and compatibility matrix

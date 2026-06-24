@@ -19,13 +19,13 @@ extraction-ready engine*. The release is cut via `maven_release.yml`
 | *≥ 300 charts* render byte-identical to `helm template` in CI (the `KpsComparisonTest`
   suite, `charts.csv`), order-independent and with only the documented comparison-ignores
   (random/timestamp names, generated secrets/certs).
-| ✅ 300 / 300
+| ✅ 346 / 346
 
 | Engine maturity
-| The Go template engine (`jhelm-gotemplate` + `-sprig` + `-helm`) is in a *very advanced,
-  extraction-ready state* — see "`gotmpl4j` readiness" below. The 300-chart suite is its
-  de-facto conformance test.
-| Advanced — 300-chart suite green; remaining gaps tracked as discrete issues
+| The Go template + Sprig engine ships as the standalone
+  https://github.com/alexmond/gotmpl4j[gotmpl4j] library on Maven Central; jhelm consumes it
+  as a dependency (`gotmpl4j 0.3.0`). The 346-chart suite is its de-facto conformance test.
+| ✅ Extracted — gotmpl4j on Maven Central; 346-chart suite green
 
 | Supported surface
 | All modules ship as supported: `gotemplate`/`sprig`/`helm` (engine), `core` (chart
@@ -49,20 +49,20 @@ extraction-ready engine*. The release is cut via `maven_release.yml`
 | In progress
 |===
 
-=== `gotmpl4j` readiness (engine extraction)
+=== `gotmpl4j` (engine extraction — done)
 
-The Go template engine is planned to be extracted into a standalone library
-(`gotmpl4j`, with a Spring Boot starter) _after_ `0.1.0`. Splitting it later complicates
-cross-repo development, so `0.1.0` requires the engine to already be in a *very advanced
-state* so the eventual extraction is mechanical, not a redesign:
+The Go template engine has been extracted into the standalone
+https://github.com/alexmond/gotmpl4j[gotmpl4j] library, published to Maven Central
+(`org.alexmond:gotmpl4j-core`, `gotmpl4j-sprig`, plus a Spring Boot starter). jhelm consumes
+it as an ordinary dependency, keeping only the Helm-specific function layer
+(`jhelm-gotemplate-helm`) in this repository. The extraction holds the properties that made it
+mechanical rather than a redesign:
 
-* *Correctness* — no known rendering gaps; the 300-chart parity suite is the conformance
+* *Correctness* — no known rendering gaps; the 346-chart parity suite is the conformance
   bar.
-* *Clean boundary* — `jhelm-gotemplate` has zero dependencies on `sprig`, `helm`, or
-  `core`; Sprig (priority 100) and Helm (priority 200) functions load only via
-  `ServiceLoader`. (Enforced by the gotemplate-module rule.)
-* *Stable API* — `GoTemplate`, `Function`, `FunctionProvider` are settled; no breaking
-  churn expected post-split.
+* *Clean boundary* — the engine has zero dependencies on Sprig, Helm, or `core`; Sprig
+  (priority 100) and Helm (priority 200) functions load only via `ServiceLoader`.
+* *Stable API* — `GoTemplate`, `Function`, `FunctionProvider` are settled.
 * *Coverage* — comprehensive unit tests for lexer/parser/executor and every function
   category, independent of the chart suite.
 
@@ -128,14 +128,14 @@ The roadmap is divided into several phases focusing on compatibility, feature co
 | Feature | Helm 3 | Helm 4 | jhelm Current | Priority | Status
 
 | Template Rendering | ✅ | ✅ | ✅ | - | Complete
-| Sprig Functions | ✅ | ✅ | ✅ (100%) | P1 | ✅ Complete
+| Sprig Functions | ✅ | ✅ | ✅ | P1 | ✅ Complete (minor gaps tracked in Function Coverage)
 | *Helm 4 must* Functions* | ❌ | ✅ | ✅ | P1 | ✅ *Complete*
 | Server-Side Apply | ❌ | ✅ | ❌ | P1 | Pending
 | Three-Way Merge | ✅ | ❌ | ✅ | P1 | Complete
 | Plugin System | ✅ | ✅ (new) | ❌ | P2 | Pending
 | OCI Registries | ✅ | ✅ (enhanced) | ⚠️ | P1 | Partial
-| Chart Dependencies | ✅ | ✅ | ❌ | P2 | Pending
-| Hooks | ✅ | ✅ | ❌ | P2 | Pending
+| Chart Dependencies | ✅ | ✅ | ✅ | P2 | ✅ Complete
+| Hooks | ✅ | ✅ | ✅ | P2 | ✅ Complete
 | JSON Schema | ❌ | ✅ | ✅ | P2 | ✅ Complete
 | Content Caching | ❌ | ✅ | ✅ | P1 | ✅ Complete
 | Structured Logging | ❌ | ✅ | ⚠️ | P1 | Partial
@@ -183,4 +183,4 @@ Transform jhelm into an *enterprise-grade Helm management platform* powered by S
 * *jhelm-core*: Add `@ConfigurationProperties`, Spring Environment integration, Spring Events for deployment lifecycle, Spring Cache for template caching.
 * *jhelm-kube*: Reactive operations with Spring WebFlux, Spring Retry for resilience, Spring Cloud Kubernetes for discovery, Async deployment support.
 * *jhelm-cli*: Read from Spring Config Server, support environment variables via Spring Boot.
-* *jhelm-gotemplate*: Remains lightweight, no Spring dependency (pure Java).
+* *jhelm-gotemplate-helm*: Remains lightweight, no Spring dependency (pure Java), tracking the external gotmpl4j engine.

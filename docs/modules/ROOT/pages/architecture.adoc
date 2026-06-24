@@ -6,21 +6,38 @@ jhelm is a multi-module Maven project.
 
 ----
 jhelm (parent)
-├── jhelm-gotemplate/  — Go template engine (standalone)
-├── jhelm-core/        — Helm logic, charts, actions (depends on: jhelm-gotemplate)
-├── jhelm-kube/        — Kubernetes client integration (depends on: jhelm-core)
-└── jhelm-cli/         — CLI entry point, Spring Boot + Picocli (depends on: jhelm-core, jhelm-kube)
+├── jhelm-gotemplate-helm/  — Helm-specific template functions (depends on: gotmpl4j)
+├── jhelm-core/             — Helm logic, charts, actions (depends on: jhelm-gotemplate-helm, gotmpl4j)
+├── jhelm-kube/             — Kubernetes client integration (depends on: jhelm-core)
+├── jhelm-rest/             — REST API over jhelm operations (depends on: jhelm-core, jhelm-kube)
+├── jhelm-plugin/           — Maven plugin for packaging charts
+└── jhelm-cli/              — CLI entry point, Spring Boot + Picocli (depends on: jhelm-core, jhelm-kube)
 ----
+
+The Go template language and Sprig function library are **not** part of this repository.
+They live in the standalone https://github.com/alexmond/gotmpl4j[gotmpl4j] project (published
+to Maven Central) and are consumed as a dependency. jhelm contributes only the Helm-specific
+layer on top.
 
 == Modules
 
-=== jhelm-gotemplate
+=== gotmpl4j (external dependency)
 
-Java implementation of Go's template language (based on gotemplate4j, MIT License).
+The Go template engine, on Maven Central as `org.alexmond:gotmpl4j-core` and
+`org.alexmond:gotmpl4j-sprig`.
 
-* Lexer -> Parser -> AST -> Executor pipeline
-* Sprig functions and Helm-specific template functions
-* Category-based function registry (`SprigFunctionsRegistry`, `HelmFunctions`)
+* Lexer -> Parser -> AST -> Executor pipeline implementing Go's `text/template` language
+* The Sprig function set (strings, collections, math, encoding, crypto, date, semver, …)
+* `missingkey=zero` mode so an absent/nil value renders as the empty string, matching Helm
+
+=== jhelm-gotemplate-helm
+
+The Helm-specific template functions layered on top of gotmpl4j, registered via the engine's
+`FunctionProvider` SPI.
+
+* Template inclusion and evaluation: `include`, `tpl`, `required`
+* Conversion helpers: `toYaml`, `fromYaml`, `toJson`, `fromJson`, `toToml`
+* Kubernetes/chart helpers: `lookup`, `.Capabilities`, `.Files`
 
 === jhelm-core
 
@@ -42,7 +59,17 @@ Kubernetes client integration. Ships with Spring Boot auto-configuration (`Jhelm
 
 === jhelm-cli
 
-CLI entry point built with Picocli and Spring Boot. Provides 16 top-level commands covering the full Helm workflow. See the xref:cli-reference.adoc[CLI Reference] for details.
+CLI entry point built with Picocli and Spring Boot. Provides 22 top-level commands covering the full Helm workflow. See the xref:cli-reference.adoc[CLI Reference] for details.
+
+=== jhelm-rest
+
+A Spring MVC REST API exposing chart and template operations over HTTP. Ships OpenAPI/Swagger
+documentation (springdoc). See the xref:rest-api.adoc[REST API] reference for endpoints.
+
+=== jhelm-plugin
+
+A Maven plugin that packages charts as part of a project build, so chart artifacts can be
+produced and attached from CI without the Helm CLI.
 
 == Key Design Decisions
 

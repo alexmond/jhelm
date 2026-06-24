@@ -11,11 +11,16 @@
 
 ----
 jhelm (parent)
-├── jhelm-gotemplate (standalone template engine)
-├── jhelm-core (depends on: jhelm-gotemplate)
+├── jhelm-gotemplate-helm (Helm template functions; depends on: gotmpl4j)
+├── jhelm-core (depends on: jhelm-gotemplate-helm, gotmpl4j)
 ├── jhelm-kube (depends on: jhelm-core)
+├── jhelm-rest (depends on: jhelm-core, jhelm-kube)
+├── jhelm-plugin (Maven packaging plugin)
 └── jhelm-cli (depends on: jhelm-core, jhelm-kube)
 ----
+
+The Go template + Sprig engine is the external https://github.com/alexmond/gotmpl4j[gotmpl4j]
+library (Maven Central); jhelm provides only the Helm-specific function layer.
 
 == Testing
 
@@ -60,10 +65,13 @@ Before committing changes:
 
 === Adding a new template function
 
-. Determine the appropriate category:
-** *Helm functions*: Use `helm/conversion/`, `helm/template/`, `helm/kubernetes/`, or `helm/chart/`
-** *Sprig functions*: Use `sprig/strings/`, `sprig/collections/`, `sprig/logic/`, or create a new category
-. Add function to the appropriate category class (e.g., `StringFunctions.java`)
-. Function will be automatically registered via the coordinator (`HelmFunctions` or `SprigFunctionsRegistry`)
-. Add tests in corresponding test class (e.g., `Helm4FunctionsTest.java`)
-. Update `getFunctionCategories()` in the coordinator if adding a new category
+Helm-specific functions live in this repository, in `jhelm-gotemplate-helm`. Sprig and Go
+builtins live in the external https://github.com/alexmond/gotmpl4j[gotmpl4j] project -- add or
+fix those there.
+
+To add a Helm function:
+
+. Choose the category package: `helm/conversion/`, `helm/template/`, `helm/kubernetes/`, or `helm/chart/`
+. Add the function to the appropriate category class (e.g., `ConversionFunctions.java`)
+. Register it in the `HelmFunctions` coordinator
+. Add tests in the corresponding test class (e.g., `Helm4FunctionsTest.java`)
