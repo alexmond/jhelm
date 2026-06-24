@@ -3,43 +3,12 @@
 # (keyed on data too, since e.g. fromYaml passes on valid input and diverges on bad input).
 #
 # Three buckets, all tracked for incremental fixing:
-#  1. Helm-4 duration helpers not yet implemented (durationSeconds/Days/.../RoundTo/
-#     TruncateTo, mustToDuration) -> parser errors on the unknown functions.
+#  1. (fixed) Helm-4 duration helpers (durationSeconds/Days/.../RoundTo/TruncateTo,
+#     mustToDuration) are now implemented in DurationFunctions.
 #  2. from* return empty on bad input; Helm returns map[Error:<go message>] / [<error>].
 #  3. toToml nested maps: Jackson emits dotted keys (mast.sail=...) vs Helm's [mast] tables.
 #     (Flat-map single-quote vs double-quote was fixed; nested-table structure remains.)
 #
-# --- bucket 1: duration helpers (unimplemented) ---
-e3sgbXVzdFRvRHVyYXRpb24gMzAgfX0=	bnVsbA==
-e3sgbXVzdFRvRHVyYXRpb24gIjFtMzBzIiB9fQ==	bnVsbA==
-e3sgZHVyYXRpb25TZWNvbmRzICIxbTMwcyIgfX0=	bnVsbA==
-e3sgZHVyYXRpb25TZWNvbmRzICIyLjUiIH19	bnVsbA==
-e3sgZHVyYXRpb25TZWNvbmRzICIgIDIuNSAgIiB9fQ==	bnVsbA==
-e3sgZHVyYXRpb25TZWNvbmRzIDIgfX0=	bnVsbA==
-e3sgZHVyYXRpb25TZWNvbmRzIDIuNSB9fQ==	bnVsbA==
-e3sgZHVyYXRpb25TZWNvbmRzIC4gfX0=	Mg==
-e3sgZHVyYXRpb25TZWNvbmRzICJub3BlIiB9fQ==	bnVsbA==
-e3sgZHVyYXRpb25TZWNvbmRzICIiIH19	bnVsbA==
-e3sgZHVyYXRpb25TZWNvbmRzICIgICAiIH19	bnVsbA==
-e3sgZHVyYXRpb25TZWNvbmRzIC4gfX0=	bnVsbA==
-e3sgZHVyYXRpb25NaWxsaXNlY29uZHMgMiB9fQ==	bnVsbA==
-e3sgZHVyYXRpb25NaWxsaXNlY29uZHMgMS41IH19	bnVsbA==
-e3sgZHVyYXRpb25NaWNyb3NlY29uZHMgMiB9fQ==	bnVsbA==
-e3sgZHVyYXRpb25OYW5vc2Vjb25kcyAyIH19	bnVsbA==
-e3sgZHVyYXRpb25NaW51dGVzICI5MHMiIH19	bnVsbA==
-e3sgZHVyYXRpb25Ib3VycyAiOTBtIiB9fQ==	bnVsbA==
-e3sgZHVyYXRpb25EYXlzICIzNmgiIH19	bnVsbA==
-e3sgZHVyYXRpb25EYXlzIDg2NDAwIH19	bnVsbA==
-e3sgZHVyYXRpb25XZWVrcyAiMTY4aCIgfX0=	bnVsbA==
-e3sgZHVyYXRpb25XZWVrcyAiMjUyaCIgfX0=	bnVsbA==
-e3sgZHVyYXRpb25Sb3VuZFRvIDkzIDYwIH19	bnVsbA==
-e3sgZHVyYXRpb25UcnVuY2F0ZVRvIDkzIDYwIH19	bnVsbA==
-e3sgZHVyYXRpb25Sb3VuZFRvICI5M3MiICIxbSIgfX0=	bnVsbA==
-e3sgZHVyYXRpb25UcnVuY2F0ZVRvICI5M3MiICIxbSIgfX0=	bnVsbA==
-e3sgZHVyYXRpb25Sb3VuZFRvICI5M3MiICJub3BlIiB9fQ==	bnVsbA==
-e3sgZHVyYXRpb25UcnVuY2F0ZVRvICI5M3MiICJub3BlIiB9fQ==	bnVsbA==
-e3sgZHVyYXRpb25Sb3VuZFRvICI5M3MiIDAgfX0=	bnVsbA==
-e3sgZHVyYXRpb25UcnVuY2F0ZVRvICI5M3MiIC0xIH19	bnVsbA==
 #
 # --- bucket 2: from* error format ---
 e3sgZnJvbVRvbWwgLiB9fQ==	Im9uZSI=
