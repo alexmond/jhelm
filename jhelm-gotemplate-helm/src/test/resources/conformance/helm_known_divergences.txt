@@ -5,18 +5,17 @@
 # Three buckets, all tracked for incremental fixing:
 #  1. (fixed) Helm-4 duration helpers (durationSeconds/Days/.../RoundTo/TruncateTo,
 #     mustToDuration) are now implemented in DurationFunctions.
-#  2. from* return empty on bad input; Helm returns map[Error:<go message>] / [<error>].
+#  2. (mostly fixed) from* now return Helm's map[Error:<go message>] / [<error>] on
+#     wrong-shape input (the deterministic json.Unmarshal type-mismatch messages). The one
+#     case left is a true parser *syntax* error — fromToml "one" -> BurntSushi's
+#     "toml: line 1: unexpected EOF; expected key separator '='" — whose exact wording a
+#     Jackson-based parser can't reproduce without overfitting.
 #  3. toToml nested maps: Jackson emits dotted keys (mast.sail=...) vs Helm's [mast] tables.
 #     (Flat-map single-quote vs double-quote was fixed; nested-table structure remains.)
 #
 #
-# --- bucket 2: from* error format ---
+# --- bucket 2: from* error format (only the fromToml syntax-error case remains) ---
 e3sgZnJvbVRvbWwgLiB9fQ==	Im9uZSI=
-e3sgZnJvbVlhbWwgLiB9fQ==	Ii0gb25lXG4tIHR3b1xuIg==
-e3sgZnJvbUpzb24gLiB9fQ==	IltcIm9uZVwiLCBcInR3b1wiXSI=
-e3sgZnJvbUpzb25BcnJheSAuIH19	IntcImhlbGxvXCI6IFwid29ybGRcIn0i
-e3sgZnJvbVlhbWwgLiB9fQ==	IltcIm9uZVwiLCBcInR3b1wiXSI=
-e3sgZnJvbVlhbWxBcnJheSAuIH19	ImhlbGxvOiB3b3JsZCI=
 #
 # --- bucket 3: toToml nested tables ---
 e3sgdG9Ub21sIC4gfX0=	eyJtYXN0Ijp7InNhaWwiOiJ3aGl0ZSJ9fQ==
