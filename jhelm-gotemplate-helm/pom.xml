@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.alexmond</groupId>
         <artifactId>jhelm-parent</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <version>0.1.0</version>
     </parent>
     <artifactId>jhelm-gotemplate-helm</artifactId>
 
