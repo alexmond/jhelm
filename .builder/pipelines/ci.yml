@@ -1,0 +1,37 @@
+# jhelm CI on builder — translated from .github/workflows/build.yml (the Maven build).
+# Dropped vs the GitHub Actions workflow: codecov (both upload steps), the madrapps/jacoco-report
+# PR comment, the UniTrack reporter, and the dependency-submission action — all GitHub-Actions-specific
+# `uses:` with no builder equivalent. The Maven build itself is unchanged (`./mvnw clean install`).
+#
+# Note: jhelm-kube integration tests use a real cluster (Kind in GitHub Actions). builder's runner
+# already executes this job as a pod *inside* the lab k3s cluster, and build pods don't automount the
+# namespace ServiceAccount token, so those tests skip rather than reach the real API. `--fail-at-end`
+# keeps the rest of the modules building if any single one fails.
+name: jhelm CI
+
+on:
+  - push
+  - manual
+
+push:
+  branches:
+    - main
+
+jobs:
+  build:
+    image: eclipse-temurin:21-jdk
+    timeout: 30m
+    cache:
+      key: m2-jhelm
+      paths:
+        - .m2/repository
+    steps:
+      - name: setup-tools
+        run: |
+          (apt-get update -qq && apt-get install -y -qq git curl) || (apk add --no-cache git curl) || true
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm version
+      - name: checkout
+        run: git clone --depth 1 https://github.com/alexmond/jhelm.git .
+      - name: build
+        run: ./mvnw clean install -B --fail-at-end -Dmaven.repo.local=.m2/repository
