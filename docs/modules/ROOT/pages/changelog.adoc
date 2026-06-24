@@ -1,5 +1,32 @@
 = Changelog
 
+== 0.2.0
+
+Helm template-function conformance improvements, grinding `jhelm-gotemplate-helm` against
+Helm's own `pkg/engine/funcs_test.go` suite (the divergence backlog drops from 37 cases to 1).
+
+* *Helm 4 duration helpers* -- implemented `mustToDuration`, `durationSeconds`,
+  `durationMinutes`, `durationHours`, `durationDays`, `durationWeeks`,
+  `durationMilliseconds`, `durationMicroseconds`, `durationNanoseconds`, `durationRoundTo`,
+  and `durationTruncateTo`, as faithful ports of Go's `time.Duration` (parsing, rounding,
+  and `String()` formatting).
+* *`from*` error reporting* -- `fromJson`/`fromYaml` and `fromJsonArray`/`fromYamlArray` now
+  return Helm's `map[Error:<message>]` / `[<message>]` with Go's `json.Unmarshal`
+  type-mismatch text when handed valid input of the wrong shape, instead of silently
+  returning an empty container.
+* *`toToml` table output* -- now emits Go BurntSushi-style `[table]` / `[[array-of-tables]]`
+  headers with the matching key ordering and indentation, instead of Jackson's dotted keys.
+
+All 346 reference charts continue to render byte-identically to `helm template`.
+
+=== Known limitations
+
+* The `helm upgrade` value-retention flags (`--reset-values`, `--reuse-values`,
+  `--reset-then-reuse-values`) remain unimplemented.
+* One `fromToml` conformance case (a malformed-input syntax error) still differs from Helm in
+  the exact error wording, an inherent difference between the Jackson and Go (BurntSushi)
+  TOML parsers.
+
 == 0.1.0 -- first public prerelease
 
 The first published release of jhelm, on Maven Central (marked _pre-release_).
