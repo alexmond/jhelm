@@ -2,20 +2,15 @@
 # excluded from HelmConformanceTest. Each line is a base64(template)\tbase64(data) key
 # (keyed on data too, since e.g. fromYaml passes on valid input and diverges on bad input).
 #
-# Three buckets, all tracked for incremental fixing:
+# Backlog status (started at 37 divergences):
 #  1. (fixed) Helm-4 duration helpers (durationSeconds/Days/.../RoundTo/TruncateTo,
-#     mustToDuration) are now implemented in DurationFunctions.
-#  2. (mostly fixed) from* now return Helm's map[Error:<go message>] / [<error>] on
-#     wrong-shape input (the deterministic json.Unmarshal type-mismatch messages). The one
-#     case left is a true parser *syntax* error — fromToml "one" -> BurntSushi's
-#     "toml: line 1: unexpected EOF; expected key separator '='" — whose exact wording a
-#     Jackson-based parser can't reproduce without overfitting.
-#  3. toToml nested maps: Jackson emits dotted keys (mast.sail=...) vs Helm's [mast] tables.
-#     (Flat-map single-quote vs double-quote was fixed; nested-table structure remains.)
+#     mustToDuration) implemented in DurationFunctions.
+#  2. (fixed) from* return Helm's map[Error:<go message>] / [<error>] on wrong-shape input
+#     (deterministic json.Unmarshal type-mismatch messages).
+#  3. (fixed) toToml emits Go BurntSushi-style [table] headers via TomlWriter, not Jackson's
+#     dotted keys.
 #
-#
-# --- bucket 2: from* error format (only the fromToml syntax-error case remains) ---
+# Only one case remains: a true parser *syntax* error — fromToml "one" -> BurntSushi's
+# "toml: line 1: unexpected EOF; expected key separator '='" — whose exact wording a
+# Jackson-based TOML parser can't reproduce without overfitting to the one input.
 e3sgZnJvbVRvbWwgLiB9fQ==	Im9uZSI=
-#
-# --- bucket 3: toToml nested tables ---
-e3sgdG9Ub21sIC4gfX0=	eyJtYXN0Ijp7InNhaWwiOiJ3aGl0ZSJ9fQ==
