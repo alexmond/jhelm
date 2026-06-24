@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.6</version>
+        <version>4.0.7</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>org.alexmond</groupId>
@@ -43,14 +43,14 @@
              -Dsurefire.excludedGroups= -Dgroups=comparison to run only the parity suite. -->
         <surefire.excludedGroups>comparison</surefire.excludedGroups>
         <gotmpl4j.version>0.3.0</gotmpl4j.version>
-        <kubernetes-client.version>25.0.0</kubernetes-client.version>
+        <kubernetes-client.version>26.0.0</kubernetes-client.version>
         <picocli.version>4.7.7</picocli.version>
         <semver4j.version>6.0.0</semver4j.version>
-        <bouncycastle.version>1.83</bouncycastle.version>
-        <commons-compress.version>1.26.1</commons-compress.version>
-        <chicory.version>1.7.2</chicory.version>
-        <swagger-annotations.version>2.2.34</swagger-annotations.version>
-        <springdoc-openapi.version>3.0.2</springdoc-openapi.version>
+        <bouncycastle.version>1.84</bouncycastle.version>
+        <commons-compress.version>1.28.0</commons-compress.version>
+        <chicory.version>1.7.5</chicory.version>
+        <swagger-annotations.version>2.2.52</swagger-annotations.version>
+        <springdoc-openapi.version>3.0.3</springdoc-openapi.version>
 
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.10.0</central-publishing-maven-plugin.version>

@@ -1,84 +1,159 @@
 = jhelm
+:jhelm-version: 0.1.0
 :url-docs: https://www.alexmond.org/jhelm/current/index.html
+:toc:
+
+image:https://img.shields.io/maven-central/v/org.alexmond/jhelm-core.svg?label=Maven%20Central[Maven Central,link=https://search.maven.org/artifact/org.alexmond/jhelm-core]
+image:https://img.shields.io/badge/License-Apache%202.0-blue.svg[License,link=LICENSE]
+image:https://img.shields.io/github/actions/workflow/status/alexmond/jhelm/build.yml[Build Status,link=https://github.com/alexmond/jhelm/actions]
+image:https://codecov.io/gh/alexmond/jhelm/graph/badge.svg[codecov,link=https://codecov.io/gh/alexmond/jhelm]
+image:https://img.shields.io/badge/Java-21-orange.svg[Java 21]
 
 A native Java implementation of the https://helm.sh[Helm] package manager for Kubernetes.
-Render templates, manage charts, and deploy releases without the Go-based Helm CLI.
+Render templates, manage charts, and deploy releases from the JVM -- as an embeddable
+library, a Spring Boot starter, a REST API, or a standalone CLI -- without shelling out to
+the Go-based Helm binary.
+
+== Why jhelm
+
+* *Helm-faithful rendering* -- jhelm renders chart templates byte-for-byte identically to
+  `helm template` across a continuously-run suite of *346 real-world charts* (Bitnami,
+  Grafana, GitLab, Kubernetes-monitoring, and more). Parity is enforced in CI on every change.
+* *Pure JVM, no native binary* -- no `helm` executable, no `exec`, no platform-specific
+  distribution. Just a Maven dependency.
+* *Designed to be embedded* -- a clean programmatic API (`TemplateAction`, `InstallAction`,
+  …), Spring Boot auto-configuration, and a REST module, in addition to the CLI.
+* *Go template engine on Maven Central* -- the template/Sprig engine is the standalone
+  https://github.com/alexmond/gotmpl4j[gotmpl4j] library, reusable on its own.
 
 == Features
 
-* *Full template engine* -- Go templates with 100% Sprig and Helm function coverage
-* *Chart lifecycle* -- install, upgrade, rollback, uninstall, list, status, history
-* *Repository management* -- add/remove repos, search, pull, push (HTTP + OCI registries)
-* *Dependency management* -- list, update, build chart dependencies
-* *Spring Boot integration* -- auto-configured beans, `@ConfigurationProperties`, and programmatic API
-* *JSON Schema validation* -- validates chart values against `values.schema.json` (Draft-07)
-* *Template caching* -- LRU cache for parsed template ASTs
-* *Async Kubernetes operations* -- Java 21 virtual threads via `AsyncKubeService`
+* *Go template engine* -- the full Go `text/template` language with Helm's Sprig function
+  set and Helm-specific functions (`include`, `tpl`, `required`, `lookup`, `toYaml`, …),
+  matched against Helm's own conformance tests.
+* *Chart lifecycle* -- install, upgrade, rollback, uninstall, list, status, history, test.
+* *Repository & registry management* -- add/remove repos, search, pull, push over both
+  classic HTTP repositories and OCI registries.
+* *Dependency management* -- list, update, and build chart dependencies (`Chart.yaml`
+  dependencies, `charts/` vendoring, conditions/tags).
+* *Packaging & provenance* -- package charts to `.tgz`, sign and verify with PGP
+  provenance files.
+* *Spring Boot integration* -- auto-configured beans, `@ConfigurationProperties`, and a
+  programmatic action API.
+* *REST API* -- a Spring MVC module exposing chart and template operations over HTTP, with
+  OpenAPI/Swagger documentation.
+* *JSON Schema validation* -- validates chart values against `values.schema.json` (Draft-07).
+* *Async Kubernetes operations* -- Java 21 virtual threads via `AsyncKubeService`.
+
+== Modules
+
+[cols="1,3"]
+|===
+| Module | Description
+
+| `jhelm-core` | Chart model, loader, repository manager, rendering engine, and action API. The main entry point for library users.
+| `jhelm-gotemplate-helm` | Helm-specific template functions (`include`, `tpl`, `required`, `toYaml`, `lookup`, …) layered on top of gotmpl4j.
+| `jhelm-kube` | Kubernetes client integration -- apply/delete resources, ConfigMap-based release storage, async operations.
+| `jhelm-rest` | Spring MVC REST API over jhelm operations, with OpenAPI documentation.
+| `jhelm-plugin` | Maven plugin for packaging charts as part of a build.
+| `jhelm-cli` | Standalone CLI (Spring Boot + Picocli) -- 22 Helm-compatible commands.
+|===
+
+The Go template + Sprig engine lives in the separate
+https://github.com/alexmond/gotmpl4j[gotmpl4j] project (on Maven Central) and is consumed
+as a dependency.
 
 == Tech Stack
 
 [cols="1,1"]
 |===
 | Java | 21
-| Spring Boot | 4.0.2
-| Kubernetes Client | 25.0.0
-| CLI Framework | Picocli 4.7.6
+| Spring Boot | 4.0.7
+| Kubernetes Client | 26.0.0
+| Template engine | gotmpl4j 0.3.0
+| CLI framework | Picocli 4.7.7
 |===
 
 == Quick Start
 
-=== As a Library
+=== As a library
 
-Add the dependency to your `pom.xml`:
+Add `jhelm-core` to your `pom.xml`:
 
-[source,xml]
+[source,xml,subs="attributes"]
 ----
 <dependency>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-core</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>{jhelm-version}</version>
 </dependency>
 ----
 
-For Kubernetes operations, also add:
+For Kubernetes operations (install/upgrade/rollback against a cluster), also add:
 
-[source,xml]
+[source,xml,subs="attributes"]
 ----
 <dependency>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-kube</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>{jhelm-version}</version>
 </dependency>
 ----
 
-Render a chart programmatically:
+Render a chart programmatically (Spring Boot auto-configures the action beans):
 
 [source,java]
 ----
-@Autowired TemplateAction templateAction;
+@Autowired
+TemplateAction templateAction;
 
+// Render with default values
 String manifest = templateAction.render(
-    "/path/to/chart", "my-release", "default");
+        "/path/to/chart", "my-release", "default");
+
+// Render with value overrides
+String manifest = templateAction.render(
+        "/path/to/chart", "my-release", "default",
+        Map.of("replicaCount", 3, "image", Map.of("tag", "1.2.3")));
 ----
+
+See the https://www.alexmond.org/jhelm/current/spring-boot-starter.html[Spring Boot Starter]
+guide for the full action API and configuration properties.
 
 === As a CLI
 
-[source,bash]
+[source,bash,subs="attributes"]
 ----
 ./mvnw clean install -DskipTests
-java -jar jhelm-cli/target/jhelm-0.0.1-SNAPSHOT.jar template my-release ./my-chart
+java -jar jhelm-cli/target/jhelm-{jhelm-version}.jar template my-release ./my-chart
+----
+
+The CLI mirrors the Helm command surface:
+
+[source,bash]
+----
+jhelm template my-release ./my-chart        # render manifests locally
+jhelm install my-release ./my-chart -n prod # install into a cluster
+jhelm upgrade my-release ./my-chart         # upgrade an existing release
+jhelm repo add bitnami https://charts.bitnami.com/bitnami
+jhelm pull bitnami/nginx --untar
 ----
 
 == Documentation
 
-Full documentation is available at {url-docs}.
+Full documentation -- getting started, architecture, CLI reference, configuration, the REST
+API, and the Helm function catalogue -- is published at {url-docs}.
 
 == Building
 
 [source,bash]
 ----
-./mvnw clean install
+./mvnw clean install          # build + run tests
+./mvnw test -pl jhelm-core    # test a single module
 ----
+
+Helm-parity tests (rendering jhelm against `helm template` over the chart suite) require a
+local `helm` binary on the `PATH`.
 
 == License
 

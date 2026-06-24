@@ -1,7 +1,10 @@
 = Sprig Functions
 
-Sprig functions are provided by the `jhelm-gotemplate-sprig` module.
-They are auto-discovered via `ServiceLoader` when the module is on the classpath (priority 100).
+Sprig functions are provided by the standalone
+https://github.com/alexmond/gotmpl4j[gotmpl4j] engine (`org.alexmond:gotmpl4j-sprig`, on
+Maven Central), which jhelm depends on. They are auto-discovered via `ServiceLoader` when the
+module is on the classpath (priority 100). The catalogue below lists the functions available
+to chart templates; for engine internals see the gotmpl4j project.
 
 == Categories
 

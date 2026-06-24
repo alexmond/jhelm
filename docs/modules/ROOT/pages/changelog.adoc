@@ -1,0 +1,40 @@
+= Changelog
+
+== 0.1.0 -- first public prerelease
+
+The first published release of jhelm, on Maven Central (marked _pre-release_).
+
+* *Helm-faithful rendering* -- chart templates render byte-for-byte identically to
+  `helm template` across a CI-enforced suite of 346 real-world charts (Bitnami, Grafana,
+  GitLab, Kubernetes-monitoring, and others).
+* *Go template engine* -- the full Go `text/template` language plus Helm's Sprig function
+  set, provided by the standalone https://github.com/alexmond/gotmpl4j[gotmpl4j] library
+  (`gotmpl4j 0.3.0`). Renders absent/nil values as the empty string (`missingkey=zero`),
+  matching Helm.
+* *Helm template functions* -- `include`, `tpl`, `required`, `lookup`, `toYaml`/`fromYaml`,
+  `toJson`/`fromJson`, `toToml`, and the chart/capabilities/files helpers.
+* *Chart lifecycle* -- install, upgrade, rollback, uninstall, list, status, history, test.
+* *Repositories & registries* -- classic HTTP repositories and OCI registries, with digest
+  verification and content-based caching.
+* *Dependency management* -- list, update, and build chart dependencies; recursive value
+  coalescing across subcharts.
+* *Packaging & provenance* -- package charts to `.tgz`; PGP sign and verify.
+* *JSON Schema validation* -- chart values validated against `values.schema.json` (Draft-07).
+* *Distribution surfaces* -- embeddable library, Spring Boot starter (auto-configured
+  action beans), REST API (`jhelm-rest`, with OpenAPI docs), Maven packaging plugin
+  (`jhelm-plugin`), and a 22-command CLI.
+* *Built on* Java 21, Spring Boot 4.0.7, Kubernetes Client 26.0.0, Picocli 4.7.7.
+
+=== Known limitations
+
+The following are out of scope for this first prerelease and are planned for `0.2.0`:
+
+* *`helm upgrade` value-retention flags* -- `--reset-values`, `--reuse-values`, and
+  `--reset-then-reuse-values` are not yet implemented. `upgrade` applies the chart defaults
+  merged with the values you pass on the command line.
+* *Helm function fidelity* -- a small number of functions have documented partial-fidelity
+  behaviour: the Helm 4 duration helpers, the `fromYaml`/`fromJson` error-map format, and
+  nested `toToml` tables. See xref:function-coverage.adoc[Function Coverage].
+* *Subchart value coalescing* -- deeply-nested umbrella charts (GitLab-scale) may differ from
+  Helm in rare value-coalesce edge cases; the common cases render byte-identically (the
+  346-chart parity suite).
