@@ -7,6 +7,7 @@ import java.util.Map;
 import org.alexmond.gotmpl4j.Function;
 import org.alexmond.gotmpl4j.GoTemplate;
 import org.alexmond.jhelm.gotemplate.helm.functions.ConversionFunctions;
+import org.alexmond.jhelm.gotemplate.helm.functions.DurationFunctions;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesFunctions;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
 import org.alexmond.jhelm.gotemplate.helm.functions.TemplateFunctions;
@@ -39,6 +40,9 @@ public final class HelmFunctions {
 		// YAML/JSON conversion (toYaml, toJson, fromYaml, fromJson, and must* variants)
 		functions.putAll(ConversionFunctions.getFunctions());
 
+		// Helm 4 duration helpers (durationSeconds, durationRoundTo, mustToDuration, …)
+		functions.putAll(DurationFunctions.getFunctions());
+
 		// Kubernetes operations (lookup, kubeVersion) - with provider
 		functions.putAll(KubernetesFunctions.getFunctions(kubernetesProvider));
 
@@ -66,6 +70,11 @@ public final class HelmFunctions {
 
 		categories.put("Conversion", List.of("toYaml", "toJson", "fromYaml", "fromJson", "fromYamlArray", "toToml",
 				"fromToml", "mustToYaml", "mustToJson", "mustFromYaml", "mustFromJson", "mustToToml", "mustFromToml"));
+
+		categories.put("Duration",
+				List.of("mustToDuration", "durationSeconds", "durationMinutes", "durationHours", "durationDays",
+						"durationWeeks", "durationMilliseconds", "durationMicroseconds", "durationNanoseconds",
+						"durationRoundTo", "durationTruncateTo"));
 
 		categories.put("Kubernetes", List.of("lookup", "kubeVersion"));
 

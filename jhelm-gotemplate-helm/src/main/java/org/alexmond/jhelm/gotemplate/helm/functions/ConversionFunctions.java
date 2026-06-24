@@ -279,6 +279,64 @@ public final class ConversionFunctions {
 	}
 
 	/**
+	 * Wrap an error message the way Helm's {@code from*} map functions do: a single-entry
+	 * map under the {@code Error} key, which renders as {@code map[Error:<message>]}.
+	 */
+	private static Map<String, Object> errorMap(String message) {
+		Map<String, Object> error = new LinkedHashMap<>();
+		error.put("Error", message);
+		return error;
+	}
+
+	/**
+	 * Wrap an error message the way Helm's {@code from*Array} functions do: a
+	 * single-element list, which renders as {@code [<message>]}.
+	 */
+	private static List<Object> errorList(String message) {
+		return List.of(message);
+	}
+
+	/**
+	 * Build the Go {@code json.Unmarshal} type-mismatch message Helm surfaces when a
+	 * {@code from*} function is handed valid input of the wrong shape. The JSON variant
+	 * is the bare {@code encoding/json} message; the YAML variant carries the
+	 * {@code sigs.k8s.io/yaml} wrapper ({@code "error unmarshaling JSON: while decoding
+	 * JSON: ..."}) because Helm's {@code fromYaml}/{@code fromYamlArray} round-trip YAML
+	 * through JSON.
+	 * @param value the value that was actually parsed (its kind drives the message)
+	 * @param yaml {@code true} for the YAML functions, {@code false} for the JSON
+	 * functions
+	 * @param wantMap {@code true} when a map was expected, {@code false} for a list
+	 * @return the Go error string
+	 */
+	private static String goUnmarshalMessage(Object value, boolean yaml, boolean wantMap) {
+		String wantType = wantMap ? "map[string]interface {}" : "[]interface {}";
+		String base = "json: cannot unmarshal " + goJsonKind(value) + " into Go value of type " + wantType;
+		return yaml ? "error unmarshaling JSON: while decoding JSON: " + base : base;
+	}
+
+	/**
+	 * The Go {@code encoding/json} name for a decoded value's kind, as it appears in an
+	 * unmarshal error ({@code array}, {@code object}, {@code string}, {@code number},
+	 * {@code bool}).
+	 */
+	private static String goJsonKind(Object value) {
+		if (value instanceof List) {
+			return "array";
+		}
+		if (value instanceof Map) {
+			return "object";
+		}
+		if (value instanceof Boolean) {
+			return "bool";
+		}
+		if (value instanceof Number) {
+			return "number";
+		}
+		return "string";
+	}
+
+	/**
 	 * fromYaml parses YAML string to object Returns empty map on error
 	 */
 	private static Function fromYaml() {
@@ -292,7 +350,18 @@ public final class ConversionFunctions {
 					return new LinkedHashMap<>();
 				}
 				Object result = loadFirstYamlDocument(yaml);
-				return (result instanceof Map<?, ?> map) ? map : new LinkedHashMap<>();
+				if (result == null) {
+					return new LinkedHashMap<>();
+				}
+				if (result instanceof Map<?, ?> map) {
+					return map;
+				}
+				// Valid YAML of the wrong shape (e.g. a sequence): Helm's fromYaml runs
+				// it
+				// through sigs.k8s.io/yaml (YAML -> JSON -> json.Unmarshal into a map)
+				// and
+				// returns map[Error:<the JSON unmarshal error>], not an empty map.
+				return errorMap(goUnmarshalMessage(result, true, true));
 			}
 			catch (Exception ex) {
 				// Match Helm's fromYaml, which surfaces a parse failure under an "Error"
@@ -302,9 +371,7 @@ public final class ConversionFunctions {
 				// empty map hides real bugs (it wiped bitnami/grafana-mimir's whole
 				// config).
 				log.debug("fromYaml failed: {}", ex.getMessage());
-				Map<String, Object> error = new LinkedHashMap<>();
-				error.put("Error", ex.getMessage());
-				return error;
+				return errorMap(ex.getMessage());
 			}
 		};
 	}
@@ -352,7 +419,15 @@ public final class ConversionFunctions {
 					return Collections.emptyList();
 				}
 				Object result = loadFirstYamlDocument(yaml);
-				return (result instanceof List<?> list) ? list : Collections.emptyList();
+				if (result == null) {
+					return Collections.emptyList();
+				}
+				if (result instanceof List<?> list) {
+					return list;
+				}
+				// Valid YAML of the wrong shape (e.g. a mapping): Helm returns
+				// [<the JSON unmarshal error>], not an empty list.
+				return errorList(goUnmarshalMessage(result, true, false));
 			}
 			catch (Exception ex) {
 				// Match Helm's fromYamlArray, which returns [err.Error()] on a parse
@@ -534,7 +609,13 @@ public final class ConversionFunctions {
 				if (json.isBlank() || "null".equals(json)) {
 					return Map.of();
 				}
-				return JSON_MAPPER.get().readValue(json, Map.class);
+				Object result = JSON_MAPPER.get().readValue(json, Object.class);
+				if (result instanceof Map<?, ?> map) {
+					return map;
+				}
+				// Valid JSON of the wrong shape (e.g. an array): Helm returns
+				// map[Error:<the json.Unmarshal error>], not an empty map.
+				return errorMap(goUnmarshalMessage(result, false, true));
 			}
 			catch (Exception ex) {
 				log.debug("fromJson failed: {}", ex.getMessage());
@@ -581,7 +662,13 @@ public final class ConversionFunctions {
 				if (json.isBlank() || "null".equals(json)) {
 					return Collections.emptyList();
 				}
-				return JSON_MAPPER.get().readValue(json, List.class);
+				Object result = JSON_MAPPER.get().readValue(json, Object.class);
+				if (result instanceof List<?> list) {
+					return list;
+				}
+				// Valid JSON of the wrong shape (e.g. an object): Helm returns
+				// [<the json.Unmarshal error>], not an empty list.
+				return errorList(goUnmarshalMessage(result, false, false));
 			}
 			catch (Exception ex) {
 				log.debug("fromJsonArray failed: {}", ex.getMessage());
