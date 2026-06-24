@@ -716,4 +716,35 @@ class ConversionFunctionsTest {
 		assertEquals(42, ((Number) parsed.get("count")).intValue());
 	}
 
+	@Test
+	void testToTomlNestedTablesUseHeaders() {
+		// Helm's toToml (Go BurntSushi) emits [table] headers with 2-space-per-depth
+		// indentation, not Jackson's dotted keys (mast.sail = ...). Verified against the
+		// helm binary.
+		Function fn = functions().get("toToml");
+		Map<String, Object> inner = new LinkedHashMap<>();
+		inner.put("cc", "deepval");
+		Map<String, Object> a = new LinkedHashMap<>();
+		a.put("xx", "v");
+		a.put("bb", inner);
+		Map<String, Object> root = new LinkedHashMap<>();
+		root.put("a", a);
+		assertEquals("[a]\n  xx = \"v\"\n  [a.bb]\n    cc = \"deepval\"\n", fn.invoke(new Object[] { root }));
+	}
+
+	@Test
+	void testToTomlArrayOfTables() {
+		// An array of maps renders as repeated [[key]] sections, each preceded by a blank
+		// line (except when it is the first line of output). Verified against the helm
+		// binary.
+		Function fn = functions().get("toToml");
+		Map<String, Object> first = new LinkedHashMap<>();
+		first.put("srv", "alpha");
+		Map<String, Object> second = new LinkedHashMap<>();
+		second.put("srv", "beta");
+		Map<String, Object> root = new LinkedHashMap<>();
+		root.put("list", List.of(first, second));
+		assertEquals("[[list]]\n  srv = \"alpha\"\n\n[[list]]\n  srv = \"beta\"\n", fn.invoke(new Object[] { root }));
+	}
+
 }
