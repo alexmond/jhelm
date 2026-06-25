@@ -5,8 +5,8 @@ import java.nio.file.Files;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.bouncycastle.openpgp.PGPPublicKeyRingCollection;
 import org.alexmond.jhelm.core.service.SignatureService;
+import org.alexmond.jhelm.core.service.VerificationKeyring;
 
 /**
  * Verifies a packaged chart archive against its PGP provenance file.
@@ -34,9 +34,9 @@ public class VerifyAction {
 		}
 
 		String provContent = Files.readString(provFile.toPath());
-		PGPPublicKeyRingCollection publicKeys = signatureService.loadPublicKeyring(keyringPath);
+		VerificationKeyring keyring = signatureService.loadVerificationKeyring(keyringPath);
 
-		signatureService.verify(chartFile, provContent, publicKeys);
+		signatureService.verify(chartFile, provContent, keyring);
 		if (log.isInfoEnabled()) {
 			log.info("Verification succeeded for {}", chartFile.getName());
 		}

@@ -1,21 +1,28 @@
 package org.alexmond.jhelm.core.action;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Security;
 import java.util.Date;
+import java.util.List;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.SignatureService;
+import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPKeyRingGenerator;
 import org.bouncycastle.openpgp.PGPSecretKey;
+import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.bouncycastle.openpgp.PGPSecretKeyRingCollection;
 import org.bouncycastle.openpgp.PGPSignature;
+import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyPair;
@@ -94,8 +101,10 @@ class PackageActionTest {
 	void testPackageChartWithSignatureCreatesProvFile() throws Exception {
 		Path chartDir = createMinimalChart("signed-chart", "2.0.0");
 		packageAction.setDestination(tempDir.toFile());
+		Path keyringFile = writeSecretKeyring();
 
-		File archive = packageAction.packageChart(chartDir.toString(), secretKey, PASSPHRASE);
+		File archive = packageAction.packageChart(chartDir.toString(), keyringFile.toString(), "test@example.com",
+				PASSPHRASE);
 
 		assertTrue(archive.exists());
 		File provFile = new File(archive.getAbsolutePath() + ".prov");
@@ -145,6 +154,17 @@ class PackageActionTest {
 			}
 		}
 		return names;
+	}
+
+	private Path writeSecretKeyring() throws Exception {
+		Path keyringFile = tempDir.resolve("secring.gpg");
+		PGPSecretKeyRingCollection collection = new PGPSecretKeyRingCollection(
+				List.of(new PGPSecretKeyRing(secretKey.getEncoded(), new JcaKeyFingerprintCalculator())));
+		try (OutputStream out = new FileOutputStream(keyringFile.toFile());
+				ArmoredOutputStream armoredOut = new ArmoredOutputStream(out)) {
+			collection.encode(armoredOut);
+		}
+		return keyringFile;
 	}
 
 	private Path createMinimalChart(String name, String version) throws Exception {

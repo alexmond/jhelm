@@ -19,10 +19,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
-import org.bouncycastle.openpgp.PGPSecretKey;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.SignatureService;
+import org.alexmond.jhelm.core.service.SigningKey;
 
 /**
  * Packages a chart directory into a versioned {@code .tgz} archive and optionally
@@ -57,18 +57,18 @@ public class PackageAction {
 	 * @return the created archive file
 	 */
 	public File packageChart(String chartPath, String keyringPath, String keyId, char[] passphrase) throws Exception {
-		PGPSecretKey secretKey = signatureService.loadSecretKey(keyringPath, keyId);
-		return packageChart(chartPath, secretKey, passphrase);
+		SigningKey signingKey = signatureService.loadSigningKey(keyringPath, keyId);
+		return packageChart(chartPath, signingKey, passphrase);
 	}
 
 	/**
 	 * Packages a chart directory into a {@code .tgz} archive and optionally signs it.
 	 * @param chartPath path to the chart directory
-	 * @param secretKey PGP secret key for signing, or {@code null} to skip signing
+	 * @param signingKey signing key, or {@code null} to skip signing
 	 * @param passphrase key passphrase, or {@code null} if not signing
 	 * @return the created archive file
 	 */
-	public File packageChart(String chartPath, PGPSecretKey secretKey, char[] passphrase) throws Exception {
+	public File packageChart(String chartPath, SigningKey signingKey, char[] passphrase) throws Exception {
 		Chart chart = chartLoader.load(new File(chartPath));
 		String archiveName = chart.getMetadata().getName() + "-" + chart.getMetadata().getVersion() + ".tgz";
 
@@ -80,8 +80,8 @@ public class PackageAction {
 			log.info("Successfully packaged chart and saved it to: {}", archiveFile.getAbsolutePath());
 		}
 
-		if (secretKey != null) {
-			String provContent = signatureService.sign(archiveFile, chart.getMetadata(), secretKey, passphrase);
+		if (signingKey != null) {
+			String provContent = signatureService.sign(archiveFile, chart.getMetadata(), signingKey, passphrase);
 			File provFile = new File(destDir, archiveName + ".prov");
 			Files.writeString(provFile.toPath(), provContent);
 			if (log.isInfoEnabled()) {

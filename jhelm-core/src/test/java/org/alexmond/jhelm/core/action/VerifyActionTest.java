@@ -13,6 +13,7 @@ import java.util.List;
 
 import org.alexmond.jhelm.core.service.SignatureService;
 import org.alexmond.jhelm.core.service.SignatureService.SignatureVerificationException;
+import org.alexmond.jhelm.core.service.SigningKey;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
@@ -21,7 +22,10 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPKeyRingGenerator;
 import org.bouncycastle.openpgp.PGPPublicKeyRingCollection;
 import org.bouncycastle.openpgp.PGPSecretKey;
+import org.bouncycastle.openpgp.PGPSecretKeyRing;
+import org.bouncycastle.openpgp.PGPSecretKeyRingCollection;
 import org.bouncycastle.openpgp.PGPSignature;
+import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyPair;
@@ -137,10 +141,22 @@ class VerifyActionTest {
 			.apiVersion("v2")
 			.build();
 
-		String provContent = signatureService.sign(chartFile, metadata, secretKey, PASSPHRASE);
+		SigningKey signingKey = signatureService.loadSigningKey(writeSecretKeyring().toString(), "test@example.com");
+		String provContent = signatureService.sign(chartFile, metadata, signingKey, PASSPHRASE);
 		Files.writeString(tempDir.resolve(name + ".prov"), provContent);
 
 		return chartFile;
+	}
+
+	private Path writeSecretKeyring() throws Exception {
+		Path keyringFile = tempDir.resolve("secring.gpg");
+		PGPSecretKeyRingCollection collection = new PGPSecretKeyRingCollection(
+				List.of(new PGPSecretKeyRing(secretKey.getEncoded(), new JcaKeyFingerprintCalculator())));
+		try (OutputStream out = new FileOutputStream(keyringFile.toFile());
+				ArmoredOutputStream armoredOut = new ArmoredOutputStream(out)) {
+			collection.encode(armoredOut);
+		}
+		return keyringFile;
 	}
 
 	private Path writePublicKeyring() throws Exception {
