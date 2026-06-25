@@ -11,6 +11,7 @@ import java.security.Security;
 import java.util.Date;
 import java.util.List;
 
+import org.alexmond.jhelm.core.exception.SignatureException;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.service.SignatureService.SignatureVerificationException;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
@@ -18,7 +19,6 @@ import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
 import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.openpgp.PGPException;
 import org.bouncycastle.openpgp.PGPKeyPair;
 import org.bouncycastle.openpgp.PGPKeyRingGenerator;
 import org.bouncycastle.openpgp.PGPPublicKeyRingCollection;
@@ -52,6 +52,10 @@ class SignatureServiceTest {
 
 	private static PGPPublicKeyRingCollection publicKeys;
 
+	private static SigningKey signingKey;
+
+	private static VerificationKeyring verificationKeyring;
+
 	private SignatureService signatureService;
 
 	@TempDir
@@ -66,6 +70,8 @@ class SignatureServiceTest {
 		PGPKeyRingGenerator keyRingGen = createKeyRingGenerator(USER_ID);
 		secretKey = keyRingGen.generateSecretKeyRing().getSecretKey();
 		publicKeys = new PGPPublicKeyRingCollection(List.of(keyRingGen.generatePublicKeyRing()));
+		signingKey = new SigningKey(secretKey);
+		verificationKeyring = new VerificationKeyring(publicKeys);
 	}
 
 	@BeforeEach
@@ -78,7 +84,7 @@ class SignatureServiceTest {
 		File chartFile = createTempChartFile("test-chart-0.1.0.tgz", "chart-content");
 		ChartMetadata metadata = ChartMetadata.builder().name("test-chart").version("0.1.0").apiVersion("v2").build();
 
-		String provContent = signatureService.sign(chartFile, metadata, secretKey, PASSPHRASE);
+		String provContent = signatureService.sign(chartFile, metadata, signingKey, PASSPHRASE);
 
 		assertNotNull(provContent);
 		assertTrue(provContent.contains("-----BEGIN PGP SIGNED MESSAGE-----"));
@@ -101,9 +107,9 @@ class SignatureServiceTest {
 			.type("application")
 			.build();
 
-		String provContent = signatureService.sign(chartFile, metadata, secretKey, PASSPHRASE);
+		String provContent = signatureService.sign(chartFile, metadata, signingKey, PASSPHRASE);
 
-		assertDoesNotThrow(() -> signatureService.verify(chartFile, provContent, publicKeys));
+		assertDoesNotThrow(() -> signatureService.verify(chartFile, provContent, verificationKeyring));
 	}
 
 	@Test
@@ -111,7 +117,7 @@ class SignatureServiceTest {
 		File chartFile = createTempChartFile("tampered-1.0.0.tgz", "original-content");
 		ChartMetadata metadata = ChartMetadata.builder().name("tampered").version("1.0.0").apiVersion("v2").build();
 
-		String provContent = signatureService.sign(chartFile, metadata, secretKey, PASSPHRASE);
+		String provContent = signatureService.sign(chartFile, metadata, signingKey, PASSPHRASE);
 
 		// Overwrite the chart file with different content
 		try (OutputStream os = new FileOutputStream(chartFile)) {
@@ -119,20 +125,20 @@ class SignatureServiceTest {
 		}
 
 		SignatureVerificationException ex = assertThrows(SignatureVerificationException.class,
-				() -> signatureService.verify(chartFile, provContent, publicKeys));
+				() -> signatureService.verify(chartFile, provContent, verificationKeyring));
 		assertTrue(ex.getMessage().contains("Digest mismatch"));
 	}
 
 	@Test
 	void testVerifyFailsWithWrongPublicKey() throws Exception {
 		PGPKeyRingGenerator otherGen = createKeyRingGenerator("Other <other@example.com>");
-		PGPPublicKeyRingCollection wrongKeys = new PGPPublicKeyRingCollection(
-				List.of(otherGen.generatePublicKeyRing()));
+		VerificationKeyring wrongKeys = new VerificationKeyring(
+				new PGPPublicKeyRingCollection(List.of(otherGen.generatePublicKeyRing())));
 
 		File chartFile = createTempChartFile("wrongkey-1.0.0.tgz", "content");
 		ChartMetadata metadata = ChartMetadata.builder().name("wrongkey").version("1.0.0").apiVersion("v2").build();
 
-		String provContent = signatureService.sign(chartFile, metadata, secretKey, PASSPHRASE);
+		String provContent = signatureService.sign(chartFile, metadata, signingKey, PASSPHRASE);
 
 		SignatureVerificationException ex = assertThrows(SignatureVerificationException.class,
 				() -> signatureService.verify(chartFile, provContent, wrongKeys));
@@ -180,7 +186,7 @@ class SignatureServiceTest {
 		File chartFile = createTempChartFile("extract-1.0.0.tgz", "data");
 		ChartMetadata metadata = ChartMetadata.builder().name("extract").version("1.0.0").apiVersion("v2").build();
 
-		String provContent = signatureService.sign(chartFile, metadata, secretKey, PASSPHRASE);
+		String provContent = signatureService.sign(chartFile, metadata, signingKey, PASSPHRASE);
 		String signedData = signatureService.extractSignedData(provContent);
 
 		assertNotNull(signedData);
@@ -220,9 +226,9 @@ class SignatureServiceTest {
 			collection.encode(armoredOut);
 		}
 
-		PGPSecretKey loaded = signatureService.loadSecretKey(keyFile.toString(), "test@example.com");
+		SigningKey loaded = signatureService.loadSigningKey(keyFile.toString(), "test@example.com");
 		assertNotNull(loaded);
-		assertEquals(secretKey.getKeyID(), loaded.getKeyID());
+		assertEquals(secretKey.getKeyID(), loaded.pgpSecretKey().getKeyID());
 	}
 
 	@Test
@@ -235,8 +241,8 @@ class SignatureServiceTest {
 			collection.encode(armoredOut);
 		}
 
-		assertThrows(PGPException.class,
-				() -> signatureService.loadSecretKey(keyFile.toString(), "nonexistent@example.com"));
+		assertThrows(SignatureException.class,
+				() -> signatureService.loadSigningKey(keyFile.toString(), "nonexistent@example.com"));
 	}
 
 	@Test
@@ -247,16 +253,16 @@ class SignatureServiceTest {
 			publicKeys.encode(armoredOut);
 		}
 
-		PGPPublicKeyRingCollection loaded = signatureService.loadPublicKeyring(keyFile.toString());
+		VerificationKeyring loaded = signatureService.loadVerificationKeyring(keyFile.toString());
 		assertNotNull(loaded);
-		assertTrue(loaded.contains(secretKey.getKeyID()));
+		assertTrue(loaded.pgpPublicKeys().contains(secretKey.getKeyID()));
 	}
 
 	@Test
 	void testVerifyRejectsNoSignatureContent() {
 		File chartFile = tempDir.resolve("nosig.tgz").toFile();
 		assertThrows(SignatureVerificationException.class,
-				() -> signatureService.verify(chartFile, "no signature content", publicKeys));
+				() -> signatureService.verify(chartFile, "no signature content", verificationKeyring));
 	}
 
 	@SuppressWarnings("deprecation") // JcaPGPKeyPair 3-arg constructor; 4-arg version has

@@ -33,6 +33,7 @@ import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentVerifierBuilderProvider;
 import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
+import org.alexmond.jhelm.core.exception.SignatureException;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 
 /**
@@ -55,107 +56,116 @@ public class SignatureService {
 	 * Signs a chart archive and produces a Helm-compatible provenance file content.
 	 * @param chartTgz the chart archive file
 	 * @param metadata the chart metadata
-	 * @param secretKey the PGP secret key to sign with
+	 * @param signingKey the signing key to sign with
 	 * @param passphrase the key passphrase
 	 * @return the provenance file content (PGP clear-signed YAML)
-	 * @throws IOException if the chart file cannot be read
-	 * @throws PGPException if signing fails
+	 * @throws SignatureException if the chart file cannot be read or signing fails
 	 */
-	public String sign(File chartTgz, ChartMetadata metadata, PGPSecretKey secretKey, char[] passphrase)
-			throws IOException, PGPException {
-		String digest = computeSha256(chartTgz);
-		String yamlContent = buildProvenanceYaml(metadata, chartTgz.getName(), digest);
+	public String sign(File chartTgz, ChartMetadata metadata, SigningKey signingKey, char[] passphrase) {
+		PGPSecretKey secretKey = signingKey.pgpSecretKey();
+		try {
+			String digest = computeSha256(chartTgz);
+			String yamlContent = buildProvenanceYaml(metadata, chartTgz.getName(), digest);
 
-		PGPPrivateKey privateKey = secretKey
-			.extractPrivateKey(new JcePBESecretKeyDecryptorBuilder().setProvider("BC").build(passphrase));
+			PGPPrivateKey privateKey = secretKey
+				.extractPrivateKey(new JcePBESecretKeyDecryptorBuilder().setProvider("BC").build(passphrase));
 
-		PGPSignatureGenerator sigGen = new PGPSignatureGenerator(
-				new JcaPGPContentSignerBuilder(secretKey.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA256)
-					.setProvider("BC"),
-				secretKey.getPublicKey());
-		sigGen.init(PGPSignature.CANONICAL_TEXT_DOCUMENT, privateKey);
+			PGPSignatureGenerator sigGen = new PGPSignatureGenerator(
+					new JcaPGPContentSignerBuilder(secretKey.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA256)
+						.setProvider("BC"),
+					secretKey.getPublicKey());
+			sigGen.init(PGPSignature.CANONICAL_TEXT_DOCUMENT, privateKey);
 
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		try (ArmoredOutputStream armoredOut = new ArmoredOutputStream(out)) {
-			armoredOut.beginClearText(HashAlgorithmTags.SHA256);
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			try (ArmoredOutputStream armoredOut = new ArmoredOutputStream(out)) {
+				armoredOut.beginClearText(HashAlgorithmTags.SHA256);
 
-			byte[] yamlBytes = yamlContent.getBytes(StandardCharsets.UTF_8);
-			armoredOut.write(yamlBytes);
-			sigGen.update(yamlBytes);
+				byte[] yamlBytes = yamlContent.getBytes(StandardCharsets.UTF_8);
+				armoredOut.write(yamlBytes);
+				sigGen.update(yamlBytes);
 
-			armoredOut.endClearText();
+				armoredOut.endClearText();
 
-			try (BCPGOutputStream bcpgOut = new BCPGOutputStream(armoredOut)) {
-				sigGen.generate().encode(bcpgOut);
+				try (BCPGOutputStream bcpgOut = new BCPGOutputStream(armoredOut)) {
+					sigGen.generate().encode(bcpgOut);
+				}
 			}
-		}
 
-		return out.toString(StandardCharsets.UTF_8);
+			return out.toString(StandardCharsets.UTF_8);
+		}
+		catch (IOException | PGPException ex) {
+			throw new SignatureException("Failed to sign chart: " + chartTgz.getName(), ex);
+		}
 	}
 
 	/**
 	 * Verifies a chart archive against its provenance file.
 	 * @param chartTgz the chart archive file
 	 * @param provContent the provenance file content
-	 * @param publicKeys the public keyring collection
-	 * @throws IOException if files cannot be read
-	 * @throws PGPException if verification fails
+	 * @param keyring the public keyring to verify against
+	 * @throws SignatureException if files cannot be read or the OpenPGP library reports
+	 * an error
 	 * @throws SignatureVerificationException if the signature is invalid or the digest
 	 * does not match
 	 */
-	public void verify(File chartTgz, String provContent, PGPPublicKeyRingCollection publicKeys)
-			throws IOException, PGPException {
-		// Extract the signed data and signature from the clear-signed message
-		String signedData = extractSignedData(provContent);
-		byte[] signatureBytes = extractSignatureBytes(provContent);
+	public void verify(File chartTgz, String provContent, VerificationKeyring keyring) {
+		PGPPublicKeyRingCollection publicKeys = keyring.pgpPublicKeys();
+		try {
+			// Extract the signed data and signature from the clear-signed message
+			String signedData = extractSignedData(provContent);
+			byte[] signatureBytes = extractSignatureBytes(provContent);
 
-		// Verify the PGP signature
-		PGPObjectFactory pgpFactory = new PGPObjectFactory(signatureBytes, new JcaKeyFingerprintCalculator());
-		PGPSignatureList sigList = (PGPSignatureList) pgpFactory.nextObject();
-		if (sigList == null || sigList.isEmpty()) {
-			throw new SignatureVerificationException("No PGP signature found in provenance file");
+			// Verify the PGP signature
+			PGPObjectFactory pgpFactory = new PGPObjectFactory(signatureBytes, new JcaKeyFingerprintCalculator());
+			PGPSignatureList sigList = (PGPSignatureList) pgpFactory.nextObject();
+			if (sigList == null || sigList.isEmpty()) {
+				throw new SignatureVerificationException("No PGP signature found in provenance file");
+			}
+			PGPSignature signature = sigList.get(0);
+
+			PGPPublicKey verifyKey = publicKeys.getPublicKey(signature.getKeyID());
+			if (verifyKey == null) {
+				throw new SignatureVerificationException(
+						"No public key found for key ID " + Long.toHexString(signature.getKeyID()));
+			}
+
+			signature.init(new JcaPGPContentVerifierBuilderProvider().setProvider("BC"), verifyKey);
+			byte[] signedBytes = signedData.getBytes(StandardCharsets.UTF_8);
+			signature.update(signedBytes);
+
+			if (!signature.verify()) {
+				throw new SignatureVerificationException("PGP signature verification failed");
+			}
+			log.info("PGP signature verified successfully");
+
+			// Verify the chart digest
+			String expectedDigest = extractDigest(signedData);
+			if (expectedDigest == null) {
+				throw new SignatureVerificationException("No digest found in provenance YAML");
+			}
+
+			String actualDigest = "sha256:" + computeSha256(chartTgz);
+			if (!expectedDigest.equals(actualDigest)) {
+				throw new SignatureVerificationException(
+						"Digest mismatch: expected " + expectedDigest + ", got " + actualDigest);
+			}
+			log.info("Chart digest verified: {}", actualDigest);
 		}
-		PGPSignature signature = sigList.get(0);
-
-		PGPPublicKey verifyKey = publicKeys.getPublicKey(signature.getKeyID());
-		if (verifyKey == null) {
-			throw new SignatureVerificationException(
-					"No public key found for key ID " + Long.toHexString(signature.getKeyID()));
+		catch (IOException | PGPException ex) {
+			throw new SignatureException("Failed to verify chart: " + chartTgz.getName(), ex);
 		}
-
-		signature.init(new JcaPGPContentVerifierBuilderProvider().setProvider("BC"), verifyKey);
-		byte[] signedBytes = signedData.getBytes(StandardCharsets.UTF_8);
-		signature.update(signedBytes);
-
-		if (!signature.verify()) {
-			throw new SignatureVerificationException("PGP signature verification failed");
-		}
-		log.info("PGP signature verified successfully");
-
-		// Verify the chart digest
-		String expectedDigest = extractDigest(signedData);
-		if (expectedDigest == null) {
-			throw new SignatureVerificationException("No digest found in provenance YAML");
-		}
-
-		String actualDigest = "sha256:" + computeSha256(chartTgz);
-		if (!expectedDigest.equals(actualDigest)) {
-			throw new SignatureVerificationException(
-					"Digest mismatch: expected " + expectedDigest + ", got " + actualDigest);
-		}
-		log.info("Chart digest verified: {}", actualDigest);
 	}
 
 	/**
-	 * Loads a PGP secret key from a keyring file by matching a substring of the key's
-	 * user ID.
+	 * Loads a signing key from a keyring file by matching a substring of the key's user
+	 * ID.
 	 * @param keyringPath path to the secret keyring file
 	 * @param keyId substring to match against key user IDs
-	 * @return the matching secret key
-	 * @throws IOException if the keyring cannot be read
-	 * @throws PGPException if the keyring is invalid
+	 * @return an opaque handle to the matching signing key
+	 * @throws SignatureException if the keyring cannot be read, is invalid, or contains
+	 * no matching signing key
 	 */
-	public PGPSecretKey loadSecretKey(String keyringPath, String keyId) throws IOException, PGPException {
+	public SigningKey loadSigningKey(String keyringPath, String keyId) {
 		try (InputStream in = PGPUtil.getDecoderStream(new FileInputStream(keyringPath))) {
 			PGPSecretKeyRingCollection keyRings = new PGPSecretKeyRingCollection(in, new JcaKeyFingerprintCalculator());
 
@@ -167,25 +177,30 @@ public class SignatureService {
 					Iterator<String> userIds = key.getUserIDs();
 					while (userIds.hasNext()) {
 						if (userIds.next().contains(keyId)) {
-							return key;
+							return new SigningKey(key);
 						}
 					}
 				}
 			}
 		}
-		throw new PGPException("No signing key found matching: " + keyId);
+		catch (IOException | PGPException ex) {
+			throw new SignatureException("Failed to load signing key from keyring: " + keyringPath, ex);
+		}
+		throw new SignatureException("No signing key found matching: " + keyId);
 	}
 
 	/**
-	 * Loads a PGP public keyring collection from a file.
+	 * Loads a public keyring from a file for use in chart verification.
 	 * @param keyringPath path to the public keyring file
-	 * @return the public keyring collection
-	 * @throws IOException if the keyring cannot be read
-	 * @throws PGPException if the keyring is invalid
+	 * @return an opaque handle to the loaded public keyring
+	 * @throws SignatureException if the keyring cannot be read or is invalid
 	 */
-	public PGPPublicKeyRingCollection loadPublicKeyring(String keyringPath) throws IOException, PGPException {
+	public VerificationKeyring loadVerificationKeyring(String keyringPath) {
 		try (InputStream in = PGPUtil.getDecoderStream(new FileInputStream(keyringPath))) {
-			return new PGPPublicKeyRingCollection(in, new JcaKeyFingerprintCalculator());
+			return new VerificationKeyring(new PGPPublicKeyRingCollection(in, new JcaKeyFingerprintCalculator()));
+		}
+		catch (IOException | PGPException ex) {
+			throw new SignatureException("Failed to load public keyring: " + keyringPath, ex);
 		}
 	}
 
