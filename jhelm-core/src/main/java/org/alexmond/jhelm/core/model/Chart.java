@@ -10,6 +10,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * In-memory representation of a loaded Helm chart: its {@link ChartMetadata}, default
+ * values, templates, CRDs, subchart dependencies and any non-template files exposed via
+ * {@code .Files}. Produced by the chart loader and consumed by the rendering engine.
+ */
 @Data
 @Builder(toBuilder = true)
 @NoArgsConstructor
@@ -45,6 +50,10 @@ public class Chart {
 	@Builder.Default
 	private Map<String, String> files = new LinkedHashMap<>();
 
+	/**
+	 * A single template file in the chart, identified by its path relative to the chart
+	 * root (e.g. {@code templates/deployment.yaml}) and its raw text content.
+	 */
 	@Data
 	@Builder
 	@NoArgsConstructor
@@ -57,6 +66,11 @@ public class Chart {
 
 	}
 
+	/**
+	 * A CustomResourceDefinition file from the chart's {@code crds/} directory,
+	 * identified by its relative path and raw YAML content. CRDs are installed before
+	 * other resources and are not templated.
+	 */
 	@Data
 	@Builder
 	@NoArgsConstructor

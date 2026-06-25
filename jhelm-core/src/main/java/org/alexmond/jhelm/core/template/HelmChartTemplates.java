@@ -11,12 +11,20 @@ public final class HelmChartTemplates {
 	}
 
 	/**
-	 * Replace CHARTNAME placeholder with actual chart name in all templates
+	 * Replaces every {@code CHARTNAME} placeholder in a template with the actual chart
+	 * name.
+	 * @param template the template text containing {@code CHARTNAME} placeholders
+	 * @param chartName the chart name to substitute in
+	 * @return the template with all placeholders replaced
 	 */
 	public static String substituteChartName(String template, String chartName) {
 		return template.replace("CHARTNAME", chartName);
 	}
 
+	/**
+	 * Returns the default {@code .helmignore} file contents.
+	 * @return the {@code .helmignore} template
+	 */
 	public static String getHelmIgnore() {
 		return """
 				# Patterns to ignore when building packages.
@@ -45,6 +53,10 @@ public final class HelmChartTemplates {
 				""";
 	}
 
+	/**
+	 * Returns the default {@code Chart.yaml} metadata template.
+	 * @return the {@code Chart.yaml} template
+	 */
 	public static String getChartYaml() {
 		return """
 				apiVersion: v2
@@ -74,6 +86,10 @@ public final class HelmChartTemplates {
 				""";
 	}
 
+	/**
+	 * Returns the default {@code values.yaml} template with commented example values.
+	 * @return the {@code values.yaml} template
+	 */
 	public static String getValuesYaml() {
 		return """
 				# Default values for CHARTNAME.
@@ -240,6 +256,10 @@ public final class HelmChartTemplates {
 				""";
 	}
 
+	/**
+	 * Returns the default {@code templates/NOTES.txt} template shown after install.
+	 * @return the {@code NOTES.txt} template
+	 */
 	public static String getNotesTemplate() {
 		return """
 				1. Get the application URL by running these commands:
@@ -280,6 +300,10 @@ public final class HelmChartTemplates {
 				""";
 	}
 
+	/**
+	 * Returns the default {@code templates/_helpers.tpl} with named template definitions.
+	 * @return the {@code _helpers.tpl} template
+	 */
 	public static String getHelpersTemplate() {
 		return """
 				{{/*
@@ -347,6 +371,10 @@ public final class HelmChartTemplates {
 				""";
 	}
 
+	/**
+	 * Returns the default {@code templates/deployment.yaml} template.
+	 * @return the Deployment template
+	 */
 	public static String getDeploymentTemplate() {
 		return """
 				apiVersion: apps/v1
@@ -430,6 +458,10 @@ public final class HelmChartTemplates {
 				""";
 	}
 
+	/**
+	 * Returns the default {@code templates/service.yaml} template.
+	 * @return the Service template
+	 */
 	public static String getServiceTemplate() {
 		return """
 				apiVersion: v1
@@ -450,6 +482,10 @@ public final class HelmChartTemplates {
 				""";
 	}
 
+	/**
+	 * Returns the default {@code templates/serviceaccount.yaml} template.
+	 * @return the ServiceAccount template
+	 */
 	public static String getServiceAccountTemplate() {
 		return """
 				{{- if .Values.serviceAccount.create -}}
@@ -468,6 +504,10 @@ public final class HelmChartTemplates {
 				""";
 	}
 
+	/**
+	 * Returns the default {@code templates/hpa.yaml} HorizontalPodAutoscaler template.
+	 * @return the HPA template
+	 */
 	public static String getHpaTemplate() {
 		return """
 				{{- if .Values.autoscaling.enabled }}
@@ -505,6 +545,10 @@ public final class HelmChartTemplates {
 				""";
 	}
 
+	/**
+	 * Returns the default {@code templates/ingress.yaml} template.
+	 * @return the Ingress template
+	 */
 	public static String getIngressTemplate() {
 		return """
 				{{- if .Values.ingress.enabled -}}
@@ -553,6 +597,11 @@ public final class HelmChartTemplates {
 				""";
 	}
 
+	/**
+	 * Returns the default {@code templates/httproute.yaml} Gateway API HTTPRoute
+	 * template.
+	 * @return the HTTPRoute template
+	 */
 	public static String getHttpRouteTemplate() {
 		return """
 				{{- if .Values.httpRoute.enabled -}}
@@ -596,6 +645,11 @@ public final class HelmChartTemplates {
 				""";
 	}
 
+	/**
+	 * Returns the default {@code templates/tests/test-connection.yaml} Helm test pod
+	 * template.
+	 * @return the test-connection template
+	 */
 	public static String getTestConnectionTemplate() {
 		return """
 				apiVersion: v1

@@ -24,6 +24,11 @@ public class JhelmMetrics {
 
 	private final Counter cacheMissCounter;
 
+	/**
+	 * Creates the metrics service and registers the render timer and cache counters on
+	 * the given registry.
+	 * @param registry the Micrometer registry to publish metrics to
+	 */
 	public JhelmMetrics(MeterRegistry registry) {
 		this.registry = registry;
 		this.renderTimer = Timer.builder(PREFIX + ".engine.render")
@@ -108,7 +113,8 @@ public class JhelmMetrics {
 	}
 
 	/**
-	 * Return the underlying {@link MeterRegistry}.
+	 * Returns the underlying {@link MeterRegistry}.
+	 * @return the registry backing this metrics service
 	 */
 	public MeterRegistry getRegistry() {
 		return registry;

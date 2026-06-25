@@ -6,6 +6,9 @@ import lombok.Data;
 
 import org.alexmond.jhelm.core.model.ResourceStatus;
 
+/**
+ * Status of a single Kubernetes resource managed by a release, including readiness.
+ */
 @Data
 @Builder
 @Schema(description = "Status of a Kubernetes resource managed by a release")
@@ -26,6 +29,11 @@ public class ResourceStatusDto {
 	@Schema(description = "Status message")
 	private String message;
 
+	/**
+	 * Maps a core resource-status model to its REST representation.
+	 * @param rs the source resource status
+	 * @return the populated DTO
+	 */
 	public static ResourceStatusDto from(ResourceStatus rs) {
 		return ResourceStatusDto.builder()
 			.kind(rs.getKind())

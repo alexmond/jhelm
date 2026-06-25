@@ -10,6 +10,10 @@ import picocli.CommandLine;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Implements {@code jhelm list}, printing the releases in a namespace with their
+ * revision, status, and chart.
+ */
 @Component
 @CommandLine.Command(name = "list", mixinStandardHelpOptions = true, description = "List releases")
 @Slf4j
@@ -20,6 +24,10 @@ public class ListCommand implements Runnable {
 	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
 
+	/**
+	 * Creates the command.
+	 * @param listAction the action that lists releases
+	 */
 	public ListCommand(ListAction listAction) {
 		this.listAction = listAction;
 	}

@@ -10,6 +10,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * The contents of a chart's {@code Chart.yaml}: name, version, description, API version,
+ * type, app version, supported Kubernetes range, dependency declarations and annotations.
+ * Unknown keys are ignored on deserialization.
+ */
 @Data
 @Builder(toBuilder = true)
 @NoArgsConstructor
@@ -52,6 +57,11 @@ public class ChartMetadata {
 	@JsonIgnore
 	private Boolean root;
 
+	/**
+	 * Exposes Helm's {@code .Chart.IsRoot} flag to templates: {@code true} when this is
+	 * the top-level release chart, {@code false} when rendered as a subchart.
+	 * @return {@code true} if this chart is the root of the release
+	 */
 	@JsonIgnore
 	@SuppressWarnings("PMD.BooleanGetMethodName")
 	public boolean getIsRoot() {

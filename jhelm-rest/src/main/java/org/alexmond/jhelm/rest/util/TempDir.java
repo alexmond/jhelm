@@ -16,10 +16,20 @@ public class TempDir implements Closeable {
 
 	private final Path path;
 
+	/**
+	 * Creates a fresh temporary directory under the given base path.
+	 * @param baseDir the base directory in which to create the temporary directory
+	 * @param prefix the prefix for the generated directory name
+	 * @throws IOException if the directory cannot be created
+	 */
 	public TempDir(Path baseDir, String prefix) throws IOException {
 		this.path = Files.createTempDirectory(baseDir, prefix);
 	}
 
+	/**
+	 * Returns the path of this temporary directory.
+	 * @return the temporary directory path
+	 */
 	public Path path() {
 		return this.path;
 	}

@@ -5,6 +5,9 @@ import java.util.Map;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+/**
+ * Metadata accompanying an uploaded {@code .tgz} chart archive when rendering templates.
+ */
 @Data
 @Schema(description = "Metadata for rendering templates from an uploaded .tgz chart archive")
 public class TemplateUploadRequest {

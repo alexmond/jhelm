@@ -6,6 +6,10 @@ import org.alexmond.jhelm.core.action.RollbackAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+/**
+ * Implements {@code jhelm rollback RELEASE REVISION}, rolling a release back to a
+ * previous revision.
+ */
 @Component
 @CommandLine.Command(name = "rollback", mixinStandardHelpOptions = true,
 		description = "Roll back a release to a previous revision")
@@ -23,6 +27,10 @@ public class RollbackCommand implements Runnable {
 	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
 
+	/**
+	 * Creates the command.
+	 * @param rollbackAction the action that performs the rollback
+	 */
 	public RollbackCommand(RollbackAction rollbackAction) {
 		this.rollbackAction = rollbackAction;
 	}

@@ -25,6 +25,7 @@ public final class ChartSourceResolver {
 	 * @param chartLoader loader to parse the chart directory
 	 * @param tempDir temporary directory to pull into
 	 * @return the loaded chart
+	 * @throws Exception if the pull fails or the chart cannot be located or parsed
 	 */
 	public static Chart fromChartRef(String chartRef, String version, RepoManager repoManager, ChartLoader chartLoader,
 			TempDir tempDir) throws Exception {
@@ -40,6 +41,7 @@ public final class ChartSourceResolver {
 	 * @param chartLoader loader to parse the chart directory
 	 * @param tempDir temporary directory to extract into
 	 * @return the loaded chart
+	 * @throws Exception if the upload cannot be stored, extracted, located, or parsed
 	 */
 	public static Chart fromUpload(MultipartFile file, RepoManager repoManager, ChartLoader chartLoader,
 			TempDir tempDir) throws Exception {

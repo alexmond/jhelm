@@ -8,6 +8,10 @@ import picocli.CommandLine;
 
 import java.io.IOException;
 
+/**
+ * Implements {@code jhelm registry}, managing authentication to OCI registries via the
+ * {@code login} and {@code logout} subcommands.
+ */
 @Component
 @CommandLine.Command(name = "registry", mixinStandardHelpOptions = true,
 		description = "Login to or logout from a registry",
@@ -15,11 +19,20 @@ import java.io.IOException;
 @Slf4j
 public class RegistryCommand implements Runnable {
 
+	/** Creates the command. */
+	@SuppressWarnings("PMD.UnnecessaryConstructor")
+	public RegistryCommand() {
+	}
+
+	/**
+	 * Prints the usage help when {@code registry} is invoked without a subcommand.
+	 */
 	@Override
 	public void run() {
 		CommandLine.usage(this, System.out);
 	}
 
+	/** Implements {@code registry login}: authenticates to an OCI registry. */
 	@Component
 	@CommandLine.Command(name = "login", mixinStandardHelpOptions = true, description = "Login to a registry")
 	@Slf4j
@@ -36,6 +49,10 @@ public class RegistryCommand implements Runnable {
 		@CommandLine.Option(names = { "-p", "--password" }, description = "registry password", required = true)
 		private String password;
 
+		/**
+		 * Creates the command.
+		 * @param registryManager the manager that performs the registry login
+		 */
 		public LoginCommand(RegistryManager registryManager) {
 			this.registryManager = registryManager;
 		}
@@ -53,6 +70,7 @@ public class RegistryCommand implements Runnable {
 
 	}
 
+	/** Implements {@code registry logout}: removes stored credentials for a registry. */
 	@Component
 	@CommandLine.Command(name = "logout", mixinStandardHelpOptions = true, description = "Logout from a registry")
 	@Slf4j
@@ -63,6 +81,10 @@ public class RegistryCommand implements Runnable {
 		@CommandLine.Parameters(index = "0", description = "registry server")
 		private String server;
 
+		/**
+		 * Creates the command.
+		 * @param registryManager the manager that performs the registry logout
+		 */
 		public LogoutCommand(RegistryManager registryManager) {
 			this.registryManager = registryManager;
 		}

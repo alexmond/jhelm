@@ -7,6 +7,10 @@ import org.alexmond.jhelm.core.action.SearchHubAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+/**
+ * Implements {@code jhelm search hub KEYWORD}, searching Artifact Hub for charts matching
+ * a keyword and printing the results as a table.
+ */
 @Component
 @CommandLine.Command(name = "hub", mixinStandardHelpOptions = true, description = "Search for charts in Artifact Hub")
 public class SearchHubCommand implements Runnable {
@@ -24,6 +28,10 @@ public class SearchHubCommand implements Runnable {
 			description = "print charts repository URL")
 	private boolean listRepoUrl;
 
+	/**
+	 * Creates the command.
+	 * @param searchHubAction the action that queries Artifact Hub
+	 */
 	public SearchHubCommand(SearchHubAction searchHubAction) {
 		this.searchHubAction = searchHubAction;
 	}

@@ -20,6 +20,12 @@ import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
 import org.alexmond.jhelm.core.util.ValuesLoader;
 
+/**
+ * Implements {@code helm install}: renders a chart to a manifest, runs post-render
+ * processors and lifecycle hooks, applies the resulting resources (and any CRDs) to the
+ * cluster, and stores the resulting {@link Release}. On a failure after resources have
+ * been applied it rolls them back and raises a {@link DeploymentFailedException}.
+ */
 @RequiredArgsConstructor
 @Slf4j
 public class InstallAction {
@@ -34,6 +40,25 @@ public class InstallAction {
 	@Setter
 	private List<LifecycleListener> lifecycleListeners = List.of();
 
+	/**
+	 * Installs a chart as a new release. Chart default values are merged with the
+	 * supplied overrides, the templates are rendered, and—unless this is a dry run—the
+	 * resulting resources, CRDs and hooks are applied to the cluster and the release is
+	 * persisted.
+	 * @param chart the chart to install (must not be a library chart)
+	 * @param releaseName the name to give the release
+	 * @param namespace the target namespace
+	 * @param overrideValues user-supplied values merged over the chart defaults, may be
+	 * {@code null}
+	 * @param version the release revision number to assign
+	 * @param dryRun if {@code true}, render only and skip applying anything to the
+	 * cluster
+	 * @return the resulting release, including the rendered manifest
+	 * @throws IllegalArgumentException if the chart is a library chart
+	 * @throws DeploymentFailedException if applied resources cannot be persisted (they
+	 * are rolled back)
+	 * @throws Exception if rendering or a cluster operation fails
+	 */
 	public Release install(Chart chart, String releaseName, String namespace, Map<String, Object> overrideValues,
 			int version, boolean dryRun) throws Exception {
 		if ("library".equals(chart.getMetadata().getType())) {

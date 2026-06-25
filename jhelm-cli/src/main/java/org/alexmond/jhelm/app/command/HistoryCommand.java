@@ -9,6 +9,9 @@ import picocli.CommandLine;
 
 import java.util.List;
 
+/**
+ * Implements {@code jhelm history RELEASE}, printing the revision history of a release.
+ */
 @Component
 @CommandLine.Command(name = "history", mixinStandardHelpOptions = true, description = "Fetch release history")
 @Slf4j
@@ -22,10 +25,17 @@ public class HistoryCommand implements Runnable {
 	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
 
+	/**
+	 * Creates the command.
+	 * @param historyAction the action that retrieves release history
+	 */
 	public HistoryCommand(HistoryAction historyAction) {
 		this.historyAction = historyAction;
 	}
 
+	/**
+	 * Prints the release revision history as a table.
+	 */
 	@Override
 	public void run() {
 		try {

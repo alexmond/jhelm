@@ -41,12 +41,32 @@ import org.springframework.context.annotation.Bean;
 @EnableConfigurationProperties(JhelmRestProperties.class)
 public class JhelmRestAutoConfiguration {
 
+	/**
+	 * Registers the global REST exception handler unless one is already defined.
+	 * @return the exception handler bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public JhelmRestExceptionHandler jhelmRestExceptionHandler() {
 		return new JhelmRestExceptionHandler();
 	}
 
+	/**
+	 * Registers the release controller when the required release actions are present.
+	 * @param listAction lists releases
+	 * @param statusAction reports release and resource status
+	 * @param getAction reads release values, manifest and notes
+	 * @param historyAction lists release revisions
+	 * @param installAction installs releases
+	 * @param upgradeAction upgrades releases
+	 * @param uninstallAction uninstalls releases
+	 * @param rollbackAction rolls releases back
+	 * @param testAction runs release test hooks
+	 * @param chartLoader loads charts for install and upgrade
+	 * @param repoManager pulls charts from repositories
+	 * @param properties REST module configuration
+	 * @return the release controller bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean({ ListAction.class, InstallAction.class, RepoManager.class })
@@ -58,6 +78,15 @@ public class JhelmRestAutoConfiguration {
 				uninstallAction, rollbackAction, testAction, chartLoader, repoManager, properties);
 	}
 
+	/**
+	 * Registers the chart controller when the required chart actions are present.
+	 * @param templateAction renders chart templates
+	 * @param createAction scaffolds new charts
+	 * @param showAction exposes chart information
+	 * @param repoManager pulls charts from repositories
+	 * @param properties REST module configuration
+	 * @return the chart controller bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean({ TemplateAction.class, RepoManager.class })
@@ -66,6 +95,12 @@ public class JhelmRestAutoConfiguration {
 		return new ChartController(templateAction, createAction, showAction, repoManager, properties);
 	}
 
+	/**
+	 * Registers the repository controller when a {@link RepoManager} is present.
+	 * @param repoManager manages chart repositories
+	 * @param properties REST module configuration
+	 * @return the repository controller bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(RepoManager.class)
@@ -73,6 +108,11 @@ public class JhelmRestAutoConfiguration {
 		return new RepoController(repoManager, properties);
 	}
 
+	/**
+	 * Registers the ArtifactHub controller when a {@link SearchHubAction} is present.
+	 * @param searchHubAction performs ArtifactHub searches
+	 * @return the hub controller bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(SearchHubAction.class)
@@ -80,6 +120,11 @@ public class JhelmRestAutoConfiguration {
 		return new HubController(searchHubAction);
 	}
 
+	/**
+	 * Registers the dependency resolver when a {@link RepoManager} is present.
+	 * @param repoManager pulls dependency charts from repositories
+	 * @return the dependency resolver bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(RepoManager.class)
@@ -87,6 +132,14 @@ public class JhelmRestAutoConfiguration {
 		return new DependencyResolver(repoManager);
 	}
 
+	/**
+	 * Registers the dependency controller when a {@link DependencyResolver} is present.
+	 * @param dependencyResolver resolves dependency versions
+	 * @param chartLoader loads the pulled chart
+	 * @param repoManager pulls the chart from its repository
+	 * @param properties REST module configuration
+	 * @return the dependency controller bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(DependencyResolver.class)

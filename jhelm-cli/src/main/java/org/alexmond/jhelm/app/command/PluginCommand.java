@@ -10,16 +10,31 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import org.alexmond.jhelm.app.output.CliOutput;
 
+/**
+ * Implements {@code jhelm plugin}, managing installed plugins via the {@code install},
+ * {@code uninstall}, and {@code list} subcommands.
+ */
 @Component
 @CommandLine.Command(name = "plugin", mixinStandardHelpOptions = true, description = "Manage plugins",
 		subcommands = { PluginCommand.Install.class, PluginCommand.Uninstall.class, PluginCommand.ListPlugins.class })
 public class PluginCommand implements Runnable {
 
+	/** Creates the command. */
+	@SuppressWarnings("PMD.UnnecessaryConstructor")
+	public PluginCommand() {
+	}
+
+	/**
+	 * Prints the usage help when {@code plugin} is invoked without a subcommand.
+	 */
 	@Override
 	public void run() {
 		CommandLine.usage(this, System.out);
 	}
 
+	/**
+	 * Implements {@code plugin install}: installs a plugin from a {@code .jhp} archive.
+	 */
 	@Component
 	@CommandLine.Command(name = "install", mixinStandardHelpOptions = true,
 			description = "Install a plugin from a .jhp archive")
@@ -30,6 +45,11 @@ public class PluginCommand implements Runnable {
 
 		private final ObjectProvider<PluginManager> pluginManagerProvider;
 
+		/**
+		 * Creates the command.
+		 * @param pluginManagerProvider provider for the plugin manager (may be absent
+		 * when plugins are disabled)
+		 */
 		public Install(ObjectProvider<PluginManager> pluginManagerProvider) {
 			this.pluginManagerProvider = pluginManagerProvider;
 		}
@@ -53,6 +73,7 @@ public class PluginCommand implements Runnable {
 
 	}
 
+	/** Implements {@code plugin uninstall}: removes an installed plugin by name. */
 	@Component
 	@CommandLine.Command(name = "uninstall", mixinStandardHelpOptions = true, description = "Uninstall a plugin")
 	public static class Uninstall implements Runnable {
@@ -62,6 +83,11 @@ public class PluginCommand implements Runnable {
 
 		private final ObjectProvider<PluginManager> pluginManagerProvider;
 
+		/**
+		 * Creates the command.
+		 * @param pluginManagerProvider provider for the plugin manager (may be absent
+		 * when plugins are disabled)
+		 */
 		public Uninstall(ObjectProvider<PluginManager> pluginManagerProvider) {
 			this.pluginManagerProvider = pluginManagerProvider;
 		}
@@ -84,12 +110,18 @@ public class PluginCommand implements Runnable {
 
 	}
 
+	/** Implements {@code plugin list}: prints the installed plugins as a table. */
 	@Component
 	@CommandLine.Command(name = "list", mixinStandardHelpOptions = true, description = "List installed plugins")
 	public static class ListPlugins implements Runnable {
 
 		private final ObjectProvider<PluginManager> pluginManagerProvider;
 
+		/**
+		 * Creates the command.
+		 * @param pluginManagerProvider provider for the plugin manager (may be absent
+		 * when plugins are disabled)
+		 */
 		public ListPlugins(ObjectProvider<PluginManager> pluginManagerProvider) {
 			this.pluginManagerProvider = pluginManagerProvider;
 		}

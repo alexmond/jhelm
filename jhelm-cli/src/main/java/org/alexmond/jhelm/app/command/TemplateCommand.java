@@ -13,6 +13,10 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
+/**
+ * Implements {@code jhelm template RELEASE CHART}, rendering a chart's templates locally
+ * without contacting a cluster. Supports values overrides and post-renderers.
+ */
 @Component
 @CommandLine.Command(name = "template", mixinStandardHelpOptions = true, description = "Locally render templates")
 @Slf4j
@@ -38,6 +42,10 @@ public class TemplateCommand implements Runnable {
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
 
+	/**
+	 * Creates the command.
+	 * @param templateAction the action that renders chart templates
+	 */
 	public TemplateCommand(TemplateAction templateAction) {
 		this.templateAction = templateAction;
 	}

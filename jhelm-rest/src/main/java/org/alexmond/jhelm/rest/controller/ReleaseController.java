@@ -51,6 +51,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
 
+/**
+ * REST endpoints for the Helm release lifecycle: install, upgrade, rollback, and
+ * uninstall, plus list/status/history queries against a Kubernetes cluster.
+ */
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/releases")
 @Tag(name = "Releases", description = "Manage Helm releases")
@@ -80,6 +84,21 @@ public class ReleaseController {
 
 	private final JhelmRestProperties properties;
 
+	/**
+	 * Creates the controller with the release lifecycle actions it delegates to.
+	 * @param listAction lists releases
+	 * @param statusAction reports release and resource status
+	 * @param getAction reads release values, manifest and notes
+	 * @param historyAction lists release revisions
+	 * @param installAction installs releases
+	 * @param upgradeAction upgrades releases
+	 * @param uninstallAction uninstalls releases
+	 * @param rollbackAction rolls releases back to a previous revision
+	 * @param testAction runs release test hooks
+	 * @param chartLoader loads charts for install and upgrade
+	 * @param repoManager pulls charts from repositories
+	 * @param properties REST module configuration (temp directory, base path)
+	 */
 	public ReleaseController(ListAction listAction, StatusAction statusAction, GetAction getAction,
 			HistoryAction historyAction, InstallAction installAction, UpgradeAction upgradeAction,
 			UninstallAction uninstallAction, RollbackAction rollbackAction, TestAction testAction,
@@ -98,6 +117,12 @@ public class ReleaseController {
 		this.properties = properties;
 	}
 
+	/**
+	 * {@code GET} - lists all Helm releases in a namespace.
+	 * @param namespace the Kubernetes namespace
+	 * @return the releases found in the namespace
+	 * @throws Exception if the releases cannot be listed
+	 */
 	@GetMapping
 	@Operation(summary = "List releases", description = "List all Helm releases in a namespace")
 	public List<ReleaseDto> list(
@@ -106,6 +131,13 @@ public class ReleaseController {
 		return this.listAction.list(namespace).stream().map(ReleaseDto::from).toList();
 	}
 
+	/**
+	 * {@code GET} - returns the status of a single release.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @return {@code 200} with the release, or {@code 404} if it does not exist
+	 * @throws Exception if the status cannot be read
+	 */
 	@GetMapping("/{name}")
 	@Operation(summary = "Get release status",
 			responses = { @ApiResponse(responseCode = "200", description = "Release found"),
@@ -119,6 +151,13 @@ public class ReleaseController {
 			.orElse(ResponseEntity.notFound().build());
 	}
 
+	/**
+	 * {@code POST} - installs a new release from a repository chart reference.
+	 * @param request the chart reference, release name, namespace, values and dry-run
+	 * flag
+	 * @return {@code 201} with the created release
+	 * @throws Exception if the chart cannot be pulled or installed
+	 */
 	@PostMapping
 	@Operation(summary = "Install a release",
 			description = "Install a new Helm release from a repository chart reference")
@@ -139,6 +178,13 @@ public class ReleaseController {
 		}
 	}
 
+	/**
+	 * {@code POST} - installs a new release from an uploaded {@code .tgz} chart archive.
+	 * @param chart the uploaded chart archive
+	 * @param request the release name, namespace, values and dry-run flag
+	 * @return {@code 201} with the created release
+	 * @throws Exception if the upload cannot be extracted or installed
+	 */
 	@PostMapping(path = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@Operation(summary = "Install a release from upload",
 			description = "Install a new Helm release from an uploaded .tgz chart archive")
@@ -156,6 +202,14 @@ public class ReleaseController {
 		}
 	}
 
+	/**
+	 * {@code PUT} - upgrades an existing release from a repository chart reference.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @param request the chart reference, version, values and dry-run flag
+	 * @return the upgraded release
+	 * @throws Exception if the release is not found or the upgrade fails
+	 */
 	@PutMapping("/{name}")
 	@Operation(summary = "Upgrade a release",
 			description = "Upgrade an existing release from a repository chart reference")
@@ -176,6 +230,16 @@ public class ReleaseController {
 		}
 	}
 
+	/**
+	 * {@code POST} - upgrades an existing release from an uploaded {@code .tgz} chart
+	 * archive.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @param chart the uploaded chart archive
+	 * @param request the values and dry-run flag
+	 * @return the upgraded release
+	 * @throws Exception if the release is not found or the upgrade fails
+	 */
 	@PostMapping(path = "/{name}/upgrade/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@Operation(summary = "Upgrade a release from upload",
 			description = "Upgrade an existing release from an uploaded .tgz chart archive")
@@ -193,6 +257,13 @@ public class ReleaseController {
 		}
 	}
 
+	/**
+	 * {@code DELETE} - uninstalls a release.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @return {@code 204} when the release is uninstalled
+	 * @throws Exception if the release cannot be uninstalled
+	 */
 	@DeleteMapping("/{name}")
 	@Operation(summary = "Uninstall a release")
 	public ResponseEntity<Void> uninstall(@Parameter(description = "Release name") @PathVariable String name,
@@ -202,6 +273,13 @@ public class ReleaseController {
 		return ResponseEntity.noContent().build();
 	}
 
+	/**
+	 * {@code GET} - lists all revisions of a release.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @return the release revisions, newest first
+	 * @throws Exception if the history cannot be read
+	 */
 	@GetMapping("/{name}/history")
 	@Operation(summary = "Get release history", description = "List all revisions of a release")
 	public List<ReleaseDto> history(@Parameter(description = "Release name") @PathVariable String name,
@@ -210,6 +288,14 @@ public class ReleaseController {
 		return this.historyAction.history(name, namespace).stream().map(ReleaseDto::from).toList();
 	}
 
+	/**
+	 * {@code POST} - rolls a release back to a previous revision.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @param request the target revision number
+	 * @return {@code 204} when the rollback completes
+	 * @throws Exception if the rollback fails
+	 */
 	@PostMapping("/{name}/rollback")
 	@Operation(summary = "Rollback a release", description = "Rollback a release to a previous revision")
 	public ResponseEntity<Void> rollback(@Parameter(description = "Release name") @PathVariable String name,
@@ -219,6 +305,14 @@ public class ReleaseController {
 		return ResponseEntity.noContent().build();
 	}
 
+	/**
+	 * {@code POST} - runs the test hooks defined by a release.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @param timeoutSeconds the per-test timeout in seconds
+	 * @return one result per executed test hook
+	 * @throws Exception if the tests cannot be run
+	 */
 	@PostMapping("/{name}/test")
 	@Operation(summary = "Test a release", description = "Run test hooks for a release")
 	public List<TestResultDto> test(@Parameter(description = "Release name") @PathVariable String name,
@@ -228,6 +322,16 @@ public class ReleaseController {
 		return this.testAction.test(name, namespace, timeoutSeconds).stream().map(TestResultDto::from).toList();
 	}
 
+	/**
+	 * {@code GET} - returns the values used by a release.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @param all {@code true} to include computed (default) values, {@code false} for
+	 * only user-supplied overrides
+	 * @return {@code 200} with the values YAML, or {@code 404} if the release does not
+	 * exist
+	 * @throws Exception if the values cannot be read
+	 */
 	@GetMapping("/{name}/values")
 	@Operation(summary = "Get release values", description = "Get the values used by a release")
 	public ResponseEntity<String> getValues(@Parameter(description = "Release name") @PathVariable String name,
@@ -239,6 +343,13 @@ public class ReleaseController {
 			.orElse(ResponseEntity.notFound().build());
 	}
 
+	/**
+	 * {@code GET} - returns the rendered Kubernetes manifest of a release.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @return {@code 200} with the manifest, or {@code 404} if the release does not exist
+	 * @throws Exception if the manifest cannot be read
+	 */
 	@GetMapping("/{name}/manifest")
 	@Operation(summary = "Get release manifest", description = "Get the rendered Kubernetes manifest")
 	public ResponseEntity<String> getManifest(@Parameter(description = "Release name") @PathVariable String name,
@@ -249,6 +360,13 @@ public class ReleaseController {
 			.orElse(ResponseEntity.notFound().build());
 	}
 
+	/**
+	 * {@code GET} - returns the rendered notes (NOTES.txt) of a release.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @return {@code 200} with the notes, or {@code 404} if the release does not exist
+	 * @throws Exception if the notes cannot be read
+	 */
 	@GetMapping("/{name}/notes")
 	@Operation(summary = "Get release notes")
 	public ResponseEntity<String> getNotes(@Parameter(description = "Release name") @PathVariable String name,
@@ -259,6 +377,13 @@ public class ReleaseController {
 			.orElse(ResponseEntity.notFound().build());
 	}
 
+	/**
+	 * {@code GET} - lists the Helm hooks declared in a release manifest.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @return {@code 200} with the hooks, or {@code 404} if the release does not exist
+	 * @throws Exception if the hooks cannot be read
+	 */
 	@GetMapping("/{name}/hooks")
 	@Operation(summary = "Get release hooks", description = "List Helm hooks defined in the release")
 	public ResponseEntity<List<HelmHookDto>> getHooks(
@@ -274,6 +399,15 @@ public class ReleaseController {
 		}).orElse(ResponseEntity.notFound().build());
 	}
 
+	/**
+	 * {@code GET} - lists the Kubernetes resources owned by a release and their
+	 * readiness.
+	 * @param name the release name
+	 * @param namespace the Kubernetes namespace
+	 * @return {@code 200} with the resource statuses, or {@code 404} if the release does
+	 * not exist
+	 * @throws Exception if the statuses cannot be read
+	 */
 	@GetMapping("/{name}/resources")
 	@Operation(summary = "Get resource statuses", description = "List Kubernetes resources and their status")
 	public ResponseEntity<List<ResourceStatusDto>> getResources(
@@ -286,6 +420,12 @@ public class ReleaseController {
 		}).orElse(ResponseEntity.notFound().build());
 	}
 
+	/**
+	 * Reads release values, returning an empty string instead of failing the request.
+	 * @param release the release whose values to read
+	 * @param all {@code true} to include computed values
+	 * @return the values YAML, or an empty string if they cannot be read
+	 */
 	private String safeGetValues(Release release, boolean all) {
 		try {
 			return this.getAction.getValues(release, all);
@@ -295,6 +435,11 @@ public class ReleaseController {
 		}
 	}
 
+	/**
+	 * Reads resource statuses, returning an empty list instead of failing the request.
+	 * @param release the release whose resources to inspect
+	 * @return the resource statuses, or an empty list if they cannot be read
+	 */
 	private List<ResourceStatusDto> safeGetResourceStatuses(Release release) {
 		try {
 			return this.statusAction.getResourceStatuses(release).stream().map(ResourceStatusDto::from).toList();

@@ -3,6 +3,9 @@ package org.alexmond.jhelm.rest.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+/**
+ * Request body for resolving a chart's dependency versions into a {@code Chart.lock}.
+ */
 @Data
 @Schema(description = "Request to resolve chart dependencies")
 public class DependencyResolveRequest {

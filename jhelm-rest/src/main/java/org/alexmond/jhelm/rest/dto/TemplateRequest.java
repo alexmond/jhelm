@@ -5,6 +5,9 @@ import java.util.Map;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+/**
+ * Request body for rendering chart templates from a repository chart reference.
+ */
 @Data
 @Schema(description = "Request to render chart templates")
 public class TemplateRequest {

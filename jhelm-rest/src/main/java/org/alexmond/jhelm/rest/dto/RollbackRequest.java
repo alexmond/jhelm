@@ -3,6 +3,9 @@ package org.alexmond.jhelm.rest.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+/**
+ * Request body for rolling a release back to a previous revision.
+ */
 @Data
 @Schema(description = "Request to rollback a release to a previous revision")
 public class RollbackRequest {

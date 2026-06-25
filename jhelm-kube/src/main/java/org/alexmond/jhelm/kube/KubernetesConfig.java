@@ -11,4 +11,11 @@ import org.springframework.context.annotation.Import;
 @Import(JhelmKubeAutoConfiguration.class)
 public class KubernetesConfig {
 
+	/**
+	 * Creates the configuration bridge. Instantiated by the Spring container.
+	 */
+	@SuppressWarnings("PMD.UnnecessaryConstructor")
+	public KubernetesConfig() {
+	}
+
 }

@@ -5,6 +5,9 @@ import java.util.Map;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+/**
+ * Request body for upgrading an existing release from a repository chart reference.
+ */
 @Data
 @Schema(description = "Request to upgrade an existing Helm release from a repository chart reference")
 public class UpgradeRequest {

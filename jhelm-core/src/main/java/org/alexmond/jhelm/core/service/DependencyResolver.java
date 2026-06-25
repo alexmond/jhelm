@@ -30,6 +30,11 @@ public class DependencyResolver {
 
 	private final RepoManager repoManager;
 
+	/**
+	 * Creates a resolver that fetches and caches dependency charts through the given
+	 * repository manager.
+	 * @param repoManager the repository manager used to download dependency charts
+	 */
 	public DependencyResolver(RepoManager repoManager) {
 		this.repoManager = repoManager;
 	}

@@ -36,6 +36,10 @@ public class TestCommand implements Runnable {
 	@CommandLine.Option(names = { "--logs" }, description = "dump the logs from test hooks")
 	private boolean showLogs;
 
+	/**
+	 * Creates the command.
+	 * @param testAction the action that runs the release test hooks
+	 */
 	public TestCommand(TestAction testAction) {
 		this.testAction = testAction;
 	}

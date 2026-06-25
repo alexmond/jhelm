@@ -12,6 +12,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
+/**
+ * Implements {@code jhelm status RELEASE}, displaying the status of a named release and
+ * optionally the readiness of its resources.
+ */
 @Component
 @CommandLine.Command(name = "status", mixinStandardHelpOptions = true,
 		description = "Display the status of the named release")
@@ -29,6 +33,10 @@ public class StatusCommand implements Runnable {
 	@CommandLine.Option(names = { "--show-resources" }, description = "show resource readiness status")
 	private boolean showResources;
 
+	/**
+	 * Creates the command.
+	 * @param statusAction the action that retrieves release status
+	 */
 	public StatusCommand(StatusAction statusAction) {
 		this.statusAction = statusAction;
 	}

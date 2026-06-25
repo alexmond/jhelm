@@ -26,6 +26,11 @@ import org.alexmond.jhelm.app.output.CliOutput;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+/**
+ * Root {@code jhelm} command. Defines global options and wires up every top-level
+ * subcommand (install, upgrade, template, repo, and so on). Running it with no subcommand
+ * prints the usage help.
+ */
 @Component
 @CommandLine.Command(name = "jhelm", mixinStandardHelpOptions = true, version = "jhelm 0.0.1",
 		header = { "", "The Java Kubernetes package manager", "" },
@@ -42,6 +47,16 @@ import picocli.CommandLine;
 				RepoCommand.class, RegistryCommand.class, PluginCommand.class, SearchCommand.class })
 public class JHelmCommand implements Runnable {
 
+	/** Creates the command. */
+	@SuppressWarnings("PMD.UnnecessaryConstructor")
+	public JHelmCommand() {
+	}
+
+	/**
+	 * Toggles colored CLI output. Bound to the inherited {@code --no-color} option so it
+	 * applies to every subcommand.
+	 * @param noColor {@code true} to disable ANSI colors in output
+	 */
 	@CommandLine.Option(names = { "--no-color" }, description = "Disable colored output",
 			scope = CommandLine.ScopeType.INHERIT)
 	public void setNoColor(boolean noColor) {
@@ -50,6 +65,9 @@ public class JHelmCommand implements Runnable {
 		}
 	}
 
+	/**
+	 * Prints the usage help when {@code jhelm} is invoked without a subcommand.
+	 */
 	@Override
 	public void run() {
 		CommandLine.usage(this, System.out);

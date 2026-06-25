@@ -15,8 +15,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Implementation of KubernetesProvider using Kubernetes Java client. Provides real
- * Kubernetes API access for template functions.
+ * {@link KubernetesProvider} implementation backed by the official Kubernetes Java
+ * client. It provides real cluster access for template functions such as {@code lookup}
+ * and {@code Capabilities}, gracefully degrading to empty results or stub version
+ * information when the API server is unreachable.
  */
 @Slf4j
 public class KubernetesClientProvider implements KubernetesProvider {
@@ -31,6 +33,11 @@ public class KubernetesClientProvider implements KubernetesProvider {
 
 	private volatile Boolean available;
 
+	/**
+	 * Creates a provider backed by the given Kubernetes API client.
+	 * @param apiClient the configured Kubernetes API client used to look up resources and
+	 * query cluster version information
+	 */
 	public KubernetesClientProvider(ApiClient apiClient) {
 		this.apiClient = apiClient;
 		this.coreV1Api = new CoreV1Api(apiClient);

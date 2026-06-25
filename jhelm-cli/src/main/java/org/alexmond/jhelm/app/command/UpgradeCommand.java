@@ -22,6 +22,11 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
+/**
+ * Implements {@code jhelm upgrade RELEASE CHART}, upgrading an existing release. Supports
+ * installing when the release is absent ({@code --install}), values overrides, dry-run,
+ * waiting for readiness, atomic rollback on failure, and post-renderers.
+ */
 @Component
 @CommandLine.Command(name = "upgrade", mixinStandardHelpOptions = true, description = "Upgrade a release")
 @Slf4j
@@ -72,6 +77,18 @@ public class UpgradeCommand implements Runnable {
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
 
+	/**
+	 * Creates the command.
+	 * @param kubeService the Kubernetes service used to look up releases and wait for
+	 * readiness
+	 * @param installAction the action used to install when {@code --install} is set
+	 * @param uninstallAction the action used to roll back a freshly installed release on
+	 * atomic failure
+	 * @param upgradeAction the action that performs the upgrade
+	 * @param rollbackAction the action used to roll back to the previous revision on
+	 * atomic failure
+	 * @param chartLoader the loader that reads the chart from disk
+	 */
 	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UninstallAction uninstallAction,
 			UpgradeAction upgradeAction, RollbackAction rollbackAction, ChartLoader chartLoader) {
 		this.kubeService = kubeService;

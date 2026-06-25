@@ -29,6 +29,9 @@ public class PluginManifest {
 
 	private WasmConfig wasm;
 
+	/**
+	 * WASM-specific configuration declared under the manifest's {@code wasm} section.
+	 */
 	@Data
 	@Builder
 	@NoArgsConstructor

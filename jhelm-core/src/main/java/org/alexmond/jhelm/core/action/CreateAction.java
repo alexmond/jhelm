@@ -6,9 +6,20 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.alexmond.jhelm.core.template.HelmChartTemplates;
 
+/**
+ * Implements {@code helm create}: scaffolds a new chart directory on disk from the
+ * default Helm chart templates, populating {@code Chart.yaml}, {@code values.yaml} and a
+ * starter set of templates with the chart name substituted in.
+ */
 @Slf4j
 public class CreateAction {
 
+	/**
+	 * Scaffolds a new chart at the given path, using its final path segment as the chart
+	 * name.
+	 * @param chartPath the directory to create the chart in; must not already exist
+	 * @throws IOException if the directory already exists or files cannot be written
+	 */
 	public void create(Path chartPath) throws IOException {
 		String chartName = chartPath.getFileName().toString();
 

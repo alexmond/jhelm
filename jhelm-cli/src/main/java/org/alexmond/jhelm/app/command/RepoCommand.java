@@ -9,6 +9,10 @@ import picocli.CommandLine;
 
 import java.io.IOException;
 
+/**
+ * Implements {@code jhelm repo}, managing chart repositories via the {@code add},
+ * {@code list}, {@code remove}, and {@code search} subcommands.
+ */
 @Component
 @CommandLine.Command(name = "repo", mixinStandardHelpOptions = true, description = "Manage chart repositories",
 		subcommands = { RepoCommand.AddCommand.class, RepoCommand.ListCommand.class, RepoCommand.RemoveCommand.class,
@@ -16,11 +20,20 @@ import java.io.IOException;
 @Slf4j
 public class RepoCommand implements Runnable {
 
+	/** Creates the command. */
+	@SuppressWarnings("PMD.UnnecessaryConstructor")
+	public RepoCommand() {
+	}
+
+	/**
+	 * Prints the usage help when {@code repo} is invoked without a subcommand.
+	 */
 	@Override
 	public void run() {
 		CommandLine.usage(this, System.out);
 	}
 
+	/** Implements {@code repo add}: registers a chart repository by name and URL. */
 	@Component
 	@CommandLine.Command(name = "add", mixinStandardHelpOptions = true, description = "Add a chart repository")
 	@Slf4j
@@ -34,6 +47,10 @@ public class RepoCommand implements Runnable {
 		@CommandLine.Parameters(index = "1", description = "repository url")
 		private String url;
 
+		/**
+		 * Creates the command.
+		 * @param repoManager the repository manager that stores the repository
+		 */
 		public AddCommand(RepoManager repoManager) {
 			this.repoManager = repoManager;
 		}
@@ -51,6 +68,7 @@ public class RepoCommand implements Runnable {
 
 	}
 
+	/** Implements {@code repo list}: prints the configured chart repositories. */
 	@Component
 	@CommandLine.Command(name = "list", mixinStandardHelpOptions = true, description = "List chart repositories")
 	@Slf4j
@@ -58,6 +76,11 @@ public class RepoCommand implements Runnable {
 
 		private final RepoManager repoManager;
 
+		/**
+		 * Creates the command.
+		 * @param repoManager the repository manager that supplies the configured
+		 * repositories
+		 */
 		public ListCommand(RepoManager repoManager) {
 			this.repoManager = repoManager;
 		}
@@ -78,6 +101,7 @@ public class RepoCommand implements Runnable {
 
 	}
 
+	/** Implements {@code repo remove}: deletes a chart repository by name. */
 	@Component
 	@CommandLine.Command(name = "remove", mixinStandardHelpOptions = true,
 			description = "Remove one or more chart repositories")
@@ -89,6 +113,10 @@ public class RepoCommand implements Runnable {
 		@CommandLine.Parameters(index = "0", description = "repository name")
 		private String name;
 
+		/**
+		 * Creates the command.
+		 * @param repoManager the repository manager that removes the repository
+		 */
 		public RemoveCommand(RepoManager repoManager) {
 			this.repoManager = repoManager;
 		}
@@ -106,6 +134,7 @@ public class RepoCommand implements Runnable {
 
 	}
 
+	/** Implements {@code repo search}: searches the added repositories for a chart. */
 	@Component
 	@CommandLine.Command(name = "search", mixinStandardHelpOptions = true,
 			description = "Search the added repositories for a chart")
@@ -120,6 +149,10 @@ public class RepoCommand implements Runnable {
 		@CommandLine.Option(names = { "--versions" }, description = "show all versions")
 		private boolean showAllVersions;
 
+		/**
+		 * Creates the command.
+		 * @param repoManager the repository manager that resolves chart versions
+		 */
 		public SearchCommand(RepoManager repoManager) {
 			this.repoManager = repoManager;
 		}

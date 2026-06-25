@@ -21,6 +21,11 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Dependency;
 import org.alexmond.jhelm.core.util.ValuesLoader;
 
+/**
+ * Loads a Helm chart from a directory on disk into an in-memory {@link Chart}, reading
+ * {@code Chart.yaml} metadata, {@code values.yaml}, templates, CRDs, subchart
+ * dependencies and arbitrary non-template files exposed via the {@code .Files} object.
+ */
 @Slf4j
 @Component
 public class ChartLoader {
@@ -32,6 +37,7 @@ public class ChartLoader {
 	 * archives create a single subdirectory (e.g. {@code parent/nginx/}).
 	 * @param parent the directory to search
 	 * @return the first subdirectory, or the parent itself if none found
+	 * @throws IOException if the directory cannot be listed
 	 */
 	public static Path findChartDir(Path parent) throws IOException {
 		try (var stream = Files.list(parent)) {
@@ -39,6 +45,14 @@ public class ChartLoader {
 		}
 	}
 
+	/**
+	 * Loads the chart rooted at the given directory, including its metadata, values,
+	 * templates, CRDs and subchart dependencies.
+	 * @param chartDir the chart's root directory (the one containing {@code Chart.yaml})
+	 * @return the fully populated chart
+	 * @throws IOException if a chart file cannot be read
+	 * @throws ChartLoadException if the directory is missing or has no {@code Chart.yaml}
+	 */
 	public Chart load(File chartDir) throws IOException {
 		if (!chartDir.exists() || !chartDir.isDirectory()) {
 			throw new ChartLoadException("Chart directory does not exist", chartDir.getPath(),

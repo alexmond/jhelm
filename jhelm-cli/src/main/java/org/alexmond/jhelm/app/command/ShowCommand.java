@@ -6,6 +6,11 @@ import org.alexmond.jhelm.core.action.ShowAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+/**
+ * Implements {@code jhelm show}, displaying information about a chart via the
+ * {@code chart}, {@code values}, {@code readme}, {@code crds}, and {@code all}
+ * subcommands.
+ */
 @Component
 @CommandLine.Command(name = "show", mixinStandardHelpOptions = true, description = "Show information about a chart",
 		subcommands = { ShowCommand.ChartCommand.class, ShowCommand.ValuesCommand.class,
@@ -13,11 +18,20 @@ import picocli.CommandLine;
 @Slf4j
 public class ShowCommand implements Runnable {
 
+	/** Creates the command. */
+	@SuppressWarnings("PMD.UnnecessaryConstructor")
+	public ShowCommand() {
+	}
+
+	/**
+	 * Prints the usage help when {@code show} is invoked without a subcommand.
+	 */
 	@Override
 	public void run() {
 		CommandLine.usage(this, System.out);
 	}
 
+	/** Implements {@code show chart}: prints the chart's Chart.yaml. */
 	@Component
 	@CommandLine.Command(name = "chart", mixinStandardHelpOptions = true, description = "Show the chart's Chart.yaml")
 	@Slf4j
@@ -28,6 +42,10 @@ public class ShowCommand implements Runnable {
 		@CommandLine.Parameters(index = "0", description = "chart path")
 		String chartPath;
 
+		/**
+		 * Creates the command.
+		 * @param showAction the action that reads chart contents
+		 */
 		public ChartCommand(ShowAction showAction) {
 			this.showAction = showAction;
 		}
@@ -44,6 +62,7 @@ public class ShowCommand implements Runnable {
 
 	}
 
+	/** Implements {@code show values}: prints the chart's values.yaml. */
 	@Component
 	@CommandLine.Command(name = "values", mixinStandardHelpOptions = true, description = "Show the chart's values.yaml")
 	@Slf4j
@@ -54,6 +73,10 @@ public class ShowCommand implements Runnable {
 		@CommandLine.Parameters(index = "0", description = "chart path")
 		String chartPath;
 
+		/**
+		 * Creates the command.
+		 * @param showAction the action that reads chart contents
+		 */
 		public ValuesCommand(ShowAction showAction) {
 			this.showAction = showAction;
 		}
@@ -70,6 +93,7 @@ public class ShowCommand implements Runnable {
 
 	}
 
+	/** Implements {@code show readme}: prints the chart's README. */
 	@Component
 	@CommandLine.Command(name = "readme", mixinStandardHelpOptions = true, description = "Show the chart's README")
 	@Slf4j
@@ -80,6 +104,10 @@ public class ShowCommand implements Runnable {
 		@CommandLine.Parameters(index = "0", description = "chart path")
 		String chartPath;
 
+		/**
+		 * Creates the command.
+		 * @param showAction the action that reads chart contents
+		 */
 		public ReadmeCommand(ShowAction showAction) {
 			this.showAction = showAction;
 		}
@@ -101,6 +129,7 @@ public class ShowCommand implements Runnable {
 
 	}
 
+	/** Implements {@code show crds}: prints the chart's Custom Resource Definitions. */
 	@Component
 	@CommandLine.Command(name = "crds", mixinStandardHelpOptions = true,
 			description = "Show the chart's Custom Resource Definitions")
@@ -112,6 +141,10 @@ public class ShowCommand implements Runnable {
 		@CommandLine.Parameters(index = "0", description = "chart path")
 		String chartPath;
 
+		/**
+		 * Creates the command.
+		 * @param showAction the action that reads chart contents
+		 */
 		public CrdsCommand(ShowAction showAction) {
 			this.showAction = showAction;
 		}
@@ -133,6 +166,10 @@ public class ShowCommand implements Runnable {
 
 	}
 
+	/**
+	 * Implements {@code show all}: prints the chart's combined Chart.yaml, values, and
+	 * README.
+	 */
 	@Component
 	@CommandLine.Command(name = "all", mixinStandardHelpOptions = true,
 			description = "Show all information about the chart")
@@ -144,6 +181,10 @@ public class ShowCommand implements Runnable {
 		@CommandLine.Parameters(index = "0", description = "chart path")
 		String chartPath;
 
+		/**
+		 * Creates the command.
+		 * @param showAction the action that reads chart contents
+		 */
 		public AllCommand(ShowAction showAction) {
 			this.showAction = showAction;
 		}
