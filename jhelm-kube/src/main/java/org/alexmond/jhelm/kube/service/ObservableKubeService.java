@@ -11,6 +11,7 @@ import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.service.KubeService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * A {@link KubeService} decorator that records operation timers and success/error
@@ -56,58 +57,58 @@ public class ObservableKubeService implements KubeService {
 	}
 
 	@Override
-	public void storeRelease(Release release) throws Exception {
+	public void storeRelease(Release release) {
 		timeVoid(storeTimer, () -> delegate.storeRelease(release));
 	}
 
 	@Override
-	public Optional<Release> getRelease(String name, String namespace) throws Exception {
+	public Optional<Release> getRelease(String name, String namespace) {
 		return time(getTimer, () -> delegate.getRelease(name, namespace));
 	}
 
 	@Override
-	public List<Release> listReleases(String namespace) throws Exception {
+	public List<Release> listReleases(String namespace) {
 		return time(listTimer, () -> delegate.listReleases(namespace));
 	}
 
 	@Override
-	public List<Release> getReleaseHistory(String name, String namespace) throws Exception {
+	public List<Release> getReleaseHistory(String name, String namespace) {
 		return time(historyTimer, () -> delegate.getReleaseHistory(name, namespace));
 	}
 
 	@Override
-	public void deleteReleaseHistory(String name, String namespace) throws Exception {
+	public void deleteReleaseHistory(String name, String namespace) {
 		timeVoid(deleteTimer, () -> delegate.deleteReleaseHistory(name, namespace));
 	}
 
 	@Override
-	public void apply(String namespace, String yamlContent) throws Exception {
+	public void apply(String namespace, String yamlContent) {
 		timeVoid(applyTimer, () -> delegate.apply(namespace, yamlContent));
 	}
 
 	@Override
-	public void delete(String namespace, String yamlContent) throws Exception {
+	public void delete(String namespace, String yamlContent) {
 		timeVoid(deleteTimer, () -> delegate.delete(namespace, yamlContent));
 	}
 
 	@Override
-	public List<ResourceStatus> getResourceStatuses(String namespace, String manifest) throws Exception {
+	public List<ResourceStatus> getResourceStatuses(String namespace, String manifest) {
 		return time(getTimer, () -> delegate.getResourceStatuses(namespace, manifest));
 	}
 
 	@Override
-	public void waitForReady(String namespace, String manifest, int timeoutSeconds) throws Exception {
+	public void waitForReady(String namespace, String manifest, int timeoutSeconds) {
 		delegate.waitForReady(namespace, manifest, timeoutSeconds);
 	}
 
-	private <T> T time(Timer timer, CheckedSupplier<T> supplier) throws Exception {
+	private <T> T time(Timer timer, Supplier<T> supplier) {
 		long startNanos = System.nanoTime();
 		try {
 			T result = supplier.get();
 			successCounter.increment();
 			return result;
 		}
-		catch (Exception ex) {
+		catch (RuntimeException ex) {
 			errorCounter.increment();
 			throw ex;
 		}
@@ -116,33 +117,19 @@ public class ObservableKubeService implements KubeService {
 		}
 	}
 
-	private void timeVoid(Timer timer, CheckedRunnable runnable) throws Exception {
+	private void timeVoid(Timer timer, Runnable runnable) {
 		long startNanos = System.nanoTime();
 		try {
 			runnable.run();
 			successCounter.increment();
 		}
-		catch (Exception ex) {
+		catch (RuntimeException ex) {
 			errorCounter.increment();
 			throw ex;
 		}
 		finally {
 			timer.record(System.nanoTime() - startNanos, TimeUnit.NANOSECONDS);
 		}
-	}
-
-	@FunctionalInterface
-	private interface CheckedSupplier<T> {
-
-		T get() throws Exception;
-
-	}
-
-	@FunctionalInterface
-	private interface CheckedRunnable {
-
-		void run() throws Exception;
-
 	}
 
 }

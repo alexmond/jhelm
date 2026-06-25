@@ -49,9 +49,10 @@ import java.nio.charset.StandardCharsets;
  * manifests, and waits on workload readiness.
  *
  * <p>
- * Instances are created with a configured {@link ApiClient}; all operations issue calls
- * through that client and surface failures as {@link ApiException} or the project's
- * Kubernetes exception types.
+ * Instances are created with a configured {@link ApiClient}. {@link KubeService}
+ * operations translate the client's checked {@link ApiException} into the unchecked
+ * {@link KubernetesOperationException} (preserving the HTTP status code), so the public
+ * surface never leaks the kubernetes-client exception type.
  */
 @RequiredArgsConstructor
 @Slf4j
@@ -68,7 +69,7 @@ public class HelmKubeService implements KubeService {
 	 * Stores a release as a Secret in Kubernetes, matching Helm's storage format.
 	 */
 	@Override
-	public void storeRelease(Release release) throws ReleaseStorageException {
+	public void storeRelease(Release release) {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String name = "sh.helm.release.v1." + release.getName() + ".v" + release.getVersion();
 
@@ -106,11 +107,11 @@ public class HelmKubeService implements KubeService {
 	 * Retrieves the latest version of a release from Kubernetes.
 	 */
 	@Override
-	public Optional<Release> getRelease(String name, String namespace) throws Exception {
+	public Optional<Release> getRelease(String name, String namespace) {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm,name=" + name;
 
-		V1SecretList list = api.listNamespacedSecret(namespace).labelSelector(labelSelector).execute();
+		V1SecretList list = listSecrets(api, namespace, labelSelector, "read release " + name);
 
 		Optional<V1Secret> latest = list.getItems().stream().sorted((s1, s2) -> {
 			int v1 = Integer.parseInt(s1.getMetadata().getLabels().get("version"));
@@ -128,11 +129,11 @@ public class HelmKubeService implements KubeService {
 	 * Retrieves all releases in a namespace.
 	 */
 	@Override
-	public List<Release> listReleases(String namespace) throws Exception {
+	public List<Release> listReleases(String namespace) {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm";
 
-		V1SecretList list = api.listNamespacedSecret(namespace).labelSelector(labelSelector).execute();
+		V1SecretList list = listSecrets(api, namespace, labelSelector, "list releases in " + namespace);
 
 		// Group by name and pick the highest version for each
 		Map<String, List<V1Secret>> grouped = list.getItems()
@@ -166,11 +167,11 @@ public class HelmKubeService implements KubeService {
 	 * Retrieves all versions of a specific release.
 	 */
 	@Override
-	public List<Release> getReleaseHistory(String name, String namespace) throws Exception {
+	public List<Release> getReleaseHistory(String name, String namespace) {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm,name=" + name;
 
-		V1SecretList list = api.listNamespacedSecret(namespace).labelSelector(labelSelector).execute();
+		V1SecretList list = listSecrets(api, namespace, labelSelector, "read history for " + name);
 
 		List<V1Secret> sorted = list.getItems()
 			.stream()
@@ -190,12 +191,31 @@ public class HelmKubeService implements KubeService {
 	 * Deletes all versions of a release from Kubernetes.
 	 */
 	@Override
-	public void deleteReleaseHistory(String name, String namespace) throws ApiException {
+	public void deleteReleaseHistory(String name, String namespace) {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		String labelSelector = "owner=helm,name=" + name;
-		V1SecretList list = api.listNamespacedSecret(namespace).labelSelector(labelSelector).execute();
-		for (V1Secret secret : list.getItems()) {
-			api.deleteNamespacedSecret(secret.getMetadata().getName(), namespace).execute();
+		V1SecretList list = listSecrets(api, namespace, labelSelector, "delete history for " + name);
+		try {
+			for (V1Secret secret : list.getItems()) {
+				api.deleteNamespacedSecret(secret.getMetadata().getName(), namespace).execute();
+			}
+		}
+		catch (ApiException ex) {
+			throw new KubernetesOperationException("Failed to delete release history for " + name, ex, ex.getCode());
+		}
+	}
+
+	/**
+	 * Lists release Secrets for a label selector, translating the kubernetes-client
+	 * {@link ApiException} into a {@link KubernetesOperationException} so callers never
+	 * see the client's checked exception.
+	 */
+	private V1SecretList listSecrets(CoreV1Api api, String namespace, String labelSelector, String operation) {
+		try {
+			return api.listNamespacedSecret(namespace).labelSelector(labelSelector).execute();
+		}
+		catch (ApiException ex) {
+			throw new KubernetesOperationException("Failed to " + operation, ex, ex.getCode());
 		}
 	}
 
@@ -217,7 +237,7 @@ public class HelmKubeService implements KubeService {
 	 * Applies a YAML manifest which can contain multiple resources.
 	 */
 	@Override
-	public void apply(String namespace, String yamlContent) throws Exception {
+	public void apply(String namespace, String yamlContent) {
 		try {
 			Iterable<Object> objects = Yaml.loadAll(yamlContent);
 			for (Object obj : objects) {
@@ -267,7 +287,7 @@ public class HelmKubeService implements KubeService {
 	 * Deletes resources in a YAML manifest.
 	 */
 	@Override
-	public void delete(String namespace, String yamlContent) throws Exception {
+	public void delete(String namespace, String yamlContent) {
 		try {
 			Iterable<Object> objects = Yaml.loadAll(yamlContent);
 			for (Object obj : objects) {
@@ -315,9 +335,15 @@ public class HelmKubeService implements KubeService {
 	 * Returns the readiness status for each resource in the rendered manifest.
 	 */
 	@Override
-	public List<ResourceStatus> getResourceStatuses(String namespace, String manifest) throws Exception {
+	public List<ResourceStatus> getResourceStatuses(String namespace, String manifest) {
 		List<ResourceStatus> statuses = new ArrayList<>();
-		Iterable<Object> objects = Yaml.loadAll(manifest);
+		Iterable<Object> objects;
+		try {
+			objects = Yaml.loadAll(manifest);
+		}
+		catch (Exception ex) {
+			throw new KubernetesOperationException("Failed to parse manifest", ex);
+		}
 		for (Object obj : objects) {
 			if (obj instanceof KubernetesObject k8sObj) {
 				statuses.add(checkResourceStatus(namespace, k8sObj));
@@ -430,7 +456,7 @@ public class HelmKubeService implements KubeService {
 	 * Polls until all resources in the manifest are ready or the timeout elapses.
 	 */
 	@Override
-	public void waitForReady(String namespace, String manifest, int timeoutSeconds) throws Exception {
+	public void waitForReady(String namespace, String manifest, int timeoutSeconds) {
 		long deadline = System.currentTimeMillis() + (long) timeoutSeconds * 1000;
 		int pollIntervalMs = 5000;
 
@@ -450,7 +476,13 @@ public class HelmKubeService implements KubeService {
 				.filter((s) -> !s.isReady())
 				.forEach((s) -> log.info("Waiting for {}/{}: {}", s.getKind(), s.getName(), s.getMessage()));
 
-			Thread.sleep(Math.min(pollIntervalMs, remaining));
+			try {
+				Thread.sleep(Math.min(pollIntervalMs, remaining));
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				throw new KubernetesOperationException("Interrupted while waiting for resources to be ready", ex);
+			}
 		}
 
 		List<ResourceStatus> finalStatuses = getResourceStatuses(namespace, manifest);

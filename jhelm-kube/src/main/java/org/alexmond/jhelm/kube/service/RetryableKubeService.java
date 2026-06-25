@@ -43,7 +43,7 @@ public class RetryableKubeService implements KubeService {
 	}
 
 	@Override
-	public void storeRelease(Release release) throws Exception {
+	public void storeRelease(Release release) {
 		executeWithRetry("storeRelease", () -> {
 			delegate.storeRelease(release);
 			return null;
@@ -51,22 +51,22 @@ public class RetryableKubeService implements KubeService {
 	}
 
 	@Override
-	public Optional<Release> getRelease(String name, String namespace) throws Exception {
+	public Optional<Release> getRelease(String name, String namespace) {
 		return executeWithRetry("getRelease", () -> delegate.getRelease(name, namespace));
 	}
 
 	@Override
-	public List<Release> listReleases(String namespace) throws Exception {
+	public List<Release> listReleases(String namespace) {
 		return executeWithRetry("listReleases", () -> delegate.listReleases(namespace));
 	}
 
 	@Override
-	public List<Release> getReleaseHistory(String name, String namespace) throws Exception {
+	public List<Release> getReleaseHistory(String name, String namespace) {
 		return executeWithRetry("getReleaseHistory", () -> delegate.getReleaseHistory(name, namespace));
 	}
 
 	@Override
-	public void deleteReleaseHistory(String name, String namespace) throws Exception {
+	public void deleteReleaseHistory(String name, String namespace) {
 		executeWithRetry("deleteReleaseHistory", () -> {
 			delegate.deleteReleaseHistory(name, namespace);
 			return null;
@@ -74,7 +74,7 @@ public class RetryableKubeService implements KubeService {
 	}
 
 	@Override
-	public void apply(String namespace, String yamlContent) throws Exception {
+	public void apply(String namespace, String yamlContent) {
 		executeWithRetry("apply", () -> {
 			delegate.apply(namespace, yamlContent);
 			return null;
@@ -82,7 +82,7 @@ public class RetryableKubeService implements KubeService {
 	}
 
 	@Override
-	public void delete(String namespace, String yamlContent) throws Exception {
+	public void delete(String namespace, String yamlContent) {
 		executeWithRetry("delete", () -> {
 			delegate.delete(namespace, yamlContent);
 			return null;
@@ -90,29 +90,31 @@ public class RetryableKubeService implements KubeService {
 	}
 
 	@Override
-	public List<ResourceStatus> getResourceStatuses(String namespace, String manifest) throws Exception {
+	public List<ResourceStatus> getResourceStatuses(String namespace, String manifest) {
 		return executeWithRetry("getResourceStatuses", () -> delegate.getResourceStatuses(namespace, manifest));
 	}
 
 	@Override
-	public void waitForReady(String namespace, String manifest, int timeoutSeconds) throws Exception {
+	public void waitForReady(String namespace, String manifest, int timeoutSeconds) {
 		// waitForReady already polls internally; do not retry the entire operation
 		delegate.waitForReady(namespace, manifest, timeoutSeconds);
 	}
 
-	private <T> T executeWithRetry(String operation, Retryable<T> callback) throws Exception {
+	private <T> T executeWithRetry(String operation, Retryable<T> callback) {
 		try {
 			return retryTemplate.execute(callback);
 		}
 		catch (RetryException ex) {
 			// Thrown when the policy stops retrying — either a non-transient failure (the
 			// predicate rejected it) or all retries exhausted. The cause is the last
-			// underlying failure; rethrow it as-is so callers see the original exception.
+			// underlying failure; rethrow it as-is (every jhelm exception is unchecked)
+			// so
+			// callers see the original exception.
 			Throwable last = ex.getCause();
 			if (log.isErrorEnabled()) {
 				log.error("All retry attempts exhausted for {}", operation, last);
 			}
-			if (last instanceof Exception cause) {
+			if (last instanceof RuntimeException cause) {
 				throw cause;
 			}
 			throw new KubernetesOperationException("Retry exhausted for " + operation, last);
