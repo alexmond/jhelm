@@ -40,6 +40,14 @@ import java.util.List;
 @Slf4j
 public class DependencyCommand implements Runnable {
 
+	/** Creates the command. */
+	@SuppressWarnings("PMD.UnnecessaryConstructor")
+	public DependencyCommand() {
+	}
+
+	/**
+	 * Prints the usage help when {@code dependency} is invoked without a subcommand.
+	 */
 	@Override
 	public void run() {
 		CommandLine.usage(this, System.out);
@@ -59,6 +67,14 @@ public class DependencyCommand implements Runnable {
 		@CommandLine.Parameters(index = "0", description = "chart directory", defaultValue = ".")
 		String chartPath;
 
+		/** Creates the command. */
+		@SuppressWarnings("PMD.UnnecessaryConstructor")
+		public ListCommand() {
+		}
+
+		/**
+		 * Lists the chart's dependencies and their resolution status.
+		 */
 		@Override
 		public void run() {
 			try {
@@ -187,10 +203,18 @@ public class DependencyCommand implements Runnable {
 				description = "Enable dependency tags to include (comma-separated)")
 		List<String> withTags = new ArrayList<>();
 
+		/**
+		 * Creates the command.
+		 * @param repoManager the repository manager used to refresh and resolve
+		 * dependencies
+		 */
 		public UpdateCommand(RepoManager repoManager) {
 			this.repoManager = repoManager;
 		}
 
+		/**
+		 * Resolves dependencies from Chart.yaml, downloads them, and writes Chart.lock.
+		 */
 		@Override
 		public void run() {
 			try {
@@ -286,10 +310,18 @@ public class DependencyCommand implements Runnable {
 		@CommandLine.Option(names = { "--skip-refresh" }, description = "Skip refreshing the local repository cache")
 		boolean skipRefresh;
 
+		/**
+		 * Creates the command.
+		 * @param repoManager the repository manager used to refresh and download
+		 * dependencies
+		 */
 		public BuildCommand(RepoManager repoManager) {
 			this.repoManager = repoManager;
 		}
 
+		/**
+		 * Rebuilds the charts/ directory from the pinned versions in Chart.lock.
+		 */
 		@Override
 		public void run() {
 			try {

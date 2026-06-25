@@ -42,10 +42,22 @@ import java.util.Comparator;
 import java.util.stream.Collectors;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Default {@link KubeService} implementation backed by the official Kubernetes Java
+ * client. It stores and reads Helm releases as gzip-compressed, base64-encoded Secrets
+ * (matching Helm's {@code sh.helm.release.v1.*} storage format), applies rendered
+ * manifests, and waits on workload readiness.
+ *
+ * <p>
+ * Instances are created with a configured {@link ApiClient}; all operations issue calls
+ * through that client and surface failures as {@link ApiException} or the project's
+ * Kubernetes exception types.
+ */
 @RequiredArgsConstructor
 @Slf4j
 public class HelmKubeService implements KubeService {
 
+	/** Configured Kubernetes API client used for all cluster operations. */
 	private final ApiClient apiClient;
 
 	private final JsonMapper objectMapper = JsonMapper.builder().build();
@@ -188,7 +200,11 @@ public class HelmKubeService implements KubeService {
 	}
 
 	/**
-	 * Mimics basic "helm status" or pod listing in a namespace.
+	 * Lists the names of all pods in the given namespace, mimicking basic
+	 * {@code helm status} pod listing.
+	 * @param namespace the Kubernetes namespace to list pods from
+	 * @return the names of the pods found in the namespace, in API-returned order
+	 * @throws ApiException if the Kubernetes API call fails
 	 */
 	public List<String> listPods(String namespace) throws ApiException {
 		CoreV1Api api = new CoreV1Api(apiClient);
@@ -491,7 +507,13 @@ public class HelmKubeService implements KubeService {
 	}
 
 	/**
-	 * Mimics "helm install" by applying a ConfigMap from a YAML string.
+	 * Installs a ConfigMap parsed from a YAML string into the given namespace, mimicking
+	 * {@code helm install}. If a ConfigMap with the same name already exists (HTTP 409
+	 * conflict) it is replaced instead of created.
+	 * @param namespace the Kubernetes namespace to install the ConfigMap into
+	 * @param yamlContent the YAML representation of the ConfigMap to install
+	 * @throws ApiException if the Kubernetes API call fails for a reason other than an
+	 * already-existing ConfigMap
 	 */
 	public void installConfigMap(String namespace, String yamlContent) throws ApiException {
 		CoreV1Api api = new CoreV1Api(apiClient);

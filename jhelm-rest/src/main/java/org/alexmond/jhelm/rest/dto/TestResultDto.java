@@ -6,6 +6,9 @@ import lombok.Data;
 
 import org.alexmond.jhelm.core.action.TestAction;
 
+/**
+ * Outcome of one Helm test hook execution (resource, status and output message).
+ */
 @Data
 @Builder
 @Schema(description = "Result of a Helm test execution")
@@ -24,6 +27,11 @@ public class TestResultDto {
 	@Schema(description = "Test output message")
 	private String message;
 
+	/**
+	 * Maps a core test-result model to its REST representation.
+	 * @param result the source test result
+	 * @return the populated DTO
+	 */
 	public static TestResultDto from(TestAction.TestResult result) {
 		return TestResultDto.builder()
 			.kind(result.getKind())

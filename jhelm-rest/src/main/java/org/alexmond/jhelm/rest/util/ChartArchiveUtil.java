@@ -25,6 +25,7 @@ public final class ChartArchiveUtil {
 	 * @param dir the directory to archive
 	 * @param entryBase the top-level directory name inside the archive
 	 * @return the {@code .tgz} bytes
+	 * @throws IOException if walking the directory or writing the archive fails
 	 */
 	public static byte[] toTgzBytes(Path dir, String entryBase) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();

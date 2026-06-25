@@ -3,6 +3,9 @@ package org.alexmond.jhelm.rest.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+/**
+ * Request body for pulling a chart from a repository or OCI registry.
+ */
 @Data
 @Schema(description = "Request to pull a chart from a repository or OCI registry")
 public class PullRequest {

@@ -27,6 +27,11 @@ public class AsyncHelmKubeService extends HelmKubeService implements AsyncKubeSe
 
 	private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
+	/**
+	 * Creates an async service backed by the given Kubernetes API client.
+	 * @param apiClient the configured Kubernetes API client used for all cluster
+	 * operations
+	 */
 	public AsyncHelmKubeService(ApiClient apiClient) {
 		super(apiClient);
 	}

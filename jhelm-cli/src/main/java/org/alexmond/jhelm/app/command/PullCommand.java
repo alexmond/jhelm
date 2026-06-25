@@ -6,6 +6,10 @@ import org.alexmond.jhelm.core.service.RepoManager;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+/**
+ * Implements {@code jhelm pull CHART}, downloading a chart from a repository or OCI
+ * registry to a local directory.
+ */
 @Component
 @CommandLine.Command(name = "pull", mixinStandardHelpOptions = true, description = "Download a chart from a repository")
 @Slf4j
@@ -22,6 +26,10 @@ public class PullCommand implements Runnable {
 	@CommandLine.Option(names = { "--dest", "-d" }, defaultValue = ".", description = "destination directory")
 	private String dest;
 
+	/**
+	 * Creates the command.
+	 * @param repoManager the repository manager that downloads the chart
+	 */
 	public PullCommand(RepoManager repoManager) {
 		this.repoManager = repoManager;
 	}

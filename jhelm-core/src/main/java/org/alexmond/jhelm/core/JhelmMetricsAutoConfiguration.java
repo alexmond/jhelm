@@ -18,6 +18,11 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnClass(MeterRegistry.class)
 public class JhelmMetricsAutoConfiguration {
 
+	/**
+	 * Provides the {@link JhelmMetrics} bean backed by the application's meter registry.
+	 * @param meterRegistry the Micrometer registry to publish metrics to
+	 * @return the metrics service bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(MeterRegistry.class)

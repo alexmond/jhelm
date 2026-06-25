@@ -8,6 +8,9 @@ import lombok.Data;
 
 import org.alexmond.jhelm.core.model.Release;
 
+/**
+ * Summary view of a Helm release: identity, revision, status and chart metadata.
+ */
 @Data
 @Builder
 @Schema(description = "Summary of a Helm release")
@@ -40,6 +43,12 @@ public class ReleaseDto {
 	@Schema(description = "Timestamp of last deployment")
 	private OffsetDateTime lastDeployed;
 
+	/**
+	 * Maps a core release model to its REST representation, tolerating absent chart
+	 * metadata or release info.
+	 * @param release the source release
+	 * @return the populated DTO
+	 */
 	public static ReleaseDto from(Release release) {
 		ReleaseDto.ReleaseDtoBuilder builder = ReleaseDto.builder()
 			.name(release.getName())

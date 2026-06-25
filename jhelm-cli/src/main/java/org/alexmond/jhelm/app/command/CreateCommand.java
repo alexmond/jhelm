@@ -10,6 +10,10 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+/**
+ * Implements {@code jhelm create NAME}, scaffolding a new chart directory with the given
+ * name (optionally from a starter scaffold).
+ */
 @Slf4j
 @Component
 @CommandLine.Command(name = "create", mixinStandardHelpOptions = true,
@@ -25,10 +29,17 @@ public class CreateCommand implements Runnable {
 			description = "The name or absolute path to Helm starter scaffold")
 	private String starter;
 
+	/**
+	 * Creates the command.
+	 * @param createAction the action that scaffolds the new chart
+	 */
 	public CreateCommand(CreateAction createAction) {
 		this.createAction = createAction;
 	}
 
+	/**
+	 * Scaffolds the new chart and reports the result.
+	 */
 	@Override
 	public void run() {
 		try {

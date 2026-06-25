@@ -34,6 +34,10 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * REST endpoints for chart-level operations: rendering templates, scaffolding new charts,
+ * and inspecting chart metadata, values, and CRDs.
+ */
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/charts")
 @Tag(name = "Charts", description = "Chart operations: template, create, show")
@@ -51,6 +55,14 @@ public class ChartController {
 
 	private final JhelmRestProperties properties;
 
+	/**
+	 * Creates the controller with the chart-related actions it delegates to.
+	 * @param templateAction renders chart templates
+	 * @param createAction scaffolds new charts
+	 * @param showAction exposes chart information
+	 * @param repoManager pulls charts from repositories
+	 * @param properties REST module configuration (temp directory, base path)
+	 */
 	public ChartController(TemplateAction templateAction, CreateAction createAction, ShowAction showAction,
 			RepoManager repoManager, JhelmRestProperties properties) {
 		this.templateAction = templateAction;
@@ -60,6 +72,13 @@ public class ChartController {
 		this.properties = properties;
 	}
 
+	/**
+	 * {@code POST} - renders a repository chart's templates with optional value overrides
+	 * and returns the combined manifest text.
+	 * @param request the chart reference, version, release name, namespace and values
+	 * @return {@code 200} with the rendered manifest
+	 * @throws Exception if the chart cannot be pulled or rendered
+	 */
 	@PostMapping("/template")
 	@Operation(summary = "Render templates",
 			description = "Render chart templates from a repository chart reference with optional value overrides")
@@ -76,6 +95,14 @@ public class ChartController {
 		}
 	}
 
+	/**
+	 * {@code POST} - renders templates from an uploaded {@code .tgz} chart archive and
+	 * returns the combined manifest text.
+	 * @param chart the uploaded chart archive
+	 * @param request the release name, namespace and value overrides
+	 * @return {@code 200} with the rendered manifest
+	 * @throws Exception if the upload cannot be extracted or rendered
+	 */
 	@PostMapping(path = "/template/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@Operation(summary = "Render templates from upload",
 			description = "Render chart templates from an uploaded .tgz chart archive")
@@ -93,6 +120,13 @@ public class ChartController {
 		}
 	}
 
+	/**
+	 * {@code POST} - scaffolds a new chart and returns it as a {@code .tgz} archive
+	 * download.
+	 * @param request the name of the chart to scaffold
+	 * @return {@code 200} with the {@code .tgz} archive as an attachment
+	 * @throws Exception if the chart cannot be created or archived
+	 */
 	@PostMapping("/create")
 	@Operation(summary = "Create a chart",
 			description = "Scaffold a new chart and return it as a .tgz archive download")
@@ -111,6 +145,14 @@ public class ChartController {
 		}
 	}
 
+	/**
+	 * {@code GET} - returns all available chart information (metadata, values, README and
+	 * CRDs) for a repository chart.
+	 * @param chartRef the chart reference (repo/chart or {@code oci://...})
+	 * @param version the optional chart version
+	 * @return {@code 200} with the combined chart information
+	 * @throws Exception if the chart cannot be pulled or read
+	 */
 	@GetMapping("/show")
 	@Operation(summary = "Show chart info", description = "Show all chart information: metadata, values, README, CRDs")
 	public ResponseEntity<String> showAll(
@@ -122,6 +164,13 @@ public class ChartController {
 		}
 	}
 
+	/**
+	 * {@code GET} - returns a repository chart's default {@code values.yaml}.
+	 * @param chartRef the chart reference (repo/chart or {@code oci://...})
+	 * @param version the optional chart version
+	 * @return {@code 200} with the default values
+	 * @throws Exception if the chart cannot be pulled or read
+	 */
 	@GetMapping("/show/values")
 	@Operation(summary = "Show chart values", description = "Show the default values.yaml")
 	public ResponseEntity<String> showValues(
@@ -133,6 +182,13 @@ public class ChartController {
 		}
 	}
 
+	/**
+	 * {@code GET} - returns a repository chart's README.
+	 * @param chartRef the chart reference (repo/chart or {@code oci://...})
+	 * @param version the optional chart version
+	 * @return {@code 200} with the README content
+	 * @throws Exception if the chart cannot be pulled or read
+	 */
 	@GetMapping("/show/readme")
 	@Operation(summary = "Show chart README")
 	public ResponseEntity<String> showReadme(
@@ -144,6 +200,13 @@ public class ChartController {
 		}
 	}
 
+	/**
+	 * {@code GET} - returns a repository chart's {@code Chart.yaml} metadata.
+	 * @param chartRef the chart reference (repo/chart or {@code oci://...})
+	 * @param version the optional chart version
+	 * @return {@code 200} with the chart metadata
+	 * @throws Exception if the chart cannot be pulled or read
+	 */
 	@GetMapping("/show/chart")
 	@Operation(summary = "Show chart metadata", description = "Show the Chart.yaml metadata")
 	public ResponseEntity<String> showChart(
@@ -155,6 +218,14 @@ public class ChartController {
 		}
 	}
 
+	/**
+	 * {@code GET} - returns the Custom Resource Definitions bundled with a repository
+	 * chart.
+	 * @param chartRef the chart reference (repo/chart or {@code oci://...})
+	 * @param version the optional chart version
+	 * @return {@code 200} with the bundled CRDs
+	 * @throws Exception if the chart cannot be pulled or read
+	 */
 	@GetMapping("/show/crds")
 	@Operation(summary = "Show chart CRDs", description = "Show Custom Resource Definitions bundled with the chart")
 	public ResponseEntity<String> showCrds(
@@ -166,6 +237,14 @@ public class ChartController {
 		}
 	}
 
+	/**
+	 * Pulls a chart into the temp directory and returns the path to its chart directory.
+	 * @param chartRef the chart reference
+	 * @param version the optional chart version
+	 * @param tempDir the temporary directory to pull into
+	 * @return the path to the extracted chart directory
+	 * @throws IOException if the pull or directory lookup fails
+	 */
 	private String pullChart(String chartRef, String version, TempDir tempDir) throws IOException {
 		this.repoManager.pull(chartRef, version, tempDir.path().toString());
 		return ChartLoader.findChartDir(tempDir.path()).toString();

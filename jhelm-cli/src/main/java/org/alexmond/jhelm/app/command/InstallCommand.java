@@ -19,6 +19,11 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
+/**
+ * Implements {@code jhelm install RELEASE CHART}, installing a chart into the cluster.
+ * Supports values overrides, dry-run, waiting for readiness, atomic rollback on failure,
+ * and post-renderers.
+ */
 @Component
 @CommandLine.Command(name = "install", mixinStandardHelpOptions = true, description = "Install a chart")
 @Slf4j
@@ -62,6 +67,13 @@ public class InstallCommand implements Runnable {
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
 
+	/**
+	 * Creates the command.
+	 * @param installAction the action that performs the install
+	 * @param uninstallAction the action used to roll back when {@code --atomic} is set
+	 * @param kubeService the Kubernetes service used to wait for resource readiness
+	 * @param chartLoader the loader that reads the chart from disk
+	 */
 	public InstallCommand(InstallAction installAction, UninstallAction uninstallAction, KubeService kubeService,
 			ChartLoader chartLoader) {
 		this.installAction = installAction;

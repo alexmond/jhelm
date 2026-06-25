@@ -6,6 +6,10 @@ import org.alexmond.jhelm.core.service.RepoManager;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+/**
+ * Implements {@code jhelm push CHART REMOTE}, uploading a packaged chart archive to a
+ * remote OCI registry.
+ */
 @Component
 @CommandLine.Command(name = "push", mixinStandardHelpOptions = true,
 		description = "Push a chart to a remote OCI registry")
@@ -20,6 +24,10 @@ public class PushCommand implements Runnable {
 	@CommandLine.Parameters(index = "1", description = "OCI registry destination (oci://registry/repo/chart[:tag])")
 	private String remote;
 
+	/**
+	 * Creates the command.
+	 * @param repoManager the repository manager that pushes the chart to the registry
+	 */
 	public PushCommand(RepoManager repoManager) {
 		this.repoManager = repoManager;
 	}

@@ -6,6 +6,10 @@ import org.alexmond.jhelm.core.action.VerifyAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+/**
+ * Implements {@code jhelm verify CHART}, checking that a packaged chart archive has a
+ * valid PGP provenance signature.
+ */
 @Component
 @CommandLine.Command(name = "verify", mixinStandardHelpOptions = true,
 		description = "Verify that a chart has a valid provenance file")
@@ -20,6 +24,10 @@ public class VerifyCommand implements Runnable {
 	@CommandLine.Option(names = { "--keyring" }, description = "path to the PGP public keyring file")
 	private String keyring;
 
+	/**
+	 * Creates the command.
+	 * @param verifyAction the action that verifies the chart provenance
+	 */
 	public VerifyCommand(VerifyAction verifyAction) {
 		this.verifyAction = verifyAction;
 	}

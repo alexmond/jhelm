@@ -7,6 +7,7 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
 import io.kubernetes.client.util.KubeConfig;
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
+import org.alexmond.jhelm.core.JhelmMetricsAutoConfiguration;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
@@ -31,11 +32,27 @@ import java.time.Duration;
  * before {@link JhelmCoreAutoConfiguration} so that the {@link KubeService} bean is
  * available for its {@code @ConditionalOnBean} checks.
  */
-@AutoConfiguration(before = JhelmCoreAutoConfiguration.class,
-		after = org.alexmond.jhelm.core.JhelmMetricsAutoConfiguration.class)
+@AutoConfiguration(before = JhelmCoreAutoConfiguration.class, after = JhelmMetricsAutoConfiguration.class)
 @EnableConfigurationProperties(JhelmKubernetesProperties.class)
 public class JhelmKubeAutoConfiguration {
 
+	/**
+	 * Creates the auto-configuration. Instantiated by the Spring Boot auto-configuration
+	 * machinery; not intended to be constructed directly by application code.
+	 */
+	@SuppressWarnings("PMD.UnnecessaryConstructor")
+	public JhelmKubeAutoConfiguration() {
+	}
+
+	/**
+	 * Builds the Kubernetes {@link ApiClient} used by the module. When a kubeconfig path
+	 * is configured the client is built from that file, otherwise the default in-cluster
+	 * or local client is used.
+	 * @param props the Kubernetes configuration properties, providing the optional
+	 * kubeconfig path
+	 * @return the configured Kubernetes API client
+	 * @throws IOException if the configured kubeconfig file cannot be read
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public ApiClient apiClient(JhelmKubernetesProperties props) throws IOException {
@@ -45,6 +62,17 @@ public class JhelmKubeAutoConfiguration {
 		return Config.defaultClient();
 	}
 
+	/**
+	 * Builds the {@link KubeService} bean. The base {@link AsyncHelmKubeService} is
+	 * wrapped with {@link RetryableKubeService} when retry is enabled, and further
+	 * wrapped with {@link ObservableKubeService} when a {@link JhelmMetrics} bean is
+	 * available.
+	 * @param apiClient the configured Kubernetes API client
+	 * @param props the Kubernetes configuration properties, providing the retry settings
+	 * @param metricsProvider provider for the optional metrics bean used to enable
+	 * operation timing and counting
+	 * @return the (possibly decorated) Kubernetes service
+	 */
 	@Bean
 	@ConditionalOnMissingBean(KubeService.class)
 	public KubeService kubeService(ApiClient apiClient, JhelmKubernetesProperties props,

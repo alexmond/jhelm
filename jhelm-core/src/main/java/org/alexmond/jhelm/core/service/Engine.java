@@ -27,6 +27,14 @@ import org.alexmond.jhelm.core.model.Dependency;
 import org.alexmond.jhelm.core.model.Values;
 import org.alexmond.jhelm.core.model.VersionSet;
 
+/**
+ * Renders a Helm {@link Chart} to Kubernetes manifests by driving the Go template engine.
+ * It assembles the rendering context ({@code .Values}, {@code .Release}, {@code .Chart},
+ * {@code .Capabilities}, {@code .Files}), resolves named templates and subchart
+ * dependencies, and validates values against the chart's JSON schema. Optionally backed
+ * by a {@link TemplateCache} for parse reuse and a {@link JhelmMetrics} for
+ * instrumentation.
+ */
 @Slf4j
 public class Engine {
 
@@ -67,14 +75,35 @@ public class Engine {
 
 	private GoTemplate factory;
 
+	/**
+	 * Creates an engine with no template cache and no metrics, using a default schema
+	 * validator.
+	 */
 	public Engine() {
 		this(null, new SchemaValidator(), null);
 	}
 
+	/**
+	 * Creates an engine with the given template cache and schema validator and no
+	 * metrics.
+	 * @param templateCache the parse cache to reuse compiled templates, or {@code null}
+	 * to disable caching
+	 * @param schemaValidator validates values against a chart's JSON schema, or
+	 * {@code null} for a default validator
+	 */
 	public Engine(TemplateCache templateCache, SchemaValidator schemaValidator) {
 		this(templateCache, schemaValidator, null);
 	}
 
+	/**
+	 * Creates an engine with the given template cache, schema validator and metrics.
+	 * @param templateCache the parse cache to reuse compiled templates, or {@code null}
+	 * to disable caching
+	 * @param schemaValidator validates values against a chart's JSON schema, or
+	 * {@code null} for a default validator
+	 * @param metrics records render and cache metrics, or {@code null} to disable
+	 * instrumentation
+	 */
 	public Engine(TemplateCache templateCache, SchemaValidator schemaValidator, JhelmMetrics metrics) {
 		this.templateCache = templateCache;
 		this.schemaValidator = (schemaValidator != null) ? schemaValidator : new SchemaValidator();
@@ -136,6 +165,19 @@ public class Engine {
 	 */
 	private static final long RENDER_STACK_SIZE = 32L * 1024 * 1024;
 
+	/**
+	 * Renders the chart's templates to a single concatenated manifest string. Rendering
+	 * runs on a dedicated thread with an enlarged stack to accommodate deeply nested
+	 * {@code tpl}/{@code include} chains.
+	 * @param chart the chart to render
+	 * @param values the user-supplied values merged over the chart defaults, exposed as
+	 * {@code .Values}
+	 * @param releaseInfo the release context exposed as {@code .Release} (name,
+	 * namespace, revision, etc.)
+	 * @return the rendered manifests joined into one document
+	 * @throws TemplateRenderException if a template fails to parse or execute
+	 * @throws SchemaValidationException if the values violate the chart's JSON schema
+	 */
 	@SneakyThrows
 	public String render(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
 		long startNanos = System.nanoTime();

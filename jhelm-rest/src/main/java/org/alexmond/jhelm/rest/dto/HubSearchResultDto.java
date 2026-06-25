@@ -6,6 +6,9 @@ import lombok.Data;
 
 import org.alexmond.jhelm.core.action.SearchHubAction;
 
+/**
+ * A single chart match returned from an ArtifactHub search.
+ */
 @Data
 @Builder
 @Schema(description = "ArtifactHub search result")
@@ -32,6 +35,11 @@ public class HubSearchResultDto {
 	@Schema(description = "ArtifactHub URL")
 	private String url;
 
+	/**
+	 * Maps a core hub-search result to its REST representation.
+	 * @param result the source search result
+	 * @return the populated DTO
+	 */
 	public static HubSearchResultDto from(SearchHubAction.HubResult result) {
 		return HubSearchResultDto.builder()
 			.name(result.getName())

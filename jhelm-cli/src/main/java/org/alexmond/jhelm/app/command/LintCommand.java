@@ -11,6 +11,10 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
+/**
+ * Implements {@code jhelm lint CHART}, examining a chart for possible issues and
+ * reporting warnings and errors.
+ */
 @Component
 @CommandLine.Command(name = "lint", mixinStandardHelpOptions = true,
 		description = "Examine a chart for possible issues")
@@ -30,6 +34,10 @@ public class LintCommand implements Runnable {
 	@Option(names = { "--strict" }, defaultValue = "false", description = "fail on lint warnings")
 	private boolean strict;
 
+	/**
+	 * Creates the command.
+	 * @param lintAction the action that lints the chart
+	 */
 	public LintCommand(LintAction lintAction) {
 		this.lintAction = lintAction;
 	}

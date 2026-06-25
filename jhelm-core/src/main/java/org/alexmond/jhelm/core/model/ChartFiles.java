@@ -39,6 +39,10 @@ public class ChartFiles extends AbstractMap<String, String> {
 
 	private final Map<String, String> files;
 
+	/**
+	 * Wraps a map of chart file paths to their text content.
+	 * @param files the path-to-content map, or {@code null} for an empty set of files
+	 */
 	public ChartFiles(Map<String, String> files) {
 		this.files = (files != null) ? files : Map.of();
 	}

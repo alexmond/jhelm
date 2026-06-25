@@ -37,6 +37,12 @@ public class ObservableKubeService implements KubeService {
 
 	private final Counter errorCounter;
 
+	/**
+	 * Creates a metrics-recording decorator around the given delegate.
+	 * @param delegate the underlying {@link KubeService} to which calls are forwarded
+	 * @param metrics the metrics registry used to build the per-operation timers and
+	 * success/error counters
+	 */
 	public ObservableKubeService(KubeService delegate, JhelmMetrics metrics) {
 		this.delegate = delegate;
 		this.applyTimer = metrics.kubeOperationTimer("apply");

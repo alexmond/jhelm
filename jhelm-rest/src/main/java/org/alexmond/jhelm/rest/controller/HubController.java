@@ -13,6 +13,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST endpoints for searching <a href="https://artifacthub.io">ArtifactHub</a> for
+ * charts.
+ */
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/hub")
 @Tag(name = "Hub", description = "Search ArtifactHub for charts")
@@ -20,10 +24,21 @@ public class HubController {
 
 	private final SearchHubAction searchHubAction;
 
+	/**
+	 * Creates the controller with the ArtifactHub search action it delegates to.
+	 * @param searchHubAction performs ArtifactHub searches
+	 */
 	public HubController(SearchHubAction searchHubAction) {
 		this.searchHubAction = searchHubAction;
 	}
 
+	/**
+	 * {@code GET} - searches ArtifactHub for charts matching a keyword.
+	 * @param keyword the search keyword
+	 * @param maxResults the maximum number of results to return (capped at 60)
+	 * @return the matching chart results
+	 * @throws Exception if the ArtifactHub query fails
+	 */
 	@GetMapping("/search")
 	@Operation(summary = "Search ArtifactHub", description = "Search for Helm charts on ArtifactHub")
 	public List<HubSearchResultDto> search(@Parameter(description = "Search keyword") @RequestParam String keyword,

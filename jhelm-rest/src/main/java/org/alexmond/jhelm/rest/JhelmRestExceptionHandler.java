@@ -18,12 +18,23 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice(basePackages = "org.alexmond.jhelm.rest")
 public class JhelmRestExceptionHandler {
 
+	/**
+	 * Maps invalid input to a {@code 400 Bad Request} JSON error response.
+	 * @param ex the rejected-argument exception
+	 * @return the structured error response
+	 */
 	@ExceptionHandler(IllegalArgumentException.class)
 	public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
 		log.debug("Bad request: {}", ex.getMessage());
 		return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
 	}
 
+	/**
+	 * Maps any unhandled exception to a {@code 500 Internal Server Error} JSON error
+	 * response.
+	 * @param ex the unhandled exception
+	 * @return the structured error response
+	 */
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<Map<String, Object>> handleInternalError(Exception ex) {
 		log.error("Internal error", ex);

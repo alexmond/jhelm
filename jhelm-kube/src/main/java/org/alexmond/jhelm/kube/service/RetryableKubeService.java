@@ -31,6 +31,12 @@ public class RetryableKubeService implements KubeService {
 
 	private final RetryTemplate retryTemplate;
 
+	/**
+	 * Creates a retrying decorator around the given delegate.
+	 * @param delegate the underlying {@link KubeService} to which calls are forwarded
+	 * @param retryTemplate the retry template defining the backoff and retry policy for
+	 * transient failures
+	 */
 	public RetryableKubeService(KubeService delegate, RetryTemplate retryTemplate) {
 		this.delegate = delegate;
 		this.retryTemplate = retryTemplate;
@@ -114,8 +120,15 @@ public class RetryableKubeService implements KubeService {
 	}
 
 	/**
-	 * Returns {@code true} if the given exception represents a transient Kubernetes API
-	 * error that may succeed on retry.
+	 * Determines whether the given exception represents a transient Kubernetes API error
+	 * that may succeed on retry. Transient errors include HTTP 429 rate-limiting
+	 * responses, 5xx server errors, connection-level failures
+	 * ({@link SocketException}/{@link ConnectException}), and any wrapped cause that is
+	 * itself transient.
+	 * @param ex the exception to classify; its wrapped {@link Throwable#getCause() cause}
+	 * is inspected when the exception itself is not transient
+	 * @return {@code true} if the error is transient and the operation may be retried,
+	 * {@code false} otherwise
 	 */
 	public static boolean isTransient(Throwable ex) {
 		if (ex instanceof ApiException apiEx) {

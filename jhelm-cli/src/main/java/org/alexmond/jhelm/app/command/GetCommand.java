@@ -10,6 +10,11 @@ import picocli.CommandLine;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Implements {@code jhelm get}, downloading extended information about a named release.
+ * Delegates to subcommands for values, manifest, notes, hooks, metadata, and the combined
+ * {@code all} view.
+ */
 @Component
 @CommandLine.Command(name = "get", mixinStandardHelpOptions = true,
 		description = "Download extended information of a named release",
@@ -18,6 +23,14 @@ import java.util.Optional;
 @Slf4j
 public class GetCommand implements Runnable {
 
+	/** Creates the command. */
+	@SuppressWarnings("PMD.UnnecessaryConstructor")
+	public GetCommand() {
+	}
+
+	/**
+	 * Prints the usage help when {@code get} is invoked without a subcommand.
+	 */
 	@Override
 	public void run() {
 		CommandLine.usage(this, System.out);
@@ -31,6 +44,10 @@ public class GetCommand implements Runnable {
 		return getAction.getRelease(name, namespace);
 	}
 
+	/**
+	 * Implements {@code get values}: prints the user-supplied or computed values of a
+	 * release.
+	 */
 	@Component
 	@CommandLine.Command(name = "values", mixinStandardHelpOptions = true,
 			description = "Download the values file for a named release")
@@ -56,10 +73,17 @@ public class GetCommand implements Runnable {
 				description = "output format (yaml or json)")
 		String output;
 
+		/**
+		 * Creates the command.
+		 * @param getAction the action that fetches release information
+		 */
 		public ValuesCommand(GetAction getAction) {
 			this.getAction = getAction;
 		}
 
+		/**
+		 * Prints the release values in the requested output format.
+		 */
 		@Override
 		public void run() {
 			try {
@@ -90,6 +114,10 @@ public class GetCommand implements Runnable {
 
 	}
 
+	/**
+	 * Implements {@code get manifest}: prints the rendered Kubernetes manifest of a
+	 * release.
+	 */
 	@Component
 	@CommandLine.Command(name = "manifest", mixinStandardHelpOptions = true,
 			description = "Download the manifest for a named release")
@@ -108,10 +136,17 @@ public class GetCommand implements Runnable {
 				description = "get the named release with revision")
 		int revision;
 
+		/**
+		 * Creates the command.
+		 * @param getAction the action that fetches release information
+		 */
 		public ManifestCommand(GetAction getAction) {
 			this.getAction = getAction;
 		}
 
+		/**
+		 * Prints the release manifest.
+		 */
 		@Override
 		public void run() {
 			try {
@@ -129,6 +164,9 @@ public class GetCommand implements Runnable {
 
 	}
 
+	/**
+	 * Implements {@code get notes}: prints the NOTES.txt output rendered for a release.
+	 */
 	@Component
 	@CommandLine.Command(name = "notes", mixinStandardHelpOptions = true,
 			description = "Download the notes for a named release")
@@ -147,10 +185,17 @@ public class GetCommand implements Runnable {
 				description = "get the named release with revision")
 		int revision;
 
+		/**
+		 * Creates the command.
+		 * @param getAction the action that fetches release information
+		 */
 		public NotesCommand(GetAction getAction) {
 			this.getAction = getAction;
 		}
 
+		/**
+		 * Prints the release notes, or a placeholder when none exist.
+		 */
 		@Override
 		public void run() {
 			try {
@@ -174,6 +219,7 @@ public class GetCommand implements Runnable {
 
 	}
 
+	/** Implements {@code get hooks}: prints the hook manifests defined for a release. */
 	@Component
 	@CommandLine.Command(name = "hooks", mixinStandardHelpOptions = true,
 			description = "Download all hooks for a named release")
@@ -192,10 +238,17 @@ public class GetCommand implements Runnable {
 				description = "get the named release with revision")
 		int revision;
 
+		/**
+		 * Creates the command.
+		 * @param getAction the action that fetches release information
+		 */
 		public HooksCommand(GetAction getAction) {
 			this.getAction = getAction;
 		}
 
+		/**
+		 * Prints the release hooks, or a placeholder when none exist.
+		 */
 		@Override
 		public void run() {
 			try {
@@ -219,6 +272,10 @@ public class GetCommand implements Runnable {
 
 	}
 
+	/**
+	 * Implements {@code get metadata}: prints release metadata such as name, namespace,
+	 * and revision.
+	 */
 	@Component
 	@CommandLine.Command(name = "metadata", mixinStandardHelpOptions = true,
 			description = "Download the metadata for a named release")
@@ -241,10 +298,17 @@ public class GetCommand implements Runnable {
 				description = "output format (yaml or json)")
 		String output;
 
+		/**
+		 * Creates the command.
+		 * @param getAction the action that fetches release information
+		 */
 		public MetadataCommand(GetAction getAction) {
 			this.getAction = getAction;
 		}
 
+		/**
+		 * Prints the release metadata in the requested output format.
+		 */
 		@Override
 		public void run() {
 			try {
@@ -268,6 +332,10 @@ public class GetCommand implements Runnable {
 
 	}
 
+	/**
+	 * Implements {@code get all}: prints the combined values, manifest, notes, and hooks
+	 * of a release.
+	 */
 	@Component
 	@CommandLine.Command(name = "all", mixinStandardHelpOptions = true,
 			description = "Download all information for a named release")
@@ -286,10 +354,17 @@ public class GetCommand implements Runnable {
 				description = "get the named release with revision")
 		int revision;
 
+		/**
+		 * Creates the command.
+		 * @param getAction the action that fetches release information
+		 */
 		public AllCommand(GetAction getAction) {
 			this.getAction = getAction;
 		}
 
+		/**
+		 * Prints all available information for the release.
+		 */
 		@Override
 		public void run() {
 			try {

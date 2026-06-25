@@ -13,6 +13,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class JhelmKubernetesProperties {
 
 	/**
+	 * Creates the properties holder with default values.
+	 */
+	@SuppressWarnings("PMD.UnnecessaryConstructor")
+	public JhelmKubernetesProperties() {
+	}
+
+	/**
 	 * Path to the kubeconfig file. When not set, the Kubernetes client uses its standard
 	 * auto-detection: {@code ~/.kube/config} or in-cluster service account credentials.
 	 */
@@ -23,9 +30,20 @@ public class JhelmKubernetesProperties {
 	 */
 	private Retry retry = new Retry();
 
+	/**
+	 * Retry configuration for transient Kubernetes API failures, controlling the maximum
+	 * number of attempts and the exponential backoff between them.
+	 */
 	@Getter
 	@Setter
 	public static class Retry {
+
+		/**
+		 * Creates the retry settings with default values.
+		 */
+		@SuppressWarnings("PMD.UnnecessaryConstructor")
+		public Retry() {
+		}
 
 		/**
 		 * Whether retry is enabled for Kubernetes API calls.

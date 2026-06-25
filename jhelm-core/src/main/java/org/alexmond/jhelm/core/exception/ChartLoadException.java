@@ -13,12 +13,25 @@ public class ChartLoadException extends JhelmException {
 
 	private final String suggestion;
 
+	/**
+	 * Creates a chart-load failure.
+	 * @param message a description of why the chart could not be loaded
+	 * @param chartPath the path of the chart that failed to load, may be {@code null}
+	 * @param suggestion an actionable hint for resolving the error, may be {@code null}
+	 */
 	public ChartLoadException(String message, String chartPath, String suggestion) {
 		super(buildMessage(message, chartPath, suggestion));
 		this.chartPath = chartPath;
 		this.suggestion = suggestion;
 	}
 
+	/**
+	 * Creates a chart-load failure wrapping an underlying cause.
+	 * @param message a description of why the chart could not be loaded
+	 * @param cause the underlying error being wrapped
+	 * @param chartPath the path of the chart that failed to load, may be {@code null}
+	 * @param suggestion an actionable hint for resolving the error, may be {@code null}
+	 */
 	public ChartLoadException(String message, Throwable cause, String chartPath, String suggestion) {
 		super(buildMessage(message, chartPath, suggestion), cause);
 		this.chartPath = chartPath;

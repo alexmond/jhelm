@@ -6,6 +6,10 @@ import org.alexmond.jhelm.core.action.UninstallAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+/**
+ * Implements {@code jhelm uninstall RELEASE}, removing a release and its resources from
+ * the cluster.
+ */
 @Component
 @CommandLine.Command(name = "uninstall", mixinStandardHelpOptions = true, description = "Uninstall a release")
 @Slf4j
@@ -19,6 +23,10 @@ public class UninstallCommand implements Runnable {
 	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
 
+	/**
+	 * Creates the command.
+	 * @param uninstallAction the action that uninstalls the release
+	 */
 	public UninstallCommand(UninstallAction uninstallAction) {
 		this.uninstallAction = uninstallAction;
 	}

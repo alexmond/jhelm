@@ -34,6 +34,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.alexmond.jhelm.core.service.ChartLoader;
 
+/**
+ * REST endpoints for managing chart repositories: adding, removing, and listing repos,
+ * and searching their indexes.
+ */
 @RestController
 @RequestMapping("${jhelm.rest.base-path:/api/v1}/repos")
 @Tag(name = "Repositories", description = "Manage chart repositories")
@@ -45,11 +49,22 @@ public class RepoController {
 
 	private final JhelmRestProperties properties;
 
+	/**
+	 * Creates the controller with the repository manager it delegates to.
+	 * @param repoManager manages chart repositories
+	 * @param properties REST module configuration (temp directory, base path)
+	 */
 	public RepoController(RepoManager repoManager, JhelmRestProperties properties) {
 		this.repoManager = repoManager;
 		this.properties = properties;
 	}
 
+	/**
+	 * {@code POST} - registers a new chart repository by name and URL.
+	 * @param request the repository name and URL
+	 * @return {@code 201} when the repository is added
+	 * @throws Exception if the repository cannot be added
+	 */
 	@PostMapping
 	@Operation(summary = "Add a repository")
 	public ResponseEntity<Void> addRepo(@RequestBody RepoAddRequest request) throws Exception {
@@ -63,6 +78,11 @@ public class RepoController {
 		return ResponseEntity.status(HttpStatus.CREATED).build();
 	}
 
+	/**
+	 * {@code GET} - lists all configured chart repositories.
+	 * @return the configured repositories, or an empty list when none are configured
+	 * @throws Exception if the repository configuration cannot be read
+	 */
 	@GetMapping
 	@Operation(summary = "List repositories")
 	public List<RepoDto> listRepos() throws Exception {
@@ -73,6 +93,12 @@ public class RepoController {
 		return config.getRepositories().stream().map(RepoDto::from).toList();
 	}
 
+	/**
+	 * {@code DELETE} - removes a configured chart repository.
+	 * @param name the repository name
+	 * @return {@code 204} when the repository is removed
+	 * @throws Exception if the repository cannot be removed
+	 */
 	@DeleteMapping("/{name}")
 	@Operation(summary = "Remove a repository")
 	public ResponseEntity<Void> removeRepo(@Parameter(description = "Repository name") @PathVariable String name)
@@ -81,6 +107,12 @@ public class RepoController {
 		return ResponseEntity.noContent().build();
 	}
 
+	/**
+	 * {@code POST} - refreshes a single repository's cached index.
+	 * @param name the repository name
+	 * @return {@code 200} when the index is refreshed
+	 * @throws Exception if the index cannot be updated
+	 */
 	@PostMapping("/{name}/update")
 	@Operation(summary = "Update repository index")
 	public ResponseEntity<Void> updateRepo(@Parameter(description = "Repository name") @PathVariable String name)
@@ -89,6 +121,12 @@ public class RepoController {
 		return ResponseEntity.ok().build();
 	}
 
+	/**
+	 * {@code GET} - lists all charts available in a repository.
+	 * @param name the repository name
+	 * @return the charts advertised by the repository index
+	 * @throws Exception if the repository index cannot be read
+	 */
 	@GetMapping("/{name}/charts")
 	@Operation(summary = "List charts", description = "List all charts available in a repository")
 	public List<ChartVersionDto> listCharts(@Parameter(description = "Repository name") @PathVariable String name)
@@ -96,6 +134,13 @@ public class RepoController {
 		return this.repoManager.listCharts(name).stream().map(ChartVersionDto::from).toList();
 	}
 
+	/**
+	 * {@code GET} - lists the available versions of a chart in a repository.
+	 * @param name the repository name
+	 * @param chart the chart name
+	 * @return the known versions of the chart
+	 * @throws Exception if the repository index cannot be read
+	 */
 	@GetMapping("/{name}/charts/{chart}/versions")
 	@Operation(summary = "List chart versions", description = "List available versions of a chart in a repository")
 	public List<ChartVersionDto> listVersions(@Parameter(description = "Repository name") @PathVariable String name,
@@ -103,6 +148,13 @@ public class RepoController {
 		return this.repoManager.getChartVersions(name, chart).stream().map(ChartVersionDto::from).toList();
 	}
 
+	/**
+	 * {@code POST} - pulls a chart from a repository or OCI registry and returns it as a
+	 * {@code .tgz} archive download.
+	 * @param request the chart reference and optional version
+	 * @return {@code 200} with the {@code .tgz} archive as an attachment
+	 * @throws Exception if the chart cannot be pulled or archived
+	 */
 	@PostMapping("/pull")
 	@Operation(summary = "Pull a chart",
 			description = "Pull a chart from a repository or OCI registry and return it as a .tgz archive")
@@ -131,6 +183,11 @@ public class RepoController {
 		}
 	}
 
+	/**
+	 * {@code POST} - refreshes the cached index of every configured repository.
+	 * @return {@code 200} when all indexes are refreshed
+	 * @throws Exception if any index cannot be updated
+	 */
 	@PostMapping("/update-all")
 	@Operation(summary = "Update all repositories", description = "Update the index of all configured repositories")
 	public ResponseEntity<Void> updateAll() throws Exception {
@@ -138,6 +195,14 @@ public class RepoController {
 		return ResponseEntity.ok().build();
 	}
 
+	/**
+	 * {@code POST} - pushes an uploaded {@code .tgz} chart archive to a remote OCI
+	 * registry.
+	 * @param chart the uploaded chart archive
+	 * @param remote the target OCI registry reference
+	 * @return {@code 200} when the chart is pushed
+	 * @throws Exception if the upload cannot be stored or pushed
+	 */
 	@PostMapping(path = "/push", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@Operation(summary = "Push a chart", description = "Push an uploaded .tgz chart archive to a remote registry")
 	public ResponseEntity<Void> push(@RequestParam("chart") MultipartFile chart, @RequestParam("remote") String remote)

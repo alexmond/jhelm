@@ -12,6 +12,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SuppressWarnings("PMD.UseUtilityClass")
 public class JhelmSampleApplication {
 
+	/**
+	 * Application entry point.
+	 * @param args command-line arguments passed to Spring Boot
+	 */
 	public static void main(String[] args) {
 		SpringApplication.run(JhelmSampleApplication.class, args);
 	}

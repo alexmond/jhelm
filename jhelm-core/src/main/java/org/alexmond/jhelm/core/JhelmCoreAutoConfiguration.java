@@ -48,6 +48,11 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
 @EnableConfigurationProperties(JhelmCoreProperties.class)
 public class JhelmCoreAutoConfiguration {
 
+	/**
+	 * Provides the chart repository manager, configured from the jhelm properties.
+	 * @param props the jhelm core configuration properties
+	 * @return the repository manager bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public RepoManager repoManager(JhelmCoreProperties props) {
@@ -61,12 +66,23 @@ public class JhelmCoreAutoConfiguration {
 		return rm;
 	}
 
+	/**
+	 * Provides the OCI registry manager used for OCI-based charts.
+	 * @return the registry manager bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public RegistryManager registryManager() {
 		return new RegistryManager();
 	}
 
+	/**
+	 * Provides the template parse cache, enabled unless
+	 * {@code jhelm.template-cache-enabled} is set to {@code false}.
+	 * @param props the jhelm core configuration properties (supplies the max cache size)
+	 * @param metrics optional metrics for recording cache statistics
+	 * @return the template cache bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnProperty(name = "jhelm.template-cache-enabled", havingValue = "true", matchIfMissing = true)
@@ -74,12 +90,23 @@ public class JhelmCoreAutoConfiguration {
 		return new TemplateCache(props.getTemplateCacheMaxSize(), metrics.getIfAvailable());
 	}
 
+	/**
+	 * Provides the JSON-schema validator for chart values.
+	 * @return the schema validator bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public SchemaValidator schemaValidator() {
 		return new SchemaValidator();
 	}
 
+	/**
+	 * Provides the template rendering engine wired with the cache, validator and metrics.
+	 * @param templateCache optional template parse cache
+	 * @param schemaValidator the values schema validator
+	 * @param metrics optional metrics for instrumentation
+	 * @return the engine bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public Engine engine(ObjectProvider<TemplateCache> templateCache, SchemaValidator schemaValidator,
@@ -87,18 +114,32 @@ public class JhelmCoreAutoConfiguration {
 		return new Engine(templateCache.getIfAvailable(), schemaValidator, metrics.getIfAvailable());
 	}
 
+	/**
+	 * Provides the chart loader that reads charts from disk.
+	 * @return the chart loader bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public ChartLoader chartLoader() {
 		return new ChartLoader();
 	}
 
+	/**
+	 * Provides the {@code helm create} action for scaffolding new charts.
+	 * @return the create action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public CreateAction createAction() {
 		return new CreateAction();
 	}
 
+	/**
+	 * Provides the {@code helm template} action, wiring in any post-render processors.
+	 * @param engine the rendering engine
+	 * @param postRenderProcessors optional post-render processors applied to the manifest
+	 * @return the template action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public TemplateAction templateAction(Engine engine,
@@ -111,18 +152,40 @@ public class JhelmCoreAutoConfiguration {
 		return action;
 	}
 
+	/**
+	 * Provides the {@code helm show} action for inspecting chart metadata, values and
+	 * README.
+	 * @param chartLoader the chart loader
+	 * @return the show action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public ShowAction showAction(ChartLoader chartLoader) {
 		return new ShowAction(chartLoader);
 	}
 
+	/**
+	 * Provides the {@code helm lint} action for validating charts.
+	 * @param chartLoader the chart loader
+	 * @param engine the rendering engine
+	 * @param schemaValidator the values schema validator
+	 * @return the lint action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public LintAction lintAction(ChartLoader chartLoader, Engine engine, SchemaValidator schemaValidator) {
 		return new LintAction(chartLoader, engine, schemaValidator);
 	}
 
+	/**
+	 * Provides the {@code helm install} action; only created when a {@link KubeService}
+	 * is present.
+	 * @param engine the rendering engine
+	 * @param kubeService the cluster client
+	 * @param postRenderProcessors optional post-render processors applied to the manifest
+	 * @param lifecycleListeners optional listeners notified on install lifecycle events
+	 * @return the install action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
@@ -141,6 +204,15 @@ public class JhelmCoreAutoConfiguration {
 		return action;
 	}
 
+	/**
+	 * Provides the {@code helm upgrade} action; only created when a {@link KubeService}
+	 * is present.
+	 * @param engine the rendering engine
+	 * @param kubeService the cluster client
+	 * @param postRenderProcessors optional post-render processors applied to the manifest
+	 * @param lifecycleListeners optional listeners notified on upgrade lifecycle events
+	 * @return the upgrade action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
@@ -159,6 +231,12 @@ public class JhelmCoreAutoConfiguration {
 		return action;
 	}
 
+	/**
+	 * Provides the {@code helm uninstall} action; only created when a {@link KubeService}
+	 * is present.
+	 * @param kubeService the cluster client
+	 * @return the uninstall action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
@@ -166,6 +244,12 @@ public class JhelmCoreAutoConfiguration {
 		return new UninstallAction(kubeService);
 	}
 
+	/**
+	 * Provides the {@code helm list} action; only created when a {@link KubeService} is
+	 * present.
+	 * @param kubeService the cluster client
+	 * @return the list action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
@@ -173,6 +257,12 @@ public class JhelmCoreAutoConfiguration {
 		return new ListAction(kubeService);
 	}
 
+	/**
+	 * Provides the {@code helm status} action; only created when a {@link KubeService} is
+	 * present.
+	 * @param kubeService the cluster client
+	 * @return the status action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
@@ -180,6 +270,12 @@ public class JhelmCoreAutoConfiguration {
 		return new StatusAction(kubeService);
 	}
 
+	/**
+	 * Provides the {@code helm history} action; only created when a {@link KubeService}
+	 * is present.
+	 * @param kubeService the cluster client
+	 * @return the history action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
@@ -187,6 +283,12 @@ public class JhelmCoreAutoConfiguration {
 		return new HistoryAction(kubeService);
 	}
 
+	/**
+	 * Provides the {@code helm rollback} action; only created when a {@link KubeService}
+	 * is present.
+	 * @param kubeService the cluster client
+	 * @return the rollback action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
@@ -194,6 +296,12 @@ public class JhelmCoreAutoConfiguration {
 		return new RollbackAction(kubeService);
 	}
 
+	/**
+	 * Provides the {@code helm get} action; only created when a {@link KubeService} is
+	 * present.
+	 * @param kubeService the cluster client
+	 * @return the get action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
@@ -201,6 +309,12 @@ public class JhelmCoreAutoConfiguration {
 		return new GetAction(kubeService);
 	}
 
+	/**
+	 * Provides the {@code helm test} action; only created when a {@link KubeService} is
+	 * present.
+	 * @param kubeService the cluster client
+	 * @return the test action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
@@ -208,24 +322,44 @@ public class JhelmCoreAutoConfiguration {
 		return new TestAction(kubeService);
 	}
 
+	/**
+	 * Provides the PGP signature service used for signing and verifying chart packages.
+	 * @return the signature service bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public SignatureService signatureService() {
 		return new SignatureService();
 	}
 
+	/**
+	 * Provides the {@code helm package} action for packaging charts into {@code .tgz}
+	 * archives, optionally signed.
+	 * @param chartLoader the chart loader
+	 * @param signatureService the signature service used for optional signing
+	 * @return the package action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public PackageAction packageAction(ChartLoader chartLoader, SignatureService signatureService) {
 		return new PackageAction(chartLoader, signatureService);
 	}
 
+	/**
+	 * Provides the {@code helm verify} action for verifying a packaged chart's signature.
+	 * @param signatureService the signature service
+	 * @return the verify action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public VerifyAction verifyAction(SignatureService signatureService) {
 		return new VerifyAction(signatureService);
 	}
 
+	/**
+	 * Provides the {@code helm search hub} action backed by a default HTTP client.
+	 * @return the search-hub action bean
+	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public SearchHubAction searchHubAction() {

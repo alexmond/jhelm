@@ -10,6 +10,10 @@ import org.alexmond.jhelm.core.action.PackageAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+/**
+ * Implements {@code jhelm package CHART}, packaging a chart directory into a {@code .tgz}
+ * archive, optionally signing it with a PGP key.
+ */
 @Component
 @CommandLine.Command(name = "package", mixinStandardHelpOptions = true,
 		description = "Package a chart directory into a chart archive")
@@ -38,6 +42,10 @@ public class PackageCommand implements Runnable {
 			description = "path to a file containing the passphrase for the signing key")
 	private String passphraseFile;
 
+	/**
+	 * Creates the command.
+	 * @param packageAction the action that packages and optionally signs the chart
+	 */
 	public PackageCommand(PackageAction packageAction) {
 		this.packageAction = packageAction;
 	}

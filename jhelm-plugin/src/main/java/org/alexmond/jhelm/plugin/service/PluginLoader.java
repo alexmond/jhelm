@@ -90,6 +90,9 @@ public class PluginLoader {
 
 	/**
 	 * Result of loading a plugin archive.
+	 *
+	 * @param manifest the parsed {@code plugin.yaml} manifest
+	 * @param wasmBytes the raw bytes of the plugin's WASM binary
 	 */
 	public record LoadResult(PluginManifest manifest, byte[] wasmBytes) {
 	}
