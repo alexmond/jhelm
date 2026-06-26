@@ -787,7 +787,19 @@ public class Engine {
 	 */
 	@SuppressWarnings("unchecked")
 	private void mergeSubchartDefaults(Chart chart, Map<String, Object> mergedValues) {
+		// Helm copies the entire top-level .Values.global into every subchart's tree
+		// (.Values.<sub>.global), recursively, with the parent global winning. Thread it
+		// through the coalesce so the parent-visible .Values matches Helm's (#21).
+		Map<String, Object> topGlobal = (mergedValues.get("global") instanceof Map)
+				? (Map<String, Object>) mergedValues.get("global") : Map.of();
+		List<Dependency> depMetaList = (chart.getMetadata() != null) ? chart.getMetadata().getDependencies() : null;
 		for (Chart dep : chart.getDependencies()) {
+			// Helm's ProcessDependencies prunes a disabled subchart's defaults from
+			// .Values — only the parent's own stub for it remains. Skip coalescing the
+			// defaults of a subchart whose condition is false (#21).
+			if (!isSubchartEnabledForCoalesce(depMetaList, dep, mergedValues)) {
+				continue;
+			}
 			String depKey = (dep.getAlias() != null) ? dep.getAlias() : dep.getMetadata().getName();
 			// Coalesce the subchart's full default tree — its own values.yaml plus its
 			// nested subcharts' defaults, recursively — so parent templates that read
@@ -795,7 +807,7 @@ public class Engine {
 			// the
 			// same tree Helm builds. Anything already set on the parent for this key
 			// wins.
-			Map<String, Object> depDefaults = coalesceChartValues(dep);
+			Map<String, Object> depDefaults = coalesceChartValues(dep, topGlobal);
 			if (!depDefaults.isEmpty()) {
 				Map<String, Object> existing = (Map<String, Object>) mergedValues.getOrDefault(depKey, new HashMap<>());
 				mergedValues.put(depKey, mergeValues(depDefaults, existing));
@@ -804,17 +816,52 @@ public class Engine {
 	}
 
 	/**
+	 * Whether a subchart's defaults should be coalesced into the parent's
+	 * {@code .Values}. Mirrors Helm: a subchart whose {@code condition} (from the
+	 * parent's {@code Chart.yaml}) evaluates false is disabled, and Helm does not merge
+	 * its {@code values.yaml} defaults into {@code .Values} (only the parent's own stub
+	 * remains). A subchart with no condition is always coalesced.
+	 * @param parentDepMeta the parent chart's dependency declarations
+	 * @param dep the subchart being considered
+	 * @param values the values to evaluate the condition against
+	 * @return {@code true} if the subchart's defaults should be coalesced
+	 */
+	private boolean isSubchartEnabledForCoalesce(List<Dependency> parentDepMeta, Chart dep,
+			Map<String, Object> values) {
+		Dependency meta = findDependencyMetadata(parentDepMeta, dep);
+		if (meta != null && meta.getCondition() != null && !meta.getCondition().isEmpty()) {
+			return evaluateDependencyCondition(meta.getCondition(), values);
+		}
+		return true;
+	}
+
+	/**
 	 * Recursively coalesce a chart's default values: its own {@code values.yaml} with
 	 * each subchart's coalesced defaults placed under the subchart's name/alias key. The
 	 * chart's own values for a subchart key win over that subchart's defaults (Helm
-	 * precedence).
+	 * precedence). The top-level {@code global} is deep-merged into this chart's tree
+	 * (the chart's own global defaults are the base, {@code topGlobal} wins), matching
+	 * Helm's global propagation into every subchart.
+	 * @param chart the chart whose default tree to coalesce
+	 * @param topGlobal the umbrella chart's coalesced {@code global} values, propagated
+	 * into this subchart's {@code global} key
+	 * @return the coalesced default value tree
 	 */
 	@SuppressWarnings("unchecked")
-	private Map<String, Object> coalesceChartValues(Chart chart) {
+	private Map<String, Object> coalesceChartValues(Chart chart, Map<String, Object> topGlobal) {
 		Map<String, Object> base = (chart.getValues() != null) ? new HashMap<>(chart.getValues()) : new HashMap<>();
+		if (topGlobal != null && !topGlobal.isEmpty()) {
+			Map<String, Object> ownGlobal = (base.get("global") instanceof Map)
+					? (Map<String, Object>) base.get("global") : new HashMap<>();
+			base.put("global", mergeValues(ownGlobal, topGlobal));
+		}
+		List<Dependency> depMetaList = (chart.getMetadata() != null) ? chart.getMetadata().getDependencies() : null;
 		for (Chart dep : chart.getDependencies()) {
+			if (!isSubchartEnabledForCoalesce(depMetaList, dep, base)) {
+				continue;
+			}
 			String depKey = (dep.getAlias() != null) ? dep.getAlias() : dep.getMetadata().getName();
-			Map<String, Object> depDefaults = coalesceChartValues(dep);
+			Map<String, Object> depDefaults = coalesceChartValues(dep, topGlobal);
 			if (depDefaults.isEmpty()) {
 				continue;
 			}

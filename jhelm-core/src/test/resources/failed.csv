@@ -6,12 +6,29 @@
 # Both render under `helm template` with the comparison-values in application-test.yaml,
 # so the remaining failure is a real jhelm bug (tracked here until fixed).
 #
-# gitlab: renders end-to-end; the only remaining divergence is the shared-secrets/
+# gitlab: renders end-to-end; the only manifest divergence is the shared-secrets/
 # migrations/issuer Jobs whose names carry a content-hash suffix from
-# `gitlab.jobNameSuffix` = sha256(.Chart.Version-.AppVersion-b64(toYaml(unset .Values
-# "local"))) | trunc 7. jhelm's coalesced .Values tree is ~5850 lines vs Helm's ~13029
-# (jhelm omits ~half the recursively-coalesced subchart defaults), so toYaml(.Values)
-# and thus the hash can never match — this needs a full Helm CoalesceValues/
-# ProcessDependencies reimplementation (the real scope of #21, a multi-session effort).
+# `gitlab.jobNameSuffix` = sha256(...b64(toYaml(unset .Values "local"))) | trunc 7,
+# so the names only match once jhelm's coalesced .Values tree equals Helm's.
+#
+# Progress (Engine subchart-coalesce, gated on the 346-chart parity staying green):
+#  A. (done) global propagation: bake the full top-level .Values.global into every
+#     subchart in the coalesced tree (coalesceChartValues), matching Helm — parent
+#     global wins. .Values.<sub>.global went 30->528 (Helm 533).
+#  B. (done) disabled-subchart pruning: skip coalescing a subchart's defaults when its
+#     `condition` is false (isSubchartEnabledForCoalesce). Disabled subcharts now match
+#     Helm's parent-stub EXACTLY (traefik 6=6, openbao 42=42, haproxy 12=12,
+#     gitlab-zoekt 7=7).
+# Net: jhelm .Values 5850 -> 15135 lines (Helm 13031); 346/346 parity still green.
+#
+#  C. (remaining, ~+2100 lines) global OVER-propagation into an ENABLED subchart's own
+#     subcharts. Helm bakes the global into gitlab's subcharts (gitlab.webservice.global
+#     ~532) but NOT into prometheus's subcharts (prometheus.alertmanager.global / 
+#     kube-state-metrics.global = absent in Helm, ~502 in jhelm). The exact rule Helm
+#     uses to decide which enabled-subchart subtrees receive the global is not yet
+#     characterised (it is not simply "the subchart declares a global"). Until C is
+#     solved jhelm overshoots and the jobNameSuffix hash won't match.
+# Diagnostic: render a copy of the chart with an added `{{ .Values | toYaml }}` template
+# via `helm template -s` and `jhelm template`, diff the dumps.
 # Also a webservice-test-runner Pod has a random name suffix (helm test hook).
 gitlab/gitlab,gitlab,https://charts.gitlab.io
