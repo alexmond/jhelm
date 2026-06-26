@@ -806,10 +806,12 @@ public class Engine {
 			// .Values.<sub>.<nestedsub>.* (e.g. gitlab's .Values.gitlab.webservice) see
 			// the
 			// same tree Helm builds. Anything already set on the parent for this key
-			// wins.
-			Map<String, Object> depDefaults = coalesceChartValues(dep, topGlobal);
+			// wins. The parent's overrides for this subchart are threaded down so nested
+			// dependency conditions see them (e.g. the umbrella disabling
+			// prometheus.kube-state-metrics.enabled).
+			Map<String, Object> existing = (Map<String, Object>) mergedValues.getOrDefault(depKey, new HashMap<>());
+			Map<String, Object> depDefaults = coalesceChartValues(dep, topGlobal, existing);
 			if (!depDefaults.isEmpty()) {
-				Map<String, Object> existing = (Map<String, Object>) mergedValues.getOrDefault(depKey, new HashMap<>());
 				mergedValues.put(depKey, mergeValues(depDefaults, existing));
 			}
 		}
@@ -845,30 +847,44 @@ public class Engine {
 	 * @param chart the chart whose default tree to coalesce
 	 * @param topGlobal the umbrella chart's coalesced {@code global} values, propagated
 	 * into this subchart's {@code global} key
+	 * @param overrides the parent's values for this chart, merged in only to evaluate
+	 * nested dependency conditions (so an umbrella disabling
+	 * {@code <sub>.<nested>.enabled} prunes the nested subchart's defaults, as Helm
+	 * does); they are not folded into the returned defaults (the caller applies them with
+	 * precedence)
 	 * @return the coalesced default value tree
 	 */
 	@SuppressWarnings("unchecked")
-	private Map<String, Object> coalesceChartValues(Chart chart, Map<String, Object> topGlobal) {
+	private Map<String, Object> coalesceChartValues(Chart chart, Map<String, Object> topGlobal,
+			Map<String, Object> overrides) {
 		Map<String, Object> base = (chart.getValues() != null) ? new HashMap<>(chart.getValues()) : new HashMap<>();
 		if (topGlobal != null && !topGlobal.isEmpty()) {
 			Map<String, Object> ownGlobal = (base.get("global") instanceof Map)
 					? (Map<String, Object>) base.get("global") : new HashMap<>();
 			base.put("global", mergeValues(ownGlobal, topGlobal));
 		}
+		// Effective values for condition checks: the chart's own values with the parent's
+		// overrides applied (overrides win), matching the values Helm evaluates
+		// conditions
+		// against.
+		Map<String, Object> effective = (overrides != null && !overrides.isEmpty()) ? mergeValues(base, overrides)
+				: base;
 		List<Dependency> depMetaList = (chart.getMetadata() != null) ? chart.getMetadata().getDependencies() : null;
 		for (Chart dep : chart.getDependencies()) {
-			if (!isSubchartEnabledForCoalesce(depMetaList, dep, base)) {
+			if (!isSubchartEnabledForCoalesce(depMetaList, dep, effective)) {
 				continue;
 			}
 			String depKey = (dep.getAlias() != null) ? dep.getAlias() : dep.getMetadata().getName();
-			Map<String, Object> depDefaults = coalesceChartValues(dep, topGlobal);
+			Map<String, Object> depOverrides = (overrides != null && overrides.get(depKey) instanceof Map)
+					? (Map<String, Object>) overrides.get(depKey) : Map.of();
+			Map<String, Object> depDefaults = coalesceChartValues(dep, topGlobal, depOverrides);
 			if (depDefaults.isEmpty()) {
 				continue;
 			}
 			Object existing = base.get(depKey);
-			Map<String, Object> overrides = (existing instanceof Map) ? (Map<String, Object>) existing
+			Map<String, Object> baseOverrides = (existing instanceof Map) ? (Map<String, Object>) existing
 					: new HashMap<>();
-			base.put(depKey, mergeValues(depDefaults, overrides));
+			base.put(depKey, mergeValues(depDefaults, baseOverrides));
 		}
 		return base;
 	}

@@ -6,29 +6,30 @@
 # Both render under `helm template` with the comparison-values in application-test.yaml,
 # so the remaining failure is a real jhelm bug (tracked here until fixed).
 #
-# gitlab: renders end-to-end; the only manifest divergence is the shared-secrets/
-# migrations/issuer Jobs whose names carry a content-hash suffix from
-# `gitlab.jobNameSuffix` = sha256(...b64(toYaml(unset .Values "local"))) | trunc 7,
-# so the names only match once jhelm's coalesced .Values tree equals Helm's.
+# gitlab: renders end-to-end; identical resource set (146=146), all 21 ConfigMaps
+# byte-identical. The ONLY manifest diffs are content hashes — 4 Job names
+# (gitlab.jobNameSuffix = sha256(toYaml(.Values))) and 5 Deployment checksum/config
+# annotations (sha256(include configmap.yml $)) — plus one ignorable random test-Pod
+# name. Verified NOT engine bugs: jhelm sha256sum and include framing match the CLI/Go
+# byte-for-byte. BOTH hash families trace to ONE root cause: jhelm's coalesced
+# .Values.global differs from Helm's (webservice sees 522 lines vs Helm's 531).
 #
-# Progress (Engine subchart-coalesce, gated on the 346-chart parity staying green):
-#  A. (done) global propagation: bake the full top-level .Values.global into every
-#     subchart in the coalesced tree (coalesceChartValues), matching Helm — parent
-#     global wins. .Values.<sub>.global went 30->528 (Helm 533).
-#  B. (done) disabled-subchart pruning: skip coalescing a subchart's defaults when its
-#     `condition` is false (isSubchartEnabledForCoalesce). Disabled subcharts now match
-#     Helm's parent-stub EXACTLY (traefik 6=6, openbao 42=42, haproxy 12=12,
-#     gitlab-zoekt 7=7).
-# Net: jhelm .Values 5850 -> 15135 lines (Helm 13031); 346/346 parity still green.
+# Coalesce progress (Engine, all gated on the 346-chart parity staying green):
+#  A. (done) bake the full top-level global into every subchart in the coalesced tree.
+#  B. (done) skip coalescing a DISABLED direct subchart's defaults (condition false).
+#  C. (done) thread parent overrides into the recursion so NESTED subchart conditions
+#     see them (e.g. umbrella's prometheus.kube-state-metrics.enabled=false prunes it).
+# Net: jhelm .Values 5850 -> 12395 lines (Helm 13031); 91% of the gap closed; 346/346
+# parity green throughout.
 #
-#  C. (remaining, ~+2100 lines) global OVER-propagation into an ENABLED subchart's own
-#     subcharts. Helm bakes the global into gitlab's subcharts (gitlab.webservice.global
-#     ~532) but NOT into prometheus's subcharts (prometheus.alertmanager.global / 
-#     kube-state-metrics.global = absent in Helm, ~502 in jhelm). The exact rule Helm
-#     uses to decide which enabled-subchart subtrees receive the global is not yet
-#     characterised (it is not simply "the subchart declares a global"). Until C is
-#     solved jhelm overshoots and the jobNameSuffix hash won't match.
-# Diagnostic: render a copy of the chart with an added `{{ .Values | toYaml }}` template
-# via `helm template -s` and `jhelm template`, diff the dumps.
-# Also a webservice-test-runner Pod has a random name suffix (helm test hook).
+#  D. (remaining) the last ~9 lines/subchart of the .Values.global gap is null/empty
+#     handling: jhelm PRUNES global nulls that Helm keeps (when/dsn/clientside_dsn/
+#     environment/autoSignInWithProvider: null) and collapses authToken {key,secret:""}
+#     to {}. Helm keeps top-level-global nulls when propagating into subcharts; jhelm's
+#     subchart slice (prepareRenderValues, pruneNulls for depth>0) drops them. Fix:
+#     exempt the propagated `global` subtree from subchart null-pruning (carefully —
+#     touches the #491 selective-null logic and all 346 parity charts). Closing D makes
+#     toYaml(.Values.global) exact, which fixes BOTH hash families -> gitlab passes.
+# Diagnostic: render a copy with `{{ .Values.global | toYaml }}` via helm -s and jhelm,
+# diff the dumps.
 gitlab/gitlab,gitlab,https://charts.gitlab.io
