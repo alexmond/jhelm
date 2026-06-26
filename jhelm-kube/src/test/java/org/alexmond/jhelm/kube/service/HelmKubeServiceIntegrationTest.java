@@ -21,7 +21,7 @@ class HelmKubeServiceIntegrationTest {
 	private HelmKubeService helmKubeService;
 
 	@Autowired
-	private ApiClient apiClient;
+	private KubeClient kubeClient;
 
 	@Test
 	void testListPodsInKubeSystem() throws ApiException {
@@ -44,6 +44,7 @@ class HelmKubeServiceIntegrationTest {
 		helmKubeService.installConfigMap("default", yaml);
 
 		// Verify
+		ApiClient apiClient = kubeClient.apiClient();
 		CoreV1Api api = new CoreV1Api(apiClient);
 		V1ConfigMap cm = api.readNamespacedConfigMap("jhelm-test-cm", "default").execute();
 		assertNotNull(cm);

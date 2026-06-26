@@ -20,7 +20,6 @@ import io.kubernetes.client.openapi.models.V1SecretList;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.util.PatchUtils;
 import io.kubernetes.client.util.Yaml;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
@@ -49,12 +48,11 @@ import java.nio.charset.StandardCharsets;
  * manifests, and waits on workload readiness.
  *
  * <p>
- * Instances are created with a configured {@link ApiClient}. {@link KubeService}
- * operations translate the client's checked {@link ApiException} into the unchecked
+ * Instances are created with a {@link KubeClient}. {@link KubeService} operations
+ * translate the client's checked {@link ApiException} into the unchecked
  * {@link KubernetesOperationException} (preserving the HTTP status code), so the public
  * surface never leaks the kubernetes-client exception type.
  */
-@RequiredArgsConstructor
 @Slf4j
 public class HelmKubeService implements KubeService {
 
@@ -64,6 +62,15 @@ public class HelmKubeService implements KubeService {
 	private final JsonMapper objectMapper = JsonMapper.builder().build();
 
 	private ResourcePluralizer pluralizer;
+
+	/**
+	 * Creates a service backed by the given {@link KubeClient}.
+	 * @param kubeClient the jhelm Kubernetes client wrapper holding the configured API
+	 * client
+	 */
+	public HelmKubeService(KubeClient kubeClient) {
+		this.apiClient = kubeClient.apiClient();
+	}
 
 	/**
 	 * Stores a release as a Secret in Kubernetes, matching Helm's storage format.

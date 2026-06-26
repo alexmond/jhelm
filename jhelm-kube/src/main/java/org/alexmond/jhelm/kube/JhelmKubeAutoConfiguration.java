@@ -12,6 +12,7 @@ import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
 import org.alexmond.jhelm.kube.service.AsyncHelmKubeService;
+import org.alexmond.jhelm.kube.service.KubeClient;
 import org.alexmond.jhelm.kube.service.ObservableKubeService;
 import org.alexmond.jhelm.kube.service.RetryableKubeService;
 import org.springframework.beans.factory.ObjectProvider;
@@ -24,8 +25,8 @@ import org.springframework.core.retry.RetryTemplate;
 import java.time.Duration;
 
 /**
- * Auto-configuration for the jhelm Kubernetes integration module. Registers an
- * {@link ApiClient} and a {@link KubeService} implementation. When retry is enabled (the
+ * Auto-configuration for the jhelm Kubernetes integration module. Registers a
+ * {@link KubeClient} and a {@link KubeService} implementation. When retry is enabled (the
  * default), the service is wrapped with {@link RetryableKubeService} for transient
  * failure recovery. When a {@link JhelmMetrics} bean is available, the service is further
  * wrapped with {@link ObservableKubeService} for operation timing and counting. Runs
@@ -45,6 +46,27 @@ public class JhelmKubeAutoConfiguration {
 	}
 
 	/**
+	 * Registers the {@link KubeClient} used by the module. If a consumer supplies their
+	 * own {@link ApiClient} bean (the intentional, documented customization seam) it is
+	 * wrapped as-is; otherwise a client is built from the configured kubeconfig path,
+	 * falling back to the default in-cluster or local client.
+	 * @param props the Kubernetes configuration properties, providing the optional
+	 * kubeconfig path
+	 * @param apiClientOverride provider for an optional consumer-supplied API client used
+	 * to override the built-in client
+	 * @return the registered {@link KubeClient}
+	 * @throws IOException if the configured kubeconfig file cannot be read
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public KubeClient kubeClient(JhelmKubernetesProperties props, ObjectProvider<ApiClient> apiClientOverride)
+			throws IOException {
+		ApiClient override = apiClientOverride.getIfAvailable();
+		ApiClient client = (override != null) ? override : buildApiClient(props);
+		return new KubeClient(client);
+	}
+
+	/**
 	 * Builds the Kubernetes {@link ApiClient} used by the module. When a kubeconfig path
 	 * is configured the client is built from that file, otherwise the default in-cluster
 	 * or local client is used.
@@ -53,9 +75,7 @@ public class JhelmKubeAutoConfiguration {
 	 * @return the configured Kubernetes API client
 	 * @throws IOException if the configured kubeconfig file cannot be read
 	 */
-	@Bean
-	@ConditionalOnMissingBean
-	public ApiClient apiClient(JhelmKubernetesProperties props) throws IOException {
+	private ApiClient buildApiClient(JhelmKubernetesProperties props) throws IOException {
 		if (props.getKubeconfigPath() != null) {
 			return Config.fromConfig(KubeConfig.loadKubeConfig(new FileReader(props.getKubeconfigPath())));
 		}
@@ -67,7 +87,7 @@ public class JhelmKubeAutoConfiguration {
 	 * wrapped with {@link RetryableKubeService} when retry is enabled, and further
 	 * wrapped with {@link ObservableKubeService} when a {@link JhelmMetrics} bean is
 	 * available.
-	 * @param apiClient the configured Kubernetes API client
+	 * @param kubeClient the registered Kubernetes client wrapper
 	 * @param props the Kubernetes configuration properties, providing the retry settings
 	 * @param metricsProvider provider for the optional metrics bean used to enable
 	 * operation timing and counting
@@ -75,9 +95,9 @@ public class JhelmKubeAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean(KubeService.class)
-	public KubeService kubeService(ApiClient apiClient, JhelmKubernetesProperties props,
+	public KubeService kubeService(KubeClient kubeClient, JhelmKubernetesProperties props,
 			ObjectProvider<JhelmMetrics> metricsProvider) {
-		AsyncHelmKubeService base = new AsyncHelmKubeService(apiClient);
+		AsyncHelmKubeService base = new AsyncHelmKubeService(kubeClient);
 		KubeService service = base;
 		JhelmKubernetesProperties.Retry retryConfig = props.getRetry();
 		if (retryConfig.isEnabled()) {

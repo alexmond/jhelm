@@ -6,6 +6,7 @@ import org.alexmond.jhelm.core.JhelmMetricsAutoConfiguration;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.kube.service.HelmKubeService;
+import org.alexmond.jhelm.kube.service.KubeClient;
 import org.alexmond.jhelm.kube.service.ObservableKubeService;
 import org.alexmond.jhelm.kube.service.RetryableKubeService;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,7 @@ class JhelmKubeAutoConfigurationTest {
 	@KubeClusterAvailable
 	void testKubeServiceIsRetryableByDefaultWithCluster() {
 		contextRunner.run((ctx) -> {
-			assertNotNull(ctx.getBean(ApiClient.class));
+			assertNotNull(ctx.getBean(KubeClient.class));
 			KubeService kubeService = ctx.getBean(KubeService.class);
 			assertInstanceOf(RetryableKubeService.class, kubeService);
 		});
@@ -35,7 +36,7 @@ class JhelmKubeAutoConfigurationTest {
 	void testKubeServiceIsRetryableByDefaultWithMockedClient() {
 		ApiClient mockClient = mock(ApiClient.class);
 		contextRunner.withBean(ApiClient.class, () -> mockClient).run((ctx) -> {
-			assertNotNull(ctx.getBean(ApiClient.class));
+			assertNotNull(ctx.getBean(KubeClient.class));
 			KubeService kubeService = ctx.getBean(KubeService.class);
 			assertInstanceOf(RetryableKubeService.class, kubeService);
 		});
@@ -82,7 +83,7 @@ class JhelmKubeAutoConfigurationTest {
 		KubeService custom = mock(KubeService.class);
 		contextRunner.withBean(ApiClient.class, () -> mockClient)
 			.withBean("customKubeService", KubeService.class, () -> custom)
-			.run((ctx) -> assertNotNull(ctx.getBean(ApiClient.class)));
+			.run((ctx) -> assertNotNull(ctx.getBean(KubeClient.class)));
 	}
 
 }

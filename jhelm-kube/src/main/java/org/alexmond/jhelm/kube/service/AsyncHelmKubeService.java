@@ -6,7 +6,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import io.kubernetes.client.openapi.ApiClient;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
@@ -28,12 +27,12 @@ public class AsyncHelmKubeService extends HelmKubeService implements AsyncKubeSe
 	private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
 	/**
-	 * Creates an async service backed by the given Kubernetes API client.
-	 * @param apiClient the configured Kubernetes API client used for all cluster
-	 * operations
+	 * Creates an async service backed by the given {@link KubeClient}.
+	 * @param kubeClient the jhelm Kubernetes client wrapper holding the configured API
+	 * client used for all cluster operations
 	 */
-	public AsyncHelmKubeService(ApiClient apiClient) {
-		super(apiClient);
+	public AsyncHelmKubeService(KubeClient kubeClient) {
+		super(kubeClient);
 	}
 
 	@Override

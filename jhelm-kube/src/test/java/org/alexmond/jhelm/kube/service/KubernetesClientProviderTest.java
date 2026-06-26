@@ -52,7 +52,7 @@ class KubernetesClientProviderTest {
 	@BeforeEach
 	void setUp() throws Exception {
 		MockitoAnnotations.openMocks(this);
-		provider = new KubernetesClientProvider(apiClient);
+		provider = new KubernetesClientProvider(new KubeClient(apiClient));
 		setField(provider, "coreV1Api", coreV1Api);
 		setField(provider, "appsV1Api", appsV1Api);
 		setField(provider, "versionApi", versionApi);

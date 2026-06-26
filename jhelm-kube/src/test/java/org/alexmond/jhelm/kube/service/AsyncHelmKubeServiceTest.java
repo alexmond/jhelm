@@ -45,7 +45,7 @@ class AsyncHelmKubeServiceTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		spyService = spy(new AsyncHelmKubeService(apiClient));
+		spyService = spy(new AsyncHelmKubeService(new KubeClient(apiClient)));
 	}
 
 	private Release createTestRelease(String name, String namespace, int version) {
