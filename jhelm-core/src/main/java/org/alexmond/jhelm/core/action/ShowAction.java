@@ -1,11 +1,13 @@
 package org.alexmond.jhelm.core.action;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import tools.jackson.core.JacksonException;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 import lombok.RequiredArgsConstructor;
 
 import java.io.File;
+import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
 
@@ -14,12 +16,12 @@ public class ShowAction {
 
 	private final ChartLoader chartLoader;
 
-	public String showChart(String chartPath) throws Exception {
+	public String showChart(String chartPath) {
 		Chart chart = chartLoader.load(new File(chartPath));
 		return toYaml(chart.getMetadata());
 	}
 
-	public String showValues(String chartPath) throws Exception {
+	public String showValues(String chartPath) {
 		Chart chart = chartLoader.load(new File(chartPath));
 		if (chart.getValues() == null || chart.getValues().isEmpty()) {
 			return "{}";
@@ -27,12 +29,12 @@ public class ShowAction {
 		return toYaml(chart.getValues());
 	}
 
-	public String showReadme(String chartPath) throws Exception {
+	public String showReadme(String chartPath) {
 		Chart chart = chartLoader.load(new File(chartPath));
 		return (chart.getReadme() != null) ? chart.getReadme() : "";
 	}
 
-	public String showCrds(String chartPath) throws Exception {
+	public String showCrds(String chartPath) {
 		Chart chart = chartLoader.load(new File(chartPath));
 		if (chart.getCrds() == null || chart.getCrds().isEmpty()) {
 			return "";
@@ -47,7 +49,7 @@ public class ShowAction {
 		return sb.toString();
 	}
 
-	public String showAll(String chartPath) throws Exception {
+	public String showAll(String chartPath) {
 		Chart chart = chartLoader.load(new File(chartPath));
 		StringBuilder sb = new StringBuilder();
 
@@ -80,7 +82,7 @@ public class ShowAction {
 		return sb.toString();
 	}
 
-	private String toYaml(Object obj) throws Exception {
+	private String toYaml(Object obj) {
 		YAMLMapper yamlMapper = YAMLMapper.builder()
 			.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
 			.enable(YAMLWriteFeature.MINIMIZE_QUOTES)
@@ -88,7 +90,12 @@ public class ShowAction {
 			.changeDefaultPropertyInclusion((v) -> v.withValueInclusion(JsonInclude.Include.NON_NULL)
 				.withContentInclusion(JsonInclude.Include.NON_NULL))
 			.build();
-		return yamlMapper.writeValueAsString(obj);
+		try {
+			return yamlMapper.writeValueAsString(obj);
+		}
+		catch (JacksonException ex) {
+			throw new JhelmException("Failed to serialize chart to YAML", ex);
+		}
 	}
 
 }

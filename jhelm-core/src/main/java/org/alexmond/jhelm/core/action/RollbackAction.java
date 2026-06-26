@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
@@ -19,7 +20,7 @@ public class RollbackAction {
 
 	private final KubeService kubeService;
 
-	public void rollback(String name, String namespace, int revision) throws Exception {
+	public void rollback(String name, String namespace, int revision) {
 		List<Release> history = kubeService.getReleaseHistory(name, namespace);
 		Optional<Release> targetReleaseOpt = history.stream().filter((r) -> r.getVersion() == revision).findFirst();
 
@@ -51,10 +52,19 @@ public class RollbackAction {
 		List<HelmHook> hooks = HookParser.parseHooks(manifest);
 		String regularManifest = HookParser.stripHooks(manifest);
 		HookExecutor hookExecutor = new HookExecutor(kubeService);
-		hookExecutor.run(namespace, hooks, "pre-rollback", 300);
+		runHooks(hookExecutor, namespace, hooks, "pre-rollback");
 		kubeService.apply(namespace, regularManifest);
 		kubeService.storeRelease(newRelease);
-		hookExecutor.run(namespace, hooks, "post-rollback", 300);
+		runHooks(hookExecutor, namespace, hooks, "post-rollback");
+	}
+
+	private void runHooks(HookExecutor hookExecutor, String namespace, List<HelmHook> hooks, String phase) {
+		try {
+			hookExecutor.run(namespace, hooks, phase, 300);
+		}
+		catch (Exception ex) {
+			throw new JhelmException("Failed to run " + phase + " hooks", ex);
+		}
 	}
 
 }

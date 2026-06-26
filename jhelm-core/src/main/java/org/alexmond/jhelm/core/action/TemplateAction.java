@@ -7,6 +7,7 @@ import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
@@ -21,12 +22,11 @@ public class TemplateAction {
 	@Setter
 	private List<PostRenderProcessor> postRenderProcessors = List.of();
 
-	public String render(String chartPath, String releaseName, String namespace) throws Exception {
+	public String render(String chartPath, String releaseName, String namespace) {
 		return render(chartPath, releaseName, namespace, new HashMap<>());
 	}
 
-	public String render(String chartPath, String releaseName, String namespace, Map<String, Object> overrides)
-			throws Exception {
+	public String render(String chartPath, String releaseName, String namespace, Map<String, Object> overrides) {
 		ChartLoader loader = new ChartLoader();
 		Chart chart = loader.load(new File(chartPath));
 
@@ -44,7 +44,12 @@ public class TemplateAction {
 		String manifest = engine.render(chart, values, releaseData);
 
 		for (PostRenderProcessor processor : postRenderProcessors) {
-			manifest = processor.process(manifest);
+			try {
+				manifest = processor.process(manifest);
+			}
+			catch (Exception ex) {
+				throw new JhelmException("Post-render processor failed", ex);
+			}
 		}
 
 		return manifest;

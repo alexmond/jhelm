@@ -13,6 +13,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import org.alexmond.jhelm.core.exception.JhelmException;
 
 /**
  * Searches Artifact Hub for Helm charts matching a keyword.
@@ -31,24 +32,29 @@ public class SearchHubAction {
 		this.jsonMapper = JsonMapper.builder().build();
 	}
 
-	public List<HubResult> search(String keyword, int maxResults) throws IOException {
+	public List<HubResult> search(String keyword, int maxResults) {
 		String encoded = URLEncoder.encode(keyword, StandardCharsets.UTF_8);
 		String url = ARTIFACT_HUB_API + "?ts_query_web=" + encoded + "&kind=0&limit=" + maxResults;
 
 		HttpGet request = new HttpGet(url);
 		request.setHeader("Accept", "application/json");
 
-		return httpClient.execute(request, (response) -> {
-			int status = response.getCode();
-			String body = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-			if (status != 200) {
-				throw new IOException("Artifact Hub returned HTTP " + status);
-			}
-			return parseResponse(body);
-		});
+		try {
+			return httpClient.execute(request, (response) -> {
+				int status = response.getCode();
+				String body = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+				if (status != 200) {
+					throw new IOException("Artifact Hub returned HTTP " + status);
+				}
+				return parseResponse(body);
+			});
+		}
+		catch (IOException ex) {
+			throw new JhelmException("Failed to query Artifact Hub", ex);
+		}
 	}
 
-	private List<HubResult> parseResponse(String json) throws IOException {
+	private List<HubResult> parseResponse(String json) {
 		List<HubResult> results = new ArrayList<>();
 		JsonNode root = jsonMapper.readTree(json);
 		JsonNode packages = root.get("packages");

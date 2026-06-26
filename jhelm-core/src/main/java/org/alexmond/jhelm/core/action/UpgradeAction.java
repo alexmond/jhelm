@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.DeploymentFailedException;
+import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
@@ -34,8 +35,7 @@ public class UpgradeAction {
 	@Setter
 	private List<LifecycleListener> lifecycleListeners = List.of();
 
-	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues, boolean dryRun)
-			throws Exception {
+	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues, boolean dryRun) {
 		if ("library".equals(newChart.getMetadata().getType())) {
 			throw new IllegalArgumentException(
 					"chart '" + newChart.getMetadata().getName() + "' is a library chart and cannot be upgraded");
@@ -71,7 +71,12 @@ public class UpgradeAction {
 		String manifest = engine.render(newChart, values, releaseData);
 
 		for (PostRenderProcessor processor : postRenderProcessors) {
-			manifest = processor.process(manifest);
+			try {
+				manifest = processor.process(manifest);
+			}
+			catch (Exception ex) {
+				throw new JhelmException("Post-render processor failed", ex);
+			}
 		}
 
 		newRelease.setManifest(manifest);
@@ -81,7 +86,7 @@ public class UpgradeAction {
 			List<HelmHook> hooks = HookParser.parseHooks(manifest);
 			String regularManifest = HookParser.stripHooks(manifest);
 			HookExecutor hookExecutor = new HookExecutor(kubeService);
-			hookExecutor.run(newRelease.getNamespace(), hooks, "pre-upgrade", 300);
+			runHooks(hookExecutor, newRelease.getNamespace(), hooks, "pre-upgrade");
 			kubeService.apply(newRelease.getNamespace(), regularManifest);
 			try {
 				kubeService.storeRelease(newRelease);
@@ -91,11 +96,20 @@ public class UpgradeAction {
 				throw new DeploymentFailedException("Failed to store release after apply; previous release re-applied",
 						ex, regularManifest);
 			}
-			hookExecutor.run(newRelease.getNamespace(), hooks, "post-upgrade", 300);
+			runHooks(hookExecutor, newRelease.getNamespace(), hooks, "post-upgrade");
 			fireLifecycleEvent("post-upgrade", newRelease.getName(), newRelease.getNamespace());
 		}
 
 		return newRelease;
+	}
+
+	private void runHooks(HookExecutor hookExecutor, String namespace, List<HelmHook> hooks, String phase) {
+		try {
+			hookExecutor.run(namespace, hooks, phase, 300);
+		}
+		catch (Exception ex) {
+			throw new JhelmException("Failed to run " + phase + " hooks", ex);
+		}
 	}
 
 	private void reapplyPreviousRelease(Release previousRelease) {
@@ -117,9 +131,14 @@ public class UpgradeAction {
 		}
 	}
 
-	private void fireLifecycleEvent(String phase, String releaseName, String namespace) throws Exception {
+	private void fireLifecycleEvent(String phase, String releaseName, String namespace) {
 		for (LifecycleListener listener : lifecycleListeners) {
-			listener.onEvent(phase, releaseName, namespace, Map.of());
+			try {
+				listener.onEvent(phase, releaseName, namespace, Map.of());
+			}
+			catch (Exception ex) {
+				throw new JhelmException("Lifecycle listener failed for phase " + phase, ex);
+			}
 		}
 	}
 

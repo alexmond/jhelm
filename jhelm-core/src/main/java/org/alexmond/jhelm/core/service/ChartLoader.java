@@ -50,10 +50,10 @@ public class ChartLoader {
 	 * templates, CRDs and subchart dependencies.
 	 * @param chartDir the chart's root directory (the one containing {@code Chart.yaml})
 	 * @return the fully populated chart
-	 * @throws IOException if a chart file cannot be read
-	 * @throws ChartLoadException if the directory is missing or has no {@code Chart.yaml}
+	 * @throws ChartLoadException if the directory is missing, has no {@code Chart.yaml},
+	 * or a chart file cannot be read
 	 */
-	public Chart load(File chartDir) throws IOException {
+	public Chart load(File chartDir) {
 		if (!chartDir.exists() || !chartDir.isDirectory()) {
 			throw new ChartLoadException("Chart directory does not exist", chartDir.getPath(),
 					"Verify the path is correct and points to a valid Helm chart directory");
@@ -65,6 +65,17 @@ public class ChartLoader {
 			throw new ChartLoadException("Chart.yaml not found", chartDir.getPath(),
 					"A valid Helm chart requires a Chart.yaml file. Run 'helm create' to scaffold a new chart");
 		}
+
+		try {
+			return loadFromDir(chartDir, metadataFile);
+		}
+		catch (IOException ex) {
+			throw new ChartLoadException("Failed to load chart", ex, chartDir.getPath(),
+					"Verify the chart files are readable and well-formed");
+		}
+	}
+
+	private Chart loadFromDir(File chartDir, File metadataFile) throws IOException {
 		ChartMetadata metadata = yamlMapper.readValue(metadataFile, ChartMetadata.class);
 
 		// For apiVersion v1 charts, dependencies live in requirements.yaml rather than

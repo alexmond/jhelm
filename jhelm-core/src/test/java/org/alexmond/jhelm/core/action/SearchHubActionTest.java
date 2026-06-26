@@ -1,6 +1,5 @@
 package org.alexmond.jhelm.core.action;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -9,6 +8,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.io.entity.StringEntity;
+import org.alexmond.jhelm.core.exception.JhelmException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -97,7 +97,7 @@ class SearchHubActionTest {
 		});
 
 		SearchHubAction action = new SearchHubAction(mockClient);
-		assertThrows(IOException.class, () -> action.search("nginx", 25));
+		assertThrows(JhelmException.class, () -> action.search("nginx", 25));
 	}
 
 	@Test

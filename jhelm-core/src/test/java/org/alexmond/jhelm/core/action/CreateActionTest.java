@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.action;
 
+import org.alexmond.jhelm.core.exception.JhelmException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -51,7 +52,7 @@ class CreateActionTest {
 		Path chartPath = tempDir.resolve("existing-chart");
 		Files.createDirectories(chartPath);
 
-		IOException exception = assertThrows(IOException.class, () -> createAction.create(chartPath));
+		JhelmException exception = assertThrows(JhelmException.class, () -> createAction.create(chartPath));
 
 		assertTrue(exception.getMessage().contains("already exists"));
 	}
