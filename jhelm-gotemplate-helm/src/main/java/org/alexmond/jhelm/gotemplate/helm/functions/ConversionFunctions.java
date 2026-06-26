@@ -781,8 +781,16 @@ public final class ConversionFunctions {
 	 * Go's yaml.Marshal uses plain style in these cases.
 	 */
 	static String removeUnnecessaryQuotes(String yaml) {
-		StringBuilder sb = new StringBuilder();
+		StringBuilder sb = new StringBuilder(yaml.length());
 		for (String line : yaml.split("\n", -1)) {
+			// Fast path: QUOTED_VALUE requires a double-quoted scalar, so a line with no
+			// '"' can never match — skip the regex + Matcher allocation entirely. In a
+			// typical rendered manifest the large majority of lines are unquoted, so this
+			// avoids running the regex (and its garbage) on most of them.
+			if (line.indexOf('"') < 0) {
+				sb.append(line).append('\n');
+				continue;
+			}
 			Matcher m = QUOTED_VALUE.matcher(line);
 			if (m.matches()) {
 				String prefix = m.group(1);
