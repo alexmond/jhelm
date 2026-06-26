@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  jhelm is a CLI: command output (rendered manifests, release data) goes to
+  stdout so it can be piped, and ALL diagnostics go to stderr — matching the
+  behaviour of the Go `helm` binary. Spring Boot's default console appender
+  targets stdout, which would corrupt `jhelm template ... > out.yaml`; this
+  config retargets it to stderr.
+-->
+<configuration>
+	<include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+	<appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+		<target>System.err</target>
+		<encoder>
+			<pattern>${CONSOLE_LOG_PATTERN}</pattern>
+			<charset>${CONSOLE_LOG_CHARSET}</charset>
+		</encoder>
+	</appender>
+
+	<root level="INFO">
+		<appender-ref ref="STDERR"/>
+	</root>
+</configuration>

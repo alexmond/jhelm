@@ -22,7 +22,11 @@ import org.alexmond.jhelm.app.command.TestCommand;
 import org.alexmond.jhelm.app.command.UninstallCommand;
 import org.alexmond.jhelm.app.command.UpgradeCommand;
 import org.alexmond.jhelm.app.command.VerifyCommand;
+import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
+import org.springframework.boot.ResourceBanner;
+import org.springframework.core.env.Environment;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -31,6 +35,7 @@ import picocli.CommandLine;
  * subcommand (install, upgrade, template, repo, and so on). Running it with no subcommand
  * prints the usage help.
  */
+@Slf4j
 @Component
 @CommandLine.Command(name = "jhelm", mixinStandardHelpOptions = true, version = "jhelm 0.0.1",
 		header = { "", "The Java Kubernetes package manager", "" },
@@ -47,9 +52,14 @@ import picocli.CommandLine;
 				RepoCommand.class, RegistryCommand.class, PluginCommand.class, SearchCommand.class })
 public class JHelmCommand implements Runnable {
 
-	/** Creates the command. */
-	@SuppressWarnings("PMD.UnnecessaryConstructor")
-	public JHelmCommand() {
+	private final Environment environment;
+
+	/**
+	 * Creates the command.
+	 * @param environment the Spring environment, used to resolve banner placeholders
+	 */
+	public JHelmCommand(Environment environment) {
+		this.environment = environment;
 	}
 
 	/**
@@ -66,11 +76,30 @@ public class JHelmCommand implements Runnable {
 	}
 
 	/**
-	 * Prints the usage help when {@code jhelm} is invoked without a subcommand.
+	 * Prints the jhelm banner (to stderr, so piped stdout stays clean) followed by the
+	 * usage help when {@code jhelm} is invoked without a subcommand.
 	 */
 	@Override
 	public void run() {
+		printBanner();
 		CommandLine.usage(this, System.out);
+	}
+
+	/**
+	 * Prints the {@code banner.txt} brand banner to stderr. Spring's automatic stdout
+	 * banner is disabled (see {@code application.properties}); this keeps the banner out
+	 * of command output while still branding the bare {@code jhelm} invocation. The
+	 * banner is purely cosmetic, so any failure is swallowed rather than aborting.
+	 */
+	private void printBanner() {
+		try {
+			new ResourceBanner(new ClassPathResource("banner.txt")).printBanner(this.environment, JHelmCommand.class,
+					System.err);
+		}
+		catch (RuntimeException ex) {
+			// Banner is cosmetic; never let it break the command.
+			log.debug("Skipping banner: {}", ex.getMessage());
+		}
 	}
 
 }
