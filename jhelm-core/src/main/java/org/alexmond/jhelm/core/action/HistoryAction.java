@@ -20,9 +20,9 @@ public class HistoryAction {
 	 * @param name the release name
 	 * @param namespace the release namespace
 	 * @return the list of stored revisions, oldest first
-	 * @throws Exception if the release history cannot be read
+	 * @throws KubernetesOperationException if the release history cannot be read
 	 */
-	public List<Release> history(String name, String namespace) throws Exception {
+	public List<Release> history(String name, String namespace) {
 		return kubeService.getReleaseHistory(name, namespace);
 	}
 

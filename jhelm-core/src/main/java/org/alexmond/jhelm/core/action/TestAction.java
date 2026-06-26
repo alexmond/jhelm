@@ -32,9 +32,9 @@ public class TestAction {
 	 * @param timeoutSeconds timeout for each test hook
 	 * @return list of test results
 	 * @throws ReleaseNotFoundException if the release does not exist
-	 * @throws Exception if a Kubernetes API error occurs
+	 * @throws KubernetesOperationException if a Kubernetes API error occurs
 	 */
-	public List<TestResult> test(String releaseName, String namespace, int timeoutSeconds) throws Exception {
+	public List<TestResult> test(String releaseName, String namespace, int timeoutSeconds) {
 		Optional<Release> releaseOpt = kubeService.getRelease(releaseName, namespace);
 		if (releaseOpt.isEmpty()) {
 			throw ReleaseNotFoundException.forRelease(releaseName, namespace);

@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
+import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.SignatureService;
@@ -43,8 +44,9 @@ public class PackageAction {
 	 * Packages a chart directory into a {@code .tgz} archive.
 	 * @param chartPath path to the chart directory
 	 * @return the created archive file
+	 * @throws JhelmException if the chart cannot be read or the archive cannot be written
 	 */
-	public File packageChart(String chartPath) throws Exception {
+	public File packageChart(String chartPath) {
 		return packageChart(chartPath, null, null);
 	}
 
@@ -55,8 +57,10 @@ public class PackageAction {
 	 * @param keyId substring to match against key user IDs
 	 * @param passphrase the key passphrase
 	 * @return the created archive file
+	 * @throws JhelmException if the chart cannot be read or the archive cannot be written
+	 * @throws SignatureException if the signing key cannot be loaded or signing fails
 	 */
-	public File packageChart(String chartPath, String keyringPath, String keyId, char[] passphrase) throws Exception {
+	public File packageChart(String chartPath, String keyringPath, String keyId, char[] passphrase) {
 		SigningKey signingKey = signatureService.loadSigningKey(keyringPath, keyId);
 		return packageChart(chartPath, signingKey, passphrase);
 	}
@@ -67,26 +71,33 @@ public class PackageAction {
 	 * @param signingKey signing key, or {@code null} to skip signing
 	 * @param passphrase key passphrase, or {@code null} if not signing
 	 * @return the created archive file
+	 * @throws JhelmException if the chart cannot be read or the archive cannot be written
+	 * @throws SignatureException if signing fails
 	 */
-	public File packageChart(String chartPath, SigningKey signingKey, char[] passphrase) throws Exception {
+	public File packageChart(String chartPath, SigningKey signingKey, char[] passphrase) {
 		Chart chart = chartLoader.load(new File(chartPath));
 		String archiveName = chart.getMetadata().getName() + "-" + chart.getMetadata().getVersion() + ".tgz";
 
 		File destDir = (destination != null) ? destination : new File(".");
 		File archiveFile = new File(destDir, archiveName);
 
-		createTgz(new File(chartPath), chart.getMetadata().getName(), archiveFile);
-		if (log.isInfoEnabled()) {
-			log.info("Successfully packaged chart and saved it to: {}", archiveFile.getAbsolutePath());
-		}
-
-		if (signingKey != null) {
-			String provContent = signatureService.sign(archiveFile, chart.getMetadata(), signingKey, passphrase);
-			File provFile = new File(destDir, archiveName + ".prov");
-			Files.writeString(provFile.toPath(), provContent);
+		try {
+			createTgz(new File(chartPath), chart.getMetadata().getName(), archiveFile);
 			if (log.isInfoEnabled()) {
-				log.info("Successfully signed chart and saved provenance to: {}", provFile.getAbsolutePath());
+				log.info("Successfully packaged chart and saved it to: {}", archiveFile.getAbsolutePath());
 			}
+
+			if (signingKey != null) {
+				String provContent = signatureService.sign(archiveFile, chart.getMetadata(), signingKey, passphrase);
+				File provFile = new File(destDir, archiveName + ".prov");
+				Files.writeString(provFile.toPath(), provContent);
+				if (log.isInfoEnabled()) {
+					log.info("Successfully signed chart and saved provenance to: {}", provFile.getAbsolutePath());
+				}
+			}
+		}
+		catch (IOException ex) {
+			throw new JhelmException("Failed to package chart " + chartPath, ex);
 		}
 
 		return archiveFile;

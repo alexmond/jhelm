@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.DeploymentFailedException;
+import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
@@ -57,10 +58,10 @@ public class InstallAction {
 	 * @throws IllegalArgumentException if the chart is a library chart
 	 * @throws DeploymentFailedException if applied resources cannot be persisted (they
 	 * are rolled back)
-	 * @throws Exception if rendering or a cluster operation fails
+	 * @throws JhelmException if rendering or a cluster operation fails
 	 */
 	public Release install(Chart chart, String releaseName, String namespace, Map<String, Object> overrideValues,
-			int version, boolean dryRun) throws Exception {
+			int version, boolean dryRun) {
 		if ("library".equals(chart.getMetadata().getType())) {
 			throw new IllegalArgumentException(
 					"chart '" + chart.getMetadata().getName() + "' is a library chart and cannot be installed");
@@ -96,7 +97,12 @@ public class InstallAction {
 		String manifest = engine.render(chart, values, releaseData);
 
 		for (PostRenderProcessor processor : postRenderProcessors) {
-			manifest = processor.process(manifest);
+			try {
+				manifest = processor.process(manifest);
+			}
+			catch (Exception ex) {
+				throw new JhelmException("Post-render processor failed", ex);
+			}
 		}
 
 		release.setManifest(manifest);
@@ -107,7 +113,7 @@ public class InstallAction {
 			List<HelmHook> hooks = HookParser.parseHooks(manifest);
 			String regularManifest = HookParser.stripHooks(manifest);
 			HookExecutor hookExecutor = new HookExecutor(kubeService);
-			hookExecutor.run(namespace, hooks, "pre-install", 300);
+			runHooks(hookExecutor, namespace, hooks, "pre-install");
 			kubeService.apply(namespace, regularManifest);
 			try {
 				kubeService.storeRelease(release);
@@ -117,14 +123,23 @@ public class InstallAction {
 				throw new DeploymentFailedException("Failed to store release after apply; resources rolled back", ex,
 						regularManifest);
 			}
-			hookExecutor.run(namespace, hooks, "post-install", 300);
+			runHooks(hookExecutor, namespace, hooks, "post-install");
 			fireLifecycleEvent("post-install", releaseName, namespace);
 		}
 
 		return release;
 	}
 
-	private void applyCrds(Chart chart, String namespace) throws Exception {
+	private void runHooks(HookExecutor hookExecutor, String namespace, List<HelmHook> hooks, String phase) {
+		try {
+			hookExecutor.run(namespace, hooks, phase, 300);
+		}
+		catch (Exception ex) {
+			throw new JhelmException("Failed to run " + phase + " hooks", ex);
+		}
+	}
+
+	private void applyCrds(Chart chart, String namespace) {
 		if (chart.getCrds() == null || chart.getCrds().isEmpty()) {
 			return;
 		}
@@ -150,9 +165,14 @@ public class InstallAction {
 		}
 	}
 
-	private void fireLifecycleEvent(String phase, String releaseName, String namespace) throws Exception {
+	private void fireLifecycleEvent(String phase, String releaseName, String namespace) {
 		for (LifecycleListener listener : lifecycleListeners) {
-			listener.onEvent(phase, releaseName, namespace, Map.of());
+			try {
+				listener.onEvent(phase, releaseName, namespace, Map.of());
+			}
+			catch (Exception ex) {
+				throw new JhelmException("Lifecycle listener failed for phase " + phase, ex);
+			}
 		}
 	}
 

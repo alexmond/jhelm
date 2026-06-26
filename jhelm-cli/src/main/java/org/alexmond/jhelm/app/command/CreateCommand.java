@@ -3,10 +3,10 @@ package org.alexmond.jhelm.app.command;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.CreateAction;
+import org.alexmond.jhelm.core.exception.JhelmException;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -47,7 +47,7 @@ public class CreateCommand implements Runnable {
 			createAction.create(chartPath);
 			CliOutput.println(CliOutput.success("Creating " + name));
 		}
-		catch (IOException ex) {
+		catch (JhelmException ex) {
 			CliOutput.errPrintln(CliOutput.error("Error creating chart: " + ex.getMessage()));
 			System.exit(1);
 		}

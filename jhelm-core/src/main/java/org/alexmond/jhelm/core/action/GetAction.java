@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.core.action;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.SerializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.Optional;
+import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -31,9 +33,9 @@ public class GetAction {
 	 * @param name the release name
 	 * @param namespace the release namespace
 	 * @return the release if found, otherwise empty
-	 * @throws Exception if the release store cannot be read
+	 * @throws KubernetesOperationException if the release store cannot be read
 	 */
-	public Optional<Release> getRelease(String name, String namespace) throws Exception {
+	public Optional<Release> getRelease(String name, String namespace) {
 		return kubeService.getRelease(name, namespace);
 	}
 
@@ -43,9 +45,9 @@ public class GetAction {
 	 * @param namespace the release namespace
 	 * @param revision the revision number to look up
 	 * @return the matching revision if found, otherwise empty
-	 * @throws Exception if the release history cannot be read
+	 * @throws KubernetesOperationException if the release history cannot be read
 	 */
-	public Optional<Release> getReleaseByRevision(String name, String namespace, int revision) throws Exception {
+	public Optional<Release> getReleaseByRevision(String name, String namespace, int revision) {
 		List<Release> history = kubeService.getReleaseHistory(name, namespace);
 		return history.stream().filter((r) -> r.getVersion() == revision).findFirst();
 	}
@@ -56,9 +58,9 @@ public class GetAction {
 	 * @param all if {@code true}, return the chart defaults merged with user overrides;
 	 * if {@code false}, return only the user-supplied overrides
 	 * @return the values rendered as YAML, or {@code "{}"} when there are none
-	 * @throws Exception if the values cannot be serialized
+	 * @throws JhelmException if the values cannot be serialized
 	 */
-	public String getValues(Release release, boolean all) throws Exception {
+	public String getValues(Release release, boolean all) {
 		if (all && release.getChart() != null && release.getChart().getValues() != null) {
 			Map<String, Object> merged = new LinkedHashMap<>(release.getChart().getValues());
 			if (release.getConfig() != null && release.getConfig().getValues() != null) {
@@ -150,9 +152,9 @@ public class GetAction {
 	 * @param allValues if {@code true}, include merged chart defaults in the VALUES
 	 * section
 	 * @return the combined multi-section report
-	 * @throws Exception if the values cannot be serialized
+	 * @throws JhelmException if the values cannot be serialized
 	 */
-	public String getAll(Release release, boolean allValues) throws Exception {
+	public String getAll(Release release, boolean allValues) {
 		StringBuilder sb = new StringBuilder();
 
 		sb.append("MANIFEST:\n");
@@ -187,9 +189,9 @@ public class GetAction {
 	 * start marker, minimized quotes, null values omitted).
 	 * @param obj the object to serialize
 	 * @return the YAML representation
-	 * @throws Exception if serialization fails
+	 * @throws JhelmException if serialization fails
 	 */
-	public String toYaml(Object obj) throws Exception {
+	public String toYaml(Object obj) {
 		YAMLMapper yamlMapper = YAMLMapper.builder()
 			.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
 			.enable(YAMLWriteFeature.MINIMIZE_QUOTES)
@@ -197,18 +199,28 @@ public class GetAction {
 			.changeDefaultPropertyInclusion((v) -> v.withValueInclusion(JsonInclude.Include.NON_NULL)
 				.withContentInclusion(JsonInclude.Include.NON_NULL))
 			.build();
-		return yamlMapper.writeValueAsString(obj);
+		try {
+			return yamlMapper.writeValueAsString(obj);
+		}
+		catch (JacksonException ex) {
+			throw new JhelmException("Failed to serialize values to YAML", ex);
+		}
 	}
 
 	/**
 	 * Serializes an object to indented JSON.
 	 * @param obj the object to serialize
 	 * @return the JSON representation
-	 * @throws Exception if serialization fails
+	 * @throws JhelmException if serialization fails
 	 */
-	public String toJson(Object obj) throws Exception {
+	public String toJson(Object obj) {
 		JsonMapper jsonMapper = JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT).build();
-		return jsonMapper.writeValueAsString(obj);
+		try {
+			return jsonMapper.writeValueAsString(obj);
+		}
+		catch (JacksonException ex) {
+			throw new JhelmException("Failed to serialize values to JSON", ex);
+		}
 	}
 
 }

@@ -1,10 +1,12 @@
 package org.alexmond.jhelm.core.action;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.service.SignatureService;
 import org.alexmond.jhelm.core.service.VerificationKeyring;
 
@@ -21,8 +23,10 @@ public class VerifyAction {
 	 * Verifies the PGP signature and digest of a chart archive.
 	 * @param chartTgzPath path to the chart {@code .tgz} archive
 	 * @param keyringPath path to the PGP public keyring file
+	 * @throws JhelmException if the provenance file cannot be read
+	 * @throws SignatureException if verification fails
 	 */
-	public void verify(String chartTgzPath, String keyringPath) throws Exception {
+	public void verify(String chartTgzPath, String keyringPath) {
 		File chartFile = new File(chartTgzPath);
 		if (!chartFile.exists()) {
 			throw new IllegalArgumentException("Chart archive not found: " + chartTgzPath);
@@ -33,7 +37,13 @@ public class VerifyAction {
 			throw new IllegalArgumentException("Provenance file not found: " + provFile.getAbsolutePath());
 		}
 
-		String provContent = Files.readString(provFile.toPath());
+		String provContent;
+		try {
+			provContent = Files.readString(provFile.toPath());
+		}
+		catch (IOException ex) {
+			throw new JhelmException("Failed to read provenance file " + provFile.getAbsolutePath(), ex);
+		}
 		VerificationKeyring keyring = signatureService.loadVerificationKeyring(keyringPath);
 
 		signatureService.verify(chartFile, provContent, keyring);

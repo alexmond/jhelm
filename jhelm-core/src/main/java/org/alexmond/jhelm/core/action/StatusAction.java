@@ -13,11 +13,11 @@ public class StatusAction {
 
 	private final KubeService kubeService;
 
-	public Optional<Release> status(String name, String namespace) throws Exception {
+	public Optional<Release> status(String name, String namespace) {
 		return kubeService.getRelease(name, namespace);
 	}
 
-	public List<ResourceStatus> getResourceStatuses(Release release) throws Exception {
+	public List<ResourceStatus> getResourceStatuses(Release release) {
 		if (release.getManifest() == null || release.getManifest().isBlank()) {
 			return List.of();
 		}

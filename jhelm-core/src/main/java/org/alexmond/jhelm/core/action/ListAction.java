@@ -11,7 +11,7 @@ public class ListAction {
 
 	private final KubeService kubeService;
 
-	public List<Release> list(String namespace) throws Exception {
+	public List<Release> list(String namespace) {
 		return kubeService.listReleases(namespace);
 	}
 
