@@ -631,7 +631,7 @@ class HelmKubeServiceTest {
 			when(mock.createNamespacedConfigMap(eq("default"), any(V1ConfigMap.class))).thenReturn(createReq);
 		});
 
-		assertThrows(ApiException.class, () -> kubeService.installConfigMap("default", yaml));
+		assertThrows(KubernetesOperationException.class, () -> kubeService.installConfigMap("default", yaml));
 	}
 
 	@Test
