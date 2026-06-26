@@ -42,7 +42,7 @@
              dedicated CI job (see .github/workflows/parity.yml). Override with
              -Dsurefire.excludedGroups= -Dgroups=comparison to run only the parity suite. -->
         <surefire.excludedGroups>comparison</surefire.excludedGroups>
-        <gotmpl4j.version>1.0.0</gotmpl4j.version>
+        <gotmpl4j.version>1.1.0</gotmpl4j.version>
         <kubernetes-client.version>26.0.0</kubernetes-client.version>
         <picocli.version>4.7.7</picocli.version>
         <semver4j.version>6.0.0</semver4j.version>
