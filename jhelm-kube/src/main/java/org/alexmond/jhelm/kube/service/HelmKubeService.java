@@ -224,13 +224,17 @@ public class HelmKubeService implements KubeService {
 	 * {@code helm status} pod listing.
 	 * @param namespace the Kubernetes namespace to list pods from
 	 * @return the names of the pods found in the namespace, in API-returned order
-	 * @throws ApiException if the Kubernetes API call fails
+	 * @throws KubernetesOperationException if the Kubernetes API call fails
 	 */
-	public List<String> listPods(String namespace) throws ApiException {
+	public List<String> listPods(String namespace) {
 		CoreV1Api api = new CoreV1Api(apiClient);
-		V1PodList list = api.listNamespacedPod(namespace).execute();
-
-		return list.getItems().stream().map((pod) -> pod.getMetadata().getName()).collect(Collectors.toList());
+		try {
+			V1PodList list = api.listNamespacedPod(namespace).execute();
+			return list.getItems().stream().map((pod) -> pod.getMetadata().getName()).collect(Collectors.toList());
+		}
+		catch (ApiException ex) {
+			throw new KubernetesOperationException("Failed to list pods in " + namespace, ex, ex.getCode());
+		}
 	}
 
 	/**
@@ -544,10 +548,10 @@ public class HelmKubeService implements KubeService {
 	 * conflict) it is replaced instead of created.
 	 * @param namespace the Kubernetes namespace to install the ConfigMap into
 	 * @param yamlContent the YAML representation of the ConfigMap to install
-	 * @throws ApiException if the Kubernetes API call fails for a reason other than an
-	 * already-existing ConfigMap
+	 * @throws KubernetesOperationException if the Kubernetes API call fails for a reason
+	 * other than an already-existing ConfigMap
 	 */
-	public void installConfigMap(String namespace, String yamlContent) throws ApiException {
+	public void installConfigMap(String namespace, String yamlContent) {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		V1ConfigMap cm = Yaml.loadAs(yamlContent, V1ConfigMap.class);
 
@@ -557,25 +561,28 @@ public class HelmKubeService implements KubeService {
 			}
 			api.createNamespacedConfigMap(namespace, cm).execute();
 		}
-		catch (Exception ex) {
-			if (ex instanceof ApiException ae && ae.getCode() == 409) { // Conflict/Already
-																		// exists
-				if (log.isInfoEnabled()) {
-					log.info("ConfigMap already exists, replacing");
-				}
-				api.replaceNamespacedConfigMap(cm.getMetadata().getName(), namespace, cm).execute();
+		catch (ApiException ex) {
+			if (ex.getCode() == 409) { // Conflict / already exists -> replace
+				replaceConfigMap(api, namespace, cm);
 			}
 			else {
 				if (log.isDebugEnabled()) {
-					log.debug("Error installing ConfigMap: {}", ex.getMessage());
+					log.debug("Error installing ConfigMap: {} / {}", ex.getMessage(), ex.getResponseBody());
 				}
-				if (ex instanceof ApiException ae) {
-					if (log.isDebugEnabled()) {
-						log.debug("API Response: {}", ae.getResponseBody());
-					}
-				}
-				throw ex;
+				throw new KubernetesOperationException("Failed to install ConfigMap in " + namespace, ex, ex.getCode());
 			}
+		}
+	}
+
+	private void replaceConfigMap(CoreV1Api api, String namespace, V1ConfigMap cm) {
+		if (log.isInfoEnabled()) {
+			log.info("ConfigMap already exists, replacing");
+		}
+		try {
+			api.replaceNamespacedConfigMap(cm.getMetadata().getName(), namespace, cm).execute();
+		}
+		catch (ApiException ex) {
+			throw new KubernetesOperationException("Failed to replace ConfigMap in " + namespace, ex, ex.getCode());
 		}
 	}
 
