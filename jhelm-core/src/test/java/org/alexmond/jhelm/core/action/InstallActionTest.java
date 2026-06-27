@@ -2,6 +2,7 @@ package org.alexmond.jhelm.core.action;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,6 +67,20 @@ class InstallActionTest {
 
 		verify(kubeService).apply("default", HookParser.stripHooks(manifest));
 		verify(kubeService).storeRelease(any(Release.class));
+	}
+
+	@Test
+	void testInstallPersistsUserValuesAsConfig() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("---\n");
+		Map<String, Object> overrides = Map.of("replicaCount", 3, "image", Map.of("tag", "v2"));
+
+		Release release = installAction.install(chart, "my-release", "default", overrides, 1, true);
+
+		assertNotNull(release.getConfig());
+		assertEquals(3, release.getConfig().getValues().get("replicaCount"));
+		assertEquals(Map.of("tag", "v2"), release.getConfig().getValues().get("image"));
 	}
 
 	@Test
