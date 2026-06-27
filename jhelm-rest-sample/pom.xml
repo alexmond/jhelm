@@ -14,7 +14,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.alexmond</groupId>
-			<artifactId>jhelm-rest</artifactId>
+			<artifactId>jhelm-rest-starter</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.alexmond</groupId>
