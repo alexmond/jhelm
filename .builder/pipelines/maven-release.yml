@@ -1,0 +1,77 @@
+# jhelm Maven Release on builder — translated from .github/workflows/maven_release.yml.
+#
+# The GitHub Actions workflow is a manual (workflow_dispatch) release: set the release version,
+# build, commit + tag, deploy to Maven Central (GPG-signed), bump to the next -SNAPSHOT, then
+# push commits + tags and cut a GitHub Release. This builder analog keeps the Maven half intact
+# and uses inputs for the two versions and secrets for the OSSRH + GPG credentials.
+#
+# Known builder gaps carried over from this workflow (see PR body):
+#  - No git write-back primitive: the commit/tag/push back to origin needs a PAT secret +
+#    a git credential helper set up inside the step (GITHUB_PAT below), rather than the implicit
+#    GITHUB_TOKEN actions/checkout grants. The push is wired but depends on that secret existing.
+#  - softprops/action-gh-release has no builder equivalent — the "Create GitHub Release" step is
+#    dropped; the pushed tag is the release artifact. (A `gh release create` step could replace it
+#    once a GITHUB_PAT secret is configured.)
+#  - actions/setup-java's server-id / gpg-private-key wiring is reproduced manually: the GPG key is
+#    imported from a secret and the Central credentials are passed as env, since builder has no
+#    setup-java marketplace action.
+name: jhelm Maven Release
+
+on:
+  - manual
+
+inputs:
+  releaseVersion:
+    type: string
+    description: Release version (e.g. 1.2.3)
+    required: true
+  nextVersion:
+    type: string
+    description: Next development version (with -SNAPSHOT suffix)
+    required: true
+
+jobs:
+  release:
+    image: eclipse-temurin:21-jdk
+    timeout: 30m
+    secrets:
+      - OSSRH_USERNAME
+      - OSSRH_PASSWORD
+      - GPG_PRIVATE_KEY
+      - GPG_PASSPHRASE
+      - GITHUB_PAT
+    cache:
+      key: m2-jhelm
+      paths:
+        - .m2/repository
+    steps:
+      - name: setup-tools
+        run: |
+          (apt-get update -qq && apt-get install -y -qq git gnupg curl) || (apk add --no-cache git gnupg curl) || true
+      - name: checkout
+        run: git clone https://github.com/alexmond/jhelm.git .
+      - name: configure-git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+      - name: import-gpg-key
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+      - name: set-release-version
+        run: ./mvnw versions:set -DnewVersion=$releaseVersion --no-transfer-progress -Dmaven.repo.local=.m2/repository
+      - name: verify-build
+        run: ./mvnw --batch-mode clean verify --no-transfer-progress -Dmaven.repo.local=.m2/repository
+      - name: commit-and-tag
+        run: |
+          git commit -am "Prepare release $releaseVersion"
+          git tag -a $releaseVersion -m "Release $releaseVersion"
+      - name: deploy-to-central
+        run: ./mvnw --batch-mode clean deploy -Prelease -Dgpg.passphrase="$GPG_PASSPHRASE" --no-transfer-progress -Dmaven.repo.local=.m2/repository
+      - name: set-next-development-version
+        run: |
+          ./mvnw versions:set -DnewVersion=$nextVersion --no-transfer-progress -Dmaven.repo.local=.m2/repository
+          git commit -am "Prepare for next development iteration: $nextVersion"
+      - name: push-changes
+        run: |
+          git config credential.helper '!f() { echo "username=x-access-token"; echo "password=$GITHUB_PAT"; }; f'
+          git push && git push --tags
