@@ -66,6 +66,15 @@ public class UpgradeCommand implements Runnable {
 	@Option(names = { "--set" }, description = "set values on the command line (key=value, dot notation supported)")
 	private List<String> setValues = new ArrayList<>();
 
+	@Option(names = { "--set-string" }, description = "set STRING values on the command line (no type coercion)")
+	private List<String> setStringValues = new ArrayList<>();
+
+	@Option(names = { "--set-file" }, description = "set values from files (key=path), value is the file contents")
+	private List<String> setFileValues = new ArrayList<>();
+
+	@Option(names = { "--set-json" }, description = "set JSON values on the command line (key=json)")
+	private List<String> setJsonValues = new ArrayList<>();
+
 	@Option(names = { "--wait" }, description = "wait until all resources are ready")
 	private boolean wait;
 
@@ -119,7 +128,8 @@ public class UpgradeCommand implements Runnable {
 		try {
 			Optional<Release> currentReleaseOpt = kubeService.getRelease(name, namespace);
 			Chart chart = chartLoader.load(new File(chartPath));
-			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues);
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
+					setFileValues, setJsonValues);
 
 			if (currentReleaseOpt.isEmpty()) {
 				if (install) {

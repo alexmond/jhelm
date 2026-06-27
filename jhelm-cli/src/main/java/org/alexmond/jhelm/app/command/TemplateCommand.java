@@ -39,6 +39,15 @@ public class TemplateCommand implements Runnable {
 	@Option(names = { "--set" }, description = "set values on the command line (key=value, dot notation supported)")
 	private List<String> setValues = new ArrayList<>();
 
+	@Option(names = { "--set-string" }, description = "set STRING values on the command line (no type coercion)")
+	private List<String> setStringValues = new ArrayList<>();
+
+	@Option(names = { "--set-file" }, description = "set values from files (key=path), value is the file contents")
+	private List<String> setFileValues = new ArrayList<>();
+
+	@Option(names = { "--set-json" }, description = "set JSON values on the command line (key=json)")
+	private List<String> setJsonValues = new ArrayList<>();
+
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
 
@@ -53,7 +62,8 @@ public class TemplateCommand implements Runnable {
 	@Override
 	public void run() {
 		try {
-			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues);
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
+					setFileValues, setJsonValues);
 			String manifest = templateAction.render(chartPath, name, namespace, overrides);
 			for (String renderer : postRenderers) {
 				manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
