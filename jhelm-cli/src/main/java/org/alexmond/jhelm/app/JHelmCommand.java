@@ -19,7 +19,9 @@ import org.alexmond.jhelm.app.command.ShowCommand;
 import org.alexmond.jhelm.app.command.StatusCommand;
 import org.alexmond.jhelm.app.command.TemplateCommand;
 import org.alexmond.jhelm.app.command.TestCommand;
+import org.alexmond.jhelm.app.command.EnvCommand;
 import org.alexmond.jhelm.app.command.UninstallCommand;
+import org.alexmond.jhelm.app.command.VersionCommand;
 import org.alexmond.jhelm.app.command.UpgradeCommand;
 import org.alexmond.jhelm.app.command.VerifyCommand;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +51,8 @@ import picocli.CommandLine;
 				UninstallCommand.class, ListCommand.class, StatusCommand.class, HistoryCommand.class,
 				RollbackCommand.class, ShowCommand.class, GetCommand.class, TestCommand.class, DependencyCommand.class,
 				PullCommand.class, PushCommand.class, PackageCommand.class, VerifyCommand.class, LintCommand.class,
-				RepoCommand.class, RegistryCommand.class, PluginCommand.class, SearchCommand.class })
+				RepoCommand.class, RegistryCommand.class, PluginCommand.class, SearchCommand.class,
+				VersionCommand.class, EnvCommand.class })
 public class JHelmCommand implements Runnable {
 
 	private final Environment environment;
