@@ -11,12 +11,13 @@ public interface LifecycleListener {
 
 	/**
 	 * Handle a lifecycle event.
-	 * @param phase the lifecycle phase (e.g., "pre-install", "post-install")
+	 * @param phase the lifecycle phase (e.g. {@link LifecyclePhase#PRE_INSTALL})
 	 * @param releaseName the release name
 	 * @param namespace the target namespace
 	 * @param metadata additional metadata about the event
 	 * @throws Exception if handling fails
 	 */
-	void onEvent(String phase, String releaseName, String namespace, Map<String, Object> metadata) throws Exception;
+	void onEvent(LifecyclePhase phase, String releaseName, String namespace, Map<String, Object> metadata)
+			throws Exception;
 
 }

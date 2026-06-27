@@ -17,6 +17,7 @@ import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.LifecycleListener;
+import org.alexmond.jhelm.core.service.LifecyclePhase;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
@@ -100,7 +101,7 @@ public class UpgradeAction {
 
 		if (kubeService != null && !options.isDryRun()) {
 			boolean noHooks = options.isNoHooks();
-			fireLifecycleEvent("pre-upgrade", newRelease.getName(), newRelease.getNamespace());
+			fireLifecycleEvent(LifecyclePhase.PRE_UPGRADE, newRelease.getName(), newRelease.getNamespace());
 			String regularManifest = HookParser.stripHooks(manifest);
 			List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
 			HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
@@ -120,7 +121,7 @@ public class UpgradeAction {
 			if (!noHooks) {
 				runHooks(hookExecutor, newRelease.getNamespace(), hooks, "post-upgrade");
 			}
-			fireLifecycleEvent("post-upgrade", newRelease.getName(), newRelease.getNamespace());
+			fireLifecycleEvent(LifecyclePhase.POST_UPGRADE, newRelease.getName(), newRelease.getNamespace());
 		}
 
 		return newRelease;
@@ -212,13 +213,13 @@ public class UpgradeAction {
 		}
 	}
 
-	private void fireLifecycleEvent(String phase, String releaseName, String namespace) {
+	private void fireLifecycleEvent(LifecyclePhase phase, String releaseName, String namespace) {
 		for (LifecycleListener listener : lifecycleListeners) {
 			try {
 				listener.onEvent(phase, releaseName, namespace, Map.of());
 			}
 			catch (Exception ex) {
-				throw new JhelmException("Lifecycle listener failed for phase " + phase, ex);
+				throw new JhelmException("Lifecycle listener failed for phase " + phase.getValue(), ex);
 			}
 		}
 	}
