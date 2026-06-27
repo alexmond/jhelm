@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,7 +57,7 @@ class ValuesOverridesTest {
 		ValuesOverrides.applySet(target, "db.port=5432");
 		Map<?, ?> db = (Map<?, ?>) target.get("db");
 		assertEquals("localhost", db.get("host"));
-		assertEquals("5432", db.get("port"));
+		assertEquals(5432L, db.get("port"));
 	}
 
 	@Test
@@ -79,6 +80,128 @@ class ValuesOverridesTest {
 		Map<String, Object> target = new HashMap<>();
 		ValuesOverrides.applySet(target, "key=a=b");
 		assertEquals("a=b", target.get("key"));
+	}
+
+	// --- applySet type coercion ---
+
+	@Test
+	void testApplySetCoercesBoolean() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySet(target, "enabled=true");
+		ValuesOverrides.applySet(target, "disabled=false");
+		assertEquals(Boolean.TRUE, target.get("enabled"));
+		assertEquals(Boolean.FALSE, target.get("disabled"));
+	}
+
+	@Test
+	void testApplySetCoercesInteger() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySet(target, "replicas=3");
+		assertEquals(3L, target.get("replicas"));
+		assertInstanceOf(Long.class, target.get("replicas"));
+	}
+
+	@Test
+	void testApplySetFloatStaysString() {
+		// Helm's --set does not coerce floats; "1.5" stays a string (verified vs helm).
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySet(target, "ratio=1.5");
+		assertEquals("1.5", target.get("ratio"));
+		assertInstanceOf(String.class, target.get("ratio"));
+	}
+
+	@Test
+	void testApplySetLeadingZeroStaysString() {
+		// Leading-zero numbers stay strings (helm keeps "007").
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySet(target, "code=007");
+		assertEquals("007", target.get("code"));
+		assertInstanceOf(String.class, target.get("code"));
+	}
+
+	@Test
+	void testApplySetCoercesNull() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySet(target, "foo=null");
+		assertTrue(target.containsKey("foo"));
+		assertNull(target.get("foo"));
+	}
+
+	@Test
+	void testApplySetEmptyValueIsEmptyString() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySet(target, "foo=");
+		assertEquals("", target.get("foo"));
+	}
+
+	@Test
+	void testApplySetPlainStringStaysString() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySet(target, "name=nginx");
+		assertEquals("nginx", target.get("name"));
+	}
+
+	// --- applySetString (no coercion) ---
+
+	@Test
+	void testApplySetStringKeepsRawString() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySetString(target, "foo=3");
+		assertEquals("3", target.get("foo"));
+		assertInstanceOf(String.class, target.get("foo"));
+	}
+
+	@Test
+	void testApplySetStringBooleanStaysString() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySetString(target, "foo=true");
+		assertEquals("true", target.get("foo"));
+	}
+
+	// --- applySetFile ---
+
+	@Test
+	void testApplySetFileReadsContents() throws Exception {
+		Path file = writeFile("cert.pem", "line1\nline2\n");
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySetFile(target, "cert=" + file);
+		assertEquals("line1\nline2\n", target.get("cert"));
+	}
+
+	// --- applySetJson ---
+
+	@Test
+	void testApplySetJsonParsesMap() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySetJson(target, "foo={\"a\":1}");
+		Map<?, ?> foo = (Map<?, ?>) target.get("foo");
+		assertEquals(1, foo.get("a"));
+	}
+
+	@Test
+	void testApplySetJsonParsesList() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySetJson(target, "items=[1,2,3]");
+		assertEquals(List.of(1, 2, 3), target.get("items"));
+	}
+
+	// --- precedence across variants ---
+
+	@Test
+	void testSetJsonOverridesSetOverridesFile() throws Exception {
+		Path f = writeFile("base.yaml", """
+				replicas: 1
+				image: nginx
+				tag: filetag
+				""");
+		Map<String, Object> result = ValuesOverrides.parse(List.of(f.toString()), List.of("replicas=2", "tag=settag"),
+				null, null, List.of("replicas=3"));
+		// set-json wins over set wins over file
+		assertEquals(3, result.get("replicas"));
+		// set wins over file
+		assertEquals("settag", result.get("tag"));
+		// untouched file value remains
+		assertEquals("nginx", result.get("image"));
 	}
 
 	// --- parse from files ---
@@ -115,7 +238,7 @@ class ValuesOverridesTest {
 	void testParseFromSetArgs() throws Exception {
 		Map<String, Object> result = ValuesOverrides.parse(null, List.of("key=value", "other=123"));
 		assertEquals("value", result.get("key"));
-		assertEquals("123", result.get("other"));
+		assertEquals(123L, result.get("other"));
 	}
 
 	// --- combined ---
@@ -124,7 +247,7 @@ class ValuesOverridesTest {
 	void testSetOverridesFile() throws Exception {
 		Path f = writeValues("replicas: 1\nimage: nginx\n");
 		Map<String, Object> result = ValuesOverrides.parse(List.of(f.toString()), List.of("replicas=3"));
-		assertEquals("3", result.get("replicas"));
+		assertEquals(3L, result.get("replicas"));
 		assertEquals("nginx", result.get("image"));
 	}
 
@@ -194,7 +317,7 @@ class ValuesOverridesTest {
 				""");
 		Map<String, Object> result = ValuesOverrides.parse(List.of(f1.toString(), f2.toString()),
 				List.of("replicas=10"));
-		assertEquals("10", result.get("replicas"));
+		assertEquals(10L, result.get("replicas"));
 		assertEquals("nginx", result.get("image"));
 	}
 
@@ -313,7 +436,7 @@ class ValuesOverridesTest {
 			int port = server.getAddress().getPort();
 			String url = "http://localhost:" + port + "/values.yaml";
 			Map<String, Object> result = ValuesOverrides.parse(List.of(url), List.of("replicas=10"));
-			assertEquals("10", result.get("replicas"));
+			assertEquals(10L, result.get("replicas"));
 			assertEquals("nginx", result.get("image"));
 		}
 		finally {

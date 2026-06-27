@@ -31,6 +31,15 @@ public class LintCommand implements Runnable {
 	@Option(names = { "--set" }, description = "set values on the command line (key=value)")
 	private List<String> setValues = new ArrayList<>();
 
+	@Option(names = { "--set-string" }, description = "set STRING values on the command line (no type coercion)")
+	private List<String> setStringValues = new ArrayList<>();
+
+	@Option(names = { "--set-file" }, description = "set values from files (key=path), value is the file contents")
+	private List<String> setFileValues = new ArrayList<>();
+
+	@Option(names = { "--set-json" }, description = "set JSON values on the command line (key=json)")
+	private List<String> setJsonValues = new ArrayList<>();
+
 	@Option(names = { "--strict" }, defaultValue = "false", description = "fail on lint warnings")
 	private boolean strict;
 
@@ -45,7 +54,8 @@ public class LintCommand implements Runnable {
 	@Override
 	public void run() {
 		try {
-			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues);
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
+					setFileValues, setJsonValues);
 			LintAction.LintResult result = lintAction.lint(chartPath, overrides, strict);
 
 			CliOutput.println("==> Linting " + result.getChartPath());
