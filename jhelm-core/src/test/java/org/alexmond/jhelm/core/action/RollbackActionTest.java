@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
@@ -160,6 +161,59 @@ class RollbackActionTest {
 
 		verify(kubeService).apply("default", hooks.get(0).getYaml());
 		verify(kubeService).apply("default", strippedManifest);
+	}
+
+	@Test
+	void testRollbackNoHooksSkipsHooks() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).build();
+
+		String hookYaml = """
+				apiVersion: batch/v1
+				kind: Job
+				metadata:
+				  name: myapp-pre-rollback
+				  namespace: default
+				  annotations:
+				    helm.sh/hook: pre-rollback
+				    helm.sh/hook-delete-policy: before-hook-creation
+				spec:
+				  template:
+				    spec:
+				      restartPolicy: Never
+				""";
+		String regularYaml = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: myapp-cfg\n";
+		String manifest = "---\n" + hookYaml + regularYaml;
+
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status("deployed")
+			.build();
+
+		Release v1 = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.manifest(manifest)
+			.info(info)
+			.build();
+
+		when(kubeService.getReleaseHistory(anyString(), anyString())).thenReturn(Arrays.asList(v1));
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		rollbackAction.rollback("myapp", "default", 1, true);
+
+		List<HelmHook> hooks = HookParser.parseHooks(manifest);
+		String strippedManifest = HookParser.stripHooks(manifest);
+
+		// Hook resource is NOT applied when noHooks is true
+		verify(kubeService, never()).apply("default", hooks.get(0).getYaml());
+		// Regular manifest is still applied and the release stored
+		verify(kubeService).apply("default", strippedManifest);
+		verify(kubeService).storeRelease(any(Release.class));
 	}
 
 	@Test

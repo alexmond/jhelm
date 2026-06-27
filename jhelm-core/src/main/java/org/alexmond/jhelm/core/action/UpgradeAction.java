@@ -49,6 +49,25 @@ public class UpgradeAction {
 	 */
 	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues,
 			UpgradeValueStrategy strategy, boolean dryRun) {
+		return upgrade(currentRelease, newChart, overrideValues, strategy, dryRun, false);
+	}
+
+	/**
+	 * Upgrades a release, optionally skipping lifecycle hooks. Behaves like
+	 * {@link #upgrade(Release, Chart, Map, UpgradeValueStrategy, boolean)} but allows
+	 * suppressing pre-upgrade and post-upgrade hook execution.
+	 * @param currentRelease the currently deployed release (its chart defaults and
+	 * persisted user values feed the reuse strategies)
+	 * @param newChart the chart to upgrade to
+	 * @param overrideValues this command's value overrides (may be {@code null})
+	 * @param strategy how to resolve the previous user values against the overrides — see
+	 * {@link UpgradeValueStrategy}
+	 * @param dryRun when {@code true}, render only without applying to the cluster
+	 * @param noHooks if {@code true}, skip running pre-upgrade and post-upgrade hooks
+	 * @return the upgraded release
+	 */
+	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues,
+			UpgradeValueStrategy strategy, boolean dryRun, boolean noHooks) {
 		if ("library".equals(newChart.getMetadata().getType())) {
 			throw new IllegalArgumentException(
 					"chart '" + newChart.getMetadata().getName() + "' is a library chart and cannot be upgraded");
@@ -100,10 +119,12 @@ public class UpgradeAction {
 
 		if (kubeService != null && !dryRun) {
 			fireLifecycleEvent("pre-upgrade", newRelease.getName(), newRelease.getNamespace());
-			List<HelmHook> hooks = HookParser.parseHooks(manifest);
 			String regularManifest = HookParser.stripHooks(manifest);
-			HookExecutor hookExecutor = new HookExecutor(kubeService);
-			runHooks(hookExecutor, newRelease.getNamespace(), hooks, "pre-upgrade");
+			List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
+			HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
+			if (!noHooks) {
+				runHooks(hookExecutor, newRelease.getNamespace(), hooks, "pre-upgrade");
+			}
 			kubeService.apply(newRelease.getNamespace(), regularManifest);
 			try {
 				kubeService.storeRelease(newRelease);
@@ -113,7 +134,9 @@ public class UpgradeAction {
 				throw new DeploymentFailedException("Failed to store release after apply; previous release re-applied",
 						ex, regularManifest);
 			}
-			runHooks(hookExecutor, newRelease.getNamespace(), hooks, "post-upgrade");
+			if (!noHooks) {
+				runHooks(hookExecutor, newRelease.getNamespace(), hooks, "post-upgrade");
+			}
 			fireLifecycleEvent("post-upgrade", newRelease.getName(), newRelease.getNamespace());
 		}
 

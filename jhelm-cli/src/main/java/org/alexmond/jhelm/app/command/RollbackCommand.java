@@ -27,6 +27,9 @@ public class RollbackCommand implements Runnable {
 	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
 
+	@CommandLine.Option(names = { "--no-hooks" }, description = "prevent hooks from running during this operation")
+	private boolean noHooks;
+
 	/**
 	 * Creates the command.
 	 * @param rollbackAction the action that performs the rollback
@@ -38,7 +41,7 @@ public class RollbackCommand implements Runnable {
 	@Override
 	public void run() {
 		try {
-			rollbackAction.rollback(name, namespace, revision);
+			rollbackAction.rollback(name, namespace, revision, noHooks);
 			CliOutput.println(CliOutput.success("Rollback was a success! Happy Helming!"));
 		}
 		catch (Exception ex) {

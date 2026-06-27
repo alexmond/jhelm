@@ -20,7 +20,25 @@ public class RollbackAction {
 
 	private final KubeService kubeService;
 
+	/**
+	 * Rolls a release back to a previous revision, running its pre-rollback and
+	 * post-rollback hooks.
+	 * @param name the release name
+	 * @param namespace the namespace the release lives in
+	 * @param revision the revision number to roll back to
+	 */
 	public void rollback(String name, String namespace, int revision) {
+		rollback(name, namespace, revision, false);
+	}
+
+	/**
+	 * Rolls a release back to a previous revision, optionally skipping lifecycle hooks.
+	 * @param name the release name
+	 * @param namespace the namespace the release lives in
+	 * @param revision the revision number to roll back to
+	 * @param noHooks if {@code true}, skip running pre-rollback and post-rollback hooks
+	 */
+	public void rollback(String name, String namespace, int revision, boolean noHooks) {
 		List<Release> history = kubeService.getReleaseHistory(name, namespace);
 		Optional<Release> targetReleaseOpt = history.stream().filter((r) -> r.getVersion() == revision).findFirst();
 
@@ -49,13 +67,17 @@ public class RollbackAction {
 			.build();
 
 		String manifest = newRelease.getManifest();
-		List<HelmHook> hooks = HookParser.parseHooks(manifest);
 		String regularManifest = HookParser.stripHooks(manifest);
-		HookExecutor hookExecutor = new HookExecutor(kubeService);
-		runHooks(hookExecutor, namespace, hooks, "pre-rollback");
+		List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
+		HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
+		if (!noHooks) {
+			runHooks(hookExecutor, namespace, hooks, "pre-rollback");
+		}
 		kubeService.apply(namespace, regularManifest);
 		kubeService.storeRelease(newRelease);
-		runHooks(hookExecutor, namespace, hooks, "post-rollback");
+		if (!noHooks) {
+			runHooks(hookExecutor, namespace, hooks, "post-rollback");
+		}
 	}
 
 	private void runHooks(HookExecutor hookExecutor, String namespace, List<HelmHook> hooks, String phase) {

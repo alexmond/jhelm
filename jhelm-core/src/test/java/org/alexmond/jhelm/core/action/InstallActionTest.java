@@ -137,6 +137,44 @@ class InstallActionTest {
 	}
 
 	@Test
+	void testInstallNoHooksSkipsHooks() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		String hookYaml = """
+				apiVersion: batch/v1
+				kind: Job
+				metadata:
+				  name: my-release-pre-install
+				  namespace: default
+				  annotations:
+				    helm.sh/hook: pre-install
+				    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+				spec:
+				  template:
+				    spec:
+				      restartPolicy: Never
+				""";
+		String regularYaml = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\n";
+		String fullManifest = "---\n" + hookYaml + regularYaml;
+
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(fullManifest);
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		installAction.install(chart, "my-release", "default", null, 1, false, true);
+
+		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
+		String strippedManifest = HookParser.stripHooks(fullManifest);
+
+		// Hook resource is NOT applied when noHooks is true
+		verify(kubeService, never()).apply("default", hooks.get(0).getYaml());
+		// Regular manifest is still applied and the release stored
+		verify(kubeService).apply("default", strippedManifest);
+		verify(kubeService).storeRelease(any(Release.class));
+	}
+
+	@Test
 	void testInstallWithNullKubeServiceNoop() throws Exception {
 		InstallAction noKubeInstall = new InstallAction(engine, null);
 		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();

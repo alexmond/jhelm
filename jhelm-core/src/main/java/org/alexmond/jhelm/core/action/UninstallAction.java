@@ -19,20 +19,39 @@ public class UninstallAction {
 
 	private final KubeService kubeService;
 
+	/**
+	 * Uninstalls a release, running its pre-delete and post-delete hooks.
+	 * @param releaseName the name of the release to remove
+	 * @param namespace the namespace the release lives in
+	 */
 	public void uninstall(String releaseName, String namespace) {
+		uninstall(releaseName, namespace, false);
+	}
+
+	/**
+	 * Uninstalls a release, optionally skipping lifecycle hooks.
+	 * @param releaseName the name of the release to remove
+	 * @param namespace the namespace the release lives in
+	 * @param noHooks if {@code true}, skip running pre-delete and post-delete hooks
+	 */
+	public void uninstall(String releaseName, String namespace, boolean noHooks) {
 		Optional<Release> releaseOpt = kubeService.getRelease(releaseName, namespace);
 		if (releaseOpt.isEmpty()) {
 			throw ReleaseNotFoundException.forRelease(releaseName, namespace);
 		}
 
 		Release release = releaseOpt.get();
-		List<HelmHook> hooks = HookParser.parseHooks(release.getManifest());
 		String regularManifest = HookParser.stripHooks(release.getManifest());
-		HookExecutor hookExecutor = new HookExecutor(kubeService);
-		runHooks(hookExecutor, namespace, hooks, "pre-delete");
+		List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(release.getManifest());
+		HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
+		if (!noHooks) {
+			runHooks(hookExecutor, namespace, hooks, "pre-delete");
+		}
 		String deletableManifest = HookParser.stripKeptResources(regularManifest);
 		kubeService.delete(namespace, deletableManifest);
-		runHooks(hookExecutor, namespace, hooks, "post-delete");
+		if (!noHooks) {
+			runHooks(hookExecutor, namespace, hooks, "post-delete");
+		}
 		kubeService.deleteReleaseHistory(releaseName, namespace);
 	}
 

@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.anyString;
 import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
@@ -84,6 +85,43 @@ class UninstallActionTest {
 		verify(kubeService).apply("default", hooks.get(0).getYaml());
 		// Regular resource deletion uses stripped manifest
 		verify(kubeService).delete("default", strippedManifest);
+		verify(kubeService).deleteReleaseHistory("myapp", "default");
+	}
+
+	@Test
+	void testUninstallNoHooksSkipsHooks() throws Exception {
+		String hookYaml = """
+				apiVersion: batch/v1
+				kind: Job
+				metadata:
+				  name: myapp-pre-delete
+				  namespace: default
+				  annotations:
+				    helm.sh/hook: pre-delete
+				    helm.sh/hook-delete-policy: before-hook-creation
+				spec:
+				  template:
+				    spec:
+				      restartPolicy: Never
+				""";
+		String regularYaml = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: myapp-cfg\n";
+		String fullManifest = "---\n" + hookYaml + regularYaml;
+
+		Release release = Release.builder().name("myapp").namespace("default").manifest(fullManifest).build();
+
+		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(release));
+		doNothing().when(kubeService).delete(anyString(), anyString());
+		doNothing().when(kubeService).deleteReleaseHistory(anyString(), anyString());
+
+		uninstallAction.uninstall("myapp", "default", true);
+
+		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
+		String deletableManifest = HookParser.stripKeptResources(HookParser.stripHooks(fullManifest));
+
+		// Hook resource is NOT applied when noHooks is true
+		verify(kubeService, never()).apply("default", hooks.get(0).getYaml());
+		// Regular resources are still deleted and history removed
+		verify(kubeService).delete("default", deletableManifest);
 		verify(kubeService).deleteReleaseHistory("myapp", "default");
 	}
 
