@@ -34,11 +34,12 @@ public class KubernetesClientProvider implements KubernetesProvider {
 	private volatile Boolean available;
 
 	/**
-	 * Creates a provider backed by the given Kubernetes API client.
-	 * @param apiClient the configured Kubernetes API client used to look up resources and
-	 * query cluster version information
+	 * Creates a provider backed by the given {@link KubeClient}.
+	 * @param kubeClient the jhelm Kubernetes client wrapper holding the configured API
+	 * client used to look up resources and query cluster version information
 	 */
-	public KubernetesClientProvider(ApiClient apiClient) {
+	public KubernetesClientProvider(KubeClient kubeClient) {
+		ApiClient apiClient = kubeClient.apiClient();
 		this.apiClient = apiClient;
 		this.coreV1Api = new CoreV1Api(apiClient);
 		this.appsV1Api = new AppsV1Api(apiClient);

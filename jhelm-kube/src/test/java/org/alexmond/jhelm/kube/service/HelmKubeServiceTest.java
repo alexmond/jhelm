@@ -83,7 +83,7 @@ class HelmKubeServiceTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		kubeService = new HelmKubeService(apiClient);
+		kubeService = new HelmKubeService(new KubeClient(apiClient));
 	}
 
 	@AfterEach
