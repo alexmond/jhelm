@@ -234,6 +234,58 @@ class UpgradeActionTest {
 	}
 
 	@Test
+	void testUpgradeNoHooksSkipsHooks() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("2.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status("deployed")
+			.build();
+
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.info(info)
+			.build();
+
+		String hookYaml = """
+				apiVersion: batch/v1
+				kind: Job
+				metadata:
+				  name: myapp-pre-upgrade
+				  namespace: default
+				  annotations:
+				    helm.sh/hook: pre-upgrade
+				    helm.sh/hook-delete-policy: before-hook-creation
+				spec:
+				  template:
+				    spec:
+				      restartPolicy: Never
+				""";
+		String regularYaml = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
+		String fullManifest = "---\n" + hookYaml + regularYaml;
+
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(fullManifest);
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT, false, true);
+
+		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
+		String strippedManifest = HookParser.stripHooks(fullManifest);
+
+		// Hook resource is NOT applied when noHooks is true
+		verify(kubeService, never()).apply("default", hooks.get(0).getYaml());
+		// Regular manifest is still applied and the release stored
+		verify(kubeService).apply("default", strippedManifest);
+		verify(kubeService).storeRelease(any(Release.class));
+	}
+
+	@Test
 	void testUpgradeIncrementsVersion() throws Exception {
 		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();

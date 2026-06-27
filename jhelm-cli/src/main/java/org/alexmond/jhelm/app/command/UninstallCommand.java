@@ -23,6 +23,9 @@ public class UninstallCommand implements Runnable {
 	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
 
+	@CommandLine.Option(names = { "--no-hooks" }, description = "prevent hooks from running during this operation")
+	private boolean noHooks;
+
 	/**
 	 * Creates the command.
 	 * @param uninstallAction the action that uninstalls the release
@@ -34,7 +37,7 @@ public class UninstallCommand implements Runnable {
 	@Override
 	public void run() {
 		try {
-			uninstallAction.uninstall(name, namespace);
+			uninstallAction.uninstall(name, namespace, noHooks);
 			CliOutput.println(CliOutput.success("release \"" + name + "\" uninstalled"));
 		}
 		catch (Exception ex) {

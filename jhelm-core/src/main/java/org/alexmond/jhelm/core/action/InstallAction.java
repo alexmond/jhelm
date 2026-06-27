@@ -62,6 +62,30 @@ public class InstallAction {
 	 */
 	public Release install(Chart chart, String releaseName, String namespace, Map<String, Object> overrideValues,
 			int version, boolean dryRun) {
+		return install(chart, releaseName, namespace, overrideValues, version, dryRun, false);
+	}
+
+	/**
+	 * Installs a chart as a new release, optionally skipping lifecycle hooks. Behaves
+	 * like {@link #install(Chart, String, String, Map, int, boolean)} but allows
+	 * suppressing pre-install and post-install hook execution.
+	 * @param chart the chart to install (must not be a library chart)
+	 * @param releaseName the name to give the release
+	 * @param namespace the target namespace
+	 * @param overrideValues user-supplied values merged over the chart defaults, may be
+	 * {@code null}
+	 * @param version the release revision number to assign
+	 * @param dryRun if {@code true}, render only and skip applying anything to the
+	 * cluster
+	 * @param noHooks if {@code true}, skip running pre-install and post-install hooks
+	 * @return the resulting release, including the rendered manifest
+	 * @throws IllegalArgumentException if the chart is a library chart
+	 * @throws DeploymentFailedException if applied resources cannot be persisted (they
+	 * are rolled back)
+	 * @throws JhelmException if rendering or a cluster operation fails
+	 */
+	public Release install(Chart chart, String releaseName, String namespace, Map<String, Object> overrideValues,
+			int version, boolean dryRun, boolean noHooks) {
 		if ("library".equals(chart.getMetadata().getType())) {
 			throw new IllegalArgumentException(
 					"chart '" + chart.getMetadata().getName() + "' is a library chart and cannot be installed");
@@ -115,10 +139,12 @@ public class InstallAction {
 		if (kubeService != null && !dryRun) {
 			applyCrds(chart, namespace);
 			fireLifecycleEvent("pre-install", releaseName, namespace);
-			List<HelmHook> hooks = HookParser.parseHooks(manifest);
 			String regularManifest = HookParser.stripHooks(manifest);
-			HookExecutor hookExecutor = new HookExecutor(kubeService);
-			runHooks(hookExecutor, namespace, hooks, "pre-install");
+			List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
+			HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
+			if (!noHooks) {
+				runHooks(hookExecutor, namespace, hooks, "pre-install");
+			}
 			kubeService.apply(namespace, regularManifest);
 			try {
 				kubeService.storeRelease(release);
@@ -128,7 +154,9 @@ public class InstallAction {
 				throw new DeploymentFailedException("Failed to store release after apply; resources rolled back", ex,
 						regularManifest);
 			}
-			runHooks(hookExecutor, namespace, hooks, "post-install");
+			if (!noHooks) {
+				runHooks(hookExecutor, namespace, hooks, "post-install");
+			}
 			fireLifecycleEvent("post-install", releaseName, namespace);
 		}
 

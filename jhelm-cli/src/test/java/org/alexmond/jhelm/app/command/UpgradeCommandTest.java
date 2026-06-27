@@ -77,7 +77,7 @@ class UpgradeCommandTest {
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
 		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean()))
+				anyBoolean(), anyBoolean()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -90,7 +90,8 @@ class UpgradeCommandTest {
 		Release newRelease = createMockRelease("my-release", 1);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.empty());
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean()))
+		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
+				anyBoolean()))
 			.thenReturn(newRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -115,7 +116,7 @@ class UpgradeCommandTest {
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
 		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean()))
+				anyBoolean(), anyBoolean()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -154,7 +155,7 @@ class UpgradeCommandTest {
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
 		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean()))
+				anyBoolean(), anyBoolean()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -171,7 +172,7 @@ class UpgradeCommandTest {
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
 		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean()))
+				anyBoolean(), anyBoolean()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -186,13 +187,15 @@ class UpgradeCommandTest {
 		Release newRelease = createMockRelease("my-release", 1);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.empty());
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean()))
+		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
+				anyBoolean()))
 			.thenReturn(newRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--install", "--dry-run");
 
-		verify(installAction).install(any(Chart.class), eq("my-release"), eq("default"), anyMap(), eq(1), eq(true));
+		verify(installAction).install(any(Chart.class), eq("my-release"), eq("default"), anyMap(), eq(1), eq(true),
+				anyBoolean());
 	}
 
 	@Test
@@ -202,7 +205,7 @@ class UpgradeCommandTest {
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
 		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean()))
+				anyBoolean(), anyBoolean()))
 			.thenThrow(new RuntimeException("upgrade failed"));
 
 		CommandLine cmd = new CommandLine(upgradeCommand);

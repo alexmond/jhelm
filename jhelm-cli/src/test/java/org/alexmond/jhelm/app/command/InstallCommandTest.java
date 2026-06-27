@@ -64,7 +64,8 @@ class InstallCommandTest {
 		File chartDir = createMockChart();
 		Release release = createMockRelease("my-release", 1);
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean()))
+		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
+				anyBoolean()))
 			.thenReturn(release);
 
 		CommandLine cmd = new CommandLine(installCommand);
@@ -76,7 +77,8 @@ class InstallCommandTest {
 		File chartDir = createMockChart();
 		Release release = createMockRelease("my-release", 1);
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean()))
+		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
+				anyBoolean()))
 			.thenReturn(release);
 
 		CommandLine cmd = new CommandLine(installCommand);
@@ -87,7 +89,8 @@ class InstallCommandTest {
 	void testInstallCommandWithError() throws Exception {
 		File chartDir = createMockChart();
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean()))
+		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
+				anyBoolean()))
 			.thenThrow(new RuntimeException("Test error"));
 
 		CommandLine cmd = new CommandLine(installCommand);
@@ -99,7 +102,8 @@ class InstallCommandTest {
 		File chartDir = createMockChart();
 		Release release = createMockRelease("my-release", 1);
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean()))
+		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
+				anyBoolean()))
 			.thenReturn(release);
 
 		CommandLine cmd = new CommandLine(installCommand);
@@ -113,7 +117,8 @@ class InstallCommandTest {
 		File chartDir = createMockChart();
 		Release release = createMockRelease("my-release", 1);
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean()))
+		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
+				anyBoolean()))
 			.thenReturn(release);
 
 		CommandLine cmd = new CommandLine(installCommand);
@@ -127,7 +132,8 @@ class InstallCommandTest {
 	void testInstallCommandAtomicUninstallsOnFailure() throws Exception {
 		File chartDir = createMockChart();
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean()))
+		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
+				anyBoolean()))
 			.thenThrow(new RuntimeException("deploy failed"));
 
 		CommandLine cmd = new CommandLine(installCommand);

@@ -76,6 +76,9 @@ public class InstallCommand implements Runnable {
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
 
+	@Option(names = { "--no-hooks" }, description = "prevent hooks from running during this operation")
+	private boolean noHooks;
+
 	/**
 	 * Creates the command.
 	 * @param installAction the action that performs the install
@@ -98,7 +101,7 @@ public class InstallCommand implements Runnable {
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
 					setFileValues, setJsonValues);
 
-			Release release = installAction.install(chart, name, namespace, overrides, 1, dryRun);
+			Release release = installAction.install(chart, name, namespace, overrides, 1, dryRun, noHooks);
 			applyCliPostRenderers(release);
 
 			if (dryRun) {

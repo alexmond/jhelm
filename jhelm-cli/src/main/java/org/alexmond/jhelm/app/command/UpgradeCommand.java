@@ -99,6 +99,9 @@ public class UpgradeCommand implements Runnable {
 			description = "when upgrading, reset the values to the ones built into the chart, apply the last release's values and merge in any overrides from the command line via --set and -f")
 	private boolean resetThenReuseValues;
 
+	@Option(names = { "--no-hooks" }, description = "prevent hooks from running during this operation")
+	private boolean noHooks;
+
 	/**
 	 * Creates the command.
 	 * @param kubeService the Kubernetes service used to look up releases and wait for
@@ -134,7 +137,7 @@ public class UpgradeCommand implements Runnable {
 			if (currentReleaseOpt.isEmpty()) {
 				if (install) {
 					wasInstall = true;
-					Release release = installAction.install(chart, name, namespace, overrides, 1, dryRun);
+					Release release = installAction.install(chart, name, namespace, overrides, 1, dryRun, noHooks);
 					applyCliPostRenderers(release);
 					if (dryRun) {
 						printRelease(release);
@@ -157,8 +160,8 @@ public class UpgradeCommand implements Runnable {
 			UpgradeValueStrategy strategy = (resetValues) ? UpgradeValueStrategy.RESET
 					: (resetThenReuseValues) ? UpgradeValueStrategy.RESET_THEN_REUSE
 							: (reuseValues) ? UpgradeValueStrategy.REUSE : UpgradeValueStrategy.DEFAULT;
-			Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, overrides, strategy,
-					dryRun);
+			Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, overrides, strategy, dryRun,
+					noHooks);
 			applyCliPostRenderers(upgradedRelease);
 
 			if (dryRun) {
