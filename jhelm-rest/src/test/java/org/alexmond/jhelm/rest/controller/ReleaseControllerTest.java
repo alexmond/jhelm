@@ -10,12 +10,16 @@ import java.util.Optional;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.RollbackOptions;
 import org.alexmond.jhelm.core.action.StatusAction;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
@@ -35,10 +39,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -138,8 +140,7 @@ class ReleaseControllerTest {
 		stubPull();
 		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("1.0.0").build()).build();
 		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
-		when(this.installAction.install(any(), eq("my-release"), eq("default"), anyMap(), anyInt(), anyBoolean()))
-			.thenReturn(sampleRelease());
+		when(this.installAction.install(any(InstallOptions.class))).thenReturn(sampleRelease());
 
 		this.mockMvc
 			.perform(post("/api/v1/releases").contentType(MediaType.APPLICATION_JSON)
@@ -168,8 +169,7 @@ class ReleaseControllerTest {
 		stubUntar();
 		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("1.0.0").build()).build();
 		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
-		when(this.installAction.install(any(), eq("my-release"), eq("default"), anyMap(), anyInt(), anyBoolean()))
-			.thenReturn(sampleRelease());
+		when(this.installAction.install(any(InstallOptions.class))).thenReturn(sampleRelease());
 
 		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-1.0.0.tgz", "application/gzip",
 				new byte[] { 1, 2, 3 });
@@ -191,7 +191,7 @@ class ReleaseControllerTest {
 		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
 		Release upgraded = sampleRelease();
 		upgraded.setVersion(2);
-		when(this.upgradeAction.upgrade(any(), any(), anyMap(), any(), anyBoolean())).thenReturn(upgraded);
+		when(this.upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(upgraded);
 
 		this.mockMvc
 			.perform(put("/api/v1/releases/my-release").contentType(MediaType.APPLICATION_JSON)
@@ -212,7 +212,7 @@ class ReleaseControllerTest {
 		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
 		Release upgraded = sampleRelease();
 		upgraded.setVersion(2);
-		when(this.upgradeAction.upgrade(any(), any(), anyMap(), any(), anyBoolean())).thenReturn(upgraded);
+		when(this.upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(upgraded);
 
 		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-2.0.0.tgz", "application/gzip",
 				new byte[] { 1, 2, 3 });
@@ -226,7 +226,9 @@ class ReleaseControllerTest {
 	@Test
 	void uninstallRelease() throws Exception {
 		this.mockMvc.perform(delete("/api/v1/releases/my-release")).andExpect(status().isNoContent());
-		verify(this.uninstallAction).uninstall("my-release", "default");
+		verify(this.uninstallAction)
+			.uninstall(argThat((UninstallOptions options) -> "my-release".equals(options.getReleaseName())
+					&& "default".equals(options.getNamespace())));
 	}
 
 	@Test
@@ -246,7 +248,9 @@ class ReleaseControllerTest {
 						{"revision": 1}
 						"""))
 			.andExpect(status().isNoContent());
-		verify(this.rollbackAction).rollback("my-release", "default", 1);
+		verify(this.rollbackAction)
+			.rollback(argThat((RollbackOptions options) -> "my-release".equals(options.getReleaseName())
+					&& "default".equals(options.getNamespace()) && options.getRevision() == 1));
 	}
 
 	@Test

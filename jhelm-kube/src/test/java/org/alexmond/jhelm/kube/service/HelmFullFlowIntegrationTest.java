@@ -6,9 +6,12 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.CoreConfig;
 import org.alexmond.jhelm.kube.KubernetesConfig;
 import org.junit.jupiter.api.Test;
@@ -84,7 +87,14 @@ class HelmFullFlowIntegrationTest {
 			.build();
 
 		// 2. Install
-		Release release = installAction.install(chart, releaseName, namespace, Map.of("replicaCount", 2), 1, false);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName(releaseName)
+			.namespace(namespace)
+			.values(Map.of("replicaCount", 2))
+			.revision(1)
+			.dryRun(false)
+			.build());
 		assertNotNull(release);
 		// log.info("Manifest: {}", release.getManifest());
 		// assertTrue(release.getManifest().contains("replicaCount") ||
@@ -98,8 +108,13 @@ class HelmFullFlowIntegrationTest {
 
 		// 4. Upgrade
 		Release currentRelease = storedRelease.get();
-		Release upgradedRelease = upgradeAction.upgrade(currentRelease, chart, Map.of("replicaCount", 3),
-				UpgradeValueStrategy.DEFAULT, false);
+		Release upgradedRelease = upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(chart)
+			.values(Map.of("replicaCount", 3))
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.dryRun(false)
+			.build());
 		assertEquals(2, upgradedRelease.getVersion());
 		// assertTrue(upgradedRelease.getManifest().contains("replicaCount") ||
 		// upgradedRelease.getManifest().contains("replicas"));
@@ -110,7 +125,7 @@ class HelmFullFlowIntegrationTest {
 		assertEquals(2, storedRelease.get().getVersion());
 
 		// 6. Uninstall/Cleanup
-		uninstallAction.uninstall(releaseName, namespace);
+		uninstallAction.uninstall(UninstallOptions.builder().releaseName(releaseName).namespace(namespace).build());
 
 		storedRelease = helmKubeService.getRelease(releaseName, namespace);
 		assertFalse(storedRelease.isPresent());
@@ -137,7 +152,14 @@ class HelmFullFlowIntegrationTest {
 				.build();
 
 			// Install Dry Run
-			Release release = installAction.install(simpleChart, releaseName, namespace, Map.of(), 1, true);
+			Release release = installAction.install(InstallOptions.builder()
+				.chart(simpleChart)
+				.releaseName(releaseName)
+				.namespace(namespace)
+				.values(Map.of())
+				.revision(1)
+				.dryRun(true)
+				.build());
 			assertNotNull(release);
 			assertTrue(release.getManifest().contains("name: dry-run-release"));
 			assertEquals("pending-install", release.getInfo().getStatus());
@@ -151,7 +173,14 @@ class HelmFullFlowIntegrationTest {
 		Chart chart = chartLoader.load(chartDir);
 
 		// 1. Install Dry Run
-		Release release = installAction.install(chart, releaseName, namespace, Map.of("replicaCount", 5), 1, true);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName(releaseName)
+			.namespace(namespace)
+			.values(Map.of("replicaCount", 5))
+			.revision(1)
+			.dryRun(true)
+			.build());
 		assertNotNull(release);
 		assertTrue(release.getManifest().contains("replicas: 5"));
 		assertEquals("pending-install", release.getInfo().getStatus());
@@ -161,11 +190,23 @@ class HelmFullFlowIntegrationTest {
 		assertFalse(storedRelease.isPresent());
 
 		// 3. Upgrade Dry Run (need a real release first)
-		Release realRelease = installAction.install(chart, releaseName, namespace, Map.of("replicaCount", 1), 1, false);
+		Release realRelease = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName(releaseName)
+			.namespace(namespace)
+			.values(Map.of("replicaCount", 1))
+			.revision(1)
+			.dryRun(false)
+			.build());
 		assertNotNull(realRelease);
 
-		Release dryUpgraded = upgradeAction.upgrade(realRelease, chart, Map.of("replicaCount", 10),
-				UpgradeValueStrategy.DEFAULT, true);
+		Release dryUpgraded = upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(realRelease)
+			.newChart(chart)
+			.values(Map.of("replicaCount", 10))
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.dryRun(true)
+			.build());
 		assertNotNull(dryUpgraded);
 		assertTrue(dryUpgraded.getManifest().contains("replicas: 10"));
 		assertEquals("pending-upgrade", dryUpgraded.getInfo().getStatus());
@@ -177,7 +218,7 @@ class HelmFullFlowIntegrationTest {
 		assertEquals(1, storedRelease.get().getVersion()); // Still version 1
 
 		// Cleanup
-		uninstallAction.uninstall(releaseName, namespace);
+		uninstallAction.uninstall(UninstallOptions.builder().releaseName(releaseName).namespace(namespace).build());
 	}
 
 }

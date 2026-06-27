@@ -56,7 +56,12 @@ class InstallActionTest {
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		Release release = installAction.install(chart, "my-release", "default", null, 1, false);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.build());
 
 		assertNotNull(release);
 		assertEquals("my-release", release.getName());
@@ -76,7 +81,14 @@ class InstallActionTest {
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("---\n");
 		Map<String, Object> overrides = Map.of("replicaCount", 3, "image", Map.of("tag", "v2"));
 
-		Release release = installAction.install(chart, "my-release", "default", overrides, 1, true);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.values(overrides)
+			.revision(1)
+			.dryRun(true)
+			.build());
 
 		assertNotNull(release.getConfig());
 		assertEquals(3, release.getConfig().getValues().get("replicaCount"));
@@ -90,7 +102,13 @@ class InstallActionTest {
 
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("---\nkind: ConfigMap\n");
 
-		Release release = installAction.install(chart, "my-release", "default", null, 1, true);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.dryRun(true)
+			.build());
 
 		assertEquals("pending-install", release.getInfo().getStatus());
 		verify(kubeService, never()).apply(anyString(), anyString());
@@ -125,7 +143,12 @@ class InstallActionTest {
 		doNothing().when(kubeService).waitForReady(anyString(), anyString(), anyInt());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		installAction.install(chart, "my-release", "default", null, 1, false);
+		installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.build());
 
 		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
 		String strippedManifest = HookParser.stripHooks(fullManifest);
@@ -162,7 +185,13 @@ class InstallActionTest {
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		installAction.install(chart, "my-release", "default", null, 1, false, true);
+		installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.noHooks(true)
+			.build());
 
 		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
 		String strippedManifest = HookParser.stripHooks(fullManifest);
@@ -182,7 +211,12 @@ class InstallActionTest {
 
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("---\nkind: ConfigMap\n");
 
-		Release release = noKubeInstall.install(chart, "my-release", "default", null, 1, false);
+		Release release = noKubeInstall.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.build());
 
 		assertNotNull(release);
 		assertEquals("my-release", release.getName());
@@ -200,7 +234,12 @@ class InstallActionTest {
 		doNothing().when(kubeService).delete(anyString(), anyString());
 
 		DeploymentFailedException ex = assertThrows(DeploymentFailedException.class,
-				() -> installAction.install(chart, "my-release", "default", null, 1, false));
+				() -> installAction.install(InstallOptions.builder()
+					.chart(chart)
+					.releaseName("my-release")
+					.namespace("default")
+					.revision(1)
+					.build()));
 
 		assertEquals(HookParser.stripHooks(manifest), ex.getAppliedManifest());
 		// Verify rollback was attempted
@@ -221,7 +260,12 @@ class InstallActionTest {
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		installAction.install(chart, "my-release", "default", null, 1, false);
+		installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.build());
 
 		// CRD should be applied before the regular manifest
 		org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(kubeService);
@@ -235,7 +279,12 @@ class InstallActionTest {
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
 
 		assertThrows(IllegalArgumentException.class,
-				() -> installAction.install(chart, "my-release", "default", null, 1, false));
+				() -> installAction.install(InstallOptions.builder()
+					.chart(chart)
+					.releaseName("my-release")
+					.namespace("default")
+					.revision(1)
+					.build()));
 	}
 
 }

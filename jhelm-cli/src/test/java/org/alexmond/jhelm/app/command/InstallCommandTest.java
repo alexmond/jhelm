@@ -6,7 +6,9 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.action.UninstallOptions;
 
 import java.util.HashMap;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,8 +24,6 @@ import java.nio.file.Path;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -64,9 +64,7 @@ class InstallCommandTest {
 		File chartDir = createMockChart();
 		Release release = createMockRelease("my-release", 1);
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
-				anyBoolean()))
-			.thenReturn(release);
+		when(installAction.install(any(InstallOptions.class))).thenReturn(release);
 
 		CommandLine cmd = new CommandLine(installCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
@@ -77,9 +75,7 @@ class InstallCommandTest {
 		File chartDir = createMockChart();
 		Release release = createMockRelease("my-release", 1);
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
-				anyBoolean()))
-			.thenReturn(release);
+		when(installAction.install(any(InstallOptions.class))).thenReturn(release);
 
 		CommandLine cmd = new CommandLine(installCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--dry-run");
@@ -89,9 +85,7 @@ class InstallCommandTest {
 	void testInstallCommandWithError() throws Exception {
 		File chartDir = createMockChart();
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
-				anyBoolean()))
-			.thenThrow(new RuntimeException("Test error"));
+		when(installAction.install(any(InstallOptions.class))).thenThrow(new RuntimeException("Test error"));
 
 		CommandLine cmd = new CommandLine(installCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath());
@@ -102,9 +96,7 @@ class InstallCommandTest {
 		File chartDir = createMockChart();
 		Release release = createMockRelease("my-release", 1);
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
-				anyBoolean()))
-			.thenReturn(release);
+		when(installAction.install(any(InstallOptions.class))).thenReturn(release);
 
 		CommandLine cmd = new CommandLine(installCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--wait", "--timeout", "120");
@@ -117,9 +109,7 @@ class InstallCommandTest {
 		File chartDir = createMockChart();
 		Release release = createMockRelease("my-release", 1);
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
-				anyBoolean()))
-			.thenReturn(release);
+		when(installAction.install(any(InstallOptions.class))).thenReturn(release);
 
 		CommandLine cmd = new CommandLine(installCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--wait", "--dry-run");
@@ -132,14 +122,12 @@ class InstallCommandTest {
 	void testInstallCommandAtomicUninstallsOnFailure() throws Exception {
 		File chartDir = createMockChart();
 
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
-				anyBoolean()))
-			.thenThrow(new RuntimeException("deploy failed"));
+		when(installAction.install(any(InstallOptions.class))).thenThrow(new RuntimeException("deploy failed"));
 
 		CommandLine cmd = new CommandLine(installCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--atomic");
 
-		verify(uninstallAction).uninstall("my-release", "default");
+		verify(uninstallAction).uninstall(any(UninstallOptions.class));
 	}
 
 	private File createMockChart() throws Exception {

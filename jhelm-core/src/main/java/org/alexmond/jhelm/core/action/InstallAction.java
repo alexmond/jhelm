@@ -46,50 +46,21 @@ public class InstallAction {
 	 * supplied overrides, the templates are rendered, and—unless this is a dry run—the
 	 * resulting resources, CRDs and hooks are applied to the cluster and the release is
 	 * persisted.
-	 * @param chart the chart to install (must not be a library chart)
-	 * @param releaseName the name to give the release
-	 * @param namespace the target namespace
-	 * @param overrideValues user-supplied values merged over the chart defaults, may be
-	 * {@code null}
-	 * @param version the release revision number to assign
-	 * @param dryRun if {@code true}, render only and skip applying anything to the
-	 * cluster
+	 * @param options the install options (chart, release name, namespace, value
+	 * overrides, revision, dry-run and no-hooks flags)
 	 * @return the resulting release, including the rendered manifest
 	 * @throws IllegalArgumentException if the chart is a library chart
 	 * @throws DeploymentFailedException if applied resources cannot be persisted (they
 	 * are rolled back)
 	 * @throws JhelmException if rendering or a cluster operation fails
 	 */
-	public Release install(Chart chart, String releaseName, String namespace, Map<String, Object> overrideValues,
-			int version, boolean dryRun) {
-		return install(chart, releaseName, namespace, overrideValues, version, dryRun, false);
-	}
-
-	/**
-	 * Installs a chart as a new release, optionally skipping lifecycle hooks. Behaves
-	 * like {@link #install(Chart, String, String, Map, int, boolean)} but allows
-	 * suppressing pre-install and post-install hook execution.
-	 * @param chart the chart to install (must not be a library chart)
-	 * @param releaseName the name to give the release
-	 * @param namespace the target namespace
-	 * @param overrideValues user-supplied values merged over the chart defaults, may be
-	 * {@code null}
-	 * @param version the release revision number to assign
-	 * @param dryRun if {@code true}, render only and skip applying anything to the
-	 * cluster
-	 * @param noHooks if {@code true}, skip running pre-install and post-install hooks
-	 * @return the resulting release, including the rendered manifest
-	 * @throws IllegalArgumentException if the chart is a library chart
-	 * @throws DeploymentFailedException if applied resources cannot be persisted (they
-	 * are rolled back)
-	 * @throws JhelmException if rendering or a cluster operation fails
-	 */
-	public Release install(Chart chart, String releaseName, String namespace, Map<String, Object> overrideValues,
-			int version, boolean dryRun, boolean noHooks) {
+	public Release install(InstallOptions options) {
+		Chart chart = options.getChart();
 		if ("library".equals(chart.getMetadata().getType())) {
 			throw new IllegalArgumentException(
 					"chart '" + chart.getMetadata().getName() + "' is a library chart and cannot be installed");
 		}
+		Map<String, Object> overrideValues = options.getValues();
 		Map<String, Object> values = new HashMap<>(chart.getValues());
 		if (overrideValues != null) {
 			ValuesLoader.deepMerge(values, overrideValues);
@@ -98,26 +69,25 @@ public class InstallAction {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now())
 			.lastDeployed(OffsetDateTime.now())
-			.status(dryRun ? "pending-install" : "deployed")
-			.description(dryRun ? "Dry run complete" : "Install complete")
+			.status(options.isDryRun() ? "pending-install" : "deployed")
+			.description(options.isDryRun() ? "Dry run complete" : "Install complete")
 			.build();
 
 		Release release = Release.builder()
-			.name(releaseName)
-			.namespace(namespace)
-			.version(version)
+			.name(options.getReleaseName())
+			.namespace(options.getNamespace())
+			.version(options.getRevision())
 			.chart(chart)
 			.info(info)
-			// Persist the user-supplied values (Helm's release "config"), so that
-			// `get values` reports them and a later upgrade can reuse them.
+			// Persist the user-supplied values (Helm's release "config").
 			.config(Release.MapConfig.builder()
 				.values((overrideValues != null) ? new HashMap<>(overrideValues) : new HashMap<>())
 				.build())
 			.build();
 
 		Map<String, Object> releaseData = new HashMap<>();
-		releaseData.put("Name", releaseName);
-		releaseData.put("Namespace", namespace);
+		releaseData.put("Name", options.getReleaseName());
+		releaseData.put("Namespace", options.getNamespace());
 		releaseData.put("Service", "Helm");
 		releaseData.put("IsInstall", true);
 		releaseData.put("IsUpgrade", false);
@@ -136,9 +106,11 @@ public class InstallAction {
 
 		release.setManifest(manifest);
 
-		if (kubeService != null && !dryRun) {
+		if (kubeService != null && !options.isDryRun()) {
+			String namespace = options.getNamespace();
+			boolean noHooks = options.isNoHooks();
 			applyCrds(chart, namespace);
-			fireLifecycleEvent("pre-install", releaseName, namespace);
+			fireLifecycleEvent("pre-install", options.getReleaseName(), namespace);
 			String regularManifest = HookParser.stripHooks(manifest);
 			List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
 			HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
@@ -157,7 +129,7 @@ public class InstallAction {
 			if (!noHooks) {
 				runHooks(hookExecutor, namespace, hooks, "post-install");
 			}
-			fireLifecycleEvent("post-install", releaseName, namespace);
+			fireLifecycleEvent("post-install", options.getReleaseName(), namespace);
 		}
 
 		return release;

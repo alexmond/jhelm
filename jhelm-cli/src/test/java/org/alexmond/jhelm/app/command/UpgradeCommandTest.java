@@ -6,10 +6,12 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.RollbackOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
-import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
+import org.alexmond.jhelm.core.action.UpgradeOptions;
 
 import java.util.HashMap;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,9 +27,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -76,9 +76,7 @@ class UpgradeCommandTest {
 		Release upgradedRelease = createMockRelease("my-release", 2);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
-		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean(), anyBoolean(), anyInt()))
-			.thenReturn(upgradedRelease);
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
@@ -90,9 +88,7 @@ class UpgradeCommandTest {
 		Release newRelease = createMockRelease("my-release", 1);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.empty());
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
-				anyBoolean()))
-			.thenReturn(newRelease);
+		when(installAction.install(any(InstallOptions.class))).thenReturn(newRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--install");
@@ -115,9 +111,7 @@ class UpgradeCommandTest {
 		Release upgradedRelease = createMockRelease("my-release", 2);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
-		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean(), anyBoolean(), anyInt()))
-			.thenReturn(upgradedRelease);
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--dry-run");
@@ -154,9 +148,7 @@ class UpgradeCommandTest {
 		Release upgradedRelease = createMockRelease("my-release", 2);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
-		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean(), anyBoolean(), anyInt()))
-			.thenReturn(upgradedRelease);
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--wait", "--timeout", "120");
@@ -171,9 +163,7 @@ class UpgradeCommandTest {
 		Release upgradedRelease = createMockRelease("my-release", 2);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
-		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean(), anyBoolean(), anyInt()))
-			.thenReturn(upgradedRelease);
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "-n", "custom-namespace");
@@ -187,15 +177,13 @@ class UpgradeCommandTest {
 		Release newRelease = createMockRelease("my-release", 1);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.empty());
-		when(installAction.install(any(Chart.class), anyString(), anyString(), anyMap(), anyInt(), anyBoolean(),
-				anyBoolean()))
-			.thenReturn(newRelease);
+		when(installAction.install(any(InstallOptions.class))).thenReturn(newRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--install", "--dry-run");
 
-		verify(installAction).install(any(Chart.class), eq("my-release"), eq("default"), anyMap(), eq(1), eq(true),
-				anyBoolean());
+		verify(installAction).install(argThat((InstallOptions options) -> "my-release".equals(options.getReleaseName())
+				&& "default".equals(options.getNamespace()) && options.getRevision() == 1 && options.isDryRun()));
 	}
 
 	@Test
@@ -204,14 +192,14 @@ class UpgradeCommandTest {
 		Release existingRelease = createMockRelease("my-release", 3);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
-		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean(), anyBoolean(), anyInt()))
-			.thenThrow(new RuntimeException("upgrade failed"));
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenThrow(new RuntimeException("upgrade failed"));
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "--atomic");
 
-		verify(rollbackAction).rollback("my-release", "default", 3);
+		verify(rollbackAction)
+			.rollback(argThat((RollbackOptions options) -> "my-release".equals(options.getReleaseName())
+					&& "default".equals(options.getNamespace()) && options.getRevision() == 3));
 	}
 
 	private Release createMockRelease(String name, int version) {

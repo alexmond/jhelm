@@ -85,8 +85,11 @@ class UpgradeActionTest {
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		Release upgradedRelease = upgradeAction.upgrade(currentRelease, newChart, null, UpgradeValueStrategy.DEFAULT,
-				false);
+		Release upgradedRelease = upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(newChart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.build());
 
 		assertNotNull(upgradedRelease);
 		assertEquals("myapp", upgradedRelease.getName());
@@ -142,7 +145,12 @@ class UpgradeActionTest {
 
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
 
-		upgradeAction.upgrade(currentRelease, chart, overrideValues, UpgradeValueStrategy.DEFAULT, false);
+		upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(chart)
+			.values(overrideValues)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.build());
 
 		@SuppressWarnings("unchecked")
 		ArgumentCaptor<Map<String, Object>> valuesCaptor = ArgumentCaptor.forClass(Map.class);
@@ -174,8 +182,12 @@ class UpgradeActionTest {
 
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("dry-run-manifest");
 
-		Release upgradedRelease = upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT,
-				true);
+		Release upgradedRelease = upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(chart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.dryRun(true)
+			.build());
 
 		assertNotNull(upgradedRelease);
 		assertEquals("pending-upgrade", upgradedRelease.getInfo().getStatus());
@@ -209,7 +221,12 @@ class UpgradeActionTest {
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT, false, false, 5);
+		upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(chart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.maxHistory(5)
+			.build());
 
 		// Prune is invoked with the passed maxHistory, after the release is stored.
 		InOrder order = inOrder(kubeService);
@@ -259,7 +276,11 @@ class UpgradeActionTest {
 		doNothing().when(kubeService).waitForReady(anyString(), anyString(), anyInt());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT, false);
+		upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(chart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.build());
 
 		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
 		String strippedManifest = HookParser.stripHooks(fullManifest);
@@ -309,7 +330,12 @@ class UpgradeActionTest {
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT, false, true);
+		upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(chart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.noHooks(true)
+			.build());
 
 		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
 		String strippedManifest = HookParser.stripHooks(fullManifest);
@@ -342,8 +368,11 @@ class UpgradeActionTest {
 
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
 
-		Release upgradedRelease = upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT,
-				false);
+		Release upgradedRelease = upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(chart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.build());
 
 		assertEquals(43, upgradedRelease.getVersion());
 		assertEquals(info.getFirstDeployed(), upgradedRelease.getInfo().getFirstDeployed());
@@ -376,7 +405,11 @@ class UpgradeActionTest {
 		doThrow(new RuntimeException("storage failed")).when(kubeService).storeRelease(any(Release.class));
 
 		assertThrows(DeploymentFailedException.class,
-				() -> upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT, false));
+				() -> upgradeAction.upgrade(UpgradeOptions.builder()
+					.currentRelease(currentRelease)
+					.newChart(chart)
+					.valueStrategy(UpgradeValueStrategy.DEFAULT)
+					.build()));
 
 		// Verify: new manifest applied, then previous manifest re-applied on rollback
 		verify(kubeService, times(2)).apply(eq("default"), anyString());
@@ -396,7 +429,11 @@ class UpgradeActionTest {
 			.build();
 
 		assertThrows(IllegalArgumentException.class,
-				() -> upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT, false));
+				() -> upgradeAction.upgrade(UpgradeOptions.builder()
+					.currentRelease(currentRelease)
+					.newChart(chart)
+					.valueStrategy(UpgradeValueStrategy.DEFAULT)
+					.build()));
 	}
 
 	// --- Value-resolution strategy tests ---------------------------------------------
@@ -450,7 +487,12 @@ class UpgradeActionTest {
 		Chart newChart = newChartWithChangedDefault();
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
 
-		Release upgraded = upgradeAction.upgrade(current, newChart, null, UpgradeValueStrategy.DEFAULT, true);
+		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(current)
+			.newChart(newChart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.dryRun(true)
+			.build());
 
 		Map<String, Object> render = renderValuesFor(upgraded);
 		// Prior user value reused; new chart default present.
@@ -468,7 +510,13 @@ class UpgradeActionTest {
 		overrides.put("extra", "x");
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
 
-		Release upgraded = upgradeAction.upgrade(current, newChart, overrides, UpgradeValueStrategy.DEFAULT, true);
+		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(current)
+			.newChart(newChart)
+			.values(overrides)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.dryRun(true)
+			.build());
 
 		Map<String, Object> render = renderValuesFor(upgraded);
 		// Overrides used; prior user value dropped for unspecified keys.
@@ -488,7 +536,13 @@ class UpgradeActionTest {
 		overrides.put("extra", "x");
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
 
-		Release upgraded = upgradeAction.upgrade(current, newChart, overrides, UpgradeValueStrategy.RESET, true);
+		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(current)
+			.newChart(newChart)
+			.values(overrides)
+			.valueStrategy(UpgradeValueStrategy.RESET)
+			.dryRun(true)
+			.build());
 
 		Map<String, Object> render = renderValuesFor(upgraded);
 		// Overrides over NEW defaults; prior ignored.
@@ -506,7 +560,13 @@ class UpgradeActionTest {
 		overrides.put("extra", "x");
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
 
-		Release upgraded = upgradeAction.upgrade(current, newChart, overrides, UpgradeValueStrategy.REUSE, true);
+		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(current)
+			.newChart(newChart)
+			.values(overrides)
+			.valueStrategy(UpgradeValueStrategy.REUSE)
+			.dryRun(true)
+			.build());
 
 		Map<String, Object> render = renderValuesFor(upgraded);
 		// Prior + overrides; render based on OLD defaults — the changed new default does
@@ -527,8 +587,13 @@ class UpgradeActionTest {
 		overrides.put("extra", "x");
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
 
-		Release upgraded = upgradeAction.upgrade(current, newChart, overrides, UpgradeValueStrategy.RESET_THEN_REUSE,
-				true);
+		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(current)
+			.newChart(newChart)
+			.values(overrides)
+			.valueStrategy(UpgradeValueStrategy.RESET_THEN_REUSE)
+			.dryRun(true)
+			.build());
 
 		Map<String, Object> render = renderValuesFor(upgraded);
 		// Prior + overrides over NEW defaults — the changed new default DOES appear

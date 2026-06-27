@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
@@ -36,7 +37,14 @@ class VariableScopingTest {
 		assertNotNull(chart, "Chart should be loaded");
 
 		// Render the chart
-		Release release = installAction.install(chart, "test-release", "default", Map.of(), 1, true);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("test-release")
+			.namespace("default")
+			.values(Map.of())
+			.revision(1)
+			.dryRun(true)
+			.build());
 		assertNotNull(release, "Release should be created");
 
 		String manifest = release.getManifest();
@@ -108,7 +116,14 @@ class VariableScopingTest {
 		File chartDir = new File("src/test/resources/test-charts/variable-scoping-test");
 		Chart chart = chartLoader.load(chartDir);
 
-		Release release = installAction.install(chart, "test-release", "default", Map.of(), 1, true);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("test-release")
+			.namespace("default")
+			.values(Map.of())
+			.revision(1)
+			.dryRun(true)
+			.build());
 		String manifest = release.getManifest();
 
 		// Test that empty map evaluates to false
@@ -128,7 +143,14 @@ class VariableScopingTest {
 		Map<String, Object> overrides = Map.of("subchart",
 				Map.of("replicas", 5, "config", Map.of("setting1", "overridden1")));
 
-		Release release = installAction.install(chart, "test-release", "default", overrides, 1, true);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("test-release")
+			.namespace("default")
+			.values(overrides)
+			.revision(1)
+			.dryRun(true)
+			.build());
 		String manifest = release.getManifest();
 
 		// Verify overrides are applied
