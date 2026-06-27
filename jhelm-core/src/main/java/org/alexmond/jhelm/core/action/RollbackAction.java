@@ -39,6 +39,23 @@ public class RollbackAction {
 	 * @param noHooks if {@code true}, skip running pre-rollback and post-rollback hooks
 	 */
 	public void rollback(String name, String namespace, int revision, boolean noHooks) {
+		rollback(name, namespace, revision, noHooks, 10);
+	}
+
+	/**
+	 * Rolls a release back to a previous revision, optionally skipping lifecycle hooks
+	 * and pruning old revision history. Behaves like
+	 * {@link #rollback(String, String, int, boolean)} but, after the new revision is
+	 * stored, prunes the release's revision history to the newest {@code maxHistory}
+	 * revisions.
+	 * @param name the release name
+	 * @param namespace the namespace the release lives in
+	 * @param revision the revision number to roll back to
+	 * @param noHooks if {@code true}, skip running pre-rollback and post-rollback hooks
+	 * @param maxHistory maximum revisions to keep; {@code 0} = no limit (Helm
+	 * {@code --history-max}, default 10)
+	 */
+	public void rollback(String name, String namespace, int revision, boolean noHooks, int maxHistory) {
 		List<Release> history = kubeService.getReleaseHistory(name, namespace);
 		Optional<Release> targetReleaseOpt = history.stream().filter((r) -> r.getVersion() == revision).findFirst();
 
@@ -75,6 +92,7 @@ public class RollbackAction {
 		}
 		kubeService.apply(namespace, regularManifest);
 		kubeService.storeRelease(newRelease);
+		kubeService.pruneReleaseHistory(name, namespace, maxHistory);
 		if (!noHooks) {
 			runHooks(hookExecutor, namespace, hooks, "post-rollback");
 		}

@@ -36,6 +36,7 @@ import org.mockito.MockitoAnnotations;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
@@ -52,6 +53,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.mockStatic;
 
@@ -368,6 +370,86 @@ class HelmKubeServiceTest {
 		kubeService.deleteReleaseHistory("myapp", "default");
 		verify(mockCoreV1Api).deleteNamespacedSecret("sh.helm.release.v1.myapp.v1", "default");
 		verify(mockCoreV1Api).deleteNamespacedSecret("sh.helm.release.v1.myapp.v2", "default");
+	}
+
+	// --- pruneReleaseHistory ---
+
+	private V1SecretList revisionSecrets(String name, String namespace, int from, int to) throws Exception {
+		List<V1Secret> items = new ArrayList<>();
+		for (int v = from; v <= to; v++) {
+			items.add(createSecretForRelease(createTestRelease(name, namespace, v, "superseded")));
+		}
+		return new V1SecretList().items(items);
+	}
+
+	@Test
+	void testPruneReleaseHistoryDeletesOldestRevisions() throws Exception {
+		// 12 revisions (v1..v12), keep newest 10 -> delete the two lowest versions only.
+		V1SecretList list = revisionSecrets("myapp", "default", 1, 12);
+
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
+			mockCoreV1Api = mock;
+			setupListRequest(mock, list);
+			var deleteReq = mock(CoreV1Api.APIdeleteNamespacedSecretRequest.class);
+			when(deleteReq.execute()).thenReturn(null);
+			when(mock.deleteNamespacedSecret(anyString(), eq("default"))).thenReturn(deleteReq);
+		});
+
+		kubeService.pruneReleaseHistory("myapp", "default", 10);
+
+		// The two oldest (lowest version) Secrets are deleted.
+		verify(mockCoreV1Api).deleteNamespacedSecret("sh.helm.release.v1.myapp.v1", "default");
+		verify(mockCoreV1Api).deleteNamespacedSecret("sh.helm.release.v1.myapp.v2", "default");
+		// The rest are kept, including the highest (current) version.
+		verify(mockCoreV1Api, never()).deleteNamespacedSecret("sh.helm.release.v1.myapp.v3", "default");
+		verify(mockCoreV1Api, never()).deleteNamespacedSecret("sh.helm.release.v1.myapp.v12", "default");
+	}
+
+	@Test
+	void testPruneReleaseHistoryZeroMaxHistoryDeletesNothing() {
+		// maxHistory <= 0 means no limit: the call returns before any API client is
+		// built.
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class);
+
+		kubeService.pruneReleaseHistory("myapp", "default", 0);
+
+		assertTrue(coreV1ApiConstruction.constructed().isEmpty());
+	}
+
+	@Test
+	void testPruneReleaseHistoryAtLimitDeletesNothing() throws Exception {
+		// Exactly maxHistory revisions present -> nothing to prune.
+		V1SecretList list = revisionSecrets("myapp", "default", 1, 10);
+
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
+			mockCoreV1Api = mock;
+			setupListRequest(mock, list);
+			var deleteReq = mock(CoreV1Api.APIdeleteNamespacedSecretRequest.class);
+			when(deleteReq.execute()).thenReturn(null);
+			when(mock.deleteNamespacedSecret(anyString(), eq("default"))).thenReturn(deleteReq);
+		});
+
+		kubeService.pruneReleaseHistory("myapp", "default", 10);
+
+		verify(mockCoreV1Api, never()).deleteNamespacedSecret(anyString(), anyString());
+	}
+
+	@Test
+	void testPruneReleaseHistoryFewerThanLimitDeletesNothing() throws Exception {
+		// Fewer than maxHistory revisions present -> nothing to prune.
+		V1SecretList list = revisionSecrets("myapp", "default", 1, 3);
+
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
+			mockCoreV1Api = mock;
+			setupListRequest(mock, list);
+			var deleteReq = mock(CoreV1Api.APIdeleteNamespacedSecretRequest.class);
+			when(deleteReq.execute()).thenReturn(null);
+			when(mock.deleteNamespacedSecret(anyString(), eq("default"))).thenReturn(deleteReq);
+		});
+
+		kubeService.pruneReleaseHistory("myapp", "default", 10);
+
+		verify(mockCoreV1Api, never()).deleteNamespacedSecret(anyString(), anyString());
 	}
 
 	// --- listPods ---

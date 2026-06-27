@@ -102,6 +102,10 @@ public class UpgradeCommand implements Runnable {
 	@Option(names = { "--no-hooks" }, description = "prevent hooks from running during this operation")
 	private boolean noHooks;
 
+	@CommandLine.Option(names = { "--history-max" }, defaultValue = "10",
+			description = "limit the maximum number of revisions saved per release (0 = no limit)")
+	private int historyMax;
+
 	/**
 	 * Creates the command.
 	 * @param kubeService the Kubernetes service used to look up releases and wait for
@@ -161,7 +165,7 @@ public class UpgradeCommand implements Runnable {
 					: (resetThenReuseValues) ? UpgradeValueStrategy.RESET_THEN_REUSE
 							: (reuseValues) ? UpgradeValueStrategy.REUSE : UpgradeValueStrategy.DEFAULT;
 			Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, overrides, strategy, dryRun,
-					noHooks);
+					noHooks, historyMax);
 			applyCliPostRenderers(upgradedRelease);
 
 			if (dryRun) {

@@ -7,6 +7,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
@@ -27,7 +28,7 @@ class RollbackCommandTest {
 
 	@Test
 	void testRollbackCommandSuccess() throws Exception {
-		doNothing().when(rollbackAction).rollback(anyString(), anyString(), anyInt());
+		doNothing().when(rollbackAction).rollback(anyString(), anyString(), anyInt(), anyBoolean(), anyInt());
 
 		CommandLine cmd = new CommandLine(rollbackCommand);
 		cmd.execute("my-release", "1", "-n", "default");
@@ -35,7 +36,7 @@ class RollbackCommandTest {
 
 	@Test
 	void testRollbackCommandDefaultNamespace() throws Exception {
-		doNothing().when(rollbackAction).rollback(anyString(), anyString(), anyInt());
+		doNothing().when(rollbackAction).rollback(anyString(), anyString(), anyInt(), anyBoolean(), anyInt());
 
 		CommandLine cmd = new CommandLine(rollbackCommand);
 		cmd.execute("my-release", "2");
@@ -43,7 +44,8 @@ class RollbackCommandTest {
 
 	@Test
 	void testRollbackCommandWithError() throws Exception {
-		doThrow(new RuntimeException("Test error")).when(rollbackAction).rollback(anyString(), anyString(), anyInt());
+		doThrow(new RuntimeException("Test error")).when(rollbackAction)
+			.rollback(anyString(), anyString(), anyInt(), anyBoolean(), anyInt());
 
 		CommandLine cmd = new CommandLine(rollbackCommand);
 		cmd.execute("my-release", "1");
