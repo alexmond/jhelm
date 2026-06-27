@@ -116,7 +116,7 @@ public class InstallCommand implements Runnable {
 				.noHooks(noHooks)
 				.createNamespace(createNamespace)
 				.build());
-			applyCliPostRenderers(release);
+			release = applyCliPostRenderers(release);
 
 			if (dryRun) {
 				CliOutput.println(CliOutput.bold("NAME:") + " " + release.getName());
@@ -155,15 +155,15 @@ public class InstallCommand implements Runnable {
 		}
 	}
 
-	private void applyCliPostRenderers(Release release) throws Exception {
+	private Release applyCliPostRenderers(Release release) throws Exception {
 		if (postRenderers.isEmpty()) {
-			return;
+			return release;
 		}
 		String manifest = release.getManifest();
 		for (String renderer : postRenderers) {
 			manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
 		}
-		release.setManifest(manifest);
+		return release.toBuilder().manifest(manifest).build();
 	}
 
 }

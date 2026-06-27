@@ -329,9 +329,9 @@ class GetCommandTest {
 	}
 
 	private Release createReleaseWithConfig() {
-		Release release = createRelease();
-		release.setConfig(Release.MapConfig.builder().values(Map.of("key", "value")).build());
-		return release;
+		return createRelease().toBuilder()
+			.config(Release.MapConfig.builder().values(Map.of("key", "value")).build())
+			.build();
 	}
 
 }

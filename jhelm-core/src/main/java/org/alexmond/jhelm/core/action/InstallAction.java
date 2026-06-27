@@ -95,7 +95,7 @@ public class InstallAction {
 
 		String manifest = runPostRenderProcessors(engine.render(chart, values, releaseData));
 
-		release.setManifest(manifest);
+		release = release.toBuilder().manifest(manifest).build();
 
 		if (kubeService != null && !options.isDryRun()) {
 			String namespace = options.getNamespace();

@@ -95,7 +95,7 @@ public class UpgradeAction {
 			}
 		}
 
-		newRelease.setManifest(manifest);
+		newRelease = newRelease.toBuilder().manifest(manifest).build();
 
 		if (kubeService != null && !options.isDryRun()) {
 			boolean noHooks = options.isNoHooks();
