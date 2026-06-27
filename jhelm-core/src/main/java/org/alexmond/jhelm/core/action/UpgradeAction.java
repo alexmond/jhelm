@@ -35,15 +35,28 @@ public class UpgradeAction {
 	@Setter
 	private List<LifecycleListener> lifecycleListeners = List.of();
 
-	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues, boolean dryRun) {
+	/**
+	 * Upgrades a release, resolving values according to the given
+	 * {@link UpgradeValueStrategy}.
+	 * @param currentRelease the currently deployed release (its chart defaults and
+	 * persisted user values feed the reuse strategies)
+	 * @param newChart the chart to upgrade to
+	 * @param overrideValues this command's value overrides (may be {@code null})
+	 * @param strategy how to resolve the previous user values against the overrides — see
+	 * {@link UpgradeValueStrategy}
+	 * @param dryRun when {@code true}, render only without applying to the cluster
+	 * @return the upgraded release
+	 */
+	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues,
+			UpgradeValueStrategy strategy, boolean dryRun) {
 		if ("library".equals(newChart.getMetadata().getType())) {
 			throw new IllegalArgumentException(
 					"chart '" + newChart.getMetadata().getName() + "' is a library chart and cannot be upgraded");
 		}
-		Map<String, Object> values = new HashMap<>(newChart.getValues());
-		if (overrideValues != null) {
-			ValuesLoader.deepMerge(values, overrideValues);
-		}
+
+		ResolvedValues resolved = resolveValues(currentRelease, newChart, overrideValues, strategy);
+		Map<String, Object> renderValues = resolved.render();
+		Map<String, Object> configValues = resolved.config();
 
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(currentRelease.getInfo().getFirstDeployed())
@@ -58,11 +71,10 @@ public class UpgradeAction {
 			.version(currentRelease.getVersion() + 1)
 			.chart(newChart)
 			.info(info)
-			// Persist the user-supplied values (Helm's release "config"), so that
+			// Persist the resolved user-supplied values (Helm's release "config"), so
+			// that
 			// `get values` reports them and a later upgrade can reuse them.
-			.config(Release.MapConfig.builder()
-				.values((overrideValues != null) ? new HashMap<>(overrideValues) : new HashMap<>())
-				.build())
+			.config(Release.MapConfig.builder().values(configValues).build())
 			.build();
 
 		Map<String, Object> releaseData = new HashMap<>();
@@ -73,7 +85,7 @@ public class UpgradeAction {
 		releaseData.put("IsUpgrade", true);
 		releaseData.put("Revision", newRelease.getVersion());
 
-		String manifest = engine.render(newChart, values, releaseData);
+		String manifest = engine.render(newChart, renderValues, releaseData);
 
 		for (PostRenderProcessor processor : postRenderProcessors) {
 			try {
@@ -106,6 +118,64 @@ public class UpgradeAction {
 		}
 
 		return newRelease;
+	}
+
+	/**
+	 * Resolves the render and config value maps for an upgrade per the strategy matrix.
+	 * <p>
+	 * Let {@code over} = this command's overrides, {@code prior} = the previous release's
+	 * persisted user values, {@code oldDefaults} = the previous chart's defaults and
+	 * {@code newDefaults} = the new chart's defaults (all null-guarded to empty, all
+	 * copied so inputs are never mutated):
+	 * <ul>
+	 * <li><b>RESET</b>: config = over; render = newDefaults + over (prior ignored)</li>
+	 * <li><b>DEFAULT</b> (no over): config = prior; render = newDefaults + prior</li>
+	 * <li><b>DEFAULT</b> (with over): config = over; render = newDefaults + over</li>
+	 * <li><b>RESET_THEN_REUSE</b>: merged = prior + over; config = merged; render =
+	 * newDefaults + merged</li>
+	 * <li><b>REUSE</b>: merged = prior + over; config = merged; render = oldDefaults +
+	 * prior + over</li>
+	 * </ul>
+	 * REUSE renders against the OLD defaults so new default changes are ignored, whereas
+	 * RESET_THEN_REUSE renders against the NEW defaults.
+	 */
+	private ResolvedValues resolveValues(Release currentRelease, Chart newChart, Map<String, Object> overrideValues,
+			UpgradeValueStrategy strategy) {
+		Map<String, Object> over = (overrideValues != null) ? overrideValues : Map.of();
+		Map<String, Object> prior = (currentRelease.getConfig() != null
+				&& currentRelease.getConfig().getValues() != null) ? currentRelease.getConfig().getValues() : Map.of();
+		Map<String, Object> oldDefaults = (currentRelease.getChart() != null
+				&& currentRelease.getChart().getValues() != null) ? currentRelease.getChart().getValues() : Map.of();
+		Map<String, Object> newDefaults = (newChart.getValues() != null) ? newChart.getValues() : Map.of();
+
+		switch (strategy) {
+			case RESET -> {
+				Map<String, Object> render = new HashMap<>(newDefaults);
+				ValuesLoader.deepMerge(render, over);
+				return new ResolvedValues(render, new HashMap<>(over));
+			}
+			case RESET_THEN_REUSE -> {
+				Map<String, Object> merged = new HashMap<>(prior);
+				ValuesLoader.deepMerge(merged, over);
+				Map<String, Object> render = new HashMap<>(newDefaults);
+				ValuesLoader.deepMerge(render, merged);
+				return new ResolvedValues(render, merged);
+			}
+			case REUSE -> {
+				Map<String, Object> merged = new HashMap<>(prior);
+				ValuesLoader.deepMerge(merged, over);
+				Map<String, Object> render = new HashMap<>(oldDefaults);
+				ValuesLoader.deepMerge(render, prior);
+				ValuesLoader.deepMerge(render, over);
+				return new ResolvedValues(render, merged);
+			}
+			default -> {
+				Map<String, Object> userLayer = over.isEmpty() ? prior : over;
+				Map<String, Object> render = new HashMap<>(newDefaults);
+				ValuesLoader.deepMerge(render, userLayer);
+				return new ResolvedValues(render, new HashMap<>(userLayer));
+			}
+		}
 	}
 
 	private void runHooks(HookExecutor hookExecutor, String namespace, List<HelmHook> hooks, String phase) {
@@ -145,6 +215,13 @@ public class UpgradeAction {
 				throw new JhelmException("Lifecycle listener failed for phase " + phase, ex);
 			}
 		}
+	}
+
+	/**
+	 * The two value maps resolved for an upgrade: {@code render} is passed to the engine,
+	 * {@code config} is persisted as the release's user-value layer.
+	 */
+	private record ResolvedValues(Map<String, Object> render, Map<String, Object> config) {
 	}
 
 }

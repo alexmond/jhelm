@@ -18,6 +18,7 @@ import org.alexmond.jhelm.core.action.StatusAction;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
@@ -225,7 +226,11 @@ public class ReleaseController {
 			Chart chart = ChartSourceResolver.fromChartRef(request.getChartRef(), request.getVersion(),
 					this.repoManager, this.chartLoader, tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
-			Release upgraded = this.upgradeAction.upgrade(current, chart, values, request.isDryRun());
+			// TODO: expose UpgradeValueStrategy (reset/reuse/reset-then-reuse) on the
+			// REST
+			// request as a follow-up.
+			Release upgraded = this.upgradeAction.upgrade(current, chart, values, UpgradeValueStrategy.DEFAULT,
+					request.isDryRun());
 			return ReleaseDto.from(upgraded);
 		}
 	}
@@ -252,7 +257,11 @@ public class ReleaseController {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-upgrade-upload-")) {
 			Chart loaded = ChartSourceResolver.fromUpload(chart, this.repoManager, this.chartLoader, tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
-			Release upgraded = this.upgradeAction.upgrade(current, loaded, values, request.isDryRun());
+			// TODO: expose UpgradeValueStrategy (reset/reuse/reset-then-reuse) on the
+			// REST
+			// request as a follow-up.
+			Release upgraded = this.upgradeAction.upgrade(current, loaded, values, UpgradeValueStrategy.DEFAULT,
+					request.isDryRun());
 			return ReleaseDto.from(upgraded);
 		}
 	}

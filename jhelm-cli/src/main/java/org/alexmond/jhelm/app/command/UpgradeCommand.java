@@ -12,6 +12,7 @@ import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
@@ -77,6 +78,18 @@ public class UpgradeCommand implements Runnable {
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
 
+	@Option(names = { "--reset-values" },
+			description = "when upgrading, reset the values to the ones built into the chart")
+	private boolean resetValues;
+
+	@Option(names = { "--reuse-values" },
+			description = "when upgrading, reuse the last release's values and merge in any overrides from the command line via --set and -f")
+	private boolean reuseValues;
+
+	@Option(names = { "--reset-then-reuse-values" },
+			description = "when upgrading, reset the values to the ones built into the chart, apply the last release's values and merge in any overrides from the command line via --set and -f")
+	private boolean resetThenReuseValues;
+
 	/**
 	 * Creates the command.
 	 * @param kubeService the Kubernetes service used to look up releases and wait for
@@ -131,7 +144,11 @@ public class UpgradeCommand implements Runnable {
 			}
 
 			previousVersion = currentReleaseOpt.get().getVersion();
-			Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, overrides, dryRun);
+			UpgradeValueStrategy strategy = (resetValues) ? UpgradeValueStrategy.RESET
+					: (resetThenReuseValues) ? UpgradeValueStrategy.RESET_THEN_REUSE
+							: (reuseValues) ? UpgradeValueStrategy.REUSE : UpgradeValueStrategy.DEFAULT;
+			Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, overrides, strategy,
+					dryRun);
 			applyCliPostRenderers(upgradedRelease);
 
 			if (dryRun) {

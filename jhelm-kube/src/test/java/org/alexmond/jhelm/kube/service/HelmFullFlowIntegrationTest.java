@@ -7,6 +7,7 @@ import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.CoreConfig;
 import org.alexmond.jhelm.kube.KubernetesConfig;
@@ -97,7 +98,8 @@ class HelmFullFlowIntegrationTest {
 
 		// 4. Upgrade
 		Release currentRelease = storedRelease.get();
-		Release upgradedRelease = upgradeAction.upgrade(currentRelease, chart, Map.of("replicaCount", 3), false);
+		Release upgradedRelease = upgradeAction.upgrade(currentRelease, chart, Map.of("replicaCount", 3),
+				UpgradeValueStrategy.DEFAULT, false);
 		assertEquals(2, upgradedRelease.getVersion());
 		// assertTrue(upgradedRelease.getManifest().contains("replicaCount") ||
 		// upgradedRelease.getManifest().contains("replicas"));
@@ -162,7 +164,8 @@ class HelmFullFlowIntegrationTest {
 		Release realRelease = installAction.install(chart, releaseName, namespace, Map.of("replicaCount", 1), 1, false);
 		assertNotNull(realRelease);
 
-		Release dryUpgraded = upgradeAction.upgrade(realRelease, chart, Map.of("replicaCount", 10), true);
+		Release dryUpgraded = upgradeAction.upgrade(realRelease, chart, Map.of("replicaCount", 10),
+				UpgradeValueStrategy.DEFAULT, true);
 		assertNotNull(dryUpgraded);
 		assertTrue(dryUpgraded.getManifest().contains("replicas: 10"));
 		assertEquals("pending-upgrade", dryUpgraded.getInfo().getStatus());

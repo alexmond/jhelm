@@ -83,7 +83,8 @@ class UpgradeActionTest {
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		Release upgradedRelease = upgradeAction.upgrade(currentRelease, newChart, null, false);
+		Release upgradedRelease = upgradeAction.upgrade(currentRelease, newChart, null, UpgradeValueStrategy.DEFAULT,
+				false);
 
 		assertNotNull(upgradedRelease);
 		assertEquals("myapp", upgradedRelease.getName());
@@ -137,7 +138,7 @@ class UpgradeActionTest {
 
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
 
-		upgradeAction.upgrade(currentRelease, chart, overrideValues, false);
+		upgradeAction.upgrade(currentRelease, chart, overrideValues, UpgradeValueStrategy.DEFAULT, false);
 
 		@SuppressWarnings("unchecked")
 		ArgumentCaptor<Map<String, Object>> valuesCaptor = ArgumentCaptor.forClass(Map.class);
@@ -169,7 +170,8 @@ class UpgradeActionTest {
 
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("dry-run-manifest");
 
-		Release upgradedRelease = upgradeAction.upgrade(currentRelease, chart, null, true);
+		Release upgradedRelease = upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT,
+				true);
 
 		assertNotNull(upgradedRelease);
 		assertEquals("pending-upgrade", upgradedRelease.getInfo().getStatus());
@@ -221,7 +223,7 @@ class UpgradeActionTest {
 		doNothing().when(kubeService).waitForReady(anyString(), anyString(), anyInt());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		upgradeAction.upgrade(currentRelease, chart, null, false);
+		upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT, false);
 
 		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
 		String strippedManifest = HookParser.stripHooks(fullManifest);
@@ -252,7 +254,8 @@ class UpgradeActionTest {
 
 		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
 
-		Release upgradedRelease = upgradeAction.upgrade(currentRelease, chart, null, false);
+		Release upgradedRelease = upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT,
+				false);
 
 		assertEquals(43, upgradedRelease.getVersion());
 		assertEquals(info.getFirstDeployed(), upgradedRelease.getInfo().getFirstDeployed());
@@ -284,7 +287,8 @@ class UpgradeActionTest {
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doThrow(new RuntimeException("storage failed")).when(kubeService).storeRelease(any(Release.class));
 
-		assertThrows(DeploymentFailedException.class, () -> upgradeAction.upgrade(currentRelease, chart, null, false));
+		assertThrows(DeploymentFailedException.class,
+				() -> upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT, false));
 
 		// Verify: new manifest applied, then previous manifest re-applied on rollback
 		verify(kubeService, times(2)).apply(eq("default"), anyString());
@@ -303,7 +307,150 @@ class UpgradeActionTest {
 			.info(Release.ReleaseInfo.builder().status("deployed").build())
 			.build();
 
-		assertThrows(IllegalArgumentException.class, () -> upgradeAction.upgrade(currentRelease, chart, null, false));
+		assertThrows(IllegalArgumentException.class,
+				() -> upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT, false));
+	}
+
+	// --- Value-resolution strategy tests ---------------------------------------------
+	// currentRelease carries prior user values (config) and an OLD chart whose default
+	// "defaultKey" is "old"; the newChart changes that default to "new".
+
+	private Release currentReleaseWithPrior() {
+		ChartMetadata oldMetadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Map<String, Object> oldDefaults = new HashMap<>();
+		oldDefaults.put("defaultKey", "old");
+		oldDefaults.put("replicaCount", 1);
+		Chart oldChart = Chart.builder().metadata(oldMetadata).values(oldDefaults).build();
+
+		Map<String, Object> prior = new HashMap<>();
+		prior.put("userKey", "prior");
+
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status("deployed")
+			.build();
+
+		return Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(oldChart)
+			.config(Release.MapConfig.builder().values(prior).build())
+			.info(info)
+			.build();
+	}
+
+	private Chart newChartWithChangedDefault() {
+		ChartMetadata newMetadata = ChartMetadata.builder().name("mychart").version("2.0.0").build();
+		Map<String, Object> newDefaults = new HashMap<>();
+		newDefaults.put("defaultKey", "new");
+		newDefaults.put("replicaCount", 1);
+		return Chart.builder().metadata(newMetadata).values(newDefaults).build();
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, Object> renderValuesFor(Release upgraded) {
+		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+		verify(engine).render(any(Chart.class), captor.capture(), anyMap());
+		return captor.getValue();
+	}
+
+	@Test
+	void testDefaultNoOverridesReusesPriorConfig() {
+		Release current = currentReleaseWithPrior();
+		Chart newChart = newChartWithChangedDefault();
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+
+		Release upgraded = upgradeAction.upgrade(current, newChart, null, UpgradeValueStrategy.DEFAULT, true);
+
+		Map<String, Object> render = renderValuesFor(upgraded);
+		// Prior user value reused; new chart default present.
+		assertEquals("prior", render.get("userKey"));
+		assertEquals("new", render.get("defaultKey"));
+		// Config persists the prior user values.
+		assertEquals("prior", upgraded.getConfig().getValues().get("userKey"));
+	}
+
+	@Test
+	void testDefaultWithOverridesDropsPrior() {
+		Release current = currentReleaseWithPrior();
+		Chart newChart = newChartWithChangedDefault();
+		Map<String, Object> overrides = new HashMap<>();
+		overrides.put("extra", "x");
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+
+		Release upgraded = upgradeAction.upgrade(current, newChart, overrides, UpgradeValueStrategy.DEFAULT, true);
+
+		Map<String, Object> render = renderValuesFor(upgraded);
+		// Overrides used; prior user value dropped for unspecified keys.
+		assertEquals("x", render.get("extra"));
+		assertEquals(null, render.get("userKey"));
+		assertEquals("new", render.get("defaultKey"));
+		// Config holds only the overrides.
+		assertEquals("x", upgraded.getConfig().getValues().get("extra"));
+		assertEquals(null, upgraded.getConfig().getValues().get("userKey"));
+	}
+
+	@Test
+	void testResetOverridesNewDefaultsIgnoringPrior() {
+		Release current = currentReleaseWithPrior();
+		Chart newChart = newChartWithChangedDefault();
+		Map<String, Object> overrides = new HashMap<>();
+		overrides.put("extra", "x");
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+
+		Release upgraded = upgradeAction.upgrade(current, newChart, overrides, UpgradeValueStrategy.RESET, true);
+
+		Map<String, Object> render = renderValuesFor(upgraded);
+		// Overrides over NEW defaults; prior ignored.
+		assertEquals("x", render.get("extra"));
+		assertEquals(null, render.get("userKey"));
+		assertEquals("new", render.get("defaultKey"));
+		assertEquals(null, upgraded.getConfig().getValues().get("userKey"));
+	}
+
+	@Test
+	void testReuseRendersAgainstOldDefaults() {
+		Release current = currentReleaseWithPrior();
+		Chart newChart = newChartWithChangedDefault();
+		Map<String, Object> overrides = new HashMap<>();
+		overrides.put("extra", "x");
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+
+		Release upgraded = upgradeAction.upgrade(current, newChart, overrides, UpgradeValueStrategy.REUSE, true);
+
+		Map<String, Object> render = renderValuesFor(upgraded);
+		// Prior + overrides; render based on OLD defaults — the changed new default does
+		// NOT appear (defaultKey stays "old").
+		assertEquals("prior", render.get("userKey"));
+		assertEquals("x", render.get("extra"));
+		assertEquals("old", render.get("defaultKey"));
+		// Config is the prior + override user layer.
+		assertEquals("prior", upgraded.getConfig().getValues().get("userKey"));
+		assertEquals("x", upgraded.getConfig().getValues().get("extra"));
+	}
+
+	@Test
+	void testResetThenReuseRendersAgainstNewDefaults() {
+		Release current = currentReleaseWithPrior();
+		Chart newChart = newChartWithChangedDefault();
+		Map<String, Object> overrides = new HashMap<>();
+		overrides.put("extra", "x");
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+
+		Release upgraded = upgradeAction.upgrade(current, newChart, overrides, UpgradeValueStrategy.RESET_THEN_REUSE,
+				true);
+
+		Map<String, Object> render = renderValuesFor(upgraded);
+		// Prior + overrides over NEW defaults — the changed new default DOES appear
+		// (defaultKey becomes "new").
+		assertEquals("prior", render.get("userKey"));
+		assertEquals("x", render.get("extra"));
+		assertEquals("new", render.get("defaultKey"));
+		// Config is the same prior + override user layer as REUSE.
+		assertEquals("prior", upgraded.getConfig().getValues().get("userKey"));
+		assertEquals("x", upgraded.getConfig().getValues().get("extra"));
 	}
 
 }

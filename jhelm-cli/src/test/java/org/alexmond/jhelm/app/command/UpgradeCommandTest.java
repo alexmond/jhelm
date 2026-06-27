@@ -9,6 +9,7 @@ import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 
 import java.util.HashMap;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,7 +76,8 @@ class UpgradeCommandTest {
 		Release upgradedRelease = createMockRelease("my-release", 2);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
-		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), anyBoolean()))
+		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
+				anyBoolean()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -112,7 +114,8 @@ class UpgradeCommandTest {
 		Release upgradedRelease = createMockRelease("my-release", 2);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
-		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), anyBoolean()))
+		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
+				anyBoolean()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -150,7 +153,8 @@ class UpgradeCommandTest {
 		Release upgradedRelease = createMockRelease("my-release", 2);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
-		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), anyBoolean()))
+		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
+				anyBoolean()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -166,7 +170,8 @@ class UpgradeCommandTest {
 		Release upgradedRelease = createMockRelease("my-release", 2);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
-		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), anyBoolean()))
+		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
+				anyBoolean()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -196,7 +201,8 @@ class UpgradeCommandTest {
 		Release existingRelease = createMockRelease("my-release", 3);
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
-		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), anyBoolean()))
+		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
+				anyBoolean()))
 			.thenThrow(new RuntimeException("upgrade failed"));
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
