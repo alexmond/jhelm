@@ -11,9 +11,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>
  * The {@code jhelm.mcp.mode} property mirrors {@code jhelm.rest.mode}: it controls which
  * jhelm operations are exposed as MCP tools. In {@link JhelmAccessMode#READ_ONLY
- * READ_ONLY} mode only non-mutating tools (template, show, lint, search) are registered.
- * Mutating operations (install, upgrade, uninstall, rollback, test) are not yet exposed
- * by this module.
+ * READ_ONLY} mode (the default) only non-mutating tools (template, show, lint, search,
+ * and the cluster-read release tools: list, status, history, get values/manifest) are
+ * registered. Setting the property to the upper-case value {@code FULL}
+ * ({@link JhelmAccessMode#FULL}) additionally registers the cluster-mutating release
+ * tools (install, upgrade, uninstall, rollback, test).
  */
 @Getter
 @Setter

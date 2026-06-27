@@ -1,18 +1,31 @@
 package org.alexmond.jhelm.mcp;
 
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
+import org.alexmond.jhelm.core.action.GetAction;
+import org.alexmond.jhelm.core.action.HistoryAction;
+import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.LintAction;
+import org.alexmond.jhelm.core.action.ListAction;
+import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.SearchHubAction;
 import org.alexmond.jhelm.core.action.ShowAction;
+import org.alexmond.jhelm.core.action.StatusAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
+import org.alexmond.jhelm.core.action.TestAction;
+import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.mcp.config.JhelmMcpProperties;
 import org.alexmond.jhelm.mcp.tools.ChartTools;
 import org.alexmond.jhelm.mcp.tools.HubTools;
+import org.alexmond.jhelm.mcp.tools.ReleaseMutatingTools;
+import org.alexmond.jhelm.mcp.tools.ReleaseReadTools;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
@@ -30,8 +43,11 @@ import org.springframework.context.annotation.Bean;
  * <p>
  * <strong>Access mode:</strong> {@code jhelm.mcp.mode} mirrors {@code jhelm.rest.mode}.
  * In the default {@code READ_ONLY} mode only the non-mutating tools (template, show,
- * lint, search) are exposed. Cluster-mutating operations (install, upgrade, uninstall,
- * rollback, test) are a {@code FULL}-mode follow-up and are not registered here.
+ * lint, search, plus the cluster-read release tools: list, status, history, get
+ * values/manifest) are exposed. The cluster-mutating tools (install, upgrade, uninstall,
+ * rollback, test) are registered only when {@code jhelm.mcp.mode} is set to the
+ * upper-case value {@code FULL}; in {@code READ_ONLY} mode they are not registered and do
+ * not appear in the MCP tool list at all.
  */
 @AutoConfiguration(after = JhelmCoreAutoConfiguration.class)
 @ConditionalOnClass(McpTool.class)
@@ -64,6 +80,50 @@ public class JhelmMcpAutoConfiguration {
 	@ConditionalOnBean(SearchHubAction.class)
 	public HubTools jhelmHubTools(SearchHubAction searchHubAction) {
 		return new HubTools(searchHubAction);
+	}
+
+	/**
+	 * Registers the read-only release MCP tools when the required cluster-read actions
+	 * are present. These tools are always registered regardless of the configured access
+	 * mode.
+	 * @param listAction lists releases in a namespace
+	 * @param statusAction reports release status
+	 * @param getAction reads release values and manifest
+	 * @param historyAction lists release revisions
+	 * @return the read-only release tools bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnBean({ ListAction.class, StatusAction.class, GetAction.class, HistoryAction.class })
+	public ReleaseReadTools jhelmReleaseReadTools(ListAction listAction, StatusAction statusAction, GetAction getAction,
+			HistoryAction historyAction) {
+		return new ReleaseReadTools(listAction, statusAction, getAction, historyAction);
+	}
+
+	/**
+	 * Registers the cluster-mutating release MCP tools only when
+	 * {@code jhelm.mcp.mode=FULL} (upper-case) and the required mutating actions are
+	 * present. In the default {@code READ_ONLY} mode this bean is not created, so the
+	 * mutating tools never appear in the MCP tool list.
+	 * @param installAction installs releases
+	 * @param upgradeAction upgrades releases
+	 * @param uninstallAction uninstalls releases
+	 * @param rollbackAction rolls releases back to a previous revision
+	 * @param testAction runs release test hooks
+	 * @param getAction resolves the current release for upgrades
+	 * @param chartLoader loads charts for install and upgrade
+	 * @return the mutating release tools bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnProperty(name = "jhelm.mcp.mode", havingValue = "FULL")
+	@ConditionalOnBean({ InstallAction.class, UpgradeAction.class, UninstallAction.class, RollbackAction.class,
+			TestAction.class })
+	public ReleaseMutatingTools jhelmReleaseMutatingTools(InstallAction installAction, UpgradeAction upgradeAction,
+			UninstallAction uninstallAction, RollbackAction rollbackAction, TestAction testAction, GetAction getAction,
+			ChartLoader chartLoader) {
+		return new ReleaseMutatingTools(installAction, upgradeAction, uninstallAction, rollbackAction, testAction,
+				getAction, chartLoader);
 	}
 
 }
