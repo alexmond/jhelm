@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.Map;
 
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,14 @@ class DependencyConditionTest {
 	}
 
 	private String renderManifest(Chart chart, Map<String, Object> overrides) throws Exception {
-		Release release = installAction.install(chart, "test-release", "default", overrides, 1, true);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("test-release")
+			.namespace("default")
+			.values(overrides)
+			.revision(1)
+			.dryRun(true)
+			.build());
 		assertNotNull(release, "Release should be created");
 		String manifest = release.getManifest();
 		assertNotNull(manifest, "Manifest should not be null");

@@ -1,15 +1,14 @@
 package org.alexmond.jhelm.app.command;
 
 import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.RollbackOptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 
@@ -28,7 +27,7 @@ class RollbackCommandTest {
 
 	@Test
 	void testRollbackCommandSuccess() throws Exception {
-		doNothing().when(rollbackAction).rollback(anyString(), anyString(), anyInt(), anyBoolean(), anyInt());
+		doNothing().when(rollbackAction).rollback(any(RollbackOptions.class));
 
 		CommandLine cmd = new CommandLine(rollbackCommand);
 		cmd.execute("my-release", "1", "-n", "default");
@@ -36,7 +35,7 @@ class RollbackCommandTest {
 
 	@Test
 	void testRollbackCommandDefaultNamespace() throws Exception {
-		doNothing().when(rollbackAction).rollback(anyString(), anyString(), anyInt(), anyBoolean(), anyInt());
+		doNothing().when(rollbackAction).rollback(any(RollbackOptions.class));
 
 		CommandLine cmd = new CommandLine(rollbackCommand);
 		cmd.execute("my-release", "2");
@@ -44,8 +43,7 @@ class RollbackCommandTest {
 
 	@Test
 	void testRollbackCommandWithError() throws Exception {
-		doThrow(new RuntimeException("Test error")).when(rollbackAction)
-			.rollback(anyString(), anyString(), anyInt(), anyBoolean(), anyInt());
+		doThrow(new RuntimeException("Test error")).when(rollbackAction).rollback(any(RollbackOptions.class));
 
 		CommandLine cmd = new CommandLine(rollbackCommand);
 		cmd.execute("my-release", "1");

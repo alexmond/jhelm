@@ -36,75 +36,32 @@ public class UpgradeAction {
 	private List<LifecycleListener> lifecycleListeners = List.of();
 
 	/**
-	 * Upgrades a release, resolving values according to the given
-	 * {@link UpgradeValueStrategy}.
-	 * @param currentRelease the currently deployed release (its chart defaults and
-	 * persisted user values feed the reuse strategies)
-	 * @param newChart the chart to upgrade to
-	 * @param overrideValues this command's value overrides (may be {@code null})
-	 * @param strategy how to resolve the previous user values against the overrides — see
-	 * {@link UpgradeValueStrategy}
-	 * @param dryRun when {@code true}, render only without applying to the cluster
+	 * Upgrades a release, resolving values according to the configured
+	 * {@link UpgradeValueStrategy}, optionally skipping hooks and pruning old revision
+	 * history. After a successful (non-dry-run) store, prunes the release's revision
+	 * history to the newest {@code maxHistory} revisions.
+	 * @param options the upgrade options (current release, new chart, value overrides,
+	 * value strategy, dry-run and no-hooks flags, and the history cap)
 	 * @return the upgraded release
 	 */
-	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues,
-			UpgradeValueStrategy strategy, boolean dryRun) {
-		return upgrade(currentRelease, newChart, overrideValues, strategy, dryRun, false);
-	}
-
-	/**
-	 * Upgrades a release, optionally skipping lifecycle hooks. Behaves like
-	 * {@link #upgrade(Release, Chart, Map, UpgradeValueStrategy, boolean)} but allows
-	 * suppressing pre-upgrade and post-upgrade hook execution.
-	 * @param currentRelease the currently deployed release (its chart defaults and
-	 * persisted user values feed the reuse strategies)
-	 * @param newChart the chart to upgrade to
-	 * @param overrideValues this command's value overrides (may be {@code null})
-	 * @param strategy how to resolve the previous user values against the overrides — see
-	 * {@link UpgradeValueStrategy}
-	 * @param dryRun when {@code true}, render only without applying to the cluster
-	 * @param noHooks if {@code true}, skip running pre-upgrade and post-upgrade hooks
-	 * @return the upgraded release
-	 */
-	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues,
-			UpgradeValueStrategy strategy, boolean dryRun, boolean noHooks) {
-		return upgrade(currentRelease, newChart, overrideValues, strategy, dryRun, noHooks, 10);
-	}
-
-	/**
-	 * Upgrades a release, optionally skipping hooks and pruning old revision history.
-	 * Behaves like
-	 * {@link #upgrade(Release, Chart, Map, UpgradeValueStrategy, boolean, boolean)} but,
-	 * after a successful (non-dry-run) store, prunes the release's revision history to
-	 * the newest {@code maxHistory} revisions.
-	 * @param currentRelease the currently deployed release (its chart defaults and
-	 * persisted user values feed the reuse strategies)
-	 * @param newChart the chart to upgrade to
-	 * @param overrideValues this command's value overrides (may be {@code null})
-	 * @param strategy how to resolve the previous user values against the overrides — see
-	 * {@link UpgradeValueStrategy}
-	 * @param dryRun when {@code true}, render only without applying to the cluster
-	 * @param noHooks if {@code true}, skip running pre-upgrade and post-upgrade hooks
-	 * @param maxHistory maximum revisions to keep; {@code 0} = no limit (Helm
-	 * {@code --history-max}, default 10)
-	 * @return the upgraded release
-	 */
-	public Release upgrade(Release currentRelease, Chart newChart, Map<String, Object> overrideValues,
-			UpgradeValueStrategy strategy, boolean dryRun, boolean noHooks, int maxHistory) {
+	public Release upgrade(UpgradeOptions options) {
+		Chart newChart = options.getNewChart();
 		if ("library".equals(newChart.getMetadata().getType())) {
 			throw new IllegalArgumentException(
 					"chart '" + newChart.getMetadata().getName() + "' is a library chart and cannot be upgraded");
 		}
 
-		ResolvedValues resolved = resolveValues(currentRelease, newChart, overrideValues, strategy);
+		Release currentRelease = options.getCurrentRelease();
+		ResolvedValues resolved = resolveValues(currentRelease, newChart, options.getValues(),
+				options.getValueStrategy());
 		Map<String, Object> renderValues = resolved.render();
 		Map<String, Object> configValues = resolved.config();
 
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(currentRelease.getInfo().getFirstDeployed())
 			.lastDeployed(OffsetDateTime.now())
-			.status(dryRun ? "pending-upgrade" : "deployed")
-			.description(dryRun ? "Dry run complete" : "Upgrade complete")
+			.status(options.isDryRun() ? "pending-upgrade" : "deployed")
+			.description(options.isDryRun() ? "Dry run complete" : "Upgrade complete")
 			.build();
 
 		Release newRelease = Release.builder()
@@ -140,7 +97,8 @@ public class UpgradeAction {
 
 		newRelease.setManifest(manifest);
 
-		if (kubeService != null && !dryRun) {
+		if (kubeService != null && !options.isDryRun()) {
+			boolean noHooks = options.isNoHooks();
 			fireLifecycleEvent("pre-upgrade", newRelease.getName(), newRelease.getNamespace());
 			String regularManifest = HookParser.stripHooks(manifest);
 			List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
@@ -157,7 +115,7 @@ public class UpgradeAction {
 				throw new DeploymentFailedException("Failed to store release after apply; previous release re-applied",
 						ex, regularManifest);
 			}
-			kubeService.pruneReleaseHistory(newRelease.getName(), newRelease.getNamespace(), maxHistory);
+			kubeService.pruneReleaseHistory(newRelease.getName(), newRelease.getNamespace(), options.getMaxHistory());
 			if (!noHooks) {
 				runHooks(hookExecutor, newRelease.getNamespace(), hooks, "post-upgrade");
 			}

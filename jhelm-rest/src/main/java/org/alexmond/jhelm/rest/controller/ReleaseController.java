@@ -12,12 +12,16 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.RollbackOptions;
 import org.alexmond.jhelm.core.action.StatusAction;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
@@ -175,8 +179,14 @@ public class ReleaseController {
 			Chart chart = ChartSourceResolver.fromChartRef(request.getChartRef(), request.getVersion(),
 					this.repoManager, this.chartLoader, tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
-			Release release = this.installAction.install(chart, request.getReleaseName(), request.getNamespace(),
-					values, 1, request.isDryRun());
+			Release release = this.installAction.install(InstallOptions.builder()
+				.chart(chart)
+				.releaseName(request.getReleaseName())
+				.namespace(request.getNamespace())
+				.values(values)
+				.revision(1)
+				.dryRun(request.isDryRun())
+				.build());
 			return ResponseEntity.status(HttpStatus.CREATED).body(ReleaseDto.from(release));
 		}
 	}
@@ -200,8 +210,14 @@ public class ReleaseController {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-install-upload-")) {
 			Chart loaded = ChartSourceResolver.fromUpload(chart, this.repoManager, this.chartLoader, tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
-			Release release = this.installAction.install(loaded, request.getReleaseName(), request.getNamespace(),
-					values, 1, request.isDryRun());
+			Release release = this.installAction.install(InstallOptions.builder()
+				.chart(loaded)
+				.releaseName(request.getReleaseName())
+				.namespace(request.getNamespace())
+				.values(values)
+				.revision(1)
+				.dryRun(request.isDryRun())
+				.build());
 			return ResponseEntity.status(HttpStatus.CREATED).body(ReleaseDto.from(release));
 		}
 	}
@@ -233,8 +249,13 @@ public class ReleaseController {
 			// TODO: expose UpgradeValueStrategy (reset/reuse/reset-then-reuse) on the
 			// REST
 			// request as a follow-up.
-			Release upgraded = this.upgradeAction.upgrade(current, chart, values, UpgradeValueStrategy.DEFAULT,
-					request.isDryRun());
+			Release upgraded = this.upgradeAction.upgrade(UpgradeOptions.builder()
+				.currentRelease(current)
+				.newChart(chart)
+				.values(values)
+				.valueStrategy(UpgradeValueStrategy.DEFAULT)
+				.dryRun(request.isDryRun())
+				.build());
 			return ReleaseDto.from(upgraded);
 		}
 	}
@@ -265,8 +286,13 @@ public class ReleaseController {
 			// TODO: expose UpgradeValueStrategy (reset/reuse/reset-then-reuse) on the
 			// REST
 			// request as a follow-up.
-			Release upgraded = this.upgradeAction.upgrade(current, loaded, values, UpgradeValueStrategy.DEFAULT,
-					request.isDryRun());
+			Release upgraded = this.upgradeAction.upgrade(UpgradeOptions.builder()
+				.currentRelease(current)
+				.newChart(loaded)
+				.values(values)
+				.valueStrategy(UpgradeValueStrategy.DEFAULT)
+				.dryRun(request.isDryRun())
+				.build());
 			return ReleaseDto.from(upgraded);
 		}
 	}
@@ -284,7 +310,7 @@ public class ReleaseController {
 	public ResponseEntity<Void> uninstall(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
 			throws Exception {
-		this.uninstallAction.uninstall(name, namespace);
+		this.uninstallAction.uninstall(UninstallOptions.builder().releaseName(name).namespace(namespace).build());
 		return ResponseEntity.noContent().build();
 	}
 
@@ -317,7 +343,11 @@ public class ReleaseController {
 	public ResponseEntity<Void> rollback(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
 			@RequestBody RollbackRequest request) throws Exception {
-		this.rollbackAction.rollback(name, namespace, request.getRevision());
+		this.rollbackAction.rollback(RollbackOptions.builder()
+			.releaseName(name)
+			.namespace(namespace)
+			.revision(request.getRevision())
+			.build());
 		return ResponseEntity.noContent().build();
 	}
 

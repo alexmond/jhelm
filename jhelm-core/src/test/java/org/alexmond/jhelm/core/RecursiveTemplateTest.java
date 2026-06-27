@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.Map;
 
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.exception.TemplateRenderException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
@@ -30,7 +31,14 @@ class RecursiveTemplateTest {
 		File chartDir = new File("src/test/resources/test-charts/recursive-template");
 		Chart chart = chartLoader.load(chartDir);
 		assertThrows(TemplateRenderException.class,
-				() -> installAction.install(chart, "rec", "default", Map.of(), 1, true));
+				() -> installAction.install(InstallOptions.builder()
+					.chart(chart)
+					.releaseName("rec")
+					.namespace("default")
+					.values(Map.of())
+					.revision(1)
+					.dryRun(true)
+					.build()));
 	}
 
 }

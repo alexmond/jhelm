@@ -99,7 +99,8 @@ class RollbackActionTest {
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		rollbackAction.rollback("myapp", "default", 1);
+		rollbackAction
+			.rollback(RollbackOptions.builder().releaseName("myapp").namespace("default").revision(1).build());
 
 		// apply receives the hook-stripped manifest (HookParser normalises docs with
 		// trailing \n)
@@ -140,7 +141,8 @@ class RollbackActionTest {
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		rollbackAction.rollback("myapp", "default", 1, false, 5);
+		rollbackAction.rollback(
+				RollbackOptions.builder().releaseName("myapp").namespace("default").revision(1).maxHistory(5).build());
 
 		// Prune is invoked with the passed maxHistory, after the release is stored.
 		InOrder order = inOrder(kubeService);
@@ -191,7 +193,8 @@ class RollbackActionTest {
 		doNothing().when(kubeService).waitForReady(anyString(), anyString(), anyInt());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		rollbackAction.rollback("myapp", "default", 1);
+		rollbackAction
+			.rollback(RollbackOptions.builder().releaseName("myapp").namespace("default").revision(1).build());
 
 		List<HelmHook> hooks = HookParser.parseHooks(manifest);
 		String strippedManifest = HookParser.stripHooks(manifest);
@@ -241,7 +244,8 @@ class RollbackActionTest {
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
-		rollbackAction.rollback("myapp", "default", 1, true);
+		rollbackAction.rollback(
+				RollbackOptions.builder().releaseName("myapp").namespace("default").revision(1).noHooks(true).build());
 
 		List<HelmHook> hooks = HookParser.parseHooks(manifest);
 		String strippedManifest = HookParser.stripHooks(manifest);
@@ -258,8 +262,8 @@ class RollbackActionTest {
 		Release v1 = Release.builder().name("myapp").version(1).build();
 		when(kubeService.getReleaseHistory(anyString(), anyString())).thenReturn(Arrays.asList(v1));
 
-		ReleaseNotFoundException exception = assertThrows(ReleaseNotFoundException.class,
-				() -> rollbackAction.rollback("myapp", "default", 99));
+		ReleaseNotFoundException exception = assertThrows(ReleaseNotFoundException.class, () -> rollbackAction
+			.rollback(RollbackOptions.builder().releaseName("myapp").namespace("default").revision(99).build()));
 
 		assertTrue(exception.getMessage().contains("Revision 99 not found"));
 	}

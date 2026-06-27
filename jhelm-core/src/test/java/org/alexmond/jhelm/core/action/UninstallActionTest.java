@@ -43,7 +43,7 @@ class UninstallActionTest {
 		doNothing().when(kubeService).delete(anyString(), anyString());
 		doNothing().when(kubeService).deleteReleaseHistory(anyString(), anyString());
 
-		uninstallAction.uninstall("myapp", "default");
+		uninstallAction.uninstall(UninstallOptions.builder().releaseName("myapp").namespace("default").build());
 
 		verify(kubeService).delete("default", "---\nkind: Service\n");
 		verify(kubeService).deleteReleaseHistory("myapp", "default");
@@ -76,7 +76,7 @@ class UninstallActionTest {
 		doNothing().when(kubeService).waitForReady(anyString(), anyString(), anyInt());
 		doNothing().when(kubeService).deleteReleaseHistory(anyString(), anyString());
 
-		uninstallAction.uninstall("myapp", "default");
+		uninstallAction.uninstall(UninstallOptions.builder().releaseName("myapp").namespace("default").build());
 
 		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
 		String strippedManifest = HookParser.stripHooks(fullManifest);
@@ -113,7 +113,8 @@ class UninstallActionTest {
 		doNothing().when(kubeService).delete(anyString(), anyString());
 		doNothing().when(kubeService).deleteReleaseHistory(anyString(), anyString());
 
-		uninstallAction.uninstall("myapp", "default", true);
+		uninstallAction
+			.uninstall(UninstallOptions.builder().releaseName("myapp").namespace("default").noHooks(true).build());
 
 		List<HelmHook> hooks = HookParser.parseHooks(fullManifest);
 		String deletableManifest = HookParser.stripKeptResources(HookParser.stripHooks(fullManifest));
@@ -146,7 +147,7 @@ class UninstallActionTest {
 		doNothing().when(kubeService).delete(anyString(), anyString());
 		doNothing().when(kubeService).deleteReleaseHistory(anyString(), anyString());
 
-		uninstallAction.uninstall("myapp", "default");
+		uninstallAction.uninstall(UninstallOptions.builder().releaseName("myapp").namespace("default").build());
 
 		// Only ConfigMap should be deleted — PVC with resource-policy: keep is preserved
 		String deletedManifest = HookParser.stripKeptResources(HookParser.stripHooks(fullManifest));
@@ -157,8 +158,8 @@ class UninstallActionTest {
 	void testUninstallThrowsWhenReleaseNotFound() throws Exception {
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.empty());
 
-		ReleaseNotFoundException exception = assertThrows(ReleaseNotFoundException.class,
-				() -> uninstallAction.uninstall("non-existent", "default"));
+		ReleaseNotFoundException exception = assertThrows(ReleaseNotFoundException.class, () -> uninstallAction
+			.uninstall(UninstallOptions.builder().releaseName("non-existent").namespace("default").build()));
 
 		assertTrue(exception.getMessage().contains("Release not found"));
 	}

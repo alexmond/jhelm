@@ -1,13 +1,14 @@
 package org.alexmond.jhelm.app.command;
 
 import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 
@@ -26,7 +27,7 @@ class UninstallCommandTest {
 
 	@Test
 	void testUninstallCommandSuccess() throws Exception {
-		doNothing().when(uninstallAction).uninstall(anyString(), anyString());
+		doNothing().when(uninstallAction).uninstall(any(UninstallOptions.class));
 
 		CommandLine cmd = new CommandLine(uninstallCommand);
 		cmd.execute("my-release", "-n", "default");
@@ -34,7 +35,7 @@ class UninstallCommandTest {
 
 	@Test
 	void testUninstallCommandDefaultNamespace() throws Exception {
-		doNothing().when(uninstallAction).uninstall(anyString(), anyString());
+		doNothing().when(uninstallAction).uninstall(any(UninstallOptions.class));
 
 		CommandLine cmd = new CommandLine(uninstallCommand);
 		cmd.execute("my-release");
@@ -42,7 +43,7 @@ class UninstallCommandTest {
 
 	@Test
 	void testUninstallCommandWithError() throws Exception {
-		doThrow(new RuntimeException("Test error")).when(uninstallAction).uninstall(anyString(), anyString());
+		doThrow(new RuntimeException("Test error")).when(uninstallAction).uninstall(any(UninstallOptions.class));
 
 		CommandLine cmd = new CommandLine(uninstallCommand);
 		cmd.execute("my-release");

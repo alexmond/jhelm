@@ -7,10 +7,14 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.RollbackOptions;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
@@ -68,7 +72,14 @@ public class ReleaseMutatingTools {
 			@McpToolParam(description = "Target Kubernetes namespace") String namespace,
 			@McpToolParam(description = "Render only without applying to the cluster when true") boolean dryRun) {
 		Chart chart = this.chartLoader.load(new File(chartPath));
-		Release release = this.installAction.install(chart, name, namespace, Map.of(), 1, dryRun);
+		Release release = this.installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName(name)
+			.namespace(namespace)
+			.values(Map.of())
+			.revision(1)
+			.dryRun(dryRun)
+			.build());
 		return renderReleaseSummary("Installed", release, dryRun);
 	}
 
@@ -93,7 +104,13 @@ public class ReleaseMutatingTools {
 		Release current = this.getAction.getRelease(name, namespace)
 			.orElseThrow(() -> new IllegalArgumentException("Release '" + name + "' not found"));
 		Chart chart = this.chartLoader.load(new File(chartPath));
-		Release upgraded = this.upgradeAction.upgrade(current, chart, Map.of(), UpgradeValueStrategy.DEFAULT, dryRun);
+		Release upgraded = this.upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(current)
+			.newChart(chart)
+			.values(Map.of())
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.dryRun(dryRun)
+			.build());
 		return renderReleaseSummary("Upgraded", upgraded, dryRun);
 	}
 
@@ -108,7 +125,7 @@ public class ReleaseMutatingTools {
 					+ "release's resources and removes its history.")
 	public String uninstall(@McpToolParam(description = "Release name to uninstall") String name,
 			@McpToolParam(description = "Kubernetes namespace") String namespace) {
-		this.uninstallAction.uninstall(name, namespace);
+		this.uninstallAction.uninstall(UninstallOptions.builder().releaseName(name).namespace(namespace).build());
 		return "Uninstalled release '" + name + "' from namespace '" + namespace + '\'';
 	}
 
@@ -126,7 +143,8 @@ public class ReleaseMutatingTools {
 	public String rollback(@McpToolParam(description = "Release name") String name,
 			@McpToolParam(description = "Kubernetes namespace") String namespace,
 			@McpToolParam(description = "Target revision number to roll back to") int revision) {
-		this.rollbackAction.rollback(name, namespace, revision);
+		this.rollbackAction
+			.rollback(RollbackOptions.builder().releaseName(name).namespace(namespace).revision(revision).build());
 		return "Rolled back release '" + name + "' in namespace '" + namespace + "' to revision " + revision;
 	}
 

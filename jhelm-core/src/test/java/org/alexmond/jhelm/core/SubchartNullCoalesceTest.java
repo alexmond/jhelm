@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
@@ -43,7 +44,14 @@ class SubchartNullCoalesceTest {
 		childOverride.put("foo", null);
 		Map<String, Object> overrides = Map.of("child", childOverride);
 
-		Release release = installAction.install(chart, "rel", "default", overrides, 1, true);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("rel")
+			.namespace("default")
+			.values(overrides)
+			.revision(1)
+			.dryRun(true)
+			.build());
 		String manifest = release.getManifest();
 		assertTrue(manifest.contains("haskey: \"true\""),
 				"a null override of an undeclared subchart key must keep the key (hasKey true): " + manifest);

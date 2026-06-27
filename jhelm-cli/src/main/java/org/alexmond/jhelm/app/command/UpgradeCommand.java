@@ -9,9 +9,13 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.RollbackOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
@@ -141,7 +145,7 @@ public class UpgradeCommand implements Runnable {
 			if (currentReleaseOpt.isEmpty()) {
 				if (install) {
 					wasInstall = true;
-					Release release = installAction.install(chart, name, namespace, overrides, 1, dryRun, noHooks);
+					Release release = installAction.install(buildInstallOptions(chart, overrides));
 					applyCliPostRenderers(release);
 					if (dryRun) {
 						printRelease(release);
@@ -164,8 +168,8 @@ public class UpgradeCommand implements Runnable {
 			UpgradeValueStrategy strategy = (resetValues) ? UpgradeValueStrategy.RESET
 					: (resetThenReuseValues) ? UpgradeValueStrategy.RESET_THEN_REUSE
 							: (reuseValues) ? UpgradeValueStrategy.REUSE : UpgradeValueStrategy.DEFAULT;
-			Release upgradedRelease = upgradeAction.upgrade(currentReleaseOpt.get(), chart, overrides, strategy, dryRun,
-					noHooks, historyMax);
+			Release upgradedRelease = upgradeAction
+				.upgrade(buildUpgradeOptions(currentReleaseOpt.get(), chart, overrides, strategy));
 			applyCliPostRenderers(upgradedRelease);
 
 			if (dryRun) {
@@ -183,11 +187,16 @@ public class UpgradeCommand implements Runnable {
 				CliOutput.errPrintln(CliOutput.error("Upgrade failed, performing atomic rollback: " + ex.getMessage()));
 				try {
 					if (wasInstall || previousVersion < 0) {
-						uninstallAction.uninstall(name, namespace);
+						uninstallAction
+							.uninstall(UninstallOptions.builder().releaseName(name).namespace(namespace).build());
 						CliOutput.println("Atomic uninstall of \"" + name + "\" complete.");
 					}
 					else {
-						rollbackAction.rollback(name, namespace, previousVersion);
+						rollbackAction.rollback(RollbackOptions.builder()
+							.releaseName(name)
+							.namespace(namespace)
+							.revision(previousVersion)
+							.build());
 						CliOutput.println("Atomic rollback of \"" + name + "\" complete.");
 					}
 				}
@@ -202,6 +211,31 @@ public class UpgradeCommand implements Runnable {
 				log.debug("Upgrade error details", ex);
 			}
 		}
+	}
+
+	private InstallOptions buildInstallOptions(Chart chart, Map<String, Object> overrides) {
+		return InstallOptions.builder()
+			.chart(chart)
+			.releaseName(name)
+			.namespace(namespace)
+			.values(overrides)
+			.revision(1)
+			.dryRun(dryRun)
+			.noHooks(noHooks)
+			.build();
+	}
+
+	private UpgradeOptions buildUpgradeOptions(Release current, Chart chart, Map<String, Object> overrides,
+			UpgradeValueStrategy strategy) {
+		return UpgradeOptions.builder()
+			.currentRelease(current)
+			.newChart(chart)
+			.values(overrides)
+			.valueStrategy(strategy)
+			.dryRun(dryRun)
+			.noHooks(noHooks)
+			.maxHistory(historyMax)
+			.build();
 	}
 
 	private void applyCliPostRenderers(Release release) throws Exception {

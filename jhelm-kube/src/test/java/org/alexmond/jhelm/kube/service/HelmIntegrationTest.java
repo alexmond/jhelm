@@ -4,6 +4,7 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.CoreConfig;
 import org.alexmond.jhelm.kube.KubernetesConfig;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,14 @@ class HelmIntegrationTest {
 		assertNotNull(chart.getMetadata());
 
 		// 2. Prepare Install Action
-		Release release = installAction.install(chart, "test-release", "default", new HashMap<>(), 1, false);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("test-release")
+			.namespace("default")
+			.values(new HashMap<>())
+			.revision(1)
+			.dryRun(false)
+			.build());
 		assertNotNull(release);
 		assertNotNull(release.getManifest());
 		assertTrue(release.getManifest().contains("test-configmap"));

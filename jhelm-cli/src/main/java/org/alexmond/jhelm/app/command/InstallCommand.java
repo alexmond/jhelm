@@ -8,7 +8,9 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
@@ -101,7 +103,15 @@ public class InstallCommand implements Runnable {
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
 					setFileValues, setJsonValues);
 
-			Release release = installAction.install(chart, name, namespace, overrides, 1, dryRun, noHooks);
+			Release release = installAction.install(InstallOptions.builder()
+				.chart(chart)
+				.releaseName(name)
+				.namespace(namespace)
+				.values(overrides)
+				.revision(1)
+				.dryRun(dryRun)
+				.noHooks(noHooks)
+				.build());
 			applyCliPostRenderers(release);
 
 			if (dryRun) {
@@ -124,7 +134,8 @@ public class InstallCommand implements Runnable {
 				CliOutput
 					.errPrintln(CliOutput.error("Install failed, performing atomic uninstall: " + ex.getMessage()));
 				try {
-					uninstallAction.uninstall(name, namespace);
+					uninstallAction
+						.uninstall(UninstallOptions.builder().releaseName(name).namespace(namespace).build());
 					CliOutput.println("Atomic uninstall of \"" + name + "\" complete.");
 				}
 				catch (Exception rollbackEx) {

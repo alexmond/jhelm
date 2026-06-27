@@ -5,6 +5,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.config.JhelmTestProperties;
 import org.alexmond.jhelm.core.config.KpsTestConfig;
 import org.alexmond.jhelm.core.model.Chart;
@@ -177,7 +178,14 @@ class KpsComparisonTest {
 				.build())))
 			.build();
 
-		Release release = installAction.install(chart, "simple", "default", Map.of(), 1, false);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("simple")
+			.namespace("default")
+			.values(Map.of())
+			.revision(1)
+			.dryRun(false)
+			.build());
 		log.info("Simple manifest: [{}]", release.getManifest().trim());
 		assertTrue(release.getManifest().contains("hello world enabled"));
 	}
@@ -335,7 +343,14 @@ class KpsComparisonTest {
 		try {
 			log.info("{} - Running JHelm rendering...", chartName);
 			// JHelm dry-run
-			Release release = installAction.install(chart, sanitizedReleaseName, "default", overrideValues, 1, true);
+			Release release = installAction.install(InstallOptions.builder()
+				.chart(chart)
+				.releaseName(sanitizedReleaseName)
+				.namespace("default")
+				.values(overrideValues)
+				.revision(1)
+				.dryRun(true)
+				.build());
 			assertNotNull(release);
 
 			String jhelmManifest = release.getManifest();

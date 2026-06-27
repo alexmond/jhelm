@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.Map;
 
 import org.alexmond.jhelm.core.action.InstallAction;
+import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
@@ -28,7 +29,14 @@ class ChartIsRootTest {
 
 		Chart chart = chartLoader.load(new File("src/test/resources/test-charts/chart-isroot"));
 		assertNotNull(chart, "Chart should be loaded");
-		Release release = installAction.install(chart, "r", "default", Map.of(), 1, true);
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("r")
+			.namespace("default")
+			.values(Map.of())
+			.revision(1)
+			.dryRun(true)
+			.build());
 		String manifest = release.getManifest();
 
 		// Parent ConfigMap: the release chart is root.
