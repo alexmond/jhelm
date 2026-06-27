@@ -191,7 +191,7 @@ class ReleaseControllerTest {
 		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
 		Release upgraded = sampleRelease();
 		upgraded.setVersion(2);
-		when(this.upgradeAction.upgrade(any(), any(), anyMap(), anyBoolean())).thenReturn(upgraded);
+		when(this.upgradeAction.upgrade(any(), any(), anyMap(), any(), anyBoolean())).thenReturn(upgraded);
 
 		this.mockMvc
 			.perform(put("/api/v1/releases/my-release").contentType(MediaType.APPLICATION_JSON)
@@ -212,7 +212,7 @@ class ReleaseControllerTest {
 		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
 		Release upgraded = sampleRelease();
 		upgraded.setVersion(2);
-		when(this.upgradeAction.upgrade(any(), any(), anyMap(), anyBoolean())).thenReturn(upgraded);
+		when(this.upgradeAction.upgrade(any(), any(), anyMap(), any(), anyBoolean())).thenReturn(upgraded);
 
 		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-2.0.0.tgz", "application/gzip",
 				new byte[] { 1, 2, 3 });
