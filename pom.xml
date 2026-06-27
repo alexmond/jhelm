@@ -51,6 +51,7 @@
         <chicory.version>1.7.5</chicory.version>
         <swagger-annotations.version>2.2.52</swagger-annotations.version>
         <springdoc-openapi.version>3.0.3</springdoc-openapi.version>
+        <spring-ai.version>2.0.0</spring-ai.version>
 
         <maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
         <central-publishing-maven-plugin.version>0.10.0</central-publishing-maven-plugin.version>
@@ -77,10 +78,13 @@
         <module>jhelm-kube</module>
         <module>jhelm-rest</module>
         <module>jhelm-rest-starter</module>
+        <module>jhelm-mcp</module>
+        <module>jhelm-mcp-starter</module>
         <module>jhelm-plugin</module>
         <module>jhelm-cli</module>
         <module>jhelm-sample</module>
         <module>jhelm-rest-sample</module>
+        <module>jhelm-mcp-sample</module>
     </modules>
 
     <dependencyManagement>
@@ -132,8 +136,26 @@
             </dependency>
             <dependency>
                 <groupId>org.alexmond</groupId>
+                <artifactId>jhelm-mcp</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.alexmond</groupId>
+                <artifactId>jhelm-mcp-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.alexmond</groupId>
                 <artifactId>jhelm</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <!-- Spring AI BOM: manages spring-ai-* artifacts (MCP server) for jhelm-mcp. -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
 
             <!-- External Dependencies -->
