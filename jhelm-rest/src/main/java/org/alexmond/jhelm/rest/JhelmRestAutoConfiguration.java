@@ -31,15 +31,38 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Auto-configuration for the jhelm REST API module. Activates only when the application
  * is a web application (servlet-based). Runs after {@link JhelmCoreAutoConfiguration} so
  * that all core beans (actions, services) are available for REST controllers.
+ *
+ * <p>
+ * <strong>Security:</strong> the jhelm REST API exposes cluster-mutating operations
+ * (install, upgrade, uninstall, rollback) and ships with <strong>no
+ * authentication</strong>. Securing it is the responsibility of the embedding application
+ * (for example via Spring Security); it must never be exposed unauthenticated to an
+ * untrusted network.
  */
+@Slf4j
 @AutoConfiguration(after = JhelmCoreAutoConfiguration.class)
 @ConditionalOnWebApplication
 @EnableConfigurationProperties(JhelmRestProperties.class)
 public class JhelmRestAutoConfiguration {
+
+	/**
+	 * Logs a single startup warning that the REST API is unauthenticated, reminding
+	 * operators to secure it (for example with Spring Security) in the consuming
+	 * application.
+	 */
+	@PostConstruct
+	public void warnUnauthenticated() {
+		log.warn("jhelm REST API is enabled with NO authentication and exposes cluster-mutating "
+				+ "operations; secure it (e.g. set up Spring Security) in your application before "
+				+ "exposing it to any untrusted network.");
+	}
 
 	/**
 	 * Registers the global REST exception handler unless one is already defined.
