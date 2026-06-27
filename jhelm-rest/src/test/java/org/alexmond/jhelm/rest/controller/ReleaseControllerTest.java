@@ -189,8 +189,7 @@ class ReleaseControllerTest {
 		stubPull();
 		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("2.0.0").build()).build();
 		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
-		Release upgraded = sampleRelease();
-		upgraded.setVersion(2);
+		Release upgraded = sampleRelease().toBuilder().version(2).build();
 		when(this.upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(upgraded);
 
 		this.mockMvc
@@ -210,8 +209,7 @@ class ReleaseControllerTest {
 		stubUntar();
 		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("2.0.0").build()).build();
 		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
-		Release upgraded = sampleRelease();
-		upgraded.setVersion(2);
+		Release upgraded = sampleRelease().toBuilder().version(2).build();
 		when(this.upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(upgraded);
 
 		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-2.0.0.tgz", "application/gzip",

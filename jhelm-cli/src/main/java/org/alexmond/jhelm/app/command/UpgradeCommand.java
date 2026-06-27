@@ -146,7 +146,7 @@ public class UpgradeCommand implements Runnable {
 				if (install) {
 					wasInstall = true;
 					Release release = installAction.install(buildInstallOptions(chart, overrides));
-					applyCliPostRenderers(release);
+					release = applyCliPostRenderers(release);
 					if (dryRun) {
 						printRelease(release);
 					}
@@ -170,7 +170,7 @@ public class UpgradeCommand implements Runnable {
 							: (reuseValues) ? UpgradeValueStrategy.REUSE : UpgradeValueStrategy.DEFAULT;
 			Release upgradedRelease = upgradeAction
 				.upgrade(buildUpgradeOptions(currentReleaseOpt.get(), chart, overrides, strategy));
-			applyCliPostRenderers(upgradedRelease);
+			upgradedRelease = applyCliPostRenderers(upgradedRelease);
 
 			if (dryRun) {
 				printRelease(upgradedRelease);
@@ -238,15 +238,15 @@ public class UpgradeCommand implements Runnable {
 			.build();
 	}
 
-	private void applyCliPostRenderers(Release release) throws Exception {
+	private Release applyCliPostRenderers(Release release) throws Exception {
 		if (postRenderers.isEmpty()) {
-			return;
+			return release;
 		}
 		String manifest = release.getManifest();
 		for (String renderer : postRenderers) {
 			manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
 		}
-		release.setManifest(manifest);
+		return release.toBuilder().manifest(manifest).build();
 	}
 
 	private void printRelease(Release release) {

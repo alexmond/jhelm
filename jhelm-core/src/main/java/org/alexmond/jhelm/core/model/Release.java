@@ -1,18 +1,23 @@
 package org.alexmond.jhelm.core.model;
 
 import java.time.OffsetDateTime;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import java.util.Map;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+import tools.jackson.databind.annotation.JsonDeserialize;
+import tools.jackson.databind.annotation.JsonPOJOBuilder;
+
+import lombok.Builder;
+import lombok.Value;
+
+@JsonDeserialize(builder = Release.ReleaseBuilder.class)
+@Builder(toBuilder = true)
+@Value
 public class Release {
+
+	// Note: @Jacksonized would emit com.fasterxml (Jackson 2) builder annotations,
+	// which are absent on this Jackson 3 (tools.jackson) classpath. The builder is
+	// wired to Jackson 3 manually so the immutable type round-trips through the
+	// Kubernetes release Secret.
 
 	private String name;
 
@@ -28,10 +33,14 @@ public class Release {
 
 	private String manifest;
 
-	@Data
+	@JsonPOJOBuilder(withPrefix = "")
+	public static class ReleaseBuilder {
+
+	}
+
+	@JsonDeserialize(builder = ReleaseInfo.ReleaseInfoBuilder.class)
 	@Builder
-	@NoArgsConstructor
-	@AllArgsConstructor
+	@Value
 	public static class ReleaseInfo {
 
 		private OffsetDateTime firstDeployed;
@@ -46,15 +55,24 @@ public class Release {
 
 		private String notes;
 
+		@JsonPOJOBuilder(withPrefix = "")
+		public static class ReleaseInfoBuilder {
+
+		}
+
 	}
 
-	@Data
+	@JsonDeserialize(builder = MapConfig.MapConfigBuilder.class)
 	@Builder
-	@NoArgsConstructor
-	@AllArgsConstructor
+	@Value
 	public static class MapConfig {
 
 		private Map<String, Object> values;
+
+		@JsonPOJOBuilder(withPrefix = "")
+		public static class MapConfigBuilder {
+
+		}
 
 	}
 
