@@ -66,7 +66,7 @@ public class StatusCommand implements Runnable {
 			CliOutput.println(CliOutput.bold("NAME:") + " " + r.getName());
 			CliOutput.println(CliOutput.bold("LAST DEPLOYED:") + " " + r.getInfo().getLastDeployed());
 			CliOutput.println(CliOutput.bold("NAMESPACE:") + " " + r.getNamespace());
-			CliOutput.println(CliOutput.bold("STATUS:") + " " + colorizeStatus(r.getInfo().getStatus()));
+			CliOutput.println(CliOutput.bold("STATUS:") + " " + colorizeStatus(r.getInfo().getStatus().getValue()));
 			CliOutput.println(CliOutput.bold("REVISION:") + " " + r.getVersion());
 
 			if (showResources) {

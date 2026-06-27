@@ -51,7 +51,7 @@ public class Release {
 
 		private String description;
 
-		private String status; // e.g., "deployed", "uninstalled"
+		private ReleaseStatus status; // e.g., DEPLOYED, UNINSTALLED
 
 		private String notes;
 

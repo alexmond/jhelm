@@ -15,6 +15,7 @@ import java.util.Optional;
 import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.ValuesLoader;
 
@@ -139,7 +140,8 @@ public class GetAction {
 			metadata.put("appVersion", cm.getAppVersion());
 		}
 		if (release.getInfo() != null) {
-			metadata.put("status", release.getInfo().getStatus());
+			ReleaseStatus status = release.getInfo().getStatus();
+			metadata.put("status", (status != null) ? status.getValue() : null);
 			metadata.put("deployedAt", release.getInfo().getLastDeployed());
 		}
 		return metadata;

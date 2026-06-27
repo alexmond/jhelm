@@ -10,6 +10,7 @@ import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
@@ -56,7 +57,7 @@ public class RollbackAction {
 			.info(Release.ReleaseInfo.builder()
 				.firstDeployed(targetRelease.getInfo().getFirstDeployed())
 				.lastDeployed(OffsetDateTime.now())
-				.status("deployed")
+				.status(ReleaseStatus.DEPLOYED)
 				.description("Rollback to " + revision)
 				.build())
 			.build();

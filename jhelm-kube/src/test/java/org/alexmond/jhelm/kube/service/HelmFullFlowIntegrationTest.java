@@ -5,6 +5,7 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.UpgradeAction;
@@ -162,7 +163,7 @@ class HelmFullFlowIntegrationTest {
 				.build());
 			assertNotNull(release);
 			assertTrue(release.getManifest().contains("name: dry-run-release"));
-			assertEquals("pending-install", release.getInfo().getStatus());
+			assertEquals(ReleaseStatus.PENDING_INSTALL, release.getInfo().getStatus());
 
 			// Verify NOT in Kube
 			Optional<Release> storedRelease = helmKubeService.getRelease(releaseName, namespace);
@@ -183,7 +184,7 @@ class HelmFullFlowIntegrationTest {
 			.build());
 		assertNotNull(release);
 		assertTrue(release.getManifest().contains("replicas: 5"));
-		assertEquals("pending-install", release.getInfo().getStatus());
+		assertEquals(ReleaseStatus.PENDING_INSTALL, release.getInfo().getStatus());
 
 		// 2. Verify NOT in Kube
 		Optional<Release> storedRelease = helmKubeService.getRelease(releaseName, namespace);
@@ -209,7 +210,7 @@ class HelmFullFlowIntegrationTest {
 			.build());
 		assertNotNull(dryUpgraded);
 		assertTrue(dryUpgraded.getManifest().contains("replicas: 10"));
-		assertEquals("pending-upgrade", dryUpgraded.getInfo().getStatus());
+		assertEquals(ReleaseStatus.PENDING_UPGRADE, dryUpgraded.getInfo().getStatus());
 		assertEquals(2, dryUpgraded.getVersion());
 
 		// 4. Verify Upgrade NOT in Kube

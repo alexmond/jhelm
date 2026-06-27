@@ -45,7 +45,7 @@ public class HistoryCommand implements Runnable {
 			for (Release r : history) {
 				String chartInfo = r.getChart().getMetadata().getName() + "-" + r.getChart().getMetadata().getVersion();
 				CliOutput.printf("%-10d %-30s %-10s %-20s %-30s\n", r.getVersion(), r.getInfo().getLastDeployed(),
-						r.getInfo().getStatus(), chartInfo, r.getInfo().getDescription());
+						r.getInfo().getStatus().getValue(), chartInfo, r.getInfo().getDescription());
 			}
 		}
 		catch (Exception ex) {

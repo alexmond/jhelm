@@ -23,6 +23,7 @@ import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.JhelmRestExceptionHandler;
@@ -102,7 +103,7 @@ class ReleaseControllerTest {
 				.metadata(ChartMetadata.builder().name("nginx").version("1.0.0").appVersion("1.25").build())
 				.build())
 			.info(Release.ReleaseInfo.builder()
-				.status("deployed")
+				.status(ReleaseStatus.DEPLOYED)
 				.description("Install complete")
 				.lastDeployed(OffsetDateTime.now())
 				.build())

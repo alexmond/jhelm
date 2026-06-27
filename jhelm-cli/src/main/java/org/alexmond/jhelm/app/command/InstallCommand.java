@@ -122,7 +122,7 @@ public class InstallCommand implements Runnable {
 				CliOutput.println(CliOutput.bold("NAME:") + " " + release.getName());
 				CliOutput.println(CliOutput.bold("LAST DEPLOYED:") + " " + release.getInfo().getLastDeployed());
 				CliOutput.println(CliOutput.bold("NAMESPACE:") + " " + release.getNamespace());
-				CliOutput.println(CliOutput.bold("STATUS:") + " " + release.getInfo().getStatus());
+				CliOutput.println(CliOutput.bold("STATUS:") + " " + release.getInfo().getStatus().getValue());
 				CliOutput.println(CliOutput.bold("REVISION:") + " " + release.getVersion());
 				CliOutput.println("\n" + CliOutput.bold("MANIFEST:") + "\n" + release.getManifest());
 			}

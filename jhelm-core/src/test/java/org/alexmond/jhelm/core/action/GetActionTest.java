@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.KubeService;
 
 class GetActionTest {
@@ -271,7 +272,7 @@ class GetActionTest {
 		Release release = Release.builder()
 			.name("test")
 			.manifest(manifest)
-			.info(Release.ReleaseInfo.builder().status("deployed").build())
+			.info(Release.ReleaseInfo.builder().status(ReleaseStatus.DEPLOYED).build())
 			.build();
 
 		String all = getAction.getAll(release, false);
@@ -302,7 +303,10 @@ class GetActionTest {
 			.chart(Chart.builder()
 				.metadata(ChartMetadata.builder().name("test-chart").version("1.0.0").appVersion("1.0").build())
 				.build())
-			.info(Release.ReleaseInfo.builder().status("deployed").lastDeployed(OffsetDateTime.now()).build())
+			.info(Release.ReleaseInfo.builder()
+				.status(ReleaseStatus.DEPLOYED)
+				.lastDeployed(OffsetDateTime.now())
+				.build())
 			.manifest("---\nkind: Service\nmetadata:\n  name: my-svc\n")
 			.build();
 	}
@@ -312,7 +316,7 @@ class GetActionTest {
 			.name("my-release")
 			.namespace("default")
 			.version(version)
-			.info(Release.ReleaseInfo.builder().status("deployed").build())
+			.info(Release.ReleaseInfo.builder().status(ReleaseStatus.DEPLOYED).build())
 			.build();
 	}
 
@@ -326,7 +330,7 @@ class GetActionTest {
 				.values(Map.of("chartDefault", "defaultVal", "key1", "chartVal1"))
 				.build())
 			.config(Release.MapConfig.builder().values(Map.of("key1", "userVal1")).build())
-			.info(Release.ReleaseInfo.builder().status("deployed").build())
+			.info(Release.ReleaseInfo.builder().status(ReleaseStatus.DEPLOYED).build())
 			.build();
 	}
 
@@ -339,7 +343,7 @@ class GetActionTest {
 				.metadata(ChartMetadata.builder().name("test-chart").version("1.0.0").build())
 				.build())
 			.info(Release.ReleaseInfo.builder()
-				.status("deployed")
+				.status(ReleaseStatus.DEPLOYED)
 				.notes("Thank you for installing test-chart.")
 				.build())
 			.manifest("---\nkind: Service\n")

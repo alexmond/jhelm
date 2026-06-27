@@ -186,7 +186,7 @@ public class ReleaseMutatingTools {
 		sb.append("' in namespace '").append(release.getNamespace());
 		sb.append("' at revision ").append(release.getVersion());
 		if (release.getInfo() != null && release.getInfo().getStatus() != null) {
-			sb.append(" (status: ").append(release.getInfo().getStatus()).append(')');
+			sb.append(" (status: ").append(release.getInfo().getStatus().getValue()).append(')');
 		}
 		return sb.toString();
 	}
