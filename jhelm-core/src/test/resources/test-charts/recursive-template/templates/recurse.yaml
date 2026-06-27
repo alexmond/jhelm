@@ -1,0 +1,4 @@
+{{- define "recurse" -}}
+{{ template "recurse" . }}
+{{- end -}}
+{{ template "recurse" . }}
