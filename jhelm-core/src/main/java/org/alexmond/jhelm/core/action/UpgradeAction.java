@@ -58,6 +58,11 @@ public class UpgradeAction {
 			.version(currentRelease.getVersion() + 1)
 			.chart(newChart)
 			.info(info)
+			// Persist the user-supplied values (Helm's release "config"), so that
+			// `get values` reports them and a later upgrade can reuse them.
+			.config(Release.MapConfig.builder()
+				.values((overrideValues != null) ? new HashMap<>(overrideValues) : new HashMap<>())
+				.build())
 			.build();
 
 		Map<String, Object> releaseData = new HashMap<>();
