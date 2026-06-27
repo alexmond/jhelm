@@ -25,6 +25,7 @@ import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.core.util.HookParser;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
+import org.alexmond.jhelm.rest.security.MutatingOperation;
 import org.alexmond.jhelm.rest.dto.HelmHookDto;
 import org.alexmond.jhelm.rest.dto.InstallRequest;
 import org.alexmond.jhelm.rest.dto.InstallUploadRequest;
@@ -160,6 +161,7 @@ public class ReleaseController {
 	 * @throws Exception if the chart cannot be pulled or installed
 	 */
 	@PostMapping
+	@MutatingOperation
 	@Operation(summary = "Install a release",
 			description = "Install a new Helm release from a repository chart reference")
 	public ResponseEntity<ReleaseDto> install(@RequestBody InstallRequest request) throws Exception {
@@ -187,6 +189,7 @@ public class ReleaseController {
 	 * @throws Exception if the upload cannot be extracted or installed
 	 */
 	@PostMapping(path = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@MutatingOperation
 	@Operation(summary = "Install a release from upload",
 			description = "Install a new Helm release from an uploaded .tgz chart archive")
 	public ResponseEntity<ReleaseDto> installUpload(@RequestPart("chart") MultipartFile chart,
@@ -212,6 +215,7 @@ public class ReleaseController {
 	 * @throws Exception if the release is not found or the upgrade fails
 	 */
 	@PutMapping("/{name}")
+	@MutatingOperation
 	@Operation(summary = "Upgrade a release",
 			description = "Upgrade an existing release from a repository chart reference")
 	public ReleaseDto upgrade(@Parameter(description = "Release name") @PathVariable String name,
@@ -246,6 +250,7 @@ public class ReleaseController {
 	 * @throws Exception if the release is not found or the upgrade fails
 	 */
 	@PostMapping(path = "/{name}/upgrade/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@MutatingOperation
 	@Operation(summary = "Upgrade a release from upload",
 			description = "Upgrade an existing release from an uploaded .tgz chart archive")
 	public ReleaseDto upgradeUpload(@Parameter(description = "Release name") @PathVariable String name,
@@ -274,6 +279,7 @@ public class ReleaseController {
 	 * @throws Exception if the release cannot be uninstalled
 	 */
 	@DeleteMapping("/{name}")
+	@MutatingOperation
 	@Operation(summary = "Uninstall a release")
 	public ResponseEntity<Void> uninstall(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
@@ -306,6 +312,7 @@ public class ReleaseController {
 	 * @throws Exception if the rollback fails
 	 */
 	@PostMapping("/{name}/rollback")
+	@MutatingOperation
 	@Operation(summary = "Rollback a release", description = "Rollback a release to a previous revision")
 	public ResponseEntity<Void> rollback(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
@@ -323,6 +330,7 @@ public class ReleaseController {
 	 * @throws Exception if the tests cannot be run
 	 */
 	@PostMapping("/{name}/test")
+	@MutatingOperation
 	@Operation(summary = "Test a release", description = "Run test hooks for a release")
 	public List<TestResultDto> test(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
