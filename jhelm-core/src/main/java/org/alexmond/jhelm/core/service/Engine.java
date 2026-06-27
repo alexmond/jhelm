@@ -228,13 +228,14 @@ public class Engine {
 			return cleanManifest(rendered);
 		}
 		catch (StackOverflowError ex) {
+			// Fail loudly instead of returning an error string as the manifest: a
+			// recursive
+			// template would otherwise render "successfully" with garbage that could
+			// reach a
+			// cluster. The render thread captures this RuntimeException and rethrows it.
 			String chartName = chart.getMetadata().getName();
-			if (log.isErrorEnabled()) {
-				log.error("StackOverflowError during rendering of chart '{}': recursive template inclusion detected",
-						chartName);
-			}
-			return "ERROR: chart '" + chartName
-					+ "': recursive template inclusion or too deep nesting. Check for circular {{ template }} calls.";
+			throw new TemplateRenderException("recursive template inclusion or too deep nesting while rendering chart '"
+					+ chartName + "'; check for circular {{ template }} calls", ex, chartName, null);
 		}
 	}
 
@@ -764,11 +765,11 @@ public class Engine {
 				}
 			}
 			catch (StackOverflowError ex) {
-				if (log.isErrorEnabled()) {
-					log.error(
-							"StackOverflowError rendering chart '{}', template '{}': recursive template inclusion detected",
-							chart.getMetadata().getName(), t.getName());
-				}
+				// Fail loudly instead of silently dropping the template from the
+				// manifest.
+				String chartName = chart.getMetadata().getName();
+				throw new TemplateRenderException("recursive template inclusion or too deep nesting while rendering "
+						+ "template '" + t.getName() + "' of chart '" + chartName + "'", ex, chartName, t.getName());
 			}
 			catch (Exception ex) {
 				String chartName = chart.getMetadata().getName();
