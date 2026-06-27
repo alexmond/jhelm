@@ -81,6 +81,9 @@ public class InstallCommand implements Runnable {
 	@Option(names = { "--no-hooks" }, description = "prevent hooks from running during this operation")
 	private boolean noHooks;
 
+	@CommandLine.Option(names = { "--create-namespace" }, description = "create the release namespace if not present")
+	private boolean createNamespace;
+
 	/**
 	 * Creates the command.
 	 * @param installAction the action that performs the install
@@ -111,6 +114,7 @@ public class InstallCommand implements Runnable {
 				.revision(1)
 				.dryRun(dryRun)
 				.noHooks(noHooks)
+				.createNamespace(createNamespace)
 				.build());
 			applyCliPostRenderers(release);
 

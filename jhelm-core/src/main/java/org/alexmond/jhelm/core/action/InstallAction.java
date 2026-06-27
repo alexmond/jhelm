@@ -93,22 +93,16 @@ public class InstallAction {
 		releaseData.put("IsUpgrade", false);
 		releaseData.put("Revision", release.getVersion());
 
-		String manifest = engine.render(chart, values, releaseData);
-
-		for (PostRenderProcessor processor : postRenderProcessors) {
-			try {
-				manifest = processor.process(manifest);
-			}
-			catch (Exception ex) {
-				throw new JhelmException("Post-render processor failed", ex);
-			}
-		}
+		String manifest = runPostRenderProcessors(engine.render(chart, values, releaseData));
 
 		release.setManifest(manifest);
 
 		if (kubeService != null && !options.isDryRun()) {
 			String namespace = options.getNamespace();
 			boolean noHooks = options.isNoHooks();
+			if (options.isCreateNamespace()) {
+				kubeService.ensureNamespace(namespace);
+			}
 			applyCrds(chart, namespace);
 			fireLifecycleEvent("pre-install", options.getReleaseName(), namespace);
 			String regularManifest = HookParser.stripHooks(manifest);
@@ -133,6 +127,19 @@ public class InstallAction {
 		}
 
 		return release;
+	}
+
+	private String runPostRenderProcessors(String manifest) {
+		String result = manifest;
+		for (PostRenderProcessor processor : postRenderProcessors) {
+			try {
+				result = processor.process(result);
+			}
+			catch (Exception ex) {
+				throw new JhelmException("Post-render processor failed", ex);
+			}
+		}
+		return result;
 	}
 
 	private void runHooks(HookExecutor hookExecutor, String namespace, List<HelmHook> hooks, String phase) {

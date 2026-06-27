@@ -48,4 +48,11 @@ public final class InstallOptions {
 	 */
 	private final boolean noHooks;
 
+	/**
+	 * When {@code true}, create the target namespace before applying the release if it
+	 * does not already exist. Mirrors Helm's {@code --create-namespace}. Defaults to
+	 * {@code false}.
+	 */
+	private final boolean createNamespace;
+
 }

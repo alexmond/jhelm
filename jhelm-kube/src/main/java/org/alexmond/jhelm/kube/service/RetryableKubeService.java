@@ -82,6 +82,14 @@ public class RetryableKubeService implements KubeService {
 	}
 
 	@Override
+	public void ensureNamespace(String namespace) {
+		executeWithRetry("ensureNamespace", () -> {
+			delegate.ensureNamespace(namespace);
+			return null;
+		});
+	}
+
+	@Override
 	public void apply(String namespace, String yamlContent) {
 		executeWithRetry("apply", () -> {
 			delegate.apply(namespace, yamlContent);

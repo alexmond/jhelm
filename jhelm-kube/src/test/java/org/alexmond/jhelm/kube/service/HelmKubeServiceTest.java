@@ -11,6 +11,7 @@ import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1DeploymentSpec;
 import io.kubernetes.client.openapi.models.V1DeploymentStatus;
+import io.kubernetes.client.openapi.models.V1Namespace;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
@@ -643,6 +644,44 @@ class HelmKubeServiceTest {
 
 		kubeService.delete("", yaml);
 		verify(mockCustomObjectsApi).deleteClusterCustomObject("", "v1", "namespaces", "test-ns");
+	}
+
+	// --- ensureNamespace ---
+
+	@Test
+	void testEnsureNamespaceCreatesNamespace() throws Exception {
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
+			mockCoreV1Api = mock;
+			var createReq = mock(CoreV1Api.APIcreateNamespaceRequest.class);
+			when(createReq.execute()).thenReturn(new V1Namespace());
+			when(mock.createNamespace(any(V1Namespace.class))).thenReturn(createReq);
+		});
+
+		kubeService.ensureNamespace("my-ns");
+		verify(mockCoreV1Api).createNamespace(any(V1Namespace.class));
+	}
+
+	@Test
+	void testEnsureNamespaceSwallows409Conflict() {
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
+			var createReq = mock(CoreV1Api.APIcreateNamespaceRequest.class);
+			when(createReq.execute()).thenThrow(new ApiException(409, "Conflict"));
+			when(mock.createNamespace(any(V1Namespace.class))).thenReturn(createReq);
+		});
+
+		// An already-existing namespace (409) is a no-op, not an error.
+		assertDoesNotThrow(() -> kubeService.ensureNamespace("default"));
+	}
+
+	@Test
+	void testEnsureNamespaceThrowsOnOtherApiError() {
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
+			var createReq = mock(CoreV1Api.APIcreateNamespaceRequest.class);
+			when(createReq.execute()).thenThrow(new ApiException(500, "Server error"));
+			when(mock.createNamespace(any(V1Namespace.class))).thenReturn(createReq);
+		});
+
+		assertThrows(KubernetesOperationException.class, () -> kubeService.ensureNamespace("my-ns"));
 	}
 
 	// --- installConfigMap ---
