@@ -87,6 +87,11 @@ public class ObservableKubeService implements KubeService {
 	}
 
 	@Override
+	public void ensureNamespace(String namespace) {
+		timeVoid(applyTimer, () -> delegate.ensureNamespace(namespace));
+	}
+
+	@Override
 	public void apply(String namespace, String yamlContent) {
 		timeVoid(applyTimer, () -> delegate.apply(namespace, yamlContent));
 	}

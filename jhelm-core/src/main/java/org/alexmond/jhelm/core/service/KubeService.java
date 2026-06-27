@@ -74,6 +74,14 @@ public interface KubeService {
 	void pruneReleaseHistory(String name, String namespace, int maxHistory);
 
 	/**
+	 * Creates the given namespace if it does not already exist. A no-op if the namespace
+	 * is already present. Mirrors Helm's {@code --create-namespace}.
+	 * @param namespace the namespace to create
+	 * @throws KubernetesOperationException if the namespace cannot be created
+	 */
+	void ensureNamespace(String namespace);
+
+	/**
 	 * Applies a rendered manifest to the cluster via server-side apply.
 	 * @param namespace the target namespace
 	 * @param yamlContent rendered YAML manifest (may contain multiple documents)

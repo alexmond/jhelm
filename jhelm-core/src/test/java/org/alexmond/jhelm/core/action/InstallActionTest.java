@@ -274,6 +274,51 @@ class InstallActionTest {
 	}
 
 	@Test
+	void testInstallCreatesNamespaceBeforeApply() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		String manifest = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\n";
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(manifest);
+		doNothing().when(kubeService).ensureNamespace(anyString());
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.createNamespace(true)
+			.build());
+
+		// Namespace is created before the manifest is applied.
+		org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(kubeService);
+		inOrder.verify(kubeService).ensureNamespace("default");
+		inOrder.verify(kubeService).apply("default", HookParser.stripHooks(manifest));
+	}
+
+	@Test
+	void testInstallSkipsNamespaceCreationByDefault() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		String manifest = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\n";
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(manifest);
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.build());
+
+		verify(kubeService, never()).ensureNamespace(anyString());
+	}
+
+	@Test
 	void testInstallRejectsLibraryChart() {
 		ChartMetadata metadata = ChartMetadata.builder().name("mylib").version("1.0.0").type("library").build();
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();

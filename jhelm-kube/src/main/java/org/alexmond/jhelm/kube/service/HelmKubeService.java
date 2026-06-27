@@ -12,6 +12,7 @@ import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1Job;
+import io.kubernetes.client.openapi.models.V1Namespace;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
@@ -276,6 +277,28 @@ public class HelmKubeService implements KubeService {
 		}
 		catch (ApiException ex) {
 			throw new KubernetesOperationException("Failed to list pods in " + namespace, ex, ex.getCode());
+		}
+	}
+
+	/**
+	 * Creates the namespace if it does not already exist. An HTTP 409 conflict (the
+	 * namespace already exists) is treated as success.
+	 */
+	@Override
+	public void ensureNamespace(String namespace) {
+		CoreV1Api api = new CoreV1Api(apiClient);
+		V1Namespace ns = new V1Namespace().metadata(new V1ObjectMeta().name(namespace));
+		try {
+			if (log.isInfoEnabled()) {
+				log.info("Creating namespace {}", namespace);
+			}
+			api.createNamespace(ns).execute();
+		}
+		catch (ApiException ex) {
+			if (ex.getCode() == 409) { // Conflict / already exists -> no-op
+				return;
+			}
+			throw new KubernetesOperationException("Failed to create namespace " + namespace, ex, ex.getCode());
 		}
 	}
 
