@@ -24,12 +24,15 @@ import org.alexmond.jhelm.rest.controller.DependencyController;
 import org.alexmond.jhelm.rest.controller.HubController;
 import org.alexmond.jhelm.rest.controller.ReleaseController;
 import org.alexmond.jhelm.rest.controller.RepoController;
+import org.alexmond.jhelm.rest.security.AccessModeInterceptor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -72,6 +75,35 @@ public class JhelmRestAutoConfiguration {
 	@ConditionalOnMissingBean
 	public JhelmRestExceptionHandler jhelmRestExceptionHandler() {
 		return new JhelmRestExceptionHandler();
+	}
+
+	/**
+	 * Registers the access-mode interceptor that rejects cluster-mutating endpoints when
+	 * the REST API is in {@code READ_ONLY} mode.
+	 * @param properties the REST module configuration carrying the access mode
+	 * @return the access-mode interceptor bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public AccessModeInterceptor accessModeInterceptor(JhelmRestProperties properties) {
+		return new AccessModeInterceptor(properties);
+	}
+
+	/**
+	 * Registers a {@link WebMvcConfigurer} that applies the {@link AccessModeInterceptor}
+	 * to all REST paths.
+	 * @param accessModeInterceptor the interceptor enforcing the access mode
+	 * @return the web MVC configurer bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean(name = "jhelmAccessModeWebMvcConfigurer")
+	public WebMvcConfigurer jhelmAccessModeWebMvcConfigurer(AccessModeInterceptor accessModeInterceptor) {
+		return new WebMvcConfigurer() {
+			@Override
+			public void addInterceptors(InterceptorRegistry registry) {
+				registry.addInterceptor(accessModeInterceptor);
+			}
+		};
 	}
 
 	/**
