@@ -17,6 +17,7 @@ import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.LifecycleListener;
+import org.alexmond.jhelm.core.service.LifecyclePhase;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
@@ -105,7 +106,7 @@ public class InstallAction {
 				kubeService.ensureNamespace(namespace);
 			}
 			applyCrds(chart, namespace);
-			fireLifecycleEvent("pre-install", options.getReleaseName(), namespace);
+			fireLifecycleEvent(LifecyclePhase.PRE_INSTALL, options.getReleaseName(), namespace);
 			String regularManifest = HookParser.stripHooks(manifest);
 			List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
 			HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
@@ -124,7 +125,7 @@ public class InstallAction {
 			if (!noHooks) {
 				runHooks(hookExecutor, namespace, hooks, "post-install");
 			}
-			fireLifecycleEvent("post-install", options.getReleaseName(), namespace);
+			fireLifecycleEvent(LifecyclePhase.POST_INSTALL, options.getReleaseName(), namespace);
 		}
 
 		return release;
@@ -178,13 +179,13 @@ public class InstallAction {
 		}
 	}
 
-	private void fireLifecycleEvent(String phase, String releaseName, String namespace) {
+	private void fireLifecycleEvent(LifecyclePhase phase, String releaseName, String namespace) {
 		for (LifecycleListener listener : lifecycleListeners) {
 			try {
 				listener.onEvent(phase, releaseName, namespace, Map.of());
 			}
 			catch (Exception ex) {
-				throw new JhelmException("Lifecycle listener failed for phase " + phase, ex);
+				throw new JhelmException("Lifecycle listener failed for phase " + phase.getValue(), ex);
 			}
 		}
 	}
