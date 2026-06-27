@@ -3,6 +3,7 @@ package org.alexmond.jhelm.core.action;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -28,6 +29,7 @@ import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.anyMap;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.inOrder;
 import org.alexmond.jhelm.core.exception.DeploymentFailedException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
@@ -98,6 +100,8 @@ class UpgradeActionTest {
 		// trailing \n)
 		verify(kubeService).apply("default", HookParser.stripHooks(renderedManifest));
 		verify(kubeService).storeRelease(any(Release.class));
+		// The 5-arg overload defaults to Helm's --history-max default of 10.
+		verify(kubeService).pruneReleaseHistory("myapp", "default", 10);
 
 		@SuppressWarnings("unchecked")
 		ArgumentCaptor<Map<String, Object>> releaseDataCaptor = ArgumentCaptor.forClass(Map.class);
@@ -179,6 +183,38 @@ class UpgradeActionTest {
 
 		verify(kubeService, never()).apply(anyString(), anyString());
 		verify(kubeService, never()).storeRelease(any(Release.class));
+		verify(kubeService, never()).pruneReleaseHistory(anyString(), anyString(), anyInt());
+	}
+
+	@Test
+	void testUpgradePrunesHistoryAfterStoreWithGivenMaxHistory() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("2.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status("deployed")
+			.build();
+
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.info(info)
+			.build();
+
+		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		upgradeAction.upgrade(currentRelease, chart, null, UpgradeValueStrategy.DEFAULT, false, false, 5);
+
+		// Prune is invoked with the passed maxHistory, after the release is stored.
+		InOrder order = inOrder(kubeService);
+		order.verify(kubeService).storeRelease(any(Release.class));
+		order.verify(kubeService).pruneReleaseHistory("myapp", "default", 5);
 	}
 
 	@Test

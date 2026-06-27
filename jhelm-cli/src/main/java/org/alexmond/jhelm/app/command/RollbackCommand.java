@@ -30,6 +30,10 @@ public class RollbackCommand implements Runnable {
 	@CommandLine.Option(names = { "--no-hooks" }, description = "prevent hooks from running during this operation")
 	private boolean noHooks;
 
+	@CommandLine.Option(names = { "--history-max" }, defaultValue = "10",
+			description = "limit the maximum number of revisions saved per release (0 = no limit)")
+	private int historyMax;
+
 	/**
 	 * Creates the command.
 	 * @param rollbackAction the action that performs the rollback
@@ -41,7 +45,7 @@ public class RollbackCommand implements Runnable {
 	@Override
 	public void run() {
 		try {
-			rollbackAction.rollback(name, namespace, revision, noHooks);
+			rollbackAction.rollback(name, namespace, revision, noHooks, historyMax);
 			CliOutput.println(CliOutput.success("Rollback was a success! Happy Helming!"));
 		}
 		catch (Exception ex) {

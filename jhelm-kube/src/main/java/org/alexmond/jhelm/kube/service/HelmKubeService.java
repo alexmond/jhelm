@@ -213,6 +213,41 @@ public class HelmKubeService implements KubeService {
 	}
 
 	/**
+	 * Prunes a release's revision history to the newest {@code maxHistory} revisions,
+	 * deleting the oldest Secrets. The highest-version (current) revision is never
+	 * deleted.
+	 */
+	@Override
+	public void pruneReleaseHistory(String name, String namespace, int maxHistory) {
+		if (maxHistory <= 0) {
+			return;
+		}
+		CoreV1Api api = new CoreV1Api(apiClient);
+		String labelSelector = "owner=helm,name=" + name;
+		V1SecretList list = listSecrets(api, namespace, labelSelector, "prune history for " + name);
+
+		List<V1Secret> sorted = list.getItems()
+			.stream()
+			.sorted(Comparator
+				.comparingInt((V1Secret s) -> Integer.parseInt(s.getMetadata().getLabels().get("version"))))
+			.toList();
+
+		int toDelete = sorted.size() - maxHistory;
+		if (toDelete <= 0) {
+			return;
+		}
+
+		try {
+			for (V1Secret secret : sorted.subList(0, toDelete)) {
+				api.deleteNamespacedSecret(secret.getMetadata().getName(), namespace).execute();
+			}
+		}
+		catch (ApiException ex) {
+			throw new KubernetesOperationException("Failed to prune release history for " + name, ex, ex.getCode());
+		}
+	}
+
+	/**
 	 * Lists release Secrets for a label selector, translating the kubernetes-client
 	 * {@link ApiException} into a {@link KubernetesOperationException} so callers never
 	 * see the client's checked exception.

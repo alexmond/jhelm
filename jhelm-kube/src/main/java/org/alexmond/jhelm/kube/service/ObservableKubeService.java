@@ -82,6 +82,11 @@ public class ObservableKubeService implements KubeService {
 	}
 
 	@Override
+	public void pruneReleaseHistory(String name, String namespace, int maxHistory) {
+		timeVoid(deleteTimer, () -> delegate.pruneReleaseHistory(name, namespace, maxHistory));
+	}
+
+	@Override
 	public void apply(String namespace, String yamlContent) {
 		timeVoid(applyTimer, () -> delegate.apply(namespace, yamlContent));
 	}

@@ -77,7 +77,7 @@ class UpgradeCommandTest {
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
 		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean(), anyBoolean()))
+				anyBoolean(), anyBoolean(), anyInt()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -116,7 +116,7 @@ class UpgradeCommandTest {
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
 		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean(), anyBoolean()))
+				anyBoolean(), anyBoolean(), anyInt()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -155,7 +155,7 @@ class UpgradeCommandTest {
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
 		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean(), anyBoolean()))
+				anyBoolean(), anyBoolean(), anyInt()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -172,7 +172,7 @@ class UpgradeCommandTest {
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
 		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean(), anyBoolean()))
+				anyBoolean(), anyBoolean(), anyInt()))
 			.thenReturn(upgradedRelease);
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
@@ -205,7 +205,7 @@ class UpgradeCommandTest {
 
 		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
 		when(upgradeAction.upgrade(any(Release.class), any(Chart.class), anyMap(), any(UpgradeValueStrategy.class),
-				anyBoolean(), anyBoolean()))
+				anyBoolean(), anyBoolean(), anyInt()))
 			.thenThrow(new RuntimeException("upgrade failed"));
 
 		CommandLine cmd = new CommandLine(upgradeCommand);

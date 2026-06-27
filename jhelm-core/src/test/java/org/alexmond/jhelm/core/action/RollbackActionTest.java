@@ -3,6 +3,7 @@ package org.alexmond.jhelm.core.action;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.inOrder;
 import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
@@ -109,6 +111,41 @@ class RollbackActionTest {
 		Release storedRelease = releaseCaptor.getValue();
 		assertEquals(4, storedRelease.getVersion());
 		assertEquals("Rollback to 1", storedRelease.getInfo().getDescription());
+
+		// The 3-arg overload defaults to Helm's --history-max default of 10.
+		verify(kubeService).pruneReleaseHistory("myapp", "default", 10);
+	}
+
+	@Test
+	void testRollbackPrunesHistoryAfterStoreWithGivenMaxHistory() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).build();
+
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status("deployed")
+			.build();
+
+		Release v1 = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.manifest("---\nv1 manifest")
+			.info(info)
+			.build();
+
+		when(kubeService.getReleaseHistory(anyString(), anyString())).thenReturn(Arrays.asList(v1));
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		rollbackAction.rollback("myapp", "default", 1, false, 5);
+
+		// Prune is invoked with the passed maxHistory, after the release is stored.
+		InOrder order = inOrder(kubeService);
+		order.verify(kubeService).storeRelease(any(Release.class));
+		order.verify(kubeService).pruneReleaseHistory("myapp", "default", 5);
 	}
 
 	@Test

@@ -74,6 +74,14 @@ public class RetryableKubeService implements KubeService {
 	}
 
 	@Override
+	public void pruneReleaseHistory(String name, String namespace, int maxHistory) {
+		executeWithRetry("pruneReleaseHistory", () -> {
+			delegate.pruneReleaseHistory(name, namespace, maxHistory);
+			return null;
+		});
+	}
+
+	@Override
 	public void apply(String namespace, String yamlContent) {
 		executeWithRetry("apply", () -> {
 			delegate.apply(namespace, yamlContent);

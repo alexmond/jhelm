@@ -61,6 +61,19 @@ public interface KubeService {
 	void deleteReleaseHistory(String name, String namespace);
 
 	/**
+	 * Prunes a release's stored revision history, keeping only the newest
+	 * {@code maxHistory} revisions and deleting the oldest ones. The current (highest
+	 * version) revision is always retained. A {@code maxHistory} of {@code 0} or less
+	 * means no limit, so the call is a no-op. Mirrors Helm's {@code --history-max}.
+	 * @param name the release name
+	 * @param namespace the namespace to look in
+	 * @param maxHistory the maximum number of revisions to keep; {@code 0} or less means
+	 * no limit
+	 * @throws KubernetesOperationException if the Kubernetes API cannot be reached
+	 */
+	void pruneReleaseHistory(String name, String namespace, int maxHistory);
+
+	/**
 	 * Applies a rendered manifest to the cluster via server-side apply.
 	 * @param namespace the target namespace
 	 * @param yamlContent rendered YAML manifest (may contain multiple documents)
