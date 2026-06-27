@@ -52,7 +52,7 @@ public class ListCommand implements Runnable {
 					CliOutput.bold("STATUS"), CliOutput.bold("CHART"));
 			for (Release r : releases) {
 				String chartInfo = r.getChart().getMetadata().getName() + "-" + r.getChart().getMetadata().getVersion();
-				String status = colorizeStatus(r.getInfo().getStatus());
+				String status = colorizeStatus(r.getInfo().getStatus().getValue());
 				CliOutput.printf("%-20s %-10d %-10s %-30s\n", r.getName(), r.getVersion(), status, chartInfo);
 			}
 		}

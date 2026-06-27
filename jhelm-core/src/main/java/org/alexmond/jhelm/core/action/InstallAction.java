@@ -13,6 +13,7 @@ import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.LifecycleListener;
@@ -69,7 +70,7 @@ public class InstallAction {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now())
 			.lastDeployed(OffsetDateTime.now())
-			.status(options.isDryRun() ? "pending-install" : "deployed")
+			.status((options.isDryRun()) ? ReleaseStatus.PENDING_INSTALL : ReleaseStatus.DEPLOYED)
 			.description(options.isDryRun() ? "Dry run complete" : "Install complete")
 			.build();
 

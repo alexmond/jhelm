@@ -4,6 +4,7 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
@@ -207,7 +208,7 @@ class UpgradeCommandTest {
 
 		Chart chart = Chart.builder().metadata(metadata).build();
 
-		Release.ReleaseInfo info = Release.ReleaseInfo.builder().status("deployed").build();
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder().status(ReleaseStatus.DEPLOYED).build();
 
 		return Release.builder()
 			.name(name)

@@ -3,6 +3,7 @@ package org.alexmond.jhelm.app.command;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.action.StatusAction;
 import org.junit.jupiter.api.BeforeEach;
@@ -98,7 +99,7 @@ class StatusCommandTest {
 		Chart chart = Chart.builder().metadata(metadata).build();
 
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.lastDeployed(OffsetDateTime.now())
 			.build();
 

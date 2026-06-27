@@ -22,6 +22,7 @@ import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -111,7 +112,7 @@ class HelmKubeServiceTest {
 			.namespace(namespace)
 			.version(version)
 			.info(Release.ReleaseInfo.builder()
-				.status(status)
+				.status(ReleaseStatus.fromValue(status))
 				.firstDeployed(OffsetDateTime.now())
 				.lastDeployed(OffsetDateTime.now())
 				.description("Test release")
@@ -129,7 +130,7 @@ class HelmKubeServiceTest {
 				.namespace(release.getNamespace())
 				.putLabelsItem("owner", "helm")
 				.putLabelsItem("name", release.getName())
-				.putLabelsItem("status", release.getInfo().getStatus())
+				.putLabelsItem("status", release.getInfo().getStatus().getValue())
 				.putLabelsItem("version", String.valueOf(release.getVersion())))
 			.type("helm.sh/release.v1")
 			.putDataItem("release", b64.getBytes(StandardCharsets.UTF_8));

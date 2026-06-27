@@ -2,6 +2,7 @@ package org.alexmond.jhelm.kube.service;
 
 import io.kubernetes.client.openapi.ApiClient;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.service.AsyncKubeService;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,7 +55,7 @@ class AsyncHelmKubeServiceTest {
 			.namespace(namespace)
 			.version(version)
 			.info(Release.ReleaseInfo.builder()
-				.status("deployed")
+				.status(ReleaseStatus.DEPLOYED)
 				.firstDeployed(OffsetDateTime.now())
 				.lastDeployed(OffsetDateTime.now())
 				.description("Test release")

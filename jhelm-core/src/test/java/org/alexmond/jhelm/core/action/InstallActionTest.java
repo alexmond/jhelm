@@ -26,6 +26,7 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.HookParser;
@@ -67,7 +68,7 @@ class InstallActionTest {
 		assertEquals("my-release", release.getName());
 		assertEquals("default", release.getNamespace());
 		assertEquals(1, release.getVersion());
-		assertEquals("deployed", release.getInfo().getStatus());
+		assertEquals(ReleaseStatus.DEPLOYED, release.getInfo().getStatus());
 		assertEquals(manifest, release.getManifest());
 
 		verify(kubeService).apply("default", HookParser.stripHooks(manifest));
@@ -110,7 +111,7 @@ class InstallActionTest {
 			.dryRun(true)
 			.build());
 
-		assertEquals("pending-install", release.getInfo().getStatus());
+		assertEquals(ReleaseStatus.PENDING_INSTALL, release.getInfo().getStatus());
 		verify(kubeService, never()).apply(anyString(), anyString());
 		verify(kubeService, never()).storeRelease(any(Release.class));
 	}

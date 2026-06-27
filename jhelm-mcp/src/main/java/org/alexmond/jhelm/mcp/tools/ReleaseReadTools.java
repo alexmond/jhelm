@@ -163,7 +163,7 @@ public class ReleaseReadTools {
 
 	private static String statusOf(Release release) {
 		if (release.getInfo() != null && release.getInfo().getStatus() != null) {
-			return release.getInfo().getStatus();
+			return release.getInfo().getStatus().getValue();
 		}
 		return "unknown";
 	}

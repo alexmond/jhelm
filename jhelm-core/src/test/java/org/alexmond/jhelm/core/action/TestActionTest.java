@@ -10,6 +10,7 @@ import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.Release.ReleaseInfo;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.junit.jupiter.api.BeforeEach;
@@ -226,7 +227,7 @@ class TestActionTest {
 			.namespace("default")
 			.version(1)
 			.manifest(manifest)
-			.info(ReleaseInfo.builder().status("deployed").build())
+			.info(ReleaseInfo.builder().status(ReleaseStatus.DEPLOYED).build())
 			.build();
 	}
 

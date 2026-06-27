@@ -60,7 +60,7 @@ public class ReleaseDto {
 				.appVersion(release.getChart().getMetadata().getAppVersion());
 		}
 		if (release.getInfo() != null) {
-			builder.status(release.getInfo().getStatus())
+			builder.status((release.getInfo().getStatus() != null) ? release.getInfo().getStatus().getValue() : null)
 				.description(release.getInfo().getDescription())
 				.lastDeployed(release.getInfo().getLastDeployed());
 		}

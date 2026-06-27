@@ -89,7 +89,8 @@ public class HelmKubeService implements KubeService {
 					.namespace(release.getNamespace())
 					.putLabelsItem("owner", "helm")
 					.putLabelsItem("name", release.getName())
-					.putLabelsItem("status", release.getInfo().getStatus())
+					.putLabelsItem("status",
+							(release.getInfo().getStatus() != null) ? release.getInfo().getStatus().getValue() : null)
 					.putLabelsItem("version", String.valueOf(release.getVersion())))
 				.type("helm.sh/release.v1")
 				.putDataItem("release", encoded);

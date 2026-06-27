@@ -13,6 +13,7 @@ import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.LifecycleListener;
@@ -60,7 +61,7 @@ public class UpgradeAction {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(currentRelease.getInfo().getFirstDeployed())
 			.lastDeployed(OffsetDateTime.now())
-			.status(options.isDryRun() ? "pending-upgrade" : "deployed")
+			.status((options.isDryRun()) ? ReleaseStatus.PENDING_UPGRADE : ReleaseStatus.DEPLOYED)
 			.description(options.isDryRun() ? "Dry run complete" : "Upgrade complete")
 			.build();
 

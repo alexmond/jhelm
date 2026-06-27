@@ -28,6 +28,7 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.HookParser;
 
@@ -52,19 +53,19 @@ class RollbackActionTest {
 		Release.ReleaseInfo info1 = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(2))
 			.lastDeployed(OffsetDateTime.now().minusDays(2))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release.ReleaseInfo info2 = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(2))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release.ReleaseInfo info3 = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(2))
 			.lastDeployed(OffsetDateTime.now())
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release v1 = Release.builder()
@@ -125,7 +126,7 @@ class RollbackActionTest {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(1))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release v1 = Release.builder()
@@ -175,7 +176,7 @@ class RollbackActionTest {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(1))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release v1 = Release.builder()
@@ -228,7 +229,7 @@ class RollbackActionTest {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(1))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release v1 = Release.builder()

@@ -35,6 +35,7 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.HookParser;
@@ -63,7 +64,7 @@ class UpgradeActionTest {
 		Release.ReleaseInfo oldInfo = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(1))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.description("Install complete")
 			.build();
 
@@ -95,7 +96,7 @@ class UpgradeActionTest {
 		assertEquals("myapp", upgradedRelease.getName());
 		assertEquals("default", upgradedRelease.getNamespace());
 		assertEquals(2, upgradedRelease.getVersion());
-		assertEquals("deployed", upgradedRelease.getInfo().getStatus());
+		assertEquals(ReleaseStatus.DEPLOYED, upgradedRelease.getInfo().getStatus());
 		assertEquals("Upgrade complete", upgradedRelease.getInfo().getDescription());
 		assertEquals(renderedManifest, upgradedRelease.getManifest());
 
@@ -129,7 +130,7 @@ class UpgradeActionTest {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(1))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release currentRelease = Release.builder()
@@ -169,7 +170,7 @@ class UpgradeActionTest {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(1))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release currentRelease = Release.builder()
@@ -190,7 +191,7 @@ class UpgradeActionTest {
 			.build());
 
 		assertNotNull(upgradedRelease);
-		assertEquals("pending-upgrade", upgradedRelease.getInfo().getStatus());
+		assertEquals(ReleaseStatus.PENDING_UPGRADE, upgradedRelease.getInfo().getStatus());
 		assertEquals("Dry run complete", upgradedRelease.getInfo().getDescription());
 
 		verify(kubeService, never()).apply(anyString(), anyString());
@@ -206,7 +207,7 @@ class UpgradeActionTest {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(1))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release currentRelease = Release.builder()
@@ -242,7 +243,7 @@ class UpgradeActionTest {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(1))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release currentRelease = Release.builder()
@@ -298,7 +299,7 @@ class UpgradeActionTest {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(1))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release currentRelease = Release.builder()
@@ -355,7 +356,7 @@ class UpgradeActionTest {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(5))
 			.lastDeployed(OffsetDateTime.now().minusDays(2))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release currentRelease = Release.builder()
@@ -387,7 +388,7 @@ class UpgradeActionTest {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(1))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		Release currentRelease = Release.builder()
@@ -425,7 +426,7 @@ class UpgradeActionTest {
 			.namespace("default")
 			.version(1)
 			.chart(chart)
-			.info(Release.ReleaseInfo.builder().status("deployed").build())
+			.info(Release.ReleaseInfo.builder().status(ReleaseStatus.DEPLOYED).build())
 			.build();
 
 		assertThrows(IllegalArgumentException.class,
@@ -453,7 +454,7 @@ class UpgradeActionTest {
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now().minusDays(1))
 			.lastDeployed(OffsetDateTime.now().minusDays(1))
-			.status("deployed")
+			.status(ReleaseStatus.DEPLOYED)
 			.build();
 
 		return Release.builder()
