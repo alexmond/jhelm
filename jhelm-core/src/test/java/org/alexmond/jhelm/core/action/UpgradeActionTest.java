@@ -12,8 +12,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -346,6 +348,110 @@ class UpgradeActionTest {
 		// Regular manifest is still applied and the release stored
 		verify(kubeService).apply("default", strippedManifest);
 		verify(kubeService).storeRelease(any(Release.class));
+	}
+
+	@Test
+	void testUpgradeDeletesOrphanedResources() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("2.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		// Previous release rendered a Service and a ConfigMap; the new chart only
+		// renders the Service, so the ConfigMap is orphaned and must be deleted.
+		String previousManifest = """
+				---
+				apiVersion: v1
+				kind: Service
+				metadata:
+				  name: myapp-svc
+				---
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: myapp-config
+				""";
+
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status(ReleaseStatus.DEPLOYED)
+			.build();
+
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.manifest(previousManifest)
+			.info(info)
+			.build();
+
+		String newManifest = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(newManifest);
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).delete(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(chart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.build());
+
+		ArgumentCaptor<String> orphanCaptor = ArgumentCaptor.forClass(String.class);
+		verify(kubeService).delete(eq("default"), orphanCaptor.capture());
+		String orphans = orphanCaptor.getValue();
+		assertTrue(orphans.contains("kind: ConfigMap"));
+		assertTrue(orphans.contains("name: myapp-config"));
+		assertFalse(orphans.contains("kind: Service"));
+	}
+
+	@Test
+	void testUpgradeNoOrphansSkipsDelete() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("2.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		String previousManifest = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
+
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status(ReleaseStatus.DEPLOYED)
+			.build();
+
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.manifest(previousManifest)
+			.info(info)
+			.build();
+
+		// New manifest still renders the Service (plus an added ConfigMap) — nothing
+		// dropped.
+		String newManifest = """
+				---
+				apiVersion: v1
+				kind: Service
+				metadata:
+				  name: myapp-svc
+				---
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: myapp-config
+				""";
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(newManifest);
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(chart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.build());
+
+		verify(kubeService, never()).delete(anyString(), anyString());
 	}
 
 	@Test

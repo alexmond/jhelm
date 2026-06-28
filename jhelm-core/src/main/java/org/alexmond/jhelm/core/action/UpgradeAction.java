@@ -22,6 +22,7 @@ import org.alexmond.jhelm.core.service.LifecyclePhase;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
+import org.alexmond.jhelm.core.util.ManifestDiff;
 import org.alexmond.jhelm.core.util.ValuesLoader;
 
 @RequiredArgsConstructor
@@ -101,31 +102,45 @@ public class UpgradeAction {
 		newRelease = newRelease.toBuilder().manifest(manifest).build();
 
 		if (kubeService != null && !options.isDryRun()) {
-			boolean noHooks = options.isNoHooks();
-			fireLifecycleEvent(LifecyclePhase.PRE_UPGRADE, newRelease.getName(), newRelease.getNamespace());
-			String regularManifest = HookParser.stripHooks(manifest);
-			List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
-			HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
-			if (!noHooks) {
-				runHooks(hookExecutor, newRelease.getNamespace(), hooks, "pre-upgrade");
-			}
-			kubeService.apply(newRelease.getNamespace(), regularManifest);
-			try {
-				kubeService.storeRelease(newRelease);
-			}
-			catch (Exception ex) {
-				reapplyPreviousRelease(currentRelease);
-				throw new DeploymentFailedException("Failed to store release after apply; previous release re-applied",
-						ex, regularManifest);
-			}
-			kubeService.pruneReleaseHistory(newRelease.getName(), newRelease.getNamespace(), options.getMaxHistory());
-			if (!noHooks) {
-				runHooks(hookExecutor, newRelease.getNamespace(), hooks, "post-upgrade");
-			}
-			fireLifecycleEvent(LifecyclePhase.POST_UPGRADE, newRelease.getName(), newRelease.getNamespace());
+			applyRelease(options, currentRelease, newRelease, manifest);
 		}
 
 		return newRelease;
+	}
+
+	/**
+	 * Applies a non-dry-run upgrade to the cluster: runs pre-upgrade hooks, applies the
+	 * hook-stripped manifest, stores the release, prunes history, deletes orphaned
+	 * resources and runs post-upgrade hooks.
+	 * @param options the upgrade options
+	 * @param currentRelease the previous release
+	 * @param newRelease the new release being applied
+	 * @param manifest the full rendered manifest (hooks not yet stripped)
+	 */
+	private void applyRelease(UpgradeOptions options, Release currentRelease, Release newRelease, String manifest) {
+		boolean noHooks = options.isNoHooks();
+		fireLifecycleEvent(LifecyclePhase.PRE_UPGRADE, newRelease.getName(), newRelease.getNamespace());
+		String regularManifest = HookParser.stripHooks(manifest);
+		List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
+		HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
+		if (!noHooks) {
+			runHooks(hookExecutor, newRelease.getNamespace(), hooks, "pre-upgrade");
+		}
+		kubeService.apply(newRelease.getNamespace(), regularManifest);
+		try {
+			kubeService.storeRelease(newRelease);
+		}
+		catch (Exception ex) {
+			reapplyPreviousRelease(currentRelease);
+			throw new DeploymentFailedException("Failed to store release after apply; previous release re-applied", ex,
+					regularManifest);
+		}
+		kubeService.pruneReleaseHistory(newRelease.getName(), newRelease.getNamespace(), options.getMaxHistory());
+		deleteOrphanedResources(currentRelease, regularManifest, newRelease.getNamespace());
+		if (!noHooks) {
+			runHooks(hookExecutor, newRelease.getNamespace(), hooks, "post-upgrade");
+		}
+		fireLifecycleEvent(LifecyclePhase.POST_UPGRADE, newRelease.getName(), newRelease.getNamespace());
 	}
 
 	/**
@@ -210,6 +225,36 @@ public class UpgradeAction {
 		catch (Exception rollbackEx) {
 			if (log.isErrorEnabled()) {
 				log.error("Failed to re-apply previous release: {}", rollbackEx.getMessage(), rollbackEx);
+			}
+		}
+	}
+
+	/**
+	 * Deletes resources the previous release contained that the new revision no longer
+	 * renders. Orphans are the old−new manifest difference (both hooks-stripped). Matches
+	 * Helm's best-effort cleanup: a failed delete is logged and the upgrade continues.
+	 * @param currentRelease the previous release (its manifest provides the old
+	 * resources)
+	 * @param regularManifest the new hooks-stripped manifest
+	 * @param namespace the release namespace
+	 */
+	private void deleteOrphanedResources(Release currentRelease, String regularManifest, String namespace) {
+		String oldManifest = currentRelease.getManifest();
+		if (oldManifest == null || oldManifest.isBlank()) {
+			return;
+		}
+		String oldRegular = HookParser.stripHooks(oldManifest);
+		// Orphans = resources present in the old manifest but not the new one.
+		String orphans = ManifestDiff.orphanedResources(oldRegular, regularManifest);
+		if (orphans.isBlank()) {
+			return;
+		}
+		try {
+			kubeService.delete(namespace, orphans);
+		}
+		catch (Exception ex) {
+			if (log.isWarnEnabled()) {
+				log.warn("Failed to delete orphaned resources during upgrade: {}", ex.getMessage(), ex);
 			}
 		}
 	}
