@@ -6,6 +6,7 @@ import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.CoreConfig;
+import org.alexmond.jhelm.kube.KubeClusterAvailable;
 import org.alexmond.jhelm.kube.KubernetesConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.HashMap;
 
 @SpringBootTest(classes = { KubernetesConfig.class, HelmKubeService.class, CoreConfig.class })
+@KubeClusterAvailable
 class HelmIntegrationTest {
 
 	@Autowired

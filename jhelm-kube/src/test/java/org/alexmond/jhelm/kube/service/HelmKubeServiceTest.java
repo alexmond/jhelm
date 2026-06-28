@@ -6,7 +6,6 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1DaemonSet;
 import io.kubernetes.client.openapi.models.V1DaemonSetStatus;
@@ -22,7 +21,10 @@ import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1Secret;
 import io.kubernetes.client.openapi.models.V1SecretList;
-import io.kubernetes.client.util.PatchUtils;
+import io.kubernetes.client.util.generic.KubernetesApiResponse;
+import io.kubernetes.client.util.generic.dynamic.DynamicKubernetesApi;
+import io.kubernetes.client.util.generic.dynamic.DynamicKubernetesObject;
+import io.kubernetes.client.util.generic.options.PatchOptions;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
@@ -35,9 +37,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedConstruction;
-import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 
 import java.io.ByteArrayOutputStream;
@@ -62,7 +64,6 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mockConstruction;
-import static org.mockito.Mockito.mockStatic;
 
 class HelmKubeServiceTest {
 
@@ -77,17 +78,13 @@ class HelmKubeServiceTest {
 
 	private MockedConstruction<CoreV1Api> coreV1ApiConstruction;
 
-	private MockedConstruction<CustomObjectsApi> customObjectsApiConstruction;
-
-	private MockedStatic<PatchUtils> patchUtilsMock;
+	private MockedConstruction<DynamicKubernetesApi> dynamicApiConstruction;
 
 	private CoreV1Api mockCoreV1Api;
 
-	private CustomObjectsApi mockCustomObjectsApi;
+	private DynamicKubernetesApi mockDynamicApi;
 
-	private CustomObjectsApi.APIpatchNamespacedCustomObjectRequest mockPatchRequest;
-
-	private CustomObjectsApi.APIpatchClusterCustomObjectRequest mockClusterPatchRequest;
+	private List<Object> lastDynamicApiCtorArgs;
 
 	@BeforeEach
 	void setUp() {
@@ -103,11 +100,8 @@ class HelmKubeServiceTest {
 		if (coreV1ApiConstruction != null) {
 			coreV1ApiConstruction.close();
 		}
-		if (customObjectsApiConstruction != null) {
-			customObjectsApiConstruction.close();
-		}
-		if (patchUtilsMock != null) {
-			patchUtilsMock.close();
+		if (dynamicApiConstruction != null) {
+			dynamicApiConstruction.close();
 		}
 	}
 
@@ -157,28 +151,18 @@ class HelmKubeServiceTest {
 	}
 
 	private void setupSsaMock() {
-		customObjectsApiConstruction = mockConstruction(CustomObjectsApi.class, (mock, ctx) -> {
-			mockCustomObjectsApi = mock;
-
-			mockPatchRequest = mock(CustomObjectsApi.APIpatchNamespacedCustomObjectRequest.class);
-			when(mockPatchRequest.fieldManager(anyString())).thenReturn(mockPatchRequest);
-			when(mockPatchRequest.force(any(Boolean.class))).thenReturn(mockPatchRequest);
-			when(mockPatchRequest.buildCall(any())).thenReturn(null);
-			when(mock.patchNamespacedCustomObject(any(), any(), any(), any(), any(), any()))
-				.thenReturn(mockPatchRequest);
-
-			mockClusterPatchRequest = mock(CustomObjectsApi.APIpatchClusterCustomObjectRequest.class);
-			when(mockClusterPatchRequest.fieldManager(anyString())).thenReturn(mockClusterPatchRequest);
-			when(mockClusterPatchRequest.force(any(Boolean.class))).thenReturn(mockClusterPatchRequest);
-			when(mockClusterPatchRequest.buildCall(any())).thenReturn(null);
-			when(mock.patchClusterCustomObject(any(), any(), any(), any(), any())).thenReturn(mockClusterPatchRequest);
-		});
-
-		patchUtilsMock = mockStatic(PatchUtils.class);
-		patchUtilsMock.when(() -> PatchUtils.patch(any(), any(), anyString(), any())).thenAnswer((invocation) -> {
-			PatchUtils.PatchCallFunc func = invocation.getArgument(1);
-			func.getCall();
-			return null;
+		dynamicApiConstruction = mockConstruction(DynamicKubernetesApi.class, (mock, ctx) -> {
+			mockDynamicApi = mock;
+			lastDynamicApiCtorArgs = new ArrayList<>(ctx.arguments());
+			@SuppressWarnings("unchecked")
+			KubernetesApiResponse<DynamicKubernetesObject> resp = mock(KubernetesApiResponse.class);
+			when(resp.throwsApiException()).thenReturn(resp);
+			when(resp.isSuccess()).thenReturn(true);
+			when(mock.patch(anyString(), anyString(), anyString(), any(V1Patch.class), any(PatchOptions.class)))
+				.thenReturn(resp);
+			when(mock.patch(anyString(), anyString(), any(V1Patch.class), any(PatchOptions.class))).thenReturn(resp);
+			when(mock.delete(anyString(), anyString())).thenReturn(resp);
+			when(mock.delete(anyString())).thenReturn(resp);
 		});
 	}
 
@@ -492,10 +476,15 @@ class HelmKubeServiceTest {
 		setupSsaMock();
 		kubeService.apply("default", yaml);
 
-		verify(mockCustomObjectsApi).patchNamespacedCustomObject(eq("apps"), eq("v1"), eq("default"), eq("deployments"),
-				eq("my-deploy"), any(V1Patch.class));
-		verify(mockPatchRequest).fieldManager("helm");
-		verify(mockPatchRequest).force(true);
+		assertEquals("apps", lastDynamicApiCtorArgs.get(0));
+		assertEquals("v1", lastDynamicApiCtorArgs.get(1));
+		assertEquals("deployments", lastDynamicApiCtorArgs.get(2));
+
+		ArgumentCaptor<PatchOptions> optionsCaptor = ArgumentCaptor.forClass(PatchOptions.class);
+		verify(mockDynamicApi).patch(eq("default"), eq("my-deploy"), eq(V1Patch.PATCH_FORMAT_APPLY_YAML),
+				any(V1Patch.class), optionsCaptor.capture());
+		assertEquals("helm", optionsCaptor.getValue().getFieldManager());
+		assertEquals(Boolean.TRUE, optionsCaptor.getValue().getForce());
 	}
 
 	@Test
@@ -513,10 +502,12 @@ class HelmKubeServiceTest {
 		setupSsaMock();
 		kubeService.apply("default", yaml);
 
-		verify(mockCustomObjectsApi).patchNamespacedCustomObject(eq(""), eq("v1"), eq("default"), eq("configmaps"),
-				eq("my-config"), any(V1Patch.class));
-		verify(mockPatchRequest).fieldManager("helm");
-		verify(mockPatchRequest).force(true);
+		assertEquals("", lastDynamicApiCtorArgs.get(0));
+		assertEquals("v1", lastDynamicApiCtorArgs.get(1));
+		assertEquals("configmaps", lastDynamicApiCtorArgs.get(2));
+
+		verify(mockDynamicApi).patch(eq("default"), eq("my-config"), eq(V1Patch.PATCH_FORMAT_APPLY_YAML),
+				any(V1Patch.class), any(PatchOptions.class));
 	}
 
 	@Test
@@ -531,10 +522,12 @@ class HelmKubeServiceTest {
 		setupSsaMock();
 		kubeService.apply("", yaml);
 
-		verify(mockCustomObjectsApi).patchClusterCustomObject(eq(""), eq("v1"), eq("namespaces"), eq("my-ns"),
-				any(V1Patch.class));
-		verify(mockClusterPatchRequest).fieldManager("helm");
-		verify(mockClusterPatchRequest).force(true);
+		assertEquals("", lastDynamicApiCtorArgs.get(0));
+		assertEquals("v1", lastDynamicApiCtorArgs.get(1));
+		assertEquals("namespaces", lastDynamicApiCtorArgs.get(2));
+
+		verify(mockDynamicApi).patch(eq("my-ns"), eq(V1Patch.PATCH_FORMAT_APPLY_YAML), any(V1Patch.class),
+				any(PatchOptions.class));
 	}
 
 	@Test
@@ -547,19 +540,13 @@ class HelmKubeServiceTest {
 				  namespace: default
 				""";
 
-		customObjectsApiConstruction = mockConstruction(CustomObjectsApi.class, (mock, ctx) -> {
-			var patchReq = mock(CustomObjectsApi.APIpatchNamespacedCustomObjectRequest.class);
-			when(patchReq.fieldManager(anyString())).thenReturn(patchReq);
-			when(patchReq.force(any(Boolean.class))).thenReturn(patchReq);
-			when(patchReq.buildCall(any())).thenThrow(new ApiException(500, "Server error"));
-			when(mock.patchNamespacedCustomObject(any(), any(), any(), any(), any(), any())).thenReturn(patchReq);
-		});
-
-		patchUtilsMock = mockStatic(PatchUtils.class);
-		patchUtilsMock.when(() -> PatchUtils.patch(any(), any(), anyString(), any())).thenAnswer((invocation) -> {
-			PatchUtils.PatchCallFunc func = invocation.getArgument(1);
-			func.getCall();
-			return null;
+		dynamicApiConstruction = mockConstruction(DynamicKubernetesApi.class, (mock, ctx) -> {
+			mockDynamicApi = mock;
+			@SuppressWarnings("unchecked")
+			KubernetesApiResponse<DynamicKubernetesObject> resp = mock(KubernetesApiResponse.class);
+			when(resp.throwsApiException()).thenThrow(new ApiException(500, "Server error"));
+			when(mock.patch(anyString(), anyString(), anyString(), any(V1Patch.class), any(PatchOptions.class)))
+				.thenReturn(resp);
 		});
 
 		assertThrows(KubernetesOperationException.class, () -> kubeService.apply("default", yaml));
@@ -577,17 +564,13 @@ class HelmKubeServiceTest {
 				  namespace: default
 				""";
 
-		customObjectsApiConstruction = mockConstruction(CustomObjectsApi.class, (mock, ctx) -> {
-			mockCustomObjectsApi = mock;
-			var deleteReq = mock(CustomObjectsApi.APIdeleteNamespacedCustomObjectRequest.class);
-			when(deleteReq.execute()).thenReturn(new Object());
-			when(mock.deleteNamespacedCustomObject(eq("apps"), eq("v1"), eq("default"), eq("deployments"),
-					eq("my-deploy")))
-				.thenReturn(deleteReq);
-		});
-
+		setupSsaMock();
 		kubeService.delete("default", yaml);
-		verify(mockCustomObjectsApi).deleteNamespacedCustomObject("apps", "v1", "default", "deployments", "my-deploy");
+
+		assertEquals("apps", lastDynamicApiCtorArgs.get(0));
+		assertEquals("v1", lastDynamicApiCtorArgs.get(1));
+		assertEquals("deployments", lastDynamicApiCtorArgs.get(2));
+		verify(mockDynamicApi).delete("default", "my-deploy");
 	}
 
 	@Test
@@ -600,11 +583,13 @@ class HelmKubeServiceTest {
 				  namespace: default
 				""";
 
-		customObjectsApiConstruction = mockConstruction(CustomObjectsApi.class, (mock, ctx) -> {
-			var deleteReq = mock(CustomObjectsApi.APIdeleteNamespacedCustomObjectRequest.class);
-			when(deleteReq.execute()).thenThrow(new ApiException(404, "Not found"));
-			when(mock.deleteNamespacedCustomObject(anyString(), anyString(), anyString(), anyString(), anyString()))
-				.thenReturn(deleteReq);
+		dynamicApiConstruction = mockConstruction(DynamicKubernetesApi.class, (mock, ctx) -> {
+			mockDynamicApi = mock;
+			@SuppressWarnings("unchecked")
+			KubernetesApiResponse<DynamicKubernetesObject> resp = mock(KubernetesApiResponse.class);
+			when(resp.isSuccess()).thenReturn(false);
+			when(resp.getHttpStatusCode()).thenReturn(404);
+			when(mock.delete(anyString(), anyString())).thenReturn(resp);
 		});
 
 		// Should not throw on 404
@@ -621,11 +606,14 @@ class HelmKubeServiceTest {
 				  namespace: default
 				""";
 
-		customObjectsApiConstruction = mockConstruction(CustomObjectsApi.class, (mock, ctx) -> {
-			var deleteReq = mock(CustomObjectsApi.APIdeleteNamespacedCustomObjectRequest.class);
-			when(deleteReq.execute()).thenThrow(new ApiException(500, "Server error"));
-			when(mock.deleteNamespacedCustomObject(anyString(), anyString(), anyString(), anyString(), anyString()))
-				.thenReturn(deleteReq);
+		dynamicApiConstruction = mockConstruction(DynamicKubernetesApi.class, (mock, ctx) -> {
+			mockDynamicApi = mock;
+			@SuppressWarnings("unchecked")
+			KubernetesApiResponse<DynamicKubernetesObject> resp = mock(KubernetesApiResponse.class);
+			when(resp.isSuccess()).thenReturn(false);
+			when(resp.getHttpStatusCode()).thenReturn(500);
+			when(resp.throwsApiException()).thenThrow(new ApiException(500, "Server error"));
+			when(mock.delete(anyString(), anyString())).thenReturn(resp);
 		});
 
 		assertThrows(KubernetesOperationException.class, () -> kubeService.delete("default", yaml));
@@ -640,16 +628,13 @@ class HelmKubeServiceTest {
 				  name: test-ns
 				""";
 
-		customObjectsApiConstruction = mockConstruction(CustomObjectsApi.class, (mock, ctx) -> {
-			mockCustomObjectsApi = mock;
-			var deleteReq = mock(CustomObjectsApi.APIdeleteClusterCustomObjectRequest.class);
-			when(deleteReq.execute()).thenReturn(new Object());
-			when(mock.deleteClusterCustomObject(eq(""), eq("v1"), eq("namespaces"), eq("test-ns")))
-				.thenReturn(deleteReq);
-		});
-
+		setupSsaMock();
 		kubeService.delete("", yaml);
-		verify(mockCustomObjectsApi).deleteClusterCustomObject("", "v1", "namespaces", "test-ns");
+
+		assertEquals("", lastDynamicApiCtorArgs.get(0));
+		assertEquals("v1", lastDynamicApiCtorArgs.get(1));
+		assertEquals("namespaces", lastDynamicApiCtorArgs.get(2));
+		verify(mockDynamicApi).delete("test-ns");
 	}
 
 	// --- ensureNamespace ---
