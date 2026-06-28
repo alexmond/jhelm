@@ -562,18 +562,35 @@ class KpsComparisonTest {
 		Map<String, JsonNode> map = new HashMap<>();
 
 		for (JsonNode doc : docs) {
-			String kind = doc.has("kind") ? doc.get("kind").asString() : "Unknown";
-			String name = "unnamed";
-
-			if (doc.has("metadata") && doc.get("metadata").has("name")) {
-				name = doc.get("metadata").get("name").asString();
-			}
-
-			String key = kind + "/" + name;
-			map.put(key, doc);
+			addResourceToMap(map, doc);
 		}
 
 		return map;
+	}
+
+	private void addResourceToMap(Map<String, JsonNode> map, JsonNode doc) {
+		String kind = doc.has("kind") ? doc.get("kind").asString() : "Unknown";
+
+		// A `kind: List` document is just a container (Helm emits these, e.g. the
+		// stakater storage charts). Expand it and key each item by its own kind/name —
+		// otherwise multiple unnamed List documents all collide under "List/unnamed" and
+		// get compared against each other, producing spurious diffs even when every
+		// contained resource matches Helm byte-for-byte.
+		if ("List".equals(kind) && doc.has("items") && doc.get("items").isArray()) {
+			for (JsonNode item : doc.get("items")) {
+				if (item != null && item.isObject()) {
+					addResourceToMap(map, item);
+				}
+			}
+			return;
+		}
+
+		String name = "unnamed";
+		if (doc.has("metadata") && doc.get("metadata").has("name")) {
+			name = doc.get("metadata").get("name").asString();
+		}
+
+		map.put(kind + "/" + name, doc);
 	}
 
 	private List<Diff> computeDiffs(JsonNode expected, JsonNode actual, String path) {
