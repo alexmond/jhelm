@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -265,6 +266,26 @@ class ValuesLoaderTest {
 		});
 		server.start();
 		return server;
+	}
+
+	@Test
+	void testNonStringMapKeysAreStringified() throws IOException {
+		// Helm loads values via YAML -> JSON, so a bare integer/boolean mapping key
+		// becomes a string key (e.g. cetic/pgadmin's servers.config.Servers: { 1: ... }).
+		File file = writeValues("""
+				servers:
+				  1:
+				    name: first
+				  true:
+				    name: flag
+				""");
+		Map<String, Object> result = ValuesLoader.load(file);
+		@SuppressWarnings("unchecked")
+		Map<String, Object> servers = (Map<String, Object>) result.get("servers");
+		assertEquals(Set.of("1", "true"), servers.keySet());
+		@SuppressWarnings("unchecked")
+		Map<String, Object> first = (Map<String, Object>) servers.get("1");
+		assertEquals("first", first.get("name"));
 	}
 
 	private File writeValues(String content) throws IOException {
