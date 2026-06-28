@@ -22,8 +22,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -104,7 +106,7 @@ public final class ValuesLoader {
 		try (Reader reader = new FileReader(valuesFile, StandardCharsets.UTF_8)) {
 			for (Object doc : load.loadAllFromReader(reader)) {
 				if (doc instanceof Map) {
-					deepMerge(merged, (Map<String, Object>) doc);
+					deepMerge(merged, (Map<String, Object>) stringifyKeys(doc));
 				}
 			}
 		}
@@ -157,11 +159,39 @@ public final class ValuesLoader {
 		try (Reader reader = new StringReader(body)) {
 			for (Object doc : load.loadAllFromReader(reader)) {
 				if (doc instanceof Map) {
-					deepMerge(merged, (Map<String, Object>) doc);
+					deepMerge(merged, (Map<String, Object>) stringifyKeys(doc));
 				}
 			}
 		}
 		return merged;
+	}
+
+	/**
+	 * Recursively coerces every map key to a {@link String}. Helm loads values via
+	 * sigs.k8s.io/yaml (YAML &rarr; JSON), where object keys are always strings, so a
+	 * YAML mapping key written as a bare integer or boolean (e.g. {@code Servers: { 1:
+	 * ... }}) becomes the string {@code "1"}. SnakeYAML preserves the scalar's native
+	 * type, which would otherwise surface an {@link Integer}/{@link Boolean} key and
+	 * break code that (correctly) assumes string keys.
+	 * @param value the loaded value tree (map, list, or scalar)
+	 * @return the same shape with all map keys stringified
+	 */
+	static Object stringifyKeys(Object value) {
+		if (value instanceof Map<?, ?> map) {
+			Map<String, Object> out = new LinkedHashMap<>();
+			for (Map.Entry<?, ?> entry : map.entrySet()) {
+				out.put(String.valueOf(entry.getKey()), stringifyKeys(entry.getValue()));
+			}
+			return out;
+		}
+		if (value instanceof List<?> list) {
+			List<Object> out = new ArrayList<>(list.size());
+			for (Object item : list) {
+				out.add(stringifyKeys(item));
+			}
+			return out;
+		}
+		return value;
 	}
 
 	@SuppressWarnings("unchecked")
