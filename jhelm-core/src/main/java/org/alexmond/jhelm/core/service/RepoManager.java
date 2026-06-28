@@ -8,13 +8,13 @@ import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.HttpEntity;
 
 import java.io.BufferedInputStream;
+import java.util.zip.GZIPInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -820,9 +820,15 @@ public class RepoManager {
 		if (log.isInfoEnabled()) {
 			log.info("Untarring {} to {}", tgzFile.getAbsolutePath(), destDir.getAbsolutePath());
 		}
+		// Use the JDK's GZIPInputStream rather than Commons Compress here: many
+		// charts in the wild (notably GitHub-hosted charts packaged by chart-releaser)
+		// carry a non-spec gzip extra field — a base64 blob that isn't framed as proper
+		// SI1/SI2/LEN subfields. The JDK decoder (like gzip(1) and Helm) leniently skips
+		// XLEN bytes, while Commons Compress strictly validates subfields and rejects the
+		// whole archive ("Extra subfield length exceeds remaining bytes in extra").
 		try (InputStream fi = Files.newInputStream(tgzFile.toPath());
 				InputStream bi = new BufferedInputStream(fi);
-				InputStream gzi = new GzipCompressorInputStream(bi);
+				InputStream gzi = new GZIPInputStream(bi);
 				TarArchiveInputStream ti = new TarArchiveInputStream(gzi)) {
 
 			TarArchiveEntry entry;
