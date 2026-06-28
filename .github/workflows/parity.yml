@@ -1,0 +1,62 @@
+name: Chart Parity Suite
+
+# The chart-parity suite (KpsComparisonTest, tagged `comparison`) renders every
+# chart in charts.csv with jhelm AND the real `helm template` and diffs the result.
+# It is slow and network-bound (it pulls every chart from its upstream repo), so it
+# is excluded from the normal build (see surefire `excludedGroups` in the root pom)
+# and runs here instead: nightly, and on demand.
+
+on:
+  schedule:
+    # 03:17 UTC daily — off-peak, avoids the top-of-hour scheduler spike.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or SHA to run the parity suite against'
+        required: false
+        default: 'main'
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Create Kubernetes Cluster (Kind)
+        uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: kind
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.2
+
+      # Build/install the upstream modules without their tests, then run ONLY the
+      # comparison-tagged tests in jhelm-core. `-Dsurefire.excludedGroups=` clears the
+      # default exclusion and `-Dgroups=comparison` selects the parity suite.
+      - name: Run chart-parity suite
+        run: >
+          ./mvnw -B -pl jhelm-core -am test
+          -Dsurefire.excludedGroups=
+          -Dgroups=comparison
+          -Dsurefire.failIfNoSpecifiedTests=false
+
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-surefire-reports
+          path: '**/surefire-reports/TEST-*.xml'
+          if-no-files-found: warn
