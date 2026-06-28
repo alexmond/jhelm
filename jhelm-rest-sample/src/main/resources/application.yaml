@@ -13,3 +13,10 @@ springdoc:
 jhelm:
   rest:
     base-path: /api/v1
+  # Unified deny-by-default security (jhelm.security.*).
+  # This demo enables cluster-mutating endpoints (FULL) behind an API key: callers must
+  # send the key in the X-API-Key header. Remove the api-key (or drop mode below FULL) and
+  # mutating endpoints are denied automatically — FULL without a key does NOT open them.
+  security:
+    mode: FULL
+    api-key: change-me-sample-key

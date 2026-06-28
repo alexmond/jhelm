@@ -28,9 +28,11 @@ import org.springframework.ai.mcp.annotation.McpToolParam;
  * scanner and exposed as an MCP tool.
  *
  * <p>
- * These tools are only registered when {@code jhelm.mcp.mode=FULL}. In the default
- * {@code READ_ONLY} mode they are not registered and therefore do not appear in the MCP
- * tool list at all — the MCP equivalent of the REST module's mutating-operation block.
+ * These tools are only registered when, under deny-by-default semantics,
+ * {@code jhelm.security.mode=FULL} <em>and</em> a non-blank
+ * {@code jhelm.security.api-key} is set. Otherwise they are not registered and therefore
+ * do not appear in the MCP tool list at all — the MCP equivalent of the REST module's
+ * mutating-operation block.
  *
  * <p>
  * Value overrides are not yet supported by these tools: installs and upgrades use the

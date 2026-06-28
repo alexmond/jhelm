@@ -12,6 +12,8 @@ import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.config.JhelmAccessMode;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
+import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
@@ -29,13 +31,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Verifies that {@link AccessModeInterceptor} blocks {@link MutatingOperation} endpoints
- * in {@link JhelmAccessMode#READ_ONLY READ_ONLY} mode while leaving read endpoints (and
- * all endpoints in {@link JhelmAccessMode#FULL FULL} mode) untouched.
+ * Verifies that {@link AccessModeInterceptor} gates {@link MutatingOperation} endpoints
+ * behind the unified {@link JhelmSecurityPolicy} under deny-by-default semantics:
+ * <ul>
+ * <li>READ_ONLY (or FULL without a key) mutating → {@code 403};</li>
+ * <li>FULL + key with a valid {@code X-API-Key} → allowed;</li>
+ * <li>FULL + key with a missing/wrong key → {@code 401};</li>
+ * <li>read endpoints are always allowed.</li>
+ * </ul>
  */
 class AccessModeInterceptorTest {
 
-	private JhelmRestProperties properties;
+	private static final String API_KEY = "test-key";
 
 	private ListAction listAction;
 
@@ -45,7 +52,7 @@ class AccessModeInterceptorTest {
 
 	@BeforeEach
 	void setUp() throws Exception {
-		this.properties = new JhelmRestProperties();
+		JhelmRestProperties properties = new JhelmRestProperties();
 		this.listAction = mock(ListAction.class);
 		StatusAction statusAction = mock(StatusAction.class);
 		GetAction getAction = mock(GetAction.class);
@@ -59,33 +66,58 @@ class AccessModeInterceptorTest {
 		RepoManager repoManager = mock(RepoManager.class);
 		when(this.listAction.list(anyString())).thenReturn(List.of());
 		this.controller = new ReleaseController(this.listAction, statusAction, getAction, historyAction, installAction,
-				upgradeAction, this.uninstallAction, rollbackAction, testAction, chartLoader, repoManager,
-				this.properties);
+				upgradeAction, this.uninstallAction, rollbackAction, testAction, chartLoader, repoManager, properties);
 	}
 
-	private MockMvc mockMvc() {
+	private static JhelmSecurityPolicy policy(JhelmAccessMode mode, String apiKey) {
+		JhelmSecurityProperties props = new JhelmSecurityProperties();
+		props.setMode(mode);
+		props.setApiKey(apiKey);
+		return new JhelmSecurityPolicy(props);
+	}
+
+	private MockMvc mockMvc(JhelmSecurityPolicy policy) {
 		return MockMvcBuilders.standaloneSetup(this.controller)
-			.addInterceptors(new AccessModeInterceptor(this.properties))
+			.addInterceptors(new AccessModeInterceptor(policy))
 			.addPlaceholderValue("jhelm.rest.base-path", "/api/v1")
 			.build();
 	}
 
 	@Test
-	void fullModeAllowsMutatingEndpoint() throws Exception {
-		this.properties.setMode(JhelmAccessMode.FULL);
-		mockMvc().perform(delete("/api/v1/releases/my-release")).andExpect(status().isNoContent());
+	void readOnlyModeBlocksMutatingEndpointWith403() throws Exception {
+		mockMvc(policy(JhelmAccessMode.READ_ONLY, API_KEY)).perform(delete("/api/v1/releases/my-release"))
+			.andExpect(status().isForbidden());
 	}
 
 	@Test
-	void readOnlyModeBlocksMutatingEndpoint() throws Exception {
-		this.properties.setMode(JhelmAccessMode.READ_ONLY);
-		mockMvc().perform(delete("/api/v1/releases/my-release")).andExpect(status().isForbidden());
+	void fullModeWithoutKeyBlocksMutatingEndpointWith403() throws Exception {
+		mockMvc(policy(JhelmAccessMode.FULL, null)).perform(delete("/api/v1/releases/my-release"))
+			.andExpect(status().isForbidden());
 	}
 
 	@Test
-	void readOnlyModeAllowsReadEndpoint() throws Exception {
-		this.properties.setMode(JhelmAccessMode.READ_ONLY);
-		mockMvc().perform(get("/api/v1/releases")).andExpect(status().isOk());
+	void fullModeWithKeyAndValidHeaderAllowsMutatingEndpoint() throws Exception {
+		mockMvc(policy(JhelmAccessMode.FULL, API_KEY))
+			.perform(delete("/api/v1/releases/my-release").header("X-API-Key", API_KEY))
+			.andExpect(status().isNoContent());
+	}
+
+	@Test
+	void fullModeWithKeyAndMissingHeaderRejectsWith401() throws Exception {
+		mockMvc(policy(JhelmAccessMode.FULL, API_KEY)).perform(delete("/api/v1/releases/my-release"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void fullModeWithKeyAndWrongHeaderRejectsWith401() throws Exception {
+		mockMvc(policy(JhelmAccessMode.FULL, API_KEY))
+			.perform(delete("/api/v1/releases/my-release").header("X-API-Key", "wrong"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void readEndpointAlwaysAllowed() throws Exception {
+		mockMvc(policy(JhelmAccessMode.READ_ONLY, null)).perform(get("/api/v1/releases")).andExpect(status().isOk());
 	}
 
 }
