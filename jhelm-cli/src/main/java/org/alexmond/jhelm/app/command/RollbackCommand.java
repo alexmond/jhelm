@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.RollbackOptions;
+import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.service.KubeService;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -18,6 +20,8 @@ import picocli.CommandLine;
 public class RollbackCommand implements Runnable {
 
 	private final RollbackAction rollbackAction;
+
+	private final KubeService kubeService;
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
@@ -35,18 +39,27 @@ public class RollbackCommand implements Runnable {
 			description = "limit the maximum number of revisions saved per release (0 = no limit)")
 	private int historyMax;
 
+	@CommandLine.Option(names = { "--wait" }, description = "wait until all resources are ready")
+	private boolean wait;
+
+	@CommandLine.Option(names = { "--timeout" }, defaultValue = "300",
+			description = "timeout in seconds for --wait (default 300)")
+	private int timeout;
+
 	/**
 	 * Creates the command.
 	 * @param rollbackAction the action that performs the rollback
+	 * @param kubeService the Kubernetes service used to wait for resource readiness
 	 */
-	public RollbackCommand(RollbackAction rollbackAction) {
+	public RollbackCommand(RollbackAction rollbackAction, KubeService kubeService) {
 		this.rollbackAction = rollbackAction;
+		this.kubeService = kubeService;
 	}
 
 	@Override
 	public void run() {
 		try {
-			rollbackAction.rollback(RollbackOptions.builder()
+			Release release = rollbackAction.rollback(RollbackOptions.builder()
 				.releaseName(name)
 				.namespace(namespace)
 				.revision(revision)
@@ -54,6 +67,9 @@ public class RollbackCommand implements Runnable {
 				.maxHistory(historyMax)
 				.build());
 			CliOutput.println(CliOutput.success("Rollback was a success! Happy Helming!"));
+			if (wait) {
+				kubeService.waitForReady(namespace, release.getManifest(), timeout);
+			}
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error during rollback: " + ex.getMessage()));

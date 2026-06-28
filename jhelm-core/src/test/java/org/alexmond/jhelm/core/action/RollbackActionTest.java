@@ -11,6 +11,7 @@ import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -256,6 +257,53 @@ class RollbackActionTest {
 		// Regular manifest is still applied and the release stored
 		verify(kubeService).apply("default", strippedManifest);
 		verify(kubeService).storeRelease(any(Release.class));
+	}
+
+	@Test
+	void testRollbackReturnsNewRelease() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).build();
+
+		Release.ReleaseInfo info1 = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(2))
+			.lastDeployed(OffsetDateTime.now().minusDays(2))
+			.status(ReleaseStatus.DEPLOYED)
+			.build();
+
+		Release.ReleaseInfo info2 = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(2))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status(ReleaseStatus.DEPLOYED)
+			.build();
+
+		Release v1 = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.manifest("---\nv1 manifest")
+			.info(info1)
+			.build();
+
+		Release v2 = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(2)
+			.chart(chart)
+			.manifest("---\nv2 manifest")
+			.info(info2)
+			.build();
+
+		when(kubeService.getReleaseHistory(anyString(), anyString())).thenReturn(Arrays.asList(v2, v1));
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		Release result = rollbackAction
+			.rollback(RollbackOptions.builder().releaseName("myapp").namespace("default").revision(1).build());
+
+		assertNotNull(result);
+		assertEquals(3, result.getVersion());
+		assertEquals(ReleaseStatus.DEPLOYED, result.getInfo().getStatus());
 	}
 
 	@Test

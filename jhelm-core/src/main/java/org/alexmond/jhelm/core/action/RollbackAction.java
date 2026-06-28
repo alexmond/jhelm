@@ -28,8 +28,9 @@ public class RollbackAction {
 	 * revisions.
 	 * @param options the rollback options (release name, namespace, target revision,
 	 * no-hooks flag and the history cap)
+	 * @return the newly created {@link Release} representing the rolled-back revision
 	 */
-	public void rollback(RollbackOptions options) {
+	public Release rollback(RollbackOptions options) {
 		String name = options.getReleaseName();
 		String namespace = options.getNamespace();
 		int revision = options.getRevision();
@@ -75,6 +76,7 @@ public class RollbackAction {
 		if (!noHooks) {
 			runHooks(hookExecutor, namespace, hooks, "post-rollback");
 		}
+		return newRelease;
 	}
 
 	private void runHooks(HookExecutor hookExecutor, String namespace, List<HelmHook> hooks, String phase) {

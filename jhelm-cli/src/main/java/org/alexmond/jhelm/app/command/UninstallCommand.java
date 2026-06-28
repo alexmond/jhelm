@@ -27,6 +27,10 @@ public class UninstallCommand implements Runnable {
 	@CommandLine.Option(names = { "--no-hooks" }, description = "prevent hooks from running during this operation")
 	private boolean noHooks;
 
+	@CommandLine.Option(names = { "--keep-history" },
+			description = "remove all associated resources and mark the release as deleted, but retain the release history")
+	private boolean keepHistory;
+
 	/**
 	 * Creates the command.
 	 * @param uninstallAction the action that uninstalls the release
@@ -38,8 +42,12 @@ public class UninstallCommand implements Runnable {
 	@Override
 	public void run() {
 		try {
-			uninstallAction
-				.uninstall(UninstallOptions.builder().releaseName(name).namespace(namespace).noHooks(noHooks).build());
+			uninstallAction.uninstall(UninstallOptions.builder()
+				.releaseName(name)
+				.namespace(namespace)
+				.noHooks(noHooks)
+				.keepHistory(keepHistory)
+				.build());
 			CliOutput.println(CliOutput.success("release \"" + name + "\" uninstalled"));
 		}
 		catch (Exception ex) {
