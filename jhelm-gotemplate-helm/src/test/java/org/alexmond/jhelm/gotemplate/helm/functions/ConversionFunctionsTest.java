@@ -253,7 +253,8 @@ class ConversionFunctionsTest {
 	void testToYamlPrettyNullAndEmpty() {
 		Function toYamlPretty = functions().get("toYamlPretty");
 		assertEquals("", toYamlPretty.invoke(new Object[] {}));
-		assertEquals("", toYamlPretty.invoke(new Object[] { null }));
+		// Helm's toYamlPretty(nil) marshals to the literal "null" (yaml.Marshal(nil)).
+		assertEquals("null", toYamlPretty.invoke(new Object[] { null }));
 	}
 
 	@ParameterizedTest
@@ -307,7 +308,9 @@ class ConversionFunctionsTest {
 	void testToYamlNullAndEmpty() {
 		Function toYaml = functions().get("toYaml");
 		assertEquals("", toYaml.invoke(new Object[] {}));
-		assertEquals("", toYaml.invoke(new Object[] { null }));
+		// Helm's toYaml(nil) marshals to the literal "null" (yaml.Marshal(nil) ->
+		// "null\n").
+		assertEquals("null", toYaml.invoke(new Object[] { null }));
 	}
 
 	@Test
@@ -494,10 +497,11 @@ class ConversionFunctionsTest {
 	// must* variants throw on null/empty
 
 	@Test
-	void testMustToYamlThrowsOnNull() {
+	void testMustToYamlNullAndEmpty() {
 		Function fn = functions().get("mustToYaml");
 		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] {}));
-		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { null }));
+		// mustToYaml(nil) does not error in Helm; yaml.Marshal(nil) succeeds with "null".
+		assertEquals("null", fn.invoke(new Object[] { null }));
 	}
 
 	@Test
