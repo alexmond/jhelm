@@ -1,18 +1,22 @@
 = REST API Starter
 
-The `jhelm-rest` module provides a Spring Boot starter that exposes Helm operations as a REST API with OpenAPI/Swagger documentation.
+The `jhelm-rest` module exposes Helm operations as a REST API with OpenAPI/Swagger
+documentation. As of `0.4.0` it is split into a pure `jhelm-rest` library and a
+`jhelm-rest-starter` that carries the Spring Boot auto-configuration (Spring-Boot-Admin
+style). Add the starter for the auto-configured experience, or depend on the library directly
+to wire it up yourself.
 
 == Getting Started
 
 === Maven Dependency
 
-Add `jhelm-rest` to your Spring Boot web application:
+Add `jhelm-rest-starter` to your Spring Boot web application:
 
-[source,xml]
+[source,xml,subs="attributes"]
 ----
 <dependency>
     <groupId>org.alexmond</groupId>
-    <artifactId>jhelm-rest</artifactId>
+    <artifactId>jhelm-rest-starter</artifactId>
     <version>{jhelm-version}</version>
 </dependency>
 ----
@@ -46,6 +50,10 @@ Open http://localhost:8080/swagger-ui.html to see all endpoints.
 |===
 | Property | Default | Description
 
+| `jhelm.rest.mode`
+| `FULL`
+| Access mode. `READ_ONLY` disables the cluster-mutating endpoints (install/upgrade/uninstall/rollback/test, repo add/remove/push); `FULL` enables them.
+
 | `jhelm.rest.base-path`
 | `/api/v1`
 | Base path prefix for all REST endpoints
@@ -59,9 +67,14 @@ Open http://localhost:8080/swagger-ui.html to see all endpoints.
 ----
 jhelm:
   rest:
+    mode: FULL
     base-path: /api/v1
     temp-dir: /var/lib/jhelm/tmp
 ----
+
+NOTE: Authentication and authorization are the embedding application's responsibility
+(e.g. Spring Security). `jhelm.rest.mode` is a coarse mutating/read-only gate, not an auth
+mechanism.
 
 == Auto-Configuration
 
@@ -553,3 +566,34 @@ public class CustomReleaseController {
     // Your custom implementation
 }
 ----
+
+== MCP Server
+
+In addition to the REST API, jhelm ships an https://modelcontextprotocol.io[Model Context
+Protocol] (MCP) server that exposes the same operation set as tools an AI agent can call. It
+is built on Spring AI and mirrors the REST surface (releases, charts, repositories,
+dependencies, hub search).
+
+Add `jhelm-mcp-starter` to a Spring Boot application for the auto-configured server:
+
+[source,xml,subs="attributes"]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-mcp-starter</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+----
+
+Like the REST starter, the MCP server has a `READ_ONLY`/`FULL` access mode. It defaults to
+`READ_ONLY`, so only the non-mutating tools are exposed unless you opt in:
+
+[source,yaml]
+----
+jhelm:
+  mcp:
+    mode: READ_ONLY   # READ_ONLY (default) or FULL
+----
+
+NOTE: As with the REST API, authentication is the embedding application's responsibility;
+`jhelm.mcp.mode` is a coarse mutating/read-only gate.

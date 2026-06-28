@@ -1,5 +1,67 @@
 = Changelog
 
+== 0.4.0
+
+The pre-1.0 *API freeze* release, plus an MCP server, a REST library/starter split, and the
+upgrade value-handling fixes (including the value-retention flags listed as a known
+limitation in `0.2.0`).
+
+=== API freeze (breaking, pre-1.0)
+
+* *Unchecked exceptions* -- the action layer and `KubeService` now throw the unchecked
+  `JhelmException` hierarchy instead of `throws Exception`.
+* *No leaked client types* -- the kubernetes-client `ApiException`/`ApiClient` are wrapped
+  behind `KubeClient`, and the BouncyCastle PGP types behind `SigningKey` /
+  `VerificationKeyring`.
+* *Options objects* -- the action API now takes immutable `InstallOptions`, `UpgradeOptions`,
+  `UninstallOptions`, and `RollbackOptions` objects instead of long parameter lists.
+* *Immutable result models* -- `Release`, `ReleaseInfo`, and `MapConfig` are now immutable;
+  release `status` is a typed `ReleaseStatus` enum and the lifecycle phase a `LifecyclePhase`
+  enum.
+
+=== MCP server
+
+* *`jhelm-mcp` + `jhelm-mcp-starter`* -- a new Model Context Protocol server exposing jhelm
+  operations as tools for AI agents, built on Spring AI 2.0 and mirroring the REST operation
+  set. A `READ_ONLY`/`FULL` access mode (`jhelm.mcp.mode`, default `READ_ONLY`) gates the
+  cluster-mutating tools.
+
+=== REST library/starter split
+
+* *Pure library* -- `jhelm-rest` is now a pure library; the new `jhelm-rest-starter` carries
+  the auto-configuration (Spring-Boot-Admin style).
+* *Access mode* -- a `READ_ONLY`/`FULL` mode (`jhelm.rest.mode`, default `FULL`) gates the
+  cluster-mutating endpoints. Authentication is the embedding application's responsibility
+  (Spring Security).
+
+=== Upgrade value handling
+
+* *User values persisted* -- user-supplied values are now persisted as the release config,
+  fixing a data-loss bug (and `get values`).
+* *Value-retention flags implemented* -- `--reset-values`, `--reuse-values`, and
+  `--reset-then-reuse-values` are now implemented. These were listed as a known limitation in
+  `0.2.0`.
+
+=== New flags
+
+* *Value flags* -- `--set` now type-coerces like Helm (int/bool/null; floats and leading-zero
+  values stay strings), joined by `--set-string`, `--set-file`, and `--set-json`.
+* *Lifecycle flags* -- `--no-hooks` (install/upgrade/uninstall/rollback), `--history-max`
+  (release-history pruning, default 10), and `--create-namespace`.
+
+=== Engine
+
+* *Loud render failures* -- recursive / too-deep template rendering now fails with a
+  `TemplateRenderException` instead of baking an `ERROR:` string into the manifest.
+* *gotmpl4j 1.1.0* -- the engine dependency moves to `gotmpl4j 1.1.0` (perf wave: double
+  formatting without `BigDecimal`, cached property accessors, an allocation-free lexer).
+
+=== CLI
+
+* *New commands* -- `jhelm version` and `jhelm env`.
+* *Clean stdout* -- command output is now clean on stdout (banner and logs go to stderr), so
+  `jhelm template … > out.yaml` produces valid YAML.
+
 == 0.2.0
 
 Helm template-function conformance improvements, grinding `jhelm-gotemplate-helm` against
