@@ -652,10 +652,16 @@ public final class ConversionFunctions {
 				if (json.isBlank()) {
 					throw new FunctionExecutionException("mustFromJson: empty JSON string");
 				}
-				if ("null".equals(json)) {
-					throw new FunctionExecutionException("mustFromJson: cannot parse null");
-				}
-				return JSON_MAPPER.get().readValue(json, Map.class);
+				// Helm's mustFromJson decodes into interface{}, so the result may be a
+				// map, a list (JSON array), or a scalar — not necessarily a map. (Plain
+				// fromJson, by contrast, always targets a map and reports a wrong shape
+				// via an Error entry; only mustFromJson is shape-agnostic.) "null"
+				// decodes
+				// to null, matching Helm.
+				return JSON_MAPPER.get().readValue(json, Object.class);
+			}
+			catch (FunctionExecutionException ex) {
+				throw ex;
 			}
 			catch (Exception ex) {
 				throw new FunctionExecutionException("mustFromJson: failed to parse JSON: " + ex.getMessage(), ex);

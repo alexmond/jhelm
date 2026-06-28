@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -532,12 +533,18 @@ class ConversionFunctionsTest {
 	}
 
 	@Test
-	void testMustFromJsonThrowsOnNull() {
+	void testMustFromJsonShapes() {
 		Function fn = functions().get("mustFromJson");
 		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] {}));
 		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { null }));
 		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { "  " }));
-		assertThrows(RuntimeException.class, () -> fn.invoke(new Object[] { "null" }));
+		// Helm's mustFromJson decodes into interface{}: "null" -> nil, a JSON array -> a
+		// list, a JSON object -> a map (verified against `helm template`).
+		assertNull(fn.invoke(new Object[] { "null" }));
+		Object arr = fn.invoke(new Object[] { "[1,2,3]" });
+		assertInstanceOf(List.class, arr);
+		assertEquals(3, ((List<?>) arr).size());
+		assertInstanceOf(Map.class, fn.invoke(new Object[] { "{\"a\":1}" }));
 	}
 
 	@Test
