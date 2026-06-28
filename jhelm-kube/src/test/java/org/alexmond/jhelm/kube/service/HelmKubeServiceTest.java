@@ -8,10 +8,15 @@ import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
+import io.kubernetes.client.openapi.models.V1DaemonSet;
+import io.kubernetes.client.openapi.models.V1DaemonSetStatus;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1DeploymentSpec;
 import io.kubernetes.client.openapi.models.V1DeploymentStatus;
 import io.kubernetes.client.openapi.models.V1Namespace;
+import io.kubernetes.client.openapi.models.V1ReplicaSet;
+import io.kubernetes.client.openapi.models.V1ReplicaSetSpec;
+import io.kubernetes.client.openapi.models.V1ReplicaSetStatus;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
@@ -807,8 +812,12 @@ class HelmKubeServiceTest {
 				""";
 
 		appsV1ApiConstruction = mockConstruction(AppsV1Api.class, (mock, ctx) -> {
-			V1Deployment dep = new V1Deployment().spec(new V1DeploymentSpec().replicas(2))
-				.status(new V1DeploymentStatus().readyReplicas(2).updatedReplicas(2));
+			V1Deployment dep = new V1Deployment().metadata(new V1ObjectMeta().generation(2L))
+				.spec(new V1DeploymentSpec().replicas(2))
+				.status(new V1DeploymentStatus().observedGeneration(2L)
+					.readyReplicas(2)
+					.updatedReplicas(2)
+					.availableReplicas(2));
 			var readReq = mock(AppsV1Api.APIreadNamespacedDeploymentRequest.class);
 			when(readReq.execute()).thenReturn(dep);
 			when(mock.readNamespacedDeployment(eq("my-deploy"), eq("default"))).thenReturn(readReq);
@@ -819,6 +828,178 @@ class HelmKubeServiceTest {
 		assertEquals(1, statuses.size());
 		assertEquals("Deployment", statuses.get(0).getKind());
 		assertTrue(statuses.get(0).isReady());
+	}
+
+	@Test
+	void testGetResourceStatusesDeploymentNotReadyWhenObservedGenerationStale() throws Exception {
+		// Replicas all look ready, but the controller has not yet observed the latest
+		// spec (observedGeneration < generation): this guards a mid-rollout false-ready.
+		String manifest = """
+				apiVersion: apps/v1
+				kind: Deployment
+				metadata:
+				  name: my-deploy
+				  namespace: default
+				""";
+
+		appsV1ApiConstruction = mockConstruction(AppsV1Api.class, (mock, ctx) -> {
+			V1Deployment dep = new V1Deployment().metadata(new V1ObjectMeta().generation(3L))
+				.spec(new V1DeploymentSpec().replicas(2))
+				.status(new V1DeploymentStatus().observedGeneration(2L)
+					.readyReplicas(2)
+					.updatedReplicas(2)
+					.availableReplicas(2));
+			var readReq = mock(AppsV1Api.APIreadNamespacedDeploymentRequest.class);
+			when(readReq.execute()).thenReturn(dep);
+			when(mock.readNamespacedDeployment(eq("my-deploy"), eq("default"))).thenReturn(readReq);
+		});
+
+		List<ResourceStatus> statuses = kubeService.getResourceStatuses("default", manifest);
+
+		assertEquals(1, statuses.size());
+		assertFalse(statuses.get(0).isReady());
+		assertEquals("waiting for rollout", statuses.get(0).getMessage());
+	}
+
+	@Test
+	void testGetResourceStatusesDeploymentNotReadyWhenUnavailable() throws Exception {
+		// observedGeneration is current and ready/updated meet desired, but available
+		// replicas lag: Helm treats this as not ready.
+		String manifest = """
+				apiVersion: apps/v1
+				kind: Deployment
+				metadata:
+				  name: my-deploy
+				  namespace: default
+				""";
+
+		appsV1ApiConstruction = mockConstruction(AppsV1Api.class, (mock, ctx) -> {
+			V1Deployment dep = new V1Deployment().metadata(new V1ObjectMeta().generation(1L))
+				.spec(new V1DeploymentSpec().replicas(2))
+				.status(new V1DeploymentStatus().observedGeneration(1L)
+					.readyReplicas(2)
+					.updatedReplicas(2)
+					.availableReplicas(1));
+			var readReq = mock(AppsV1Api.APIreadNamespacedDeploymentRequest.class);
+			when(readReq.execute()).thenReturn(dep);
+			when(mock.readNamespacedDeployment(eq("my-deploy"), eq("default"))).thenReturn(readReq);
+		});
+
+		List<ResourceStatus> statuses = kubeService.getResourceStatuses("default", manifest);
+
+		assertEquals(1, statuses.size());
+		assertFalse(statuses.get(0).isReady());
+		assertEquals("2/2 replicas ready", statuses.get(0).getMessage());
+	}
+
+	@Test
+	void testGetResourceStatusesReplicaSetReady() throws Exception {
+		String manifest = """
+				apiVersion: apps/v1
+				kind: ReplicaSet
+				metadata:
+				  name: my-rs
+				  namespace: default
+				""";
+
+		appsV1ApiConstruction = mockConstruction(AppsV1Api.class, (mock, ctx) -> {
+			V1ReplicaSet rs = new V1ReplicaSet().metadata(new V1ObjectMeta().generation(1L))
+				.spec(new V1ReplicaSetSpec().replicas(3))
+				.status(new V1ReplicaSetStatus().observedGeneration(1L).readyReplicas(3));
+			var readReq = mock(AppsV1Api.APIreadNamespacedReplicaSetRequest.class);
+			when(readReq.execute()).thenReturn(rs);
+			when(mock.readNamespacedReplicaSet(eq("my-rs"), eq("default"))).thenReturn(readReq);
+		});
+
+		List<ResourceStatus> statuses = kubeService.getResourceStatuses("default", manifest);
+
+		assertEquals(1, statuses.size());
+		assertEquals("ReplicaSet", statuses.get(0).getKind());
+		assertTrue(statuses.get(0).isReady());
+	}
+
+	@Test
+	void testGetResourceStatusesReplicaSetNotReady() throws Exception {
+		String manifest = """
+				apiVersion: apps/v1
+				kind: ReplicaSet
+				metadata:
+				  name: my-rs
+				  namespace: default
+				""";
+
+		appsV1ApiConstruction = mockConstruction(AppsV1Api.class, (mock, ctx) -> {
+			V1ReplicaSet rs = new V1ReplicaSet().metadata(new V1ObjectMeta().generation(1L))
+				.spec(new V1ReplicaSetSpec().replicas(3))
+				.status(new V1ReplicaSetStatus().observedGeneration(1L).readyReplicas(1));
+			var readReq = mock(AppsV1Api.APIreadNamespacedReplicaSetRequest.class);
+			when(readReq.execute()).thenReturn(rs);
+			when(mock.readNamespacedReplicaSet(eq("my-rs"), eq("default"))).thenReturn(readReq);
+		});
+
+		List<ResourceStatus> statuses = kubeService.getResourceStatuses("default", manifest);
+
+		assertEquals(1, statuses.size());
+		assertEquals("ReplicaSet", statuses.get(0).getKind());
+		assertFalse(statuses.get(0).isReady());
+		assertEquals("1/3 replicas ready", statuses.get(0).getMessage());
+	}
+
+	@Test
+	void testGetResourceStatusesDaemonSetReady() throws Exception {
+		String manifest = """
+				apiVersion: apps/v1
+				kind: DaemonSet
+				metadata:
+				  name: my-ds
+				  namespace: default
+				""";
+
+		appsV1ApiConstruction = mockConstruction(AppsV1Api.class, (mock, ctx) -> {
+			V1DaemonSet ds = new V1DaemonSet().metadata(new V1ObjectMeta().generation(1L))
+				.status(new V1DaemonSetStatus().observedGeneration(1L)
+					.desiredNumberScheduled(3)
+					.updatedNumberScheduled(3)
+					.numberReady(3));
+			var readReq = mock(AppsV1Api.APIreadNamespacedDaemonSetRequest.class);
+			when(readReq.execute()).thenReturn(ds);
+			when(mock.readNamespacedDaemonSet(eq("my-ds"), eq("default"))).thenReturn(readReq);
+		});
+
+		List<ResourceStatus> statuses = kubeService.getResourceStatuses("default", manifest);
+
+		assertEquals(1, statuses.size());
+		assertEquals("DaemonSet", statuses.get(0).getKind());
+		assertTrue(statuses.get(0).isReady());
+	}
+
+	@Test
+	void testGetResourceStatusesDaemonSetNotReady() throws Exception {
+		String manifest = """
+				apiVersion: apps/v1
+				kind: DaemonSet
+				metadata:
+				  name: my-ds
+				  namespace: default
+				""";
+
+		appsV1ApiConstruction = mockConstruction(AppsV1Api.class, (mock, ctx) -> {
+			V1DaemonSet ds = new V1DaemonSet().metadata(new V1ObjectMeta().generation(1L))
+				.status(new V1DaemonSetStatus().observedGeneration(1L)
+					.desiredNumberScheduled(3)
+					.updatedNumberScheduled(2)
+					.numberReady(1));
+			var readReq = mock(AppsV1Api.APIreadNamespacedDaemonSetRequest.class);
+			when(readReq.execute()).thenReturn(ds);
+			when(mock.readNamespacedDaemonSet(eq("my-ds"), eq("default"))).thenReturn(readReq);
+		});
+
+		List<ResourceStatus> statuses = kubeService.getResourceStatuses("default", manifest);
+
+		assertEquals(1, statuses.size());
+		assertEquals("DaemonSet", statuses.get(0).getKind());
+		assertFalse(statuses.get(0).isReady());
+		assertEquals("1/3 ready", statuses.get(0).getMessage());
 	}
 
 	@Test

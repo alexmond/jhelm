@@ -10,8 +10,10 @@ import io.kubernetes.client.openapi.apis.BatchV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
+import io.kubernetes.client.openapi.models.V1DaemonSet;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1Job;
+import io.kubernetes.client.openapi.models.V1ReplicaSet;
 import io.kubernetes.client.openapi.models.V1Namespace;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
@@ -428,6 +430,8 @@ public class HelmKubeService implements KubeService {
 		try {
 			return switch (kind) {
 				case "Deployment" -> checkDeployment(namespace, name);
+				case "ReplicaSet" -> checkReplicaSet(namespace, name);
+				case "DaemonSet" -> checkDaemonSet(namespace, name);
 				case "StatefulSet" -> checkStatefulSet(namespace, name);
 				case "Job" -> checkJob(namespace, name);
 				case "Pod" -> checkPod(namespace, name);
@@ -455,10 +459,13 @@ public class HelmKubeService implements KubeService {
 		AppsV1Api api = new AppsV1Api(apiClient);
 		V1Deployment dep = api.readNamespacedDeployment(name, namespace).execute();
 		int desired = (dep.getSpec().getReplicas() != null) ? dep.getSpec().getReplicas() : 1;
-		int ready = (dep.getStatus().getReadyReplicas() != null) ? dep.getStatus().getReadyReplicas() : 0;
-		int updated = (dep.getStatus().getUpdatedReplicas() != null) ? dep.getStatus().getUpdatedReplicas() : 0;
-		boolean isReady = (ready >= desired) && (updated >= desired);
-		String message = isReady ? "ready" : String.format("%d/%d replicas ready", ready, desired);
+		int ready = nz(dep.getStatus().getReadyReplicas());
+		int updated = nz(dep.getStatus().getUpdatedReplicas());
+		int available = nz(dep.getStatus().getAvailableReplicas());
+		boolean observed = observedCurrent(generationOf(dep.getMetadata()), dep.getStatus().getObservedGeneration());
+		boolean isReady = observed && (updated >= desired) && (ready >= desired) && (available >= desired);
+		String message = isReady ? "ready"
+				: !observed ? "waiting for rollout" : String.format("%d/%d replicas ready", ready, desired);
 		return ResourceStatus.builder()
 			.kind("Deployment")
 			.name(name)
@@ -466,6 +473,66 @@ public class HelmKubeService implements KubeService {
 			.ready(isReady)
 			.message(message)
 			.build();
+	}
+
+	private ResourceStatus checkReplicaSet(String namespace, String name) throws ApiException {
+		AppsV1Api api = new AppsV1Api(apiClient);
+		V1ReplicaSet rs = api.readNamespacedReplicaSet(name, namespace).execute();
+		int desired = (rs.getSpec().getReplicas() != null) ? rs.getSpec().getReplicas() : 1;
+		int ready = nz(rs.getStatus().getReadyReplicas());
+		boolean observed = observedCurrent(generationOf(rs.getMetadata()), rs.getStatus().getObservedGeneration());
+		boolean isReady = observed && (ready >= desired);
+		String message = isReady ? "ready"
+				: !observed ? "waiting for rollout" : String.format("%d/%d replicas ready", ready, desired);
+		return ResourceStatus.builder()
+			.kind("ReplicaSet")
+			.name(name)
+			.namespace(namespace)
+			.ready(isReady)
+			.message(message)
+			.build();
+	}
+
+	private ResourceStatus checkDaemonSet(String namespace, String name) throws ApiException {
+		AppsV1Api api = new AppsV1Api(apiClient);
+		V1DaemonSet ds = api.readNamespacedDaemonSet(name, namespace).execute();
+		int desiredScheduled = nz(ds.getStatus().getDesiredNumberScheduled());
+		int updatedScheduled = nz(ds.getStatus().getUpdatedNumberScheduled());
+		int numberReady = nz(ds.getStatus().getNumberReady());
+		boolean observed = observedCurrent(generationOf(ds.getMetadata()), ds.getStatus().getObservedGeneration());
+		boolean isReady = observed && (updatedScheduled >= desiredScheduled) && (numberReady >= desiredScheduled);
+		String message = isReady ? "ready"
+				: !observed ? "waiting for rollout" : String.format("%d/%d ready", numberReady, desiredScheduled);
+		return ResourceStatus.builder()
+			.kind("DaemonSet")
+			.name(name)
+			.namespace(namespace)
+			.ready(isReady)
+			.message(message)
+			.build();
+	}
+
+	/** Null-safe count: treats {@code null} as 0. */
+	private static int nz(Integer value) {
+		return (value != null) ? value : 0;
+	}
+
+	/**
+	 * Null-safe read of {@code metadata.generation}, returning {@code null} if absent.
+	 */
+	private static Long generationOf(V1ObjectMeta metadata) {
+		return (metadata != null) ? metadata.getGeneration() : null;
+	}
+
+	/**
+	 * Returns {@code true} when the controller has observed the latest spec, i.e.
+	 * {@code status.observedGeneration >= metadata.generation} (both null-safe as 0).
+	 * This guards against a mid-rollout false-ready before the controller has reconciled.
+	 */
+	private static boolean observedCurrent(Long generation, Long observedGeneration) {
+		long gen = (generation != null) ? generation : 0L;
+		long observed = (observedGeneration != null) ? observedGeneration : 0L;
+		return observed >= gen;
 	}
 
 	private ResourceStatus checkStatefulSet(String namespace, String name) throws ApiException {
