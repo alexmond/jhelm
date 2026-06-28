@@ -1,0 +1,106 @@
+= MCP Server
+
+`jhelm-mcp` exposes jhelm's Helm operations as https://modelcontextprotocol.io[Model Context
+Protocol] (MCP) tools, so an AI agent can render charts, search ArtifactHub, and manage
+releases by calling tools rather than shelling out to a binary. It is built on Spring AI 2.0
+and serves the STREAMABLE HTTP MCP transport (Spring MVC / webmvc).
+
+The same operations available over the xref:rest-api.adoc[REST API] are surfaced here as MCP
+tools, and both share the unified xref:security.adoc[security model].
+
+== Running it
+
+`jhelm-mcp` ships as a pure library plus a `jhelm-mcp-starter` that auto-configures the MCP
+server. Add the starter to a Spring Boot application:
+
+[source,xml,subs="attributes"]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-mcp-starter</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+----
+
+With the starter on the classpath, the MCP server is auto-configured and serves the
+STREAMABLE HTTP transport. The `jhelm-mcp-sample` module is a ready-to-run demo:
+
+[source,bash]
+----
+cd jhelm-mcp-sample
+../mvnw spring-boot:run
+----
+
+=== Local / desktop model
+
+MCP is designed to run local-first: you launch the server on the same machine as the agent,
+and the agent connects to it. In that local / stdio / localhost arrangement the transport is
+already inside the trust boundary, so no API key is required.
+
+The API key matters only when you *expose the MCP server over the network*. Once exposed, set
+`jhelm.security.api-key` and the HTTP endpoints (`/mcp`, `/sse`) require a valid `X-API-Key`
+header. See <<security>> below.
+
+== Tools
+
+The server exposes 16 tools. Read-only tools are always available; the cluster-mutating tools
+are registered only when `jhelm.security.mode=FULL` *and* an `api-key` is configured (see
+<<security>>).
+
+[cols="2,3,1"]
+|===
+| Tool | Description | Mutating
+
+| `helm_template`     | Render chart templates from a chart reference | No
+| `helm_show_chart`   | Show `Chart.yaml` metadata | No
+| `helm_show_values`  | Show default `values.yaml` | No
+| `helm_show_readme`  | Show the chart README | No
+| `helm_lint`         | Lint a chart | No
+| `helm_search_hub`   | Search ArtifactHub for charts | No
+| `helm_list`         | List releases in a namespace | No
+| `helm_status`       | Get release status | No
+| `helm_history`      | Get release revision history | No
+| `helm_get_values`   | Get the values of a release | No
+| `helm_get_manifest` | Get the rendered manifest of a release | No
+| `helm_install`      | Install a release into a cluster | *Yes*
+| `helm_upgrade`      | Upgrade an existing release | *Yes*
+| `helm_uninstall`    | Uninstall a release | *Yes*
+| `helm_rollback`     | Roll a release back to a previous revision | *Yes*
+| `helm_test`         | Run a release's test hooks | *Yes*
+|===
+
+The tools group naturally into:
+
+* *Chart* -- `helm_template`, `helm_show_chart`, `helm_show_values`, `helm_show_readme`,
+  `helm_lint`
+* *Hub* -- `helm_search_hub`
+* *Release (read)* -- `helm_list`, `helm_status`, `helm_history`, `helm_get_values`,
+  `helm_get_manifest`
+* *Release (mutating)* -- `helm_install`, `helm_upgrade`, `helm_uninstall`, `helm_rollback`,
+  `helm_test`
+
+NOTE: The mutating tools require `jhelm-kube` on the classpath (Kubernetes client). When the
+mutating gate is closed they are not registered, so an agent never sees them.
+
+[#security]
+== Security
+
+The MCP server uses the unified xref:security.adoc[`jhelm.security.*` model]:
+
+* *Tool gating* -- the mutating tools are registered only when `mode=FULL` and an `api-key`
+  is set. Otherwise they do not exist.
+* *HTTP filter* -- when an `api-key` is configured, the MCP HTTP endpoints (`/mcp`, `/sse`)
+  require a valid `X-API-Key` header.
+* *stdio / local bypass* -- a locally launched server never hits the servlet filter, so a
+  trusted localhost launch is not forced to present a key.
+
+[source,yaml,subs="attributes"]
+----
+jhelm:
+  security:
+    mode: FULL          # READ_ONLY (default) or FULL
+    api-key: changeme   # required to register + reach the mutating tools
+----
+
+For real multi-user authentication (OAuth, mTLS, gateway), layer Spring Security on top -- see
+the xref:security.adoc#spring-security[security upgrade path].

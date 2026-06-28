@@ -107,3 +107,88 @@ System.out.println(manifest);
 ----
 
 For Spring Boot integration with auto-configured beans and configuration properties, see the xref:spring-boot-starter.adoc[Spring Boot Starter] guide.
+
+== Using the REST API
+
+Add `jhelm-rest-starter` to a Spring Boot web application to expose Helm operations over HTTP:
+
+[source,xml,subs="attributes"]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-rest-starter</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+----
+
+Run a minimal Spring Boot application -- the endpoints are auto-configured:
+
+[source,java]
+----
+@SpringBootApplication
+public class MyHelmApp {
+    public static void main(String[] args) {
+        SpringApplication.run(MyHelmApp.class, args);
+    }
+}
+----
+
+Out of the box the API is *read-only* (the default `jhelm.security.mode=READ_ONLY`), so
+template and read endpoints work immediately and safely:
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/charts/template \
+  -H 'Content-Type: application/json' \
+  -d '{"chartRef": "bitnami/nginx", "releaseName": "demo", "namespace": "default"}'
+----
+
+Cluster-mutating endpoints (install/upgrade/uninstall/rollback/test) are *deny-by-default*:
+they are enabled only when you set `mode=FULL` *and* configure an API key. Without a key they
+return `403`; with the gate open, a request missing or presenting a bad key returns `401`.
+
+[source,yaml]
+----
+jhelm:
+  security:
+    mode: FULL
+    api-key: changeme
+----
+
+[source,bash]
+----
+curl -X POST http://localhost:8080/api/v1/releases \
+  -H 'X-API-Key: changeme' \
+  -H 'Content-Type: application/json' \
+  -d '{"chartRef": "bitnami/nginx", "releaseName": "demo", "namespace": "default"}'
+----
+
+See the xref:rest-api.adoc[REST API] reference for all endpoints and the
+xref:security.adoc[Security] model for the full gating rules.
+
+== Using the MCP Server
+
+Add `jhelm-mcp-starter` to a Spring Boot application to expose jhelm operations as
+https://modelcontextprotocol.io[Model Context Protocol] tools for AI agents:
+
+[source,xml,subs="attributes"]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-mcp-starter</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+----
+
+The server is auto-configured and serves the STREAMABLE HTTP MCP transport. Run it locally and
+point your agent at it; the read-only tools are available immediately. The `jhelm-mcp-sample`
+module is a runnable demo:
+
+[source,bash]
+----
+cd jhelm-mcp-sample
+../mvnw spring-boot:run
+----
+
+See the xref:mcp.adoc[MCP Server] guide for the tool catalogue and the local/desktop security
+model.

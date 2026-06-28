@@ -1,6 +1,8 @@
 = jhelm
 :jhelm-version: 0.4.0
 :url-docs: https://www.alexmond.org/jhelm/current/index.html
+:url-docs-mcp: https://www.alexmond.org/jhelm/current/mcp.html
+:url-docs-rest: https://www.alexmond.org/jhelm/current/rest-api.html
 :toc:
 
 image:https://img.shields.io/maven-central/v/org.alexmond/jhelm-core.svg?label=Maven%20Central[Maven Central,link=https://search.maven.org/artifact/org.alexmond/jhelm-core]
@@ -16,11 +18,15 @@ the Go-based Helm binary.
 
 == Why jhelm
 
-* *Helm-faithful rendering* -- jhelm renders chart templates byte-for-byte identically to
-  `helm template` across a continuously-run suite of *346 real-world charts* (Bitnami,
-  Grafana, GitLab, Kubernetes-monitoring, and more). Parity is enforced in CI on every change.
+* *Helm-faithful rendering, in pure Java* -- jhelm renders chart templates byte-for-byte
+  identically to `helm template` across a continuously-run suite of *346 real-world charts*
+  (Bitnami, Grafana, GitLab, Kubernetes-monitoring, and more), with no Go or `helm` binary.
+  Parity is enforced in CI on every change.
 * *Pure JVM, no native binary* -- no `helm` executable, no `exec`, no platform-specific
   distribution. Just a Maven dependency.
+* *MCP-native* -- the same operations are exposed as
+  https://modelcontextprotocol.io[Model Context Protocol] tools, so an AI agent can render
+  charts and manage releases directly. See {url-docs-mcp}[the MCP guide].
 * *Designed to be embedded* -- a clean programmatic API (`TemplateAction`, `InstallAction`,
   …), Spring Boot auto-configuration, and a REST module, in addition to the CLI.
 * *Go template engine on Maven Central* -- the template/Sprig engine is the standalone
@@ -147,10 +153,44 @@ jhelm repo add bitnami https://charts.bitnami.com/bitnami
 jhelm pull bitnami/nginx --untar
 ----
 
+=== As a REST API
+
+Add the `jhelm-rest-starter` to a Spring Boot web application:
+
+[source,xml,subs="attributes"]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-rest-starter</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+----
+
+The API is read-only by default; cluster-mutating endpoints are deny-by-default behind an
+API key (`jhelm.security.mode=FULL` + `jhelm.security.api-key`). See {url-docs-rest}[the REST
+API guide].
+
+=== As an MCP server
+
+Add the `jhelm-mcp-starter` to expose jhelm operations as MCP tools for AI agents:
+
+[source,xml,subs="attributes"]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-mcp-starter</artifactId>
+    <version>{jhelm-version}</version>
+</dependency>
+----
+
+Run it locally (see `jhelm-mcp-sample`) and point an agent at the STREAMABLE HTTP transport.
+See {url-docs-mcp}[the MCP guide].
+
 == Documentation
 
 Full documentation -- getting started, architecture, CLI reference, configuration, the REST
-API, and the Helm function catalogue -- is published at {url-docs}.
+API, the MCP server, the security model, and the Helm function catalogue -- is published at
+{url-docs}.
 
 == Building
 
