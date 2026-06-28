@@ -1,0 +1,116 @@
+= Security Model
+
+jhelm exposes Helm operations over two network surfaces -- the xref:rest-api.adoc[REST API]
+and the xref:mcp.adoc[MCP server] -- and both share a single, unified security model under
+`jhelm.security.*`.
+
+The design in one line: *MCP runs local-first, the REST API is deny-by-default behind an API
+key, read-only is the default everywhere, and Spring Security is the bring-your-own upgrade
+path for real auth.*
+
+== Principles
+
+* *Read-only by default.* Out of the box, only non-mutating operations (template, show, lint,
+  list, status, history, get) are available. They are safe to expose and never touch a cluster.
+* *Deny-by-default for mutating operations.* Cluster-mutating operations (install, upgrade,
+  uninstall, rollback, test) are enabled *only* when both conditions hold: `mode=FULL` *and* an
+  `api-key` is configured. `FULL` without a key leaves mutating operations disabled.
+* *The API key is the floor, not the ceiling.* The built-in key protects the
+  network-exposed HTTP transport. For real multi-user auth (OAuth, mTLS, an upstream gateway),
+  layer Spring Security on top -- see <<spring-security>>.
+
+== Configuration (`jhelm.security.*`)
+
+[cols="2,1,4"]
+|===
+| Property | Default | Description
+
+| `jhelm.security.mode`
+| `READ_ONLY`
+| Access mode. `READ_ONLY` exposes only non-mutating operations. `FULL` enables the
+  cluster-mutating operations -- but only when an `api-key` is also set (deny-by-default).
+
+| `jhelm.security.api-key`
+| _(none)_
+| Shared secret required to call mutating operations. With no key set, mutating operations
+  stay disabled regardless of `mode`.
+
+| `jhelm.security.api-key-header`
+| `X-API-Key`
+| Name of the HTTP header that carries the API key.
+|===
+
+[source,yaml]
+----
+jhelm:
+  security:
+    mode: FULL          # READ_ONLY (default) or FULL
+    api-key: changeme   # required to actually enable mutating operations
+    api-key-header: X-API-Key
+----
+
+[NOTE]
+====
+The mutating gate is the logical AND of both settings:
+
+[cols="1,1,2"]
+|===
+| `mode` | `api-key` | Mutating operations
+
+| `READ_ONLY` (default) | _any_ | Disabled
+| `FULL` | not set | Disabled
+| `FULL` | set | *Enabled*
+|===
+====
+
+== REST behaviour
+
+The REST API always serves read-only endpoints. For a mutating endpoint, the outcome depends
+on the gate and the request's API-key header:
+
+[cols="1,3"]
+|===
+| Status | When
+
+| `403 Forbidden`
+| Mutating is disabled -- `mode=READ_ONLY`, or `mode=FULL` with no `api-key` configured. The
+  operation is not available at all.
+
+| `401 Unauthorized`
+| Mutating is enabled, but the request is missing the `X-API-Key` header or presents an
+  invalid value.
+
+| _proceeds_
+| Mutating is enabled and a valid `X-API-Key` header is present.
+|===
+
+Read-only endpoints are always allowed and never require a key.
+
+== MCP behaviour
+
+The MCP server applies the same model, with two transport-aware twists:
+
+* *Tool gating.* The cluster-mutating tools (`helm_install`, `helm_upgrade`,
+  `helm_uninstall`, `helm_rollback`, `helm_test`) are only *registered* when `mode=FULL` and an
+  `api-key` is set. When the gate is closed they do not exist at all -- an agent never sees them.
+* *HTTP filter.* When an `api-key` is configured, an HTTP filter requires a valid
+  `X-API-Key` header on the MCP HTTP endpoints (`/mcp`, `/sse`).
+* *stdio / local bypass.* A locally launched MCP server (stdio / localhost) never passes
+  through the servlet filter, so it is not forced to present a key. The key protects the
+  *network-exposed* HTTP transport, not a trusted local launch.
+
+This matches how MCP is normally used: the server runs on the same machine as the agent, and
+the key only matters once the transport is exposed over the network. See the
+xref:mcp.adoc#security[MCP security section] for details.
+
+[#spring-security]
+== Upgrade path: Spring Security
+
+The built-in API key is a deliberately simple floor. For production multi-user authentication
+and authorization -- OAuth2 / OIDC, mTLS, or delegating to an upstream API gateway -- wire
+https://spring.io/projects/spring-security[Spring Security] into your application. Because both
+the REST and MCP surfaces are ordinary Spring MVC / web endpoints, standard Spring Security
+configuration applies on top of them.
+
+NOTE: Spring Security is configured in the embedding application, not baked into the starters.
+A fully secured sample is forthcoming.

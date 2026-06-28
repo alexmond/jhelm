@@ -50,9 +50,13 @@ Open http://localhost:8080/swagger-ui.html to see all endpoints.
 |===
 | Property | Default | Description
 
-| `jhelm.rest.mode`
-| `FULL`
-| Access mode. `READ_ONLY` disables the cluster-mutating endpoints (install/upgrade/uninstall/rollback/test, repo add/remove/push); `FULL` enables them.
+| `jhelm.security.mode`
+| `READ_ONLY`
+| Shared access mode (also used by the MCP server). `READ_ONLY` disables the cluster-mutating endpoints (install/upgrade/uninstall/rollback/test, repo add/remove/push); `FULL` enables them — but only together with an API key (deny-by-default).
+
+| `jhelm.security.api-key`
+| _(none)_
+| API key required on mutating requests via the `X-API-Key` header. With no key set, mutating operations stay disabled even in `FULL` mode.
 
 | `jhelm.rest.base-path`
 | `/api/v1`
@@ -66,15 +70,18 @@ Open http://localhost:8080/swagger-ui.html to see all endpoints.
 [source,yaml]
 ----
 jhelm:
+  security:
+    mode: FULL                 # READ_ONLY (default) or FULL
+    api-key: change-me         # required to enable mutating endpoints
   rest:
-    mode: FULL
     base-path: /api/v1
     temp-dir: /var/lib/jhelm/tmp
 ----
 
-NOTE: Authentication and authorization are the embedding application's responsibility
-(e.g. Spring Security). `jhelm.rest.mode` is a coarse mutating/read-only gate, not an auth
-mechanism.
+A mutating endpoint returns `403` when mutation is disabled (read-only, or no key), `401`
+on a missing/invalid key, and otherwise proceeds. See xref:security.adoc[Security] for the
+full model. The built-in key is the floor; wire Spring Security in your application for real
+multi-user auth.
 
 == Auto-Configuration
 
@@ -585,15 +592,18 @@ Add `jhelm-mcp-starter` to a Spring Boot application for the auto-configured ser
 </dependency>
 ----
 
-Like the REST starter, the MCP server has a `READ_ONLY`/`FULL` access mode. It defaults to
-`READ_ONLY`, so only the non-mutating tools are exposed unless you opt in:
+The MCP server shares the same `jhelm.security.*` gate as the REST API. It defaults to
+`READ_ONLY`, so only the non-mutating tools are registered; the mutating tools appear only
+in `FULL` mode with an API key set (deny-by-default):
 
 [source,yaml]
 ----
 jhelm:
-  mcp:
+  security:
     mode: READ_ONLY   # READ_ONLY (default) or FULL
+    api-key: change-me
 ----
 
-NOTE: As with the REST API, authentication is the embedding application's responsibility;
-`jhelm.mcp.mode` is a coarse mutating/read-only gate.
+When an API key is set, the MCP HTTP endpoints (`/mcp`, `/sse`) require it; a locally
+launched server over stdio is not forced to present one. See xref:mcp.adoc[MCP Server] and
+xref:security.adoc[Security].

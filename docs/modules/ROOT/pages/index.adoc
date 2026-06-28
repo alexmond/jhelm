@@ -4,12 +4,20 @@ jhelm is a native Java implementation of the https://helm.sh[Helm] package manag
 It provides an embeddable library, a Spring Boot starter, a REST API, and a standalone CLI to
 work with Helm charts from the JVM -- without shelling out to the Go-based Helm binary.
 
-== Helm-faithful rendering
+== Helm-faithful rendering, in pure Java
 
-jhelm renders chart templates byte-for-byte identically to `helm template` across a
+jhelm renders chart templates *byte-for-byte identically to `helm template`* across a
 continuously-run suite of *346 real-world charts* (Bitnami, Grafana, GitLab,
-Kubernetes-monitoring, and more). Parity is enforced in CI on every change, so behaviour
-tracks upstream Helm closely rather than approximating it.
+Kubernetes-monitoring, and more) -- in *pure Java, with no Go or `helm` binary*. Parity is
+enforced in CI on every change, so behaviour tracks upstream Helm closely rather than
+approximating it. Rendering is driven by the standalone
+https://github.com/alexmond/gotmpl4j[gotmpl4j] Go-template engine.
+
+== MCP-native
+
+The same operations are exposed as https://modelcontextprotocol.io[Model Context Protocol]
+tools, so an AI agent can render charts, search ArtifactHub, and manage releases directly --
+no shelling out, no glue code. See xref:mcp.adoc[MCP Server].
 
 == Key Features
 
@@ -39,8 +47,10 @@ tracks upstream Helm closely rather than approximating it.
 * xref:getting-started.adoc[Getting Started] -- build, run the CLI, or add jhelm as a library
 * xref:spring-boot-starter.adoc[Spring Boot Starter] -- programmatic API with auto-configured beans and code samples
 * xref:rest-api.adoc[REST API] -- HTTP endpoints and OpenAPI documentation
+* xref:mcp.adoc[MCP Server] -- jhelm operations as Model Context Protocol tools for AI agents
 * xref:cli-reference.adoc[CLI Reference] -- all commands, options, and examples
 * xref:configuration.adoc[Configuration] -- `jhelm.*` properties reference
+* xref:security.adoc[Security] -- the unified `jhelm.security.*` model for REST and MCP
 * xref:architecture.adoc[Architecture] -- module structure and design
 * xref:helm-functions.adoc[Helm Functions] -- the Helm-specific template function catalogue
 * xref:roadmap.adoc[Roadmap] -- planned features and compatibility matrix
