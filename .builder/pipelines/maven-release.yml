@@ -20,6 +20,8 @@ name: jhelm Maven Release
 on:
   - manual
 
+checkout: true
+
 inputs:
   releaseVersion:
     type: string
@@ -48,8 +50,6 @@ jobs:
       - name: setup-tools
         run: |
           (apt-get update -qq && apt-get install -y -qq git gnupg curl) || (apk add --no-cache git gnupg curl) || true
-      - name: checkout
-        run: git clone https://github.com/alexmond/jhelm.git .
       - name: configure-git
         run: |
           git config user.name "GitHub Actions"
