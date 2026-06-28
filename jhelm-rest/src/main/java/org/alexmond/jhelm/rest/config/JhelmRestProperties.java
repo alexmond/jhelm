@@ -8,7 +8,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.alexmond.jhelm.core.config.JhelmAccessMode;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -29,12 +28,6 @@ public class JhelmRestProperties {
 	 * Base directory for temporary files. Defaults to the system temp directory.
 	 */
 	private Path tempDir;
-
-	/**
-	 * Access mode for the REST API. {@link JhelmAccessMode#READ_ONLY READ_ONLY} blocks
-	 * cluster-mutating endpoints; defaults to {@link JhelmAccessMode#FULL FULL}.
-	 */
-	private JhelmAccessMode mode = JhelmAccessMode.FULL;
 
 	/**
 	 * Returns the configured temp directory, or the system default if not set. The

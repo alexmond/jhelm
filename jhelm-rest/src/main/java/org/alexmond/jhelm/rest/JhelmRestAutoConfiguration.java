@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.rest;
 
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.SearchHubAction;
@@ -34,38 +35,23 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
-
 /**
  * Auto-configuration for the jhelm REST API module. Activates only when the application
  * is a web application (servlet-based). Runs after {@link JhelmCoreAutoConfiguration} so
  * that all core beans (actions, services) are available for REST controllers.
  *
  * <p>
- * <strong>Security:</strong> the jhelm REST API exposes cluster-mutating operations
- * (install, upgrade, uninstall, rollback) and ships with <strong>no
- * authentication</strong>. Securing it is the responsibility of the embedding application
- * (for example via Spring Security); it must never be exposed unauthenticated to an
- * untrusted network.
+ * <strong>Security:</strong> cluster-mutating endpoints are gated by the shared
+ * {@code jhelm.security.*} policy — read-only by default, and mutating operations are
+ * disabled unless {@code jhelm.security.mode=FULL} and a {@code jhelm.security.api-key}
+ * are set (deny-by-default), then required as a header on each request. The built-in API
+ * key is the floor; wire Spring Security in the application for real multi-user auth. The
+ * startup security posture is logged by the core module.
  */
-@Slf4j
 @AutoConfiguration(after = JhelmCoreAutoConfiguration.class)
 @ConditionalOnWebApplication
 @EnableConfigurationProperties(JhelmRestProperties.class)
 public class JhelmRestAutoConfiguration {
-
-	/**
-	 * Logs a single startup warning that the REST API is unauthenticated, reminding
-	 * operators to secure it (for example with Spring Security) in the consuming
-	 * application.
-	 */
-	@PostConstruct
-	public void warnUnauthenticated() {
-		log.warn("jhelm REST API is enabled with NO authentication and exposes cluster-mutating "
-				+ "operations; secure it (e.g. set up Spring Security) in your application before "
-				+ "exposing it to any untrusted network.");
-	}
 
 	/**
 	 * Registers the global REST exception handler unless one is already defined.
@@ -78,15 +64,15 @@ public class JhelmRestAutoConfiguration {
 	}
 
 	/**
-	 * Registers the access-mode interceptor that rejects cluster-mutating endpoints when
-	 * the REST API is in {@code READ_ONLY} mode.
-	 * @param properties the REST module configuration carrying the access mode
+	 * Registers the access-mode interceptor that gates cluster-mutating endpoints behind
+	 * the unified security policy (deny-by-default 403, then API-key 401).
+	 * @param securityPolicy the unified security policy that gates mutating operations
 	 * @return the access-mode interceptor bean
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public AccessModeInterceptor accessModeInterceptor(JhelmRestProperties properties) {
-		return new AccessModeInterceptor(properties);
+	public AccessModeInterceptor accessModeInterceptor(JhelmSecurityPolicy securityPolicy) {
+		return new AccessModeInterceptor(securityPolicy);
 	}
 
 	/**

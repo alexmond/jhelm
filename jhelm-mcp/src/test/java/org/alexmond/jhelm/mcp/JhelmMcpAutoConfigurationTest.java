@@ -9,9 +9,7 @@ import org.alexmond.jhelm.core.action.StatusAction;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
-import org.alexmond.jhelm.core.config.JhelmAccessMode;
 import org.alexmond.jhelm.core.service.ChartLoader;
-import org.alexmond.jhelm.mcp.config.JhelmMcpProperties;
 import org.alexmond.jhelm.mcp.tools.ReleaseMutatingTools;
 import org.alexmond.jhelm.mcp.tools.ReleaseReadTools;
 import org.junit.jupiter.api.Test;
@@ -21,15 +19,16 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Verifies that the MCP auto-configuration gates the cluster-mutating release tools
- * behind {@code jhelm.mcp.mode=FULL}, while the read-only release tools are always
- * registered. The required action beans are supplied as Mockito mocks so the
- * {@code @ConditionalOnBean} conditions are satisfied without a live cluster.
+ * behind the unified deny-by-default security policy: they are registered only when
+ * {@code jhelm.security.mode=FULL} <em>and</em> {@code jhelm.security.api-key} is set,
+ * while the read-only release tools are always registered. The required action beans are
+ * supplied as Mockito mocks so the {@code @ConditionalOnBean} conditions are satisfied
+ * without a live cluster.
  */
 class JhelmMcpAutoConfigurationTest {
 
@@ -38,31 +37,39 @@ class JhelmMcpAutoConfigurationTest {
 		.withUserConfiguration(MockActionsConfiguration.class);
 
 	@Test
-	void readOnlyModeRegistersReadToolsButHidesMutatingTools() {
+	void defaultRegistersReadToolsButHidesMutatingTools() {
 		this.contextRunner.run((context) -> {
 			assertTrue(context.containsBean("jhelmReleaseReadTools"));
 			context.getBean(ReleaseReadTools.class);
 			assertFalse(context.containsBean("jhelmReleaseMutatingTools"),
-					"mutating tools must not be registered in READ_ONLY mode");
-			assertEquals(JhelmAccessMode.READ_ONLY, context.getBean(JhelmMcpProperties.class).getMode());
+					"mutating tools must not be registered by default (READ_ONLY, no key)");
 		});
 	}
 
 	@Test
-	void explicitReadOnlyModeHidesMutatingTools() {
-		this.contextRunner.withPropertyValues("jhelm.mcp.mode=READ_ONLY").run((context) -> {
+	void fullModeWithoutApiKeyHidesMutatingTools() {
+		this.contextRunner.withPropertyValues("jhelm.security.mode=FULL").run((context) -> {
 			assertTrue(context.containsBean("jhelmReleaseReadTools"));
-			assertFalse(context.containsBean("jhelmReleaseMutatingTools"));
+			assertFalse(context.containsBean("jhelmReleaseMutatingTools"),
+					"deny-by-default: FULL without an api-key must not register mutating tools");
 		});
 	}
 
 	@Test
-	void fullModeRegistersMutatingTools() {
-		this.contextRunner.withPropertyValues("jhelm.mcp.mode=FULL").run((context) -> {
-			assertTrue(context.containsBean("jhelmReleaseReadTools"));
-			assertTrue(context.containsBean("jhelmReleaseMutatingTools"));
-			context.getBean(ReleaseMutatingTools.class);
-		});
+	void apiKeyWithoutFullModeHidesMutatingTools() {
+		this.contextRunner.withPropertyValues("jhelm.security.api-key=secret")
+			.run((context) -> assertFalse(context.containsBean("jhelmReleaseMutatingTools"),
+					"a key alone (READ_ONLY) must not register mutating tools"));
+	}
+
+	@Test
+	void fullModeWithApiKeyRegistersMutatingTools() {
+		this.contextRunner.withPropertyValues("jhelm.security.mode=FULL", "jhelm.security.api-key=secret")
+			.run((context) -> {
+				assertTrue(context.containsBean("jhelmReleaseReadTools"));
+				assertTrue(context.containsBean("jhelmReleaseMutatingTools"));
+				context.getBean(ReleaseMutatingTools.class);
+			});
 	}
 
 	/**

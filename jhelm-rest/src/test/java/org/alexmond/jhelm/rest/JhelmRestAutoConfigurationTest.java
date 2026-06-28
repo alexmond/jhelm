@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.rest;
 
+import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -12,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JhelmRestAutoConfigurationTest {
 
 	private final WebApplicationContextRunner contextRunner = new WebApplicationContextRunner()
-		.withConfiguration(AutoConfigurations.of(JhelmRestAutoConfiguration.class));
+		.withConfiguration(AutoConfigurations.of(JhelmCoreAutoConfiguration.class, JhelmRestAutoConfiguration.class));
 
 	@Test
 	void autoConfigurationRegistersProperties() {

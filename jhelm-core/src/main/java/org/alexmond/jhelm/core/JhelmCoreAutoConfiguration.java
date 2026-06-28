@@ -3,8 +3,12 @@ package org.alexmond.jhelm.core;
 import java.util.List;
 
 import org.alexmond.jhelm.core.cache.TemplateCache;
+import org.alexmond.jhelm.core.config.JhelmAccessMode;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
+import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -12,6 +16,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.ObjectProvider;
+import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
@@ -44,9 +49,46 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
  * require a {@link KubeService} are only created when one is present in the application
  * context.
  */
+@Slf4j
 @AutoConfiguration(after = JhelmMetricsAutoConfiguration.class)
-@EnableConfigurationProperties(JhelmCoreProperties.class)
+@EnableConfigurationProperties({ JhelmCoreProperties.class, JhelmSecurityProperties.class })
 public class JhelmCoreAutoConfiguration {
+
+	/**
+	 * Provides the unified security policy derived from {@link JhelmSecurityProperties}.
+	 * This single policy gates cluster-mutating operations across all jhelm adapters
+	 * (REST, MCP) under deny-by-default semantics.
+	 * @param props the unified security properties
+	 * @return the resolved security policy bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public JhelmSecurityPolicy jhelmSecurityPolicy(JhelmSecurityProperties props) {
+		return new JhelmSecurityPolicy(props);
+	}
+
+	/**
+	 * Logs a single line describing the resolved security posture at startup, so
+	 * operators can confirm whether mutating operations are enabled and protected.
+	 * @param policy the resolved security policy
+	 * @return an application runner that logs the posture once
+	 */
+	@Bean
+	@ConditionalOnMissingBean(name = "jhelmSecurityPostureLogger")
+	public ApplicationRunner jhelmSecurityPostureLogger(JhelmSecurityPolicy policy) {
+		return (args) -> {
+			if (policy.mutatingEnabled()) {
+				log.info("jhelm security: FULL — mutating operations ENABLED, protected by an API key.");
+			}
+			else if (policy.mode() == JhelmAccessMode.FULL) {
+				log.warn("jhelm security: FULL requested but no jhelm.security.api-key is set — mutating "
+						+ "operations are DISABLED (deny-by-default). Set jhelm.security.api-key to enable them.");
+			}
+			else {
+				log.info("jhelm security: READ_ONLY — mutating operations are disabled.");
+			}
+		};
+	}
 
 	/**
 	 * Provides the chart repository manager, configured from the jhelm properties.

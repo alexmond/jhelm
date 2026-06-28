@@ -14,6 +14,7 @@ import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.mcp.config.JhelmMcpProperties;
 import org.alexmond.jhelm.mcp.tools.ChartTools;
@@ -25,9 +26,10 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 
 /**
  * Auto-configuration for the jhelm MCP (Model Context Protocol) server module. Activates
@@ -41,13 +43,14 @@ import org.springframework.context.annotation.Bean;
  * run for a library on the classpath).
  *
  * <p>
- * <strong>Access mode:</strong> {@code jhelm.mcp.mode} mirrors {@code jhelm.rest.mode}.
- * In the default {@code READ_ONLY} mode only the non-mutating tools (template, show,
- * lint, search, plus the cluster-read release tools: list, status, history, get
- * values/manifest) are exposed. The cluster-mutating tools (install, upgrade, uninstall,
- * rollback, test) are registered only when {@code jhelm.mcp.mode} is set to the
- * upper-case value {@code FULL}; in {@code READ_ONLY} mode they are not registered and do
- * not appear in the MCP tool list at all.
+ * <strong>Security:</strong> the MCP server uses the unified {@code jhelm.security.*}
+ * policy. The non-mutating tools (template, show, lint, search, plus the cluster-read
+ * release tools: list, status, history, get values/manifest) are always exposed. The
+ * cluster-mutating tools (install, upgrade, uninstall, rollback, test) are registered
+ * only when, under deny-by-default semantics, {@code jhelm.security.mode=FULL}
+ * <em>and</em> a non-blank {@code jhelm.security.api-key} is set (see
+ * {@link OnMutatingEnabledCondition}). Without an API key they are never registered and
+ * do not appear in the MCP tool list.
  */
 @AutoConfiguration(after = JhelmCoreAutoConfiguration.class)
 @ConditionalOnClass(McpTool.class)
@@ -101,10 +104,11 @@ public class JhelmMcpAutoConfiguration {
 	}
 
 	/**
-	 * Registers the cluster-mutating release MCP tools only when
-	 * {@code jhelm.mcp.mode=FULL} (upper-case) and the required mutating actions are
-	 * present. In the default {@code READ_ONLY} mode this bean is not created, so the
-	 * mutating tools never appear in the MCP tool list.
+	 * Registers the cluster-mutating release MCP tools only when, under deny-by-default
+	 * semantics, {@code jhelm.security.mode=FULL} <em>and</em> a non-blank
+	 * {@code jhelm.security.api-key} is set (see {@link OnMutatingEnabledCondition}), and
+	 * the required mutating actions are present. Without an API key this bean is not
+	 * created, so the mutating tools never appear in the MCP tool list.
 	 * @param installAction installs releases
 	 * @param upgradeAction upgrades releases
 	 * @param uninstallAction uninstalls releases
@@ -116,7 +120,7 @@ public class JhelmMcpAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	@ConditionalOnProperty(name = "jhelm.mcp.mode", havingValue = "FULL")
+	@Conditional(OnMutatingEnabledCondition.class)
 	@ConditionalOnBean({ InstallAction.class, UpgradeAction.class, UninstallAction.class, RollbackAction.class,
 			TestAction.class })
 	public ReleaseMutatingTools jhelmReleaseMutatingTools(InstallAction installAction, UpgradeAction upgradeAction,
@@ -124,6 +128,23 @@ public class JhelmMcpAutoConfiguration {
 			ChartLoader chartLoader) {
 		return new ReleaseMutatingTools(installAction, upgradeAction, uninstallAction, rollbackAction, testAction,
 				getAction, chartLoader);
+	}
+
+	/**
+	 * Registers the MCP HTTP API-key filter, but only when a non-blank
+	 * {@code jhelm.security.api-key} is configured (see
+	 * {@link OnApiKeyConfiguredCondition}) and the application is a servlet web
+	 * application. A read-only MCP server with no API key stays open and the stdio
+	 * transport is unaffected; configuring a key enforces it on the MCP HTTP endpoint.
+	 * @param policy the unified security policy used to validate the presented API key
+	 * @return the MCP API-key filter bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	@ConditionalOnWebApplication
+	@Conditional(OnApiKeyConfiguredCondition.class)
+	public McpApiKeyFilter mcpApiKeyFilter(JhelmSecurityPolicy policy) {
+		return new McpApiKeyFilter(policy);
 	}
 
 }
