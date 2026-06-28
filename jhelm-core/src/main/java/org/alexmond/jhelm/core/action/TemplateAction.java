@@ -20,6 +20,8 @@ public class TemplateAction {
 
 	private final Engine engine;
 
+	private final ChartLoader chartLoader;
+
 	@Setter
 	private List<PostRenderProcessor> postRenderProcessors = List.of();
 
@@ -28,8 +30,7 @@ public class TemplateAction {
 	}
 
 	public String render(String chartPath, String releaseName, String namespace, Map<String, Object> overrides) {
-		ChartLoader loader = new ChartLoader();
-		Chart chart = loader.load(new File(chartPath));
+		Chart chart = this.chartLoader.load(new File(chartPath));
 
 		Map<String, Object> values = new HashMap<>(chart.getValues());
 		ValuesLoader.deepMerge(values, overrides);

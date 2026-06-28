@@ -2,6 +2,8 @@ package org.alexmond.jhelm.core.model;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -39,9 +41,11 @@ public class RepositoryConfig {
 
 		private String caFile;
 
-		private boolean insecure_skip_tls_verify;
+		@JsonProperty("insecure_skip_tls_verify")
+		private boolean insecureSkipTlsVerify;
 
-		private boolean pass_credentials_all;
+		@JsonProperty("pass_credentials_all")
+		private boolean passCredentialsAll;
 
 	}
 

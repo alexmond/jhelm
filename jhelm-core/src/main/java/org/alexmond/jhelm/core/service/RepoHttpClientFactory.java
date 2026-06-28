@@ -76,13 +76,13 @@ final class RepoHttpClientFactory {
 		}
 		boolean hasTls = (repo.getCertFile() != null && !repo.getCertFile().isEmpty())
 				|| (repo.getCaFile() != null && !repo.getCaFile().isEmpty());
-		boolean skipVerify = repo.isInsecure_skip_tls_verify() || globalInsecureSkipTls;
+		boolean skipVerify = repo.isInsecureSkipTlsVerify() || globalInsecureSkipTls;
 		return hasTls || skipVerify;
 	}
 
 	private CloseableHttpClient buildTlsClient(RepositoryConfig.Repository repo) throws IOException {
 		try {
-			boolean skipVerify = repo.isInsecure_skip_tls_verify() || globalInsecureSkipTls;
+			boolean skipVerify = repo.isInsecureSkipTlsVerify() || globalInsecureSkipTls;
 			SSLContext sslContext = buildSslContext(repo, skipVerify);
 			TlsSocketStrategy tlsStrategy = skipVerify
 					? new DefaultClientTlsStrategy(sslContext, NoopHostnameVerifier.INSTANCE)

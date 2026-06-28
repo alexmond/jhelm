@@ -180,9 +180,9 @@ public class JhelmCoreAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public TemplateAction templateAction(Engine engine,
+	public TemplateAction templateAction(Engine engine, ChartLoader chartLoader,
 			ObjectProvider<List<PostRenderProcessor>> postRenderProcessors) {
-		TemplateAction action = new TemplateAction(engine);
+		TemplateAction action = new TemplateAction(engine, chartLoader);
 		List<PostRenderProcessor> processors = postRenderProcessors.getIfAvailable();
 		if (processors != null) {
 			action.setPostRenderProcessors(processors);
