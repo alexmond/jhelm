@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
@@ -33,15 +34,15 @@ public class TemplateAction {
 		Map<String, Object> values = new HashMap<>(chart.getValues());
 		ValuesLoader.deepMerge(values, overrides);
 
-		Map<String, Object> releaseData = new HashMap<>();
-		releaseData.put("Name", releaseName);
-		releaseData.put("Namespace", namespace);
-		releaseData.put("Service", "Helm");
-		releaseData.put("IsInstall", true);
-		releaseData.put("IsUpgrade", false);
-		releaseData.put("Revision", 1);
+		ReleaseContext releaseContext = ReleaseContext.builder()
+			.name(releaseName)
+			.namespace(namespace)
+			.install(true)
+			.upgrade(false)
+			.revision(1)
+			.build();
 
-		String manifest = engine.render(chart, values, releaseData);
+		String manifest = engine.render(chart, values, releaseContext);
 
 		for (PostRenderProcessor processor : postRenderProcessors) {
 			try {

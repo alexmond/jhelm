@@ -11,6 +11,7 @@ import org.alexmond.jhelm.core.exception.TemplateRenderException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Dependency;
+import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -52,14 +53,14 @@ class EngineTest {
 			.build();
 	}
 
-	private Map<String, Object> releaseInfo() {
-		Map<String, Object> info = new HashMap<>();
-		info.put("Name", "test-release");
-		info.put("Namespace", "default");
-		info.put("IsInstall", true);
-		info.put("IsUpgrade", false);
-		info.put("Revision", 1);
-		return info;
+	private ReleaseContext releaseInfo() {
+		return ReleaseContext.builder()
+			.name("test-release")
+			.namespace("default")
+			.install(true)
+			.upgrade(false)
+			.revision(1)
+			.build();
 	}
 
 	// --- basic rendering ---

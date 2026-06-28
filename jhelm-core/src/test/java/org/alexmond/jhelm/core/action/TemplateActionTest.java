@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.when;
 import org.alexmond.jhelm.core.model.Chart;
+import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.service.Engine;
 
 class TemplateActionTest {
@@ -46,7 +47,7 @@ class TemplateActionTest {
 		Files.writeString(chartDir.resolve("Chart.yaml"), chartYaml);
 
 		String manifest = "---\nkind: Service\nmetadata:\n  name: myservice";
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(manifest);
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(manifest);
 
 		String result = templateAction.render(chartDir.toString(), "myrelease", "default");
 

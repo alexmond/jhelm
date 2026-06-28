@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.SchemaValidationException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
+import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.SchemaValidator;
@@ -101,16 +102,16 @@ public class LintAction {
 			ValuesLoader.deepMerge(values, overrideValues);
 		}
 
-		Map<String, Object> releaseData = new HashMap<>();
-		releaseData.put("Name", "RELEASE-NAME");
-		releaseData.put("Namespace", "default");
-		releaseData.put("Service", "Helm");
-		releaseData.put("IsInstall", true);
-		releaseData.put("IsUpgrade", false);
-		releaseData.put("Revision", 1);
+		ReleaseContext releaseContext = ReleaseContext.builder()
+			.name("RELEASE-NAME")
+			.namespace("default")
+			.install(true)
+			.upgrade(false)
+			.revision(1)
+			.build();
 
 		try {
-			engine.render(chart, values, releaseData);
+			engine.render(chart, values, releaseContext);
 		}
 		catch (Exception ex) {
 			errors.add("template rendering failed: " + ex.getMessage());

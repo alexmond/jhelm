@@ -7,6 +7,7 @@ import java.util.Map;
 import org.alexmond.jhelm.core.cache.TemplateCache;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
+import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,8 +17,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EngineCacheTest {
 
-	private static final Map<String, Object> RELEASE_INFO = Map.of("Name", "test-release", "Namespace", "default",
-			"IsInstall", true, "IsUpgrade", false, "Revision", 1);
+	private static final ReleaseContext RELEASE_INFO = ReleaseContext.builder()
+		.name("test-release")
+		.namespace("default")
+		.install(true)
+		.upgrade(false)
+		.revision(1)
+		.build();
 
 	private ChartLoader chartLoader;
 

@@ -13,6 +13,7 @@ import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -87,15 +88,15 @@ public class InstallAction {
 				.build())
 			.build();
 
-		Map<String, Object> releaseData = new HashMap<>();
-		releaseData.put("Name", options.getReleaseName());
-		releaseData.put("Namespace", options.getNamespace());
-		releaseData.put("Service", "Helm");
-		releaseData.put("IsInstall", true);
-		releaseData.put("IsUpgrade", false);
-		releaseData.put("Revision", release.getVersion());
+		ReleaseContext releaseContext = ReleaseContext.builder()
+			.name(options.getReleaseName())
+			.namespace(options.getNamespace())
+			.install(true)
+			.upgrade(false)
+			.revision(release.getVersion())
+			.build();
 
-		String manifest = runPostRenderProcessors(engine.render(chart, values, releaseData));
+		String manifest = runPostRenderProcessors(engine.render(chart, values, releaseContext));
 
 		release = release.toBuilder().manifest(manifest).build();
 

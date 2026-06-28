@@ -35,6 +35,7 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -82,7 +83,7 @@ class UpgradeActionTest {
 		Chart newChart = Chart.builder().metadata(newMetadata).values(newValues).build();
 
 		String renderedManifest = "---\napiVersion: v1\nkind: Service";
-		when(engine.render(eq(newChart), anyMap(), anyMap())).thenReturn(renderedManifest);
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class))).thenReturn(renderedManifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
@@ -107,11 +108,10 @@ class UpgradeActionTest {
 		// The 5-arg overload defaults to Helm's --history-max default of 10.
 		verify(kubeService).pruneReleaseHistory("myapp", "default", 10);
 
-		@SuppressWarnings("unchecked")
-		ArgumentCaptor<Map<String, Object>> releaseDataCaptor = ArgumentCaptor.forClass(Map.class);
+		ArgumentCaptor<ReleaseContext> releaseDataCaptor = ArgumentCaptor.forClass(ReleaseContext.class);
 		verify(engine).render(eq(newChart), anyMap(), releaseDataCaptor.capture());
 
-		Map<String, Object> releaseData = releaseDataCaptor.getValue();
+		Map<String, Object> releaseData = releaseDataCaptor.getValue().toMap();
 		assertEquals("myapp", releaseData.get("Name"));
 		assertEquals("default", releaseData.get("Namespace"));
 		assertEquals(false, releaseData.get("IsInstall"));
@@ -144,7 +144,7 @@ class UpgradeActionTest {
 		Map<String, Object> overrideValues = new HashMap<>();
 		overrideValues.put("replicaCount", 5);
 
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("manifest");
 
 		upgradeAction.upgrade(UpgradeOptions.builder()
 			.currentRelease(currentRelease)
@@ -155,7 +155,7 @@ class UpgradeActionTest {
 
 		@SuppressWarnings("unchecked")
 		ArgumentCaptor<Map<String, Object>> valuesCaptor = ArgumentCaptor.forClass(Map.class);
-		verify(engine).render(eq(chart), valuesCaptor.capture(), anyMap());
+		verify(engine).render(eq(chart), valuesCaptor.capture(), any(ReleaseContext.class));
 
 		Map<String, Object> mergedValues = valuesCaptor.getValue();
 		assertEquals(5, mergedValues.get("replicaCount"));
@@ -181,7 +181,7 @@ class UpgradeActionTest {
 			.info(info)
 			.build();
 
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("dry-run-manifest");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("dry-run-manifest");
 
 		Release upgradedRelease = upgradeAction.upgrade(UpgradeOptions.builder()
 			.currentRelease(currentRelease)
@@ -218,7 +218,7 @@ class UpgradeActionTest {
 			.info(info)
 			.build();
 
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("manifest");
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
@@ -271,7 +271,7 @@ class UpgradeActionTest {
 		String regularYaml = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
 		String fullManifest = "---\n" + hookYaml + regularYaml;
 
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(fullManifest);
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(fullManifest);
 		doNothing().when(kubeService).delete(anyString(), anyString());
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).waitForReady(anyString(), anyString(), anyInt());
@@ -327,7 +327,7 @@ class UpgradeActionTest {
 		String regularYaml = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
 		String fullManifest = "---\n" + hookYaml + regularYaml;
 
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(fullManifest);
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(fullManifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
@@ -367,7 +367,7 @@ class UpgradeActionTest {
 			.info(info)
 			.build();
 
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("manifest");
 
 		Release upgradedRelease = upgradeAction.upgrade(UpgradeOptions.builder()
 			.currentRelease(currentRelease)
@@ -401,7 +401,7 @@ class UpgradeActionTest {
 			.build();
 
 		String newManifest = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: new-svc\n";
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(newManifest);
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(newManifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doThrow(new RuntimeException("storage failed")).when(kubeService).storeRelease(any(Release.class));
 
@@ -478,7 +478,7 @@ class UpgradeActionTest {
 	@SuppressWarnings("unchecked")
 	private Map<String, Object> renderValuesFor(Release upgraded) {
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-		verify(engine).render(any(Chart.class), captor.capture(), anyMap());
+		verify(engine).render(any(Chart.class), captor.capture(), any(ReleaseContext.class));
 		return captor.getValue();
 	}
 
@@ -486,7 +486,7 @@ class UpgradeActionTest {
 	void testDefaultNoOverridesReusesPriorConfig() {
 		Release current = currentReleaseWithPrior();
 		Chart newChart = newChartWithChangedDefault();
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("manifest");
 
 		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
 			.currentRelease(current)
@@ -509,7 +509,7 @@ class UpgradeActionTest {
 		Chart newChart = newChartWithChangedDefault();
 		Map<String, Object> overrides = new HashMap<>();
 		overrides.put("extra", "x");
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("manifest");
 
 		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
 			.currentRelease(current)
@@ -535,7 +535,7 @@ class UpgradeActionTest {
 		Chart newChart = newChartWithChangedDefault();
 		Map<String, Object> overrides = new HashMap<>();
 		overrides.put("extra", "x");
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("manifest");
 
 		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
 			.currentRelease(current)
@@ -559,7 +559,7 @@ class UpgradeActionTest {
 		Chart newChart = newChartWithChangedDefault();
 		Map<String, Object> overrides = new HashMap<>();
 		overrides.put("extra", "x");
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("manifest");
 
 		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
 			.currentRelease(current)
@@ -586,7 +586,7 @@ class UpgradeActionTest {
 		Chart newChart = newChartWithChangedDefault();
 		Map<String, Object> overrides = new HashMap<>();
 		overrides.put("extra", "x");
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("manifest");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("manifest");
 
 		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
 			.currentRelease(current)
