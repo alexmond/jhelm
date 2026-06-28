@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.core.action;
 
+import org.alexmond.jhelm.core.exception.KubernetesOperationException;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.SerializationFeature;

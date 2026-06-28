@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.core.action;
 
+import org.alexmond.jhelm.core.exception.KubernetesOperationException;
+
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
