@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.core.action;
 
+import org.alexmond.jhelm.core.exception.SignatureException;
+
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
