@@ -214,8 +214,14 @@ public final class ConversionFunctions {
 	 */
 	private static Function toYaml() {
 		return (args) -> {
-			if (args.length == 0 || args[0] == null) {
+			if (args.length == 0) {
 				return "";
+			}
+			if (args[0] == null) {
+				// Helm's toYaml marshals via sigs.k8s.io/yaml; yaml.Marshal(nil) yields
+				// "null\n" -> trimmed "null". A nil value must render the literal null,
+				// not an empty string (e.g. a ConfigMap data key bound to a nil value).
+				return "null";
 			}
 			try {
 				String yaml = YAML_MAPPER.get().writeValueAsString(args[0]);
@@ -238,8 +244,11 @@ public final class ConversionFunctions {
 	 */
 	private static Function toYamlPretty() {
 		return (args) -> {
-			if (args.length == 0 || args[0] == null) {
+			if (args.length == 0) {
 				return "";
+			}
+			if (args[0] == null) {
+				return "null";
 			}
 			try {
 				String yaml = PRETTY_YAML_MAPPER.get().writeValueAsString(args[0]);
@@ -261,8 +270,13 @@ public final class ConversionFunctions {
 	 */
 	private static Function mustToYaml() {
 		return (args) -> {
-			if (args.length == 0 || args[0] == null) {
+			if (args.length == 0) {
 				throw new FunctionExecutionException("mustToYaml: no value provided");
+			}
+			if (args[0] == null) {
+				// yaml.Marshal(nil) succeeds with "null"; mustToYaml does not error on
+				// nil.
+				return "null";
 			}
 			try {
 				String yaml = YAML_MAPPER.get().writeValueAsString(args[0]);
