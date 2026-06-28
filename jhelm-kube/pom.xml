@@ -62,6 +62,29 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!--
+                Integration tests (*IntegrationTest) drive the real action layer against a
+                live cluster and are owned by failsafe, not surefire. They self-skip via
+                @KubeClusterAvailable when no cluster is reachable, so a normal local
+                `mvn install` (no cluster) stays green while CI's kind cluster runs them.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>**/*IntegrationTest.java</include>
+                    </includes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

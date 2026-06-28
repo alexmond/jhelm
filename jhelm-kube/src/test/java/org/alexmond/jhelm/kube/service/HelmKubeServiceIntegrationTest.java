@@ -6,6 +6,7 @@ import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.alexmond.jhelm.kube.KubeClusterAvailable;
 import org.alexmond.jhelm.kube.KubernetesConfig;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -15,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(classes = { KubernetesConfig.class, HelmKubeService.class })
+@KubeClusterAvailable
 class HelmKubeServiceIntegrationTest {
 
 	@Autowired

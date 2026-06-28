@@ -14,6 +14,7 @@ import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.CoreConfig;
+import org.alexmond.jhelm.kube.KubeClusterAvailable;
 import org.alexmond.jhelm.kube.KubernetesConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 
 @SpringBootTest(classes = { KubernetesConfig.class, HelmKubeService.class, CoreConfig.class })
+@KubeClusterAvailable
 @Slf4j
 class HelmFullFlowIntegrationTest {
 

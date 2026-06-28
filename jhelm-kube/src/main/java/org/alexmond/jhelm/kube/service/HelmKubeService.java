@@ -8,7 +8,6 @@ import io.kubernetes.client.custom.V1Patch;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.BatchV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.apis.CustomObjectsApi;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1DaemonSet;
 import io.kubernetes.client.openapi.models.V1Deployment;
@@ -21,8 +20,11 @@ import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1Secret;
 import io.kubernetes.client.openapi.models.V1SecretList;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
-import io.kubernetes.client.util.PatchUtils;
 import io.kubernetes.client.util.Yaml;
+import io.kubernetes.client.util.generic.KubernetesApiResponse;
+import io.kubernetes.client.util.generic.dynamic.DynamicKubernetesApi;
+import io.kubernetes.client.util.generic.dynamic.DynamicKubernetesObject;
+import io.kubernetes.client.util.generic.options.PatchOptions;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
@@ -339,20 +341,18 @@ public class HelmKubeService implements KubeService {
 		}
 
 		V1Patch patch = new V1Patch(Yaml.dump(obj));
-		CustomObjectsApi api = new CustomObjectsApi(apiClient);
-
-		PatchUtils.patch(Object.class, () -> {
-			if (namespace != null && !namespace.isEmpty()) {
-				return api.patchNamespacedCustomObject(group, version, namespace, plural, name, patch)
-					.fieldManager("helm")
-					.force(true)
-					.buildCall(null);
-			}
-			return api.patchClusterCustomObject(group, version, plural, name, patch)
-				.fieldManager("helm")
-				.force(true)
-				.buildCall(null);
-		}, V1Patch.PATCH_FORMAT_APPLY_YAML, apiClient);
+		PatchOptions options = new PatchOptions();
+		options.setFieldManager("helm");
+		options.setForce(true);
+		// DynamicKubernetesApi resolves the request path from the group, so core-group
+		// resources (empty group, e.g. Service/ConfigMap/Secret) hit /api/<version>
+		// while named groups hit /apis/<group>/<version>. CustomObjectsApi always emits
+		// /apis/<group>/... and 404s on the core group.
+		DynamicKubernetesApi api = new DynamicKubernetesApi(group, version, plural, apiClient);
+		KubernetesApiResponse<DynamicKubernetesObject> response = (namespace != null && !namespace.isEmpty())
+				? api.patch(namespace, name, V1Patch.PATCH_FORMAT_APPLY_YAML, patch, options)
+				: api.patch(name, V1Patch.PATCH_FORMAT_APPLY_YAML, patch, options);
+		response.throwsApiException();
 	}
 
 	/**
@@ -387,19 +387,15 @@ public class HelmKubeService implements KubeService {
 			log.info("Deleting {} {} in namespace {}", kind, name, namespace);
 		}
 
-		CustomObjectsApi api = new CustomObjectsApi(apiClient);
-		try {
-			if (namespace != null && !namespace.isEmpty()) {
-				api.deleteNamespacedCustomObject(group, version, namespace, plural, name).execute();
-			}
-			else {
-				api.deleteClusterCustomObject(group, version, plural, name).execute();
-			}
-		}
-		catch (Exception ex) {
-			if (!(ex instanceof ApiException ae && ae.getCode() == 404)) {
-				throw ex;
-			}
+		// As with apply, DynamicKubernetesApi targets /api/<version> for the core group;
+		// CustomObjectsApi 404s there, which previously made core-resource deletes
+		// silently
+		// no-op (the 404 was swallowed below as "already gone").
+		DynamicKubernetesApi api = new DynamicKubernetesApi(group, version, plural, apiClient);
+		KubernetesApiResponse<DynamicKubernetesObject> response = (namespace != null && !namespace.isEmpty())
+				? api.delete(namespace, name) : api.delete(name);
+		if (!response.isSuccess() && response.getHttpStatusCode() != 404) {
+			response.throwsApiException();
 		}
 	}
 
