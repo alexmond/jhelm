@@ -5,7 +5,6 @@ import tools.jackson.core.StreamReadConstraints;
 import tools.jackson.dataformat.yaml.YAMLFactory;
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.dataformat.yaml.YAMLWriteFeature;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -31,7 +30,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -53,19 +52,42 @@ public class RepoManager {
 
 	private OciRegistryClient ociClient;
 
-	@Setter
-	private boolean insecureSkipTlsVerify;
+	private final boolean insecureSkipTlsVerify;
 
-	@Setter
-	private RegistryManager registryManager;
+	private final RegistryManager registryManager;
 
-	private final Map<String, Map<?, ?>> indexCache = new HashMap<>();
+	// Shared across the threads that resolve dependencies concurrently; mutated under no
+	// lock, so a thread-safe map (a stale double-parse is harmless, corruption is not).
+	private final Map<String, Map<?, ?>> indexCache = new ConcurrentHashMap<>();
 
+	/**
+	 * Creates a manager for the default Helm repositories.yaml, no OCI auth, TLS
+	 * verified.
+	 */
 	public RepoManager() {
-		this(resolveDefaultConfigPath());
+		this(resolveDefaultConfigPath(), null, false);
 	}
 
+	/** Creates a manager for the given config path, no OCI auth, TLS verified. */
 	public RepoManager(String configPath) {
+		this(configPath, null, false);
+	}
+
+	/**
+	 * Creates a manager for the default config path with the given OCI auth and TLS
+	 * setting.
+	 */
+	public RepoManager(RegistryManager registryManager, boolean insecureSkipTlsVerify) {
+		this(resolveDefaultConfigPath(), registryManager, insecureSkipTlsVerify);
+	}
+
+	/**
+	 * Creates a repository manager.
+	 * @param configPath path to the Helm repositories.yaml
+	 * @param registryManager OCI registry auth provider (may be {@code null})
+	 * @param insecureSkipTlsVerify whether to skip TLS verification on chart downloads
+	 */
+	public RepoManager(String configPath, RegistryManager registryManager, boolean insecureSkipTlsVerify) {
 		LoadSettings loadSettings = LoadSettings.builder().setCodePointLimit(50_000_000).build();
 		YAMLFactory yamlFactory = YAMLFactory.builder()
 			.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
@@ -74,6 +96,8 @@ public class RepoManager {
 			.build();
 		this.yamlMapper = YAMLMapper.builder(yamlFactory).build();
 		this.configPath = configPath;
+		this.registryManager = registryManager;
+		this.insecureSkipTlsVerify = insecureSkipTlsVerify;
 		initHttpClient();
 	}
 

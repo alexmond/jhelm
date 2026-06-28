@@ -57,8 +57,7 @@ class RepoManagerTest {
 
 	@Test
 	void testGetChartVersionsFromRealRepo() throws IOException {
-		RepoManager repoManager = new RepoManager();
-		repoManager.setInsecureSkipTlsVerify(true);
+		RepoManager repoManager = new RepoManager(null, true);
 
 		// We use a real repo for integration-like test
 		repoManager.addRepo("bitnami-test", "https://charts.bitnami.com/bitnami");
