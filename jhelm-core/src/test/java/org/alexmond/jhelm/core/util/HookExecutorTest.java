@@ -9,6 +9,8 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -162,6 +164,39 @@ class HookExecutorTest {
 		hookExecutor.run("default", List.of(hook), "pre-install", 120);
 
 		verify(kubeService).waitForReady("default", hook.getYaml(), 120);
+	}
+
+	@Test
+	void testHookFailedDeletesHookAndRethrowsOnWaitFailure() throws Exception {
+		HelmHook hook = hookWithWeight("my-hook", "pre-install", 0, List.of("hook-failed"));
+
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doThrow(new RuntimeException("hook timed out")).when(kubeService)
+			.waitForReady(anyString(), anyString(), anyInt());
+		doNothing().when(kubeService).delete(anyString(), anyString());
+
+		RuntimeException ex = assertThrows(RuntimeException.class,
+				() -> hookExecutor.run("default", List.of(hook), "pre-install", 300));
+		assertEquals("hook timed out", ex.getMessage());
+
+		verify(kubeService).delete("default", hook.getYaml());
+	}
+
+	@Test
+	void testWaitFailureWithoutHookFailedPolicyDoesNotDeleteButRethrows() throws Exception {
+		HelmHook hook = hookWithWeight("my-hook", "pre-install", 0, List.of("hook-succeeded"));
+
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doThrow(new RuntimeException("hook timed out")).when(kubeService)
+			.waitForReady(anyString(), anyString(), anyInt());
+
+		RuntimeException ex = assertThrows(RuntimeException.class,
+				() -> hookExecutor.run("default", List.of(hook), "pre-install", 300));
+		assertEquals("hook timed out", ex.getMessage());
+
+		// No before-hook-creation policy and no hook-failed policy: delete is never
+		// called.
+		verify(kubeService, never()).delete(anyString(), anyString());
 	}
 
 	@Test

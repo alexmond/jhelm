@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.action;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -9,6 +10,7 @@ import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.HookExecutor;
 import org.alexmond.jhelm.core.util.HookParser;
@@ -44,7 +46,30 @@ public class UninstallAction {
 		if (!noHooks) {
 			runHooks(hookExecutor, namespace, hooks, "post-delete");
 		}
-		kubeService.deleteReleaseHistory(releaseName, namespace);
+		if (options.isKeepHistory()) {
+			kubeService.storeRelease(markUninstalled(release));
+		}
+		else {
+			kubeService.deleteReleaseHistory(releaseName, namespace);
+		}
+	}
+
+	private Release markUninstalled(Release release) {
+		Release.ReleaseInfo previousInfo = release.getInfo();
+		OffsetDateTime firstDeployed = (previousInfo != null) ? previousInfo.getFirstDeployed() : null;
+		return Release.builder()
+			.name(release.getName())
+			.namespace(release.getNamespace())
+			.version(release.getVersion())
+			.chart(release.getChart())
+			.manifest(release.getManifest())
+			.info(Release.ReleaseInfo.builder()
+				.firstDeployed(firstDeployed)
+				.lastDeployed(OffsetDateTime.now())
+				.status(ReleaseStatus.UNINSTALLED)
+				.description("Uninstallation complete")
+				.build())
+			.build();
 	}
 
 	private void runHooks(HookExecutor hookExecutor, String namespace, List<HelmHook> hooks, String phase) {

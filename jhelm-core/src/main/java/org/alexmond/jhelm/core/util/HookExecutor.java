@@ -48,7 +48,23 @@ public class HookExecutor {
 			}
 
 			kubeService.apply(namespace, hook.getYaml());
-			kubeService.waitForReady(namespace, hook.getYaml(), timeoutSeconds);
+			try {
+				kubeService.waitForReady(namespace, hook.getYaml(), timeoutSeconds);
+			}
+			catch (Exception ex) {
+				if (policy != null && policy.contains("hook-failed")) {
+					try {
+						kubeService.delete(namespace, hook.getYaml());
+					}
+					catch (Exception deleteEx) {
+						if (log.isDebugEnabled()) {
+							log.debug("hook-failed delete of hook {}/{} failed (ignored): {}", hook.getKind(),
+									hook.getName(), deleteEx.getMessage());
+						}
+					}
+				}
+				throw ex;
+			}
 
 			if (policy != null && policy.contains("hook-succeeded")) {
 				kubeService.delete(namespace, hook.getYaml());

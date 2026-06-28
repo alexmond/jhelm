@@ -26,4 +26,10 @@ public final class UninstallOptions {
 	 */
 	private final boolean noHooks;
 
+	/**
+	 * When {@code true}, retain the release history and mark the release uninstalled
+	 * instead of deleting its history. Defaults to {@code false}.
+	 */
+	private final boolean keepHistory;
+
 }

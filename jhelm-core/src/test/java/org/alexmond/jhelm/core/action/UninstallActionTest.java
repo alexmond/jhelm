@@ -2,13 +2,17 @@ package org.alexmond.jhelm.core.action;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -19,6 +23,7 @@ import static org.mockito.Mockito.anyString;
 import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.HookParser;
 
@@ -152,6 +157,60 @@ class UninstallActionTest {
 		// Only ConfigMap should be deleted — PVC with resource-policy: keep is preserved
 		String deletedManifest = HookParser.stripKeptResources(HookParser.stripHooks(fullManifest));
 		verify(kubeService).delete("default", deletedManifest);
+	}
+
+	@Test
+	void testUninstallKeepHistoryStoresUninstalledReleaseAndKeepsHistory() throws Exception {
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status(ReleaseStatus.DEPLOYED)
+			.build();
+		Release release = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.manifest("---\nkind: Service\n")
+			.info(info)
+			.build();
+
+		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(release));
+		doNothing().when(kubeService).delete(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		uninstallAction
+			.uninstall(UninstallOptions.builder().releaseName("myapp").namespace("default").keepHistory(true).build());
+
+		ArgumentCaptor<Release> releaseCaptor = ArgumentCaptor.forClass(Release.class);
+		verify(kubeService).storeRelease(releaseCaptor.capture());
+		assertEquals(ReleaseStatus.UNINSTALLED, releaseCaptor.getValue().getInfo().getStatus());
+		assertEquals("Uninstallation complete", releaseCaptor.getValue().getInfo().getDescription());
+		verify(kubeService, never()).deleteReleaseHistory(anyString(), anyString());
+	}
+
+	@Test
+	void testUninstallWithoutKeepHistoryDeletesHistoryAndDoesNotStore() throws Exception {
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status(ReleaseStatus.DEPLOYED)
+			.build();
+		Release release = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.manifest("---\nkind: Service\n")
+			.info(info)
+			.build();
+
+		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(release));
+		doNothing().when(kubeService).delete(anyString(), anyString());
+		doNothing().when(kubeService).deleteReleaseHistory(anyString(), anyString());
+
+		uninstallAction.uninstall(UninstallOptions.builder().releaseName("myapp").namespace("default").build());
+
+		verify(kubeService).deleteReleaseHistory("myapp", "default");
+		verify(kubeService, never()).storeRelease(any(Release.class));
 	}
 
 	@Test
