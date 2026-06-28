@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartFiles;
 import org.alexmond.jhelm.core.model.Dependency;
+import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.model.Values;
 import org.alexmond.jhelm.core.model.VersionSet;
 
@@ -172,14 +173,15 @@ public class Engine {
 	 * @param chart the chart to render
 	 * @param values the user-supplied values merged over the chart defaults, exposed as
 	 * {@code .Values}
-	 * @param releaseInfo the release context exposed as {@code .Release} (name,
-	 * namespace, revision, etc.)
+	 * @param release the release context exposed as {@code .Release} (name, namespace,
+	 * revision, etc.)
 	 * @return the rendered manifests joined into one document
 	 * @throws TemplateRenderException if a template fails to parse or execute
 	 * @throws SchemaValidationException if the values violate the chart's JSON schema
 	 */
 	@SneakyThrows
-	public String render(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
+	public String render(Chart chart, Map<String, Object> values, ReleaseContext release) {
+		Map<String, Object> releaseInfo = release.toMap();
 		long startNanos = System.nanoTime();
 		try {
 			AtomicReference<String> result = new AtomicReference<>();

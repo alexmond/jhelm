@@ -26,6 +26,7 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -53,7 +54,7 @@ class InstallActionTest {
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
 
 		String manifest = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\n";
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(manifest);
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(manifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
@@ -79,7 +80,7 @@ class InstallActionTest {
 	void testInstallPersistsUserValuesAsConfig() throws Exception {
 		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("---\n");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("---\n");
 		Map<String, Object> overrides = Map.of("replicaCount", 3, "image", Map.of("tag", "v2"));
 
 		Release release = installAction.install(InstallOptions.builder()
@@ -101,7 +102,7 @@ class InstallActionTest {
 		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
 
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("---\nkind: ConfigMap\n");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("---\nkind: ConfigMap\n");
 
 		Release release = installAction.install(InstallOptions.builder()
 			.chart(chart)
@@ -138,7 +139,7 @@ class InstallActionTest {
 		String regularYaml = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\n";
 		String fullManifest = "---\n" + hookYaml + regularYaml;
 
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(fullManifest);
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(fullManifest);
 		doNothing().when(kubeService).delete(anyString(), anyString());
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).waitForReady(anyString(), anyString(), anyInt());
@@ -182,7 +183,7 @@ class InstallActionTest {
 		String regularYaml = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\n";
 		String fullManifest = "---\n" + hookYaml + regularYaml;
 
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(fullManifest);
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(fullManifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
@@ -210,7 +211,7 @@ class InstallActionTest {
 		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
 
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("---\nkind: ConfigMap\n");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("---\nkind: ConfigMap\n");
 
 		Release release = noKubeInstall.install(InstallOptions.builder()
 			.chart(chart)
@@ -229,7 +230,7 @@ class InstallActionTest {
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
 
 		String manifest = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\n";
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(manifest);
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(manifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doThrow(new RuntimeException("storage failed")).when(kubeService).storeRelease(any(Release.class));
 		doNothing().when(kubeService).delete(anyString(), anyString());
@@ -257,7 +258,7 @@ class InstallActionTest {
 			.crds(List.of(Chart.Crd.builder().name("foos.yaml").data(crdYaml).build()))
 			.build();
 
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn("---\nkind: ConfigMap\n");
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("---\nkind: ConfigMap\n");
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
@@ -280,7 +281,7 @@ class InstallActionTest {
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
 
 		String manifest = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\n";
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(manifest);
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(manifest);
 		doNothing().when(kubeService).ensureNamespace(anyString());
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
@@ -305,7 +306,7 @@ class InstallActionTest {
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
 
 		String manifest = "---\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config\n";
-		when(engine.render(any(Chart.class), anyMap(), anyMap())).thenReturn(manifest);
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn(manifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 

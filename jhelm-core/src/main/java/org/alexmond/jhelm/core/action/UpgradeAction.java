@@ -13,6 +13,7 @@ import org.alexmond.jhelm.core.exception.JhelmException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -78,15 +79,15 @@ public class UpgradeAction {
 			.config(Release.MapConfig.builder().values(configValues).build())
 			.build();
 
-		Map<String, Object> releaseData = new HashMap<>();
-		releaseData.put("Name", newRelease.getName());
-		releaseData.put("Namespace", newRelease.getNamespace());
-		releaseData.put("Service", "Helm");
-		releaseData.put("IsInstall", false);
-		releaseData.put("IsUpgrade", true);
-		releaseData.put("Revision", newRelease.getVersion());
+		ReleaseContext releaseContext = ReleaseContext.builder()
+			.name(newRelease.getName())
+			.namespace(newRelease.getNamespace())
+			.install(false)
+			.upgrade(true)
+			.revision(newRelease.getVersion())
+			.build();
 
-		String manifest = engine.render(newChart, renderValues, releaseData);
+		String manifest = engine.render(newChart, renderValues, releaseContext);
 
 		for (PostRenderProcessor processor : postRenderProcessors) {
 			try {
