@@ -116,8 +116,7 @@ class KpsComparisonTest {
 	}
 
 	private RepoManager createRepoManager() {
-		RepoManager rm = new RepoManager();
-		rm.setInsecureSkipTlsVerify(true);
+		RepoManager rm = new RepoManager(null, true);
 		return rm;
 	}
 

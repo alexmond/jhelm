@@ -97,15 +97,11 @@ public class JhelmCoreAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public RepoManager repoManager(JhelmCoreProperties props) {
+	public RepoManager repoManager(JhelmCoreProperties props, RegistryManager registryManager) {
 		if (props.getConfigPath() != null) {
-			RepoManager rm = new RepoManager(props.getConfigPath());
-			rm.setInsecureSkipTlsVerify(props.isInsecureSkipTlsVerify());
-			return rm;
+			return new RepoManager(props.getConfigPath(), registryManager, props.isInsecureSkipTlsVerify());
 		}
-		RepoManager rm = new RepoManager();
-		rm.setInsecureSkipTlsVerify(props.isInsecureSkipTlsVerify());
-		return rm;
+		return new RepoManager(registryManager, props.isInsecureSkipTlsVerify());
 	}
 
 	/**
