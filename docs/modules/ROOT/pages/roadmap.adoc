@@ -24,7 +24,7 @@ extraction-ready engine*. The release is cut via `maven_release.yml`
 | Engine maturity
 | The Go template + Sprig engine ships as the standalone
   https://github.com/alexmond/gotmpl4j[gotmpl4j] library on Maven Central; jhelm consumes it
-  as a dependency (`gotmpl4j 0.3.0`). The 346-chart suite is its de-facto conformance test.
+  as a dependency (`gotmpl4j 1.1.0`). The 346-chart suite is its de-facto conformance test.
 | ✅ Extracted — gotmpl4j on Maven Central; 346-chart suite green
 
 | Supported surface
@@ -53,7 +53,8 @@ extraction-ready engine*. The release is cut via `maven_release.yml`
 
 The Go template engine has been extracted into the standalone
 https://github.com/alexmond/gotmpl4j[gotmpl4j] library, published to Maven Central
-(`org.alexmond:gotmpl4j-core`, `gotmpl4j-sprig`, plus a Spring Boot starter). jhelm consumes
+(`org.alexmond:gotmpl4j-core`, `gotmpl4j-sprig`, plus a Spring Boot starter; `gotmpl4j 1.1.0`).
+jhelm consumes
 it as an ordinary dependency, keeping only the Helm-specific function layer
 (`jhelm-gotemplate-helm`) in this repository. The extraction holds the properties that made it
 mechanical rather than a redesign:
@@ -65,6 +66,20 @@ mechanical rather than a redesign:
 * *Stable API* — `GoTemplate`, `Function`, `FunctionProvider` are settled.
 * *Coverage* — comprehensive unit tests for lexer/parser/executor and every function
   category, independent of the chart suite.
+
+=== API freeze (shipped in 0.4.0 — toward 1.0)
+
+The pre-1.0 *API freeze* milestone landed in `0.4.0`, settling the public surface ahead of a
+stable `1.0`:
+
+* *Unchecked exceptions* — the action layer and `KubeService` throw the `JhelmException`
+  hierarchy instead of `throws Exception`.
+* *No leaked Kubernetes-client types* — `ApiException`/`ApiClient` are wrapped behind
+  `KubeClient`; BouncyCastle PGP types behind `SigningKey`/`VerificationKeyring`.
+* *Options objects* — the action API takes immutable `InstallOptions`/`UpgradeOptions`/
+  `UninstallOptions`/`RollbackOptions` instead of long parameter lists.
+* *Immutable result models* — `Release`/`ReleaseInfo`/`MapConfig` are immutable; release
+  `status` is a typed `ReleaseStatus` enum and the lifecycle phase a `LifecyclePhase` enum.
 
 === Explicit non-goals for 0.1.0
 

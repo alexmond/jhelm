@@ -21,7 +21,8 @@ tracks upstream Helm closely rather than approximating it.
 * *Dependency management* -- list, update, build chart dependencies
 * *Packaging & provenance* -- package charts to `.tgz`, PGP sign and verify
 * *Spring Boot auto-configuration* -- programmatic action API with `@ConfigurationProperties`
-* *REST API* -- Spring MVC endpoints with OpenAPI/Swagger documentation
+* *REST API* -- Spring MVC endpoints with OpenAPI/Swagger documentation (pure library plus a `jhelm-rest-starter`)
+* *MCP server* -- exposes jhelm operations as Model Context Protocol tools for AI agents (built on Spring AI)
 * *JSON Schema validation* -- validates chart values against `values.schema.json` (Draft-07)
 * *Async Kubernetes operations* -- Java 21 virtual threads via `AsyncKubeService`
 
@@ -30,7 +31,7 @@ tracks upstream Helm closely rather than approximating it.
 * Java 21
 * Spring Boot 4.0.7
 * Kubernetes Client 26.0.0
-* gotmpl4j 0.3.0 (Go template + Sprig engine)
+* gotmpl4j 1.1.0 (Go template + Sprig engine)
 * Picocli 4.7.7 (CLI framework)
 
 == Quick Links

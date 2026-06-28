@@ -1,5 +1,5 @@
 = jhelm
-:jhelm-version: 0.1.0
+:jhelm-version: 0.4.0
 :url-docs: https://www.alexmond.org/jhelm/current/index.html
 :toc:
 
@@ -40,8 +40,13 @@ the Go-based Helm binary.
   provenance files.
 * *Spring Boot integration* -- auto-configured beans, `@ConfigurationProperties`, and a
   programmatic action API.
-* *REST API* -- a Spring MVC module exposing chart and template operations over HTTP, with
-  OpenAPI/Swagger documentation.
+* *REST API* -- a Spring MVC library exposing chart and template operations over HTTP, with
+  OpenAPI/Swagger documentation. Split into a pure `jhelm-rest` library and a
+  `jhelm-rest-starter` that carries the auto-configuration, with a `READ_ONLY`/`FULL`
+  access mode gating the cluster-mutating endpoints.
+* *MCP server* -- `jhelm-mcp` / `jhelm-mcp-starter` expose jhelm operations as
+  https://modelcontextprotocol.io[Model Context Protocol] tools for AI agents (built on
+  Spring AI), mirroring the REST operation set with the same `READ_ONLY`/`FULL` access mode.
 * *JSON Schema validation* -- validates chart values against `values.schema.json` (Draft-07).
 * *Async Kubernetes operations* -- Java 21 virtual threads via `AsyncKubeService`.
 
@@ -54,7 +59,10 @@ the Go-based Helm binary.
 | `jhelm-core` | Chart model, loader, repository manager, rendering engine, and action API. The main entry point for library users.
 | `jhelm-gotemplate-helm` | Helm-specific template functions (`include`, `tpl`, `required`, `toYaml`, `lookup`, …) layered on top of gotmpl4j.
 | `jhelm-kube` | Kubernetes client integration -- apply/delete resources, ConfigMap-based release storage, async operations.
-| `jhelm-rest` | Spring MVC REST API over jhelm operations, with OpenAPI documentation.
+| `jhelm-rest` | Spring MVC REST API over jhelm operations, with OpenAPI documentation (pure library -- bring your own auto-configuration).
+| `jhelm-rest-starter` | Spring Boot starter that auto-configures the `jhelm-rest` API, with a `READ_ONLY`/`FULL` access mode gating cluster-mutating endpoints.
+| `jhelm-mcp` | Model Context Protocol server exposing jhelm operations as AI-agent tools (built on Spring AI), mirroring the REST operation set.
+| `jhelm-mcp-starter` | Spring Boot starter that auto-configures the `jhelm-mcp` server, with a `READ_ONLY`/`FULL` access mode.
 | `jhelm-plugin` | Maven plugin for packaging charts as part of a build.
 | `jhelm-cli` | Standalone CLI (Spring Boot + Picocli) -- 22 Helm-compatible commands.
 |===
@@ -70,7 +78,7 @@ as a dependency.
 | Java | 21
 | Spring Boot | 4.0.7
 | Kubernetes Client | 26.0.0
-| Template engine | gotmpl4j 0.3.0
+| Template engine | gotmpl4j 1.1.0
 | CLI framework | Picocli 4.7.7
 |===
 

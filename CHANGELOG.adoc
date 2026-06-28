@@ -1,5 +1,25 @@
 = Changelog
 
+== 0.4.0
+
+The pre-1.0 *API freeze* release.
+
+* *API freeze (breaking)* -- the action layer and `KubeService` throw the unchecked
+  `JhelmException` hierarchy; kubernetes-client and BouncyCastle PGP types are wrapped
+  (`KubeClient`, `SigningKey`/`VerificationKeyring`); the action API takes immutable options
+  objects (`InstallOptions`/`UpgradeOptions`/`UninstallOptions`/`RollbackOptions`); result
+  models (`Release`/`ReleaseInfo`/`MapConfig`) are immutable, with `ReleaseStatus` /
+  `LifecyclePhase` enums.
+* *MCP server* -- new `jhelm-mcp` + `jhelm-mcp-starter` exposing jhelm operations as Model
+  Context Protocol tools for AI agents (Spring AI 2.0), with a `READ_ONLY`/`FULL` access mode.
+* *REST split* -- `jhelm-rest` is now a pure library; the new `jhelm-rest-starter` carries the
+  auto-configuration, with a `READ_ONLY`/`FULL` access mode.
+* *Upgrade value-retention flags* -- `--reset-values`, `--reuse-values`, and
+  `--reset-then-reuse-values` are now implemented; user values are persisted as the release
+  config.
+* *Engine* -- now on `gotmpl4j 1.1.0`; recursive/too-deep renders fail with a
+  `TemplateRenderException` instead of an inline `ERROR:` string.
+
 == Unreleased (targeting 0.1.0)
 
 Toward the *0.1.0 prerelease target* (see the Roadmap in the docs): a *≥ 300-chart*
