@@ -532,3 +532,4 @@ mongodb/atlas-cluster,mongodb,https://mongodb.github.io/helm-charts
 bitnami/chainloop,bitnami,https://charts.bitnami.com/bitnami
 mongodb/atlas-basic,mongodb,https://mongodb.github.io/helm-charts
 mongodb/atlas-advanced,mongodb,https://mongodb.github.io/helm-charts
+wiremind/druid,wiremind,https://wiremind.github.io/wiremind-helm-charts

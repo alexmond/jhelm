@@ -279,6 +279,33 @@ class EngineTest {
 	}
 
 	@Test
+	void testDisabledSubchartDefinesDoNotPolluteNamedTemplates() {
+		// A condition-disabled subchart must contribute no named templates: its define
+		// must not win the global collision over an enabled subchart's. "omega" sorts
+		// last (so it would win without pruning); disabling it must let "alpha" win.
+		Chart enabled = simpleChart("alpha", "1.0.0",
+				List.of(tmpl("_helpers.tpl", "{{- define \"common.greet\" -}}from-alpha{{- end -}}")), Map.of());
+		Chart disabled = simpleChart("omega", "1.0.0",
+				List.of(tmpl("_helpers.tpl", "{{- define \"common.greet\" -}}from-omega{{- end -}}")), Map.of());
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("alpha").build(),
+						Dependency.builder().name("omega").condition("omega.enabled").build()))
+				.build())
+			.templates(List.of(tmpl("cm.yaml", "data: {{ include \"common.greet\" . }}")))
+			.values(new HashMap<>(Map.of("omega", new HashMap<>(Map.of("enabled", false)))))
+			.dependencies(List.of(enabled, disabled))
+			.build();
+
+		String result = engine.render(parent, new HashMap<>(), releaseInfo());
+		assertTrue(result.contains("from-alpha"), result);
+		assertFalse(result.contains("from-omega"), result);
+	}
+
+	@Test
 	void testBareEnabledFalseWithoutConditionStillRenders() {
 		// Without a Chart.yaml condition, a bare `enabled: false` is just an ordinary
 		// value — Helm renders the subchart regardless (e.g. dask/daskhub pulls in
