@@ -107,6 +107,23 @@ jhelmtest:
       - resource: "Job/release-grafana-oncall-engine-migrate-*"
         path: "*"
         reason: "migrate Job name has a per-render now-timestamp suffix"
+    "[fairwinds/fairwinds-insights]":
+      # CACHE_BUST_TOKEN env value is `{{ randAlphaNum 10 }}` (_env.yaml) — not settable;
+      # Helm and jhelm each generate a different 10-char token, repeated across every
+      # workload that includes the shared env block (Deployments/Jobs and CronJobs).
+      # The "[*]" glob targets the env value field at any container/env index without
+      # masking other container fields.
+      - resource: "*"
+        path: "spec.template.spec.containers[*].env[*].value"
+        reason: "CACHE_BUST_TOKEN is randAlphaNum (not settable); regenerated per render"
+      - resource: "*"
+        path: "spec.jobTemplate.spec.template.spec.containers[*].env[*].value"
+        reason: "CACHE_BUST_TOKEN is randAlphaNum (not settable); regenerated per render"
+      # Admission-webhook Secret holds a genSignedCert TLS cert/key, regenerated per render
+      # (same class as the webhook TLS certs ignored globally above).
+      - resource: "Secret/*"
+        path: "stringData.tls.*"
+        reason: "TLS cert/key generated per render via genSignedCert"
   # Value overrides for charts that Helm cannot render with default values. The same
   # overrides are applied to both Helm and jhelm, so any divergence is a real jhelm bug.
   comparison-values:
