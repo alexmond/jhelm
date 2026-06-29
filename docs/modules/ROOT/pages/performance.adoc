@@ -1,0 +1,153 @@
+= Performance
+
+jhelm renders Helm charts to Kubernetes manifests in pure Java. Its performance work is
+*profile-driven*: rather than synthetic micro-benchmarks, jhelm is measured against the real
+workload it exists for — rendering a large corpus of real-world Helm charts — and tuned where a
+profiler points, with the byte-for-byte parity suite as the correctness gate for every change.
+
+[NOTE]
+====
+Numbers below are *indicative*. They come from sampled JFR profiles of a chart-render batch on
+an otherwise-idle developer workstation (JDK 21). Sampling profilers report *shares*, and shares
+move as the total moves — a site whose absolute cost is unchanged can show a rising share once a
+bigger neighbour shrinks (see _Reading a profile diff_). Always anchor on the *absolute* total
+(bytes, GC ms) and re-measure on your own box; the point is the *direction and magnitude* of a
+change, not the absolute figures.
+====
+
+== The layers
+
+jhelm's render cost splits across two codebases, and it helps to keep them separate:
+
+[cols="1,3",options="header"]
+|===
+| Layer | What it owns
+| *jhelm* (`jhelm-core`, `jhelm-gotemplate-helm`) | Chart loading, value merging, subchart
+  recursion, named-template collection, manifest assembly, and the Helm function library
+  (`toYaml`, `include`, `tpl`, `lookup`, …).
+| *https://github.com/alexmond/gotmpl4j[gotmpl4j]* | The underlying Go `text/template` + Sprig
+  engine — the lexer, parser, and AST executor that jhelm drives once per template.
+|===
+
+The engine layer has its own benchmark suite and optimization history — see the
+https://www.alexmond.org/gotmpl4j/current/performance.html[gotmpl4j performance page]. This page
+is about the *jhelm* layer: the cost of turning a chart into manifests.
+
+== The workload
+
+jhelm's render benchmark is the same corpus that guards its correctness: the chart-parity suite
+(`KpsComparisonTest`), which renders **540+ real-world Helm charts** — bitnami, grafana,
+prometheus, gitlab, cilium, harbor, datadog, and many more — and compares each byte-for-byte
+against `helm template`. For profiling, those charts are pre-fetched and driven through jhelm's
+render path alone (load → `install --dry-run` → manifest), with no `helm` subprocess and no
+diffing, so the profile reflects jhelm's own work on a representative spread of chart shapes.
+
+== Methodology — profiling with jvmlens
+
+jhelm is profiled with https://github.com/alexmond/jvmlens[jvmlens], which turns a JFR recording
+into a compact, ranked hot-path / allocation / GC summary (and an A/B *diff* between two
+recordings). The loop is: capture a render batch, read the ranked summary, fix the top lever,
+re-capture, diff to prove the delta, and re-run the full parity suite to prove correctness.
+
+A few hard-won practicalities:
+
+* *Capture by live attach, not a JVM flag.* A surefire-forked test JVM is killed, not exited
+  cleanly, so `-XX:StartFlightRecording=...,dumponexit=true` silently produces no file. Attaching
+  with `jvmlens profile <pid>` to the running fork captures reliably.
+* *Warm the chart cache first.* A first pass populates the local chart cache so that network
+  fetch (which is jhelm code, in `RepoManager`) doesn't dominate the profiled pass.
+* *Scope to `org.alexmond.jhelm`* so the engine (`org.alexmond.gotmpl4j`) and crypto frames fall
+  out of the application roll-up and jhelm's own frames are legible.
+
+[source,bash]
+----
+JVMLENS=path/to/jvmlens.jar
+
+# Attach to a running render-batch JVM, capture 40s, keep the recording, scope to jhelm
+java -jar "$JVMLENS" profile <pid> -d 40 -w 6 -a org.alexmond.jhelm -k before.jfr
+
+# After a change, capture again and diff — names exactly what moved
+java -jar "$JVMLENS" analyze after.jfr -b before.jfr -a org.alexmond.jhelm
+----
+
+== Where render time goes
+
+Profiling a render-only batch (no `helm`, no diff) shows that *jhelm's own glue is not the
+bottleneck*. Render cost concentrates in three places:
+
+[cols="2,1,4",options="header"]
+|===
+| Bucket | ~Share | Notes
+| Template parse / lex | ~30–40% | The gotmpl4j lexer/parser, driven once per template. The
+  dominant cost; an engine-layer lever (tracked in gotmpl4j).
+| Chart-invoked crypto | ~30% | `genCA`/`genSignedCert`/`bcrypt`/`htpasswd` called *by the
+  charts* (RSA key-gen, bcrypt rounds). Inherent — Helm pays the same; not a jhelm cost to
+  optimise.
+| jhelm orchestration | remainder | Value merge, named-template collection, manifest assembly,
+  the Helm function library. Small individually; the place jhelm can actually move the needle.
+|===
+
+The practical implication: jhelm-side wins come from *not doing redundant work* around the
+parse, not from the parse itself.
+
+[#diff-reading]
+== Reading a profile diff
+
+Optimising shrinks the total, which inflates the *share* of everything that stayed the same. A
+neighbour can read as "▲ slower" in a diff while its absolute work is flat — and a faster render
+completes more batch rounds in a fixed capture window, so the unchanged crypto frames collect
+*more* samples. Always cross-check a share move against the absolute total (bytes / GC ms) before
+trusting it. This share-inversion is a known profiling artifact, not a regression.
+
+== Optimization history
+
+Each change below was found with jvmlens, verified with a before/after JFR diff, and gated on the
+full byte-for-byte parity suite (no manifest may change).
+
+[cols="3,3,2",options="header"]
+|===
+| Change | Measured (jvmlens diff) | Correctness gate
+| *Skip the redundant render-pass re-parse of define-free templates*
+  (link:https://github.com/alexmond/jhelm/pull/573[#573])
+| `parseWithCache` CPU 42% → 31% (−28% samples); parse allocation 2.3 GB → 1.3 GB (−45%);
+  `Engine.*` allocation 3.6 GB → 3.0 GB (−18%); GC pause −20%
+| 540/540 parity charts byte-identical
+| *Quote-normalize regex fast-path in `toYaml`/`toJson`*
+  (link:https://github.com/alexmond/jhelm/pull/509[#509])
+| `removeUnnecessaryQuotes` GONE from hot paths (was 6% CPU) and allocation (was 1.2 GB); total
+  allocation 23.4 GB → 22.2 GB (−5%) over a 120× gitlab render
+| `jhelm-gotemplate-helm` tests + chart parity
+|===
+
+=== Notes on the wins
+
+* *Double-parse elimination (#573).* jhelm parses each template twice per render — a *collect
+  pass* to gather `define` blocks, then a *render pass* before executing. The two passes key the
+  parse differently, so a parse cache can't dedupe them within one render. A per-render memo now
+  skips the render-pass re-parse when the identical text is already parsed *and* declares no
+  `define` (templates with `define` still parse, preserving define precedence). This roughly
+  halves parse allocation — the single hottest render path.
+* *Quote-normalize fast-path (#509).* `toYaml`/`toJson` ran a quote-stripping regex on *every*
+  output line, but most rendered-manifest lines carry no quotes. An `indexOf('"') < 0` fast-path
+  skips the regex for quoteless lines — behaviour-identical, since a quoteless line took the old
+  no-match branch anyway.
+
+Profiling jhelm also surfaces *engine-layer* levers — e.g. the gotmpl4j lexer's per-parse `Token`
+allocation — which are filed against
+https://github.com/alexmond/gotmpl4j/issues[gotmpl4j] rather than worked around in jhelm.
+
+== Reproducing
+
+The render corpus is the parity suite (tagged `comparison`, excluded from the normal build):
+
+[source,bash]
+----
+# Render + compare a single chart (or a small batch) against `helm template`
+./mvnw test -pl jhelm-core -Dtest=KpsComparisonTest#compareSingleChart
+
+# The full corpus (run in chunks; it shells out to `helm` per chart)
+./mvnw test -pl jhelm-core -Dgroups=comparison -Dtest=KpsComparisonTest#compareAllTopCharts
+----
+
+To profile, warm the chart cache with one pass, then attach jvmlens to a second render pass as
+shown under _Methodology_ above.

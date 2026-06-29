@@ -8,6 +8,7 @@
 * xref:configuration.adoc[Configuration]
 * xref:security.adoc[Security]
 * xref:core-engine.adoc[Core Engine]
+* xref:performance.adoc[Performance]
 * Template Functions
 ** xref:helm-functions.adoc[Helm Functions]
 ** xref:sprig-functions.adoc[Sprig Functions]
