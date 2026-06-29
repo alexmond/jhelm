@@ -72,6 +72,12 @@ jhelmtest:
       - resource: "APIService/*"
         path: "spec.caBundle"
         reason: "caBundle is a generated TLS cert that differs every render"
+    "[cetic/fadi]":
+      # nifi flow.xml ids are `{{ default uuidv4 }}` — generated per render with no value
+      # to pin them, so the only option is to ignore the field.
+      - resource: "ConfigMap/*"
+        path: "data.flow.xml"
+        reason: "flow.xml ids come from `default uuidv4` (not settable); regenerated per render"
     "[timescale/timescaledb-single]":
       # The certificate Secret holds a genSignedCert TLS cert/key and the credentials
       # Secret holds randAlphaNum passwords — both regenerated per render.
@@ -96,6 +102,22 @@ jhelmtest:
   # Value overrides for charts that Helm cannot render with default values. The same
   # overrides are applied to both Helm and jhelm, so any divergence is a real jhelm bug.
   comparison-values:
+    # cerebro generates `secret = randAlphaNum 64` only when config.secret is empty;
+    # pinning it makes the application.conf ConfigMap deterministic (and validated).
+    "[stakater/cerebro]":
+      config:
+        secret: parity-fixed-cerebro-secret
+    # linkerd-viz's tap APIService caBundle is genSelfSignedCert unless tap.caBundle is
+    # set; pinning it renders a stable caBundle (the per-render tls.crt/key stay in a
+    # Secret, which is ignored globally).
+    "[linkerd/linkerd-viz]":
+      tap:
+        # caBundle requires externalSecret (the chart rejects caBundle without it).
+        externalSecret: true
+        caBundle: |
+          -----BEGIN CERTIFICATE-----
+          MIIBparityfixedcabundleforcomparisononlynotarealcertificateAAAAAA
+          -----END CERTIFICATE-----
     "[aws/aws-load-balancer-controller]":
       clusterName: test-cluster
     "[rancher-stable/rancher]":
