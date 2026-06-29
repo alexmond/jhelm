@@ -144,6 +144,21 @@ class ConversionFunctionsTest {
 	}
 
 	@Test
+	void testToYamlQuotesLeadingHashStrings() {
+		// A value starting with '#' is a YAML comment indicator; Go's yaml.Marshal
+		// single-quotes it (stakater nordmart's slack channel '#alerts'). Left plain it
+		// reads back as a comment and the value is lost.
+		Map<String, Object> data = new LinkedHashMap<>();
+		data.put("channel", "#nordmart-gabbar-application-alerts");
+		String result = (String) functions().get("toYaml").invoke(new Object[] { data });
+		assertTrue(result.contains("channel: '#nordmart-gabbar-application-alerts'"),
+				"leading-# value must be single-quoted: " + result);
+		Object back = functions().get("fromYaml").invoke(new Object[] { result });
+		assertInstanceOf(Map.class, back);
+		assertEquals("#nordmart-gabbar-application-alerts", ((Map<?, ?>) back).get("channel"));
+	}
+
+	@Test
 	void testToYamlQuotesTrailingColonStrings() {
 		// A value ending in ':' (e.g. a Prometheus recording-rule name) would otherwise
 		// be

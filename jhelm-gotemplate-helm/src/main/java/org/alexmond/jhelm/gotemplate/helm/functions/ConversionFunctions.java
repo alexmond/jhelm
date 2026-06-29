@@ -892,9 +892,11 @@ public final class ConversionFunctions {
 			return false;
 		}
 		char first = s.charAt(0);
-		// Must not start with YAML indicators
+		// Must not start with YAML indicators. '#' starts a comment (Go's yaml.Marshal
+		// quotes a leading-'#' string, e.g. stakater nordmart's slack channel '#alerts';
+		// left plain it reads back as a comment and the value is lost).
 		if (first == '[' || first == '{' || first == '!' || first == '&' || first == '*' || first == '|' || first == '>'
-				|| first == '%' || first == '@' || first == '`' || first == '\'' || first == '"') {
+				|| first == '%' || first == '@' || first == '`' || first == '\'' || first == '"' || first == '#') {
 			return false;
 		}
 		// Must not start with - or ? followed by space

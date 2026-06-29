@@ -78,6 +78,14 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.flow.xml"
         reason: "flow.xml ids come from `default uuidv4` (not settable); regenerated per render"
+    "[fairwinds/aws-iam-authenticator]":
+      # The DaemonSet's checksum/config hashes the inlined ConfigMap via include|sha256sum;
+      # the ConfigMap itself renders byte-for-byte identical to Helm, so the hash differs
+      # only by intermediate toYaml serialization (#237). The _global rule covers
+      # spec.template.* checksums; this chart puts it at the top-level metadata.
+      - resource: "DaemonSet/*"
+        path: "metadata.annotations.checksum/config"
+        reason: "checksum of an inlined ConfigMap that matches Helm byte-for-byte; differs only by toYaml serialization (#237)"
     "[timescale/timescaledb-single]":
       # The certificate Secret holds a genSignedCert TLS cert/key and the credentials
       # Secret holds randAlphaNum passwords — both regenerated per render.
