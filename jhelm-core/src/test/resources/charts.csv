@@ -535,3 +535,4 @@ mongodb/atlas-advanced,mongodb,https://mongodb.github.io/helm-charts
 wiremind/druid,wiremind,https://wiremind.github.io/wiremind-helm-charts
 stakater/nordmart-review-instance,stakater,https://stakater.github.io/stakater-charts
 fairwinds/aws-iam-authenticator,fairwinds,https://charts.fairwinds.com/stable
+datadog/private-action-runner,datadog,https://helm.datadoghq.com
