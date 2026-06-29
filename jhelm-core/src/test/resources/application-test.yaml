@@ -118,6 +118,36 @@ jhelmtest:
           -----BEGIN CERTIFICATE-----
           MIIBparityfixedcabundleforcomparisononlynotarealcertificateAAAAAA
           -----END CERTIFICATE-----
+    # mongodb atlas charts render `password | default (randAlphaNum 32 | b64enc)`;
+    # pinning the password makes the admin-user Secret deterministic (and validated).
+    "[mongodb/atlas-basic]":
+      dbUser:
+        password: parity-fixed-atlas-password
+    "[mongodb/atlas-advanced]":
+      dbUser:
+        password: parity-fixed-atlas-password
+    "[mongodb/atlas-deployment]":
+      users:
+        - username: admin-user
+          databaseName: admin
+          password: parity-fixed-atlas-password
+          roles:
+            - databaseName: admin
+              roleName: atlasAdmin
+    "[mongodb/atlas-cluster]":
+      users:
+        - username: admin-user
+          databaseName: admin
+          password: parity-fixed-atlas-password
+          roles:
+            - databaseName: admin
+              roleName: atlasAdmin
+    # chainloop's generated_jws_hmac_secret derives from controlplane.auth.passphrase
+    # (common.secrets.passwords.manage providedValues); pinning it makes the Secret stable.
+    "[bitnami/chainloop]":
+      controlplane:
+        auth:
+          passphrase: parity-fixed-chainloop-passphrase
     "[aws/aws-load-balancer-controller]":
       clusterName: test-cluster
     "[rancher-stable/rancher]":

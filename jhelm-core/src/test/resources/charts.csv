@@ -527,3 +527,8 @@ stakater/cerebro,stakater,https://stakater.github.io/stakater-charts
 cetic/fadi,cetic,https://cetic.github.io/helm-charts
 linkerd/linkerd-viz,linkerd,https://helm.linkerd.io/stable
 influxdata/influxdb-enterprise,influxdata,https://helm.influxdata.com
+mongodb/atlas-deployment,mongodb,https://mongodb.github.io/helm-charts
+mongodb/atlas-cluster,mongodb,https://mongodb.github.io/helm-charts
+bitnami/chainloop,bitnami,https://charts.bitnami.com/bitnami
+mongodb/atlas-basic,mongodb,https://mongodb.github.io/helm-charts
+mongodb/atlas-advanced,mongodb,https://mongodb.github.io/helm-charts
