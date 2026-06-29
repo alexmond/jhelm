@@ -288,6 +288,21 @@ class ValuesLoaderTest {
 		assertEquals("first", first.get("name"));
 	}
 
+	@Test
+	void testBareOctalLiteralsParseAsOctalLikeHelm() throws IOException {
+		// Helm loads values via yaml.v2 (YAML 1.1): a leading-zero literal is octal, so
+		// `defaultMode: 0600` is 384 (not decimal 600). Quoted values stay strings.
+		File file = writeValues("""
+				mode: 0600
+				dir: 0755
+				quoted: "0600"
+				""");
+		Map<String, Object> result = ValuesLoader.load(file);
+		assertEquals(384L, result.get("mode"));
+		assertEquals(493L, result.get("dir"));
+		assertEquals("0600", result.get("quoted"));
+	}
+
 	private File writeValues(String content) throws IOException {
 		Path file = tempDir.resolve("values.yaml");
 		Files.writeString(file, content);

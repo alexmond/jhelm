@@ -526,3 +526,4 @@ signoz/signoz-otel-gateway,signoz,https://charts.signoz.io
 stakater/cerebro,stakater,https://stakater.github.io/stakater-charts
 cetic/fadi,cetic,https://cetic.github.io/helm-charts
 linkerd/linkerd-viz,linkerd,https://helm.linkerd.io/stable
+influxdata/influxdb-enterprise,influxdata,https://helm.influxdata.com
