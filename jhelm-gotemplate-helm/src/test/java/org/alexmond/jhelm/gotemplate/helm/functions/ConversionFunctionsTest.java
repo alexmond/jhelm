@@ -315,6 +315,17 @@ class ConversionFunctionsTest {
 	}
 
 	@Test
+	void testToYamlRootScalarHasNoDocMarker() {
+		// Jackson emits an inline document-start marker for a root scalar ("" -> `---
+		// ""`).
+		// Helm's toYaml marshals a bare scalar, so the marker must be stripped.
+		Function toYaml = functions().get("toYaml");
+		assertEquals("\"\"", toYaml.invoke(new Object[] { "" }));
+		assertEquals("5", toYaml.invoke(new Object[] { 5 }));
+		assertEquals("hello", toYaml.invoke(new Object[] { "hello" }));
+	}
+
+	@Test
 	void testToJsonNullReturnsNullString() {
 		Function toJson = functions().get("toJson");
 		assertEquals("null", toJson.invoke(new Object[] {}));
