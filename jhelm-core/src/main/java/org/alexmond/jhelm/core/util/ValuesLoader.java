@@ -3,6 +3,7 @@ package org.alexmond.jhelm.core.util;
 import org.snakeyaml.engine.v2.api.ConstructNode;
 import org.snakeyaml.engine.v2.api.Load;
 import org.snakeyaml.engine.v2.api.LoadSettings;
+import org.snakeyaml.engine.v2.constructor.core.ConstructYamlCoreInt;
 import org.snakeyaml.engine.v2.nodes.Node;
 import org.snakeyaml.engine.v2.nodes.ScalarNode;
 import org.snakeyaml.engine.v2.nodes.Tag;
@@ -63,6 +64,15 @@ public final class ValuesLoader {
 	private static final Pattern YAML11_BOOL = Pattern
 		.compile("^(?:y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)$");
 
+	/**
+	 * YAML 1.1 bare-octal literal: a leading zero followed by octal digits (e.g. file
+	 * modes {@code 0600}, {@code 0755}). Helm loads values via yaml.v2 (YAML 1.1), which
+	 * parses these as octal integers; SnakeYAML Engine's YAML 1.2 core schema would read
+	 * {@code 0600} as decimal 600, so a {@code defaultMode: 0600} diverged from Helm's
+	 * 384.
+	 */
+	private static final Pattern YAML11_OCTAL = Pattern.compile("^0[0-7]+$");
+
 	// Declared after the YAML11_* constants it depends on: static fields initialise in
 	// source order, so createHelmSchema() must not run before those are set.
 	private static final Schema HELM_SCHEMA = createHelmSchema();
@@ -75,10 +85,16 @@ public final class ValuesLoader {
 		resolver.addImplicitResolver(Tag.NULL, CoreScalarResolver.NULL, "~");
 		// Resolve YAML 1.1 boolean tokens (yes/no/on/off/y/n) as booleans like Helm.
 		resolver.addImplicitResolver(Tag.BOOL, YAML11_BOOL, "yYnNtTfFoO");
+		// Resolve YAML 1.1 bare-octal literals (0600, 0755) as integers like Helm.
+		resolver.addImplicitResolver(Tag.INT, YAML11_OCTAL, "0");
 		Map<Tag, ConstructNode> constructors = new HashMap<>(new CoreSchema().getSchemaTagConstructors());
 		// The core BOOL constructor only understands true/false; replace it with one that
 		// also maps the YAML 1.1 tokens this resolver now tags as BOOL.
 		constructors.put(Tag.BOOL, new Yaml11BoolConstructor());
+		// The core INT constructor reads a leading-zero literal as decimal; replace it
+		// with
+		// one that parses YAML 1.1 bare-octal (0600 -> 384) like Helm.
+		constructors.put(Tag.INT, new Yaml11OctalIntConstructor());
 		return new Schema() {
 			@Override
 			public ScalarResolver getScalarResolver() {
@@ -226,6 +242,24 @@ public final class ValuesLoader {
 			}
 			// Should not happen — the resolver only tags the tokens above as BOOL.
 			return Boolean.parseBoolean(value);
+		}
+
+	}
+
+	/**
+	 * Integer constructor that recognises YAML 1.1 bare-octal literals ({@code 0600}) in
+	 * addition to the YAML 1.2 formats handled by {@link ConstructYamlCoreInt}, so a
+	 * leading-zero file mode parses as octal (matching Helm's yaml.v2), not decimal.
+	 */
+	private static final class Yaml11OctalIntConstructor extends ConstructYamlCoreInt {
+
+		@Override
+		public Object construct(Node node) {
+			String value = constructScalar(node);
+			if (value.length() > 1 && value.charAt(0) == '0' && YAML11_OCTAL.matcher(value).matches()) {
+				return createLongOrBigInteger(value.substring(1), 8);
+			}
+			return super.construct(node);
 		}
 
 	}
