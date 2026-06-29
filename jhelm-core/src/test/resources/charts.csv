@@ -522,3 +522,4 @@ stakater/chartmuseum-storage,stakater,https://stakater.github.io/stakater-charts
 cetic/pgadmin,cetic,https://cetic.github.io/helm-charts
 dask/daskhub,dask,https://helm.dask.org
 opentelemetry-helm/opentelemetry-ebpf,opentelemetry-helm,https://open-telemetry.github.io/opentelemetry-helm-charts
+signoz/signoz-otel-gateway,signoz,https://charts.signoz.io
