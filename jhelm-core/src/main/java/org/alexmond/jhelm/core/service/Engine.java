@@ -76,6 +76,11 @@ public class Engine {
 
 	private GoTemplate factory;
 
+	// Per-render record of the text hash last parsed under each template name, so the
+	// render pass can skip re-parsing a template the collect pass already parsed (see
+	// parseWithCache). Reset each render in doRender alongside the factory.
+	private final Map<String, Integer> parsedTextHash = new HashMap<>();
+
 	/**
 	 * Creates an engine with no template cache and no metrics, using a default schema
 	 * validator.
@@ -112,8 +117,26 @@ public class Engine {
 	}
 
 	private void parseWithCache(String name, String text) throws Exception {
+		// The collect pass (collectNamedTemplates) parses every template into the factory
+		// under its helm-style key; the render pass then re-parses the same (name, text)
+		// before executing it — the single hottest render path. When the identical text
+		// is
+		// already parsed under this name AND it declares no `define` block, the re-parse
+		// only
+		// re-creates the identical root node, so skip it. Templates that declare `define`
+		// (which could re-order the global define table) and key collisions (distinct
+		// text
+		// under the same name) still parse, preserving define precedence and collision
+		// resolution. The `define` check is a cheap superset guard: a false positive only
+		// costs a redundant parse, never correctness.
+		Integer prevHash = parsedTextHash.get(name);
+		if (prevHash != null && prevHash == text.hashCode() && !text.contains("define")
+				&& factory.getRootNodes().containsKey(name)) {
+			return;
+		}
 		if (templateCache == null) {
 			factory.parse(name, text);
+			parsedTextHash.put(name, text.hashCode());
 			return;
 		}
 		String cacheKey = name + "|" + text.hashCode();
@@ -132,6 +155,7 @@ public class Engine {
 			}
 		}
 		templateCache.put(cacheKey, added);
+		parsedTextHash.put(name, text.hashCode());
 	}
 
 	/**
@@ -189,6 +213,7 @@ public class Engine {
 	private String doRender(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
 		namedTemplates.clear();
 		templateVersions.clear();
+		parsedTextHash.clear();
 		// Create a new template for each render to avoid accumulation. Helm renders a
 		// nil/absent value as "" (missingkey=zero), not Go's "<no value>".
 		this.factory = new GoTemplate().option("missingkey=zero");
