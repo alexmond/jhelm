@@ -197,8 +197,10 @@ public class Engine {
 		// subchart .Chart.Name and template registration keys use the alias consistently.
 		applyAliasesFromMetadata(chart);
 
-		// Collect all named templates (define blocks) first
-		collectNamedTemplates(chart);
+		// Collect all named templates (define blocks) first. Pass the render values so
+		// templates from condition-disabled subcharts are pruned (as Helm does) and don't
+		// pollute the global define namespace.
+		collectNamedTemplates(chart, values);
 
 		try {
 			// Using a shared set for the whole rendering process to avoid redundant work
@@ -276,7 +278,7 @@ public class Engine {
 		return true;
 	}
 
-	private void collectNamedTemplates(Chart chart) {
+	private void collectNamedTemplates(Chart chart, Map<String, Object> values) {
 		// First pass: collect all templates without parsing, to have them available for
 		// definitions
 		// Also track which chart each template belongs to for proper namespacing
@@ -289,7 +291,8 @@ public class Engine {
 		// two subcharts define the same named template the last one in that order wins.
 		// Parsing in the same order makes jhelm's define resolution match Helm's.
 		Map<String, String> templateFullPath = new HashMap<>();
-		collectAllTemplates(chart, allTemplates, templateToChartName, templateFullPath, chart.getMetadata().getName());
+		collectAllTemplates(chart, allTemplates, templateToChartName, templateFullPath, chart.getMetadata().getName(),
+				values);
 
 		// Second pass: parse each template. Helper files (.tpl) are parsed first so their
 		// defines are present; within each group templates are parsed in Helm's full-path
@@ -396,13 +399,15 @@ public class Engine {
 	}
 
 	private void collectAllTemplates(Chart chart, Map<String, String> templates,
-			Map<String, String> templateToChartName, Map<String, String> templateFullPath, String rootChartName) {
-		collectAllTemplates(chart, templates, templateToChartName, templateFullPath, rootChartName, rootChartName);
+			Map<String, String> templateToChartName, Map<String, String> templateFullPath, String rootChartName,
+			Map<String, Object> values) {
+		collectAllTemplates(chart, templates, templateToChartName, templateFullPath, rootChartName, rootChartName,
+				values);
 	}
 
 	private void collectAllTemplates(Chart chart, Map<String, String> templates,
 			Map<String, String> templateToChartName, Map<String, String> templateFullPath, String rootChartName,
-			String pathPrefix) {
+			String pathPrefix, Map<String, Object> inheritedValues) {
 		String chartName = chart.getMetadata().getName();
 		String chartVersion = chart.getMetadata().getVersion();
 
@@ -443,9 +448,31 @@ public class Engine {
 			}
 		}
 
+		// Merged values at this level, used to evaluate subchart conditions so a
+		// condition-disabled subchart's templates are NOT collected. Helm prunes disabled
+		// subcharts from the tree before loading templates; jhelm previously collected
+		// them
+		// anyway, so a stale same-named define from a disabled library chart could win
+		// the
+		// global define collision (e.g. dask/druid's disabled mysql common overriding
+		// postgresql's common.affinities.pods.soft, dropping `namespaces`).
+		Map<String, Object> chartDefaults = (chart.getValues() != null) ? chart.getValues() : new HashMap<>();
+		Map<String, Object> merged = mergeValues(chartDefaults, inheritedValues);
+		List<Dependency> depMeta = (chart.getMetadata() != null) ? chart.getMetadata().getDependencies() : null;
 		for (Chart subchart : chart.getDependencies()) {
+			String subchartName = (subchart.getAlias() != null) ? subchart.getAlias()
+					: subchart.getMetadata().getName();
+			Dependency depEntry = findDependencyMetadata(depMeta, subchart);
+			if (depEntry != null && depEntry.getCondition() != null && !depEntry.getCondition().isEmpty()
+					&& !evaluateDependencyCondition(depEntry.getCondition(), merged)) {
+				continue;
+			}
+			Object sliced = merged.get(subchartName);
+			@SuppressWarnings("unchecked")
+			Map<String, Object> subchartValues = (sliced instanceof Map) ? (Map<String, Object>) sliced
+					: new HashMap<>();
 			collectAllTemplates(subchart, templates, templateToChartName, templateFullPath, rootChartName,
-					pathPrefix + "/charts/" + subchart.getMetadata().getName());
+					pathPrefix + "/charts/" + subchart.getMetadata().getName(), subchartValues);
 		}
 	}
 
