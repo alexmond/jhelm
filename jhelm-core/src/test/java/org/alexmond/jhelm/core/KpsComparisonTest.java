@@ -689,6 +689,14 @@ class KpsComparisonTest {
 		if ("*".equals(pattern)) {
 			return true;
 		}
+		// Glob form: a pattern containing "[*]" matches array indices anywhere in the
+		// path (e.g. "spec...containers[*].env[*].value"). Each "*" matches a run of
+		// characters; the rest is matched literally. Used to ignore a per-index field
+		// without listing every index. Backward-compatible: existing patterns never
+		// contain "[*]", so they keep the prefix/trailing behavior below.
+		if (pattern.contains("[*]")) {
+			return value.matches(globToRegex(pattern));
+		}
 		// Prefix match: "path.*" matches any path starting with "path" followed by
 		// ".", "[", or "/"
 		if (pattern.endsWith(".*")) {
@@ -701,6 +709,26 @@ class KpsComparisonTest {
 			return value.startsWith(pattern.substring(0, pattern.length() - 1));
 		}
 		return value.equals(pattern);
+	}
+
+	/**
+	 * Converts a glob (where {@code *} matches any run of chars) to a full-match regex.
+	 */
+	private String globToRegex(String glob) {
+		StringBuilder sb = new StringBuilder(glob.length() * 2);
+		for (int i = 0; i < glob.length(); i++) {
+			char c = glob.charAt(i);
+			if (c == '*') {
+				sb.append(".*");
+			}
+			else if ("\\.[]{}()+-^$|?".indexOf(c) >= 0) {
+				sb.append('\\').append(c);
+			}
+			else {
+				sb.append(c);
+			}
+		}
+		return sb.toString();
 	}
 
 	private File findChartDir(String chartFullName) {
