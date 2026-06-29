@@ -9,6 +9,8 @@ image:https://img.shields.io/maven-central/v/org.alexmond/jhelm-core.svg?label=M
 image:https://img.shields.io/badge/License-Apache%202.0-blue.svg[License,link=LICENSE]
 image:https://img.shields.io/github/actions/workflow/status/alexmond/jhelm/build.yml[Build Status,link=https://github.com/alexmond/jhelm/actions]
 image:https://codecov.io/gh/alexmond/jhelm/graph/badge.svg[codecov,link=https://codecov.io/gh/alexmond/jhelm]
+image:https://unitrack.alexmond.org/badge/5/coverage.svg[UniTrack coverage,link=https://unitrack.alexmond.org/projects/5]
+image:https://unitrack.alexmond.org/badge/5/pass.svg[UniTrack tests,link=https://unitrack.alexmond.org/projects/5]
 image:https://img.shields.io/badge/Java-21-orange.svg[Java 21]
 
 A native Java implementation of the https://helm.sh[Helm] package manager for Kubernetes.
