@@ -15,6 +15,11 @@ import org.alexmond.gotmpl4j.FunctionExecutionException;
  */
 public final class TemplateFunctions {
 
+	// Reserved root-node key under which the tpl fast path parses an inline string in the
+	// parent factory. Chosen so it can't collide with a chart's template path or define
+	// name.
+	private static final String TPL_INLINE_NAME = "__jhelm_tpl_inline__";
+
 	private TemplateFunctions() {
 	}
 
@@ -119,7 +124,32 @@ public final class TemplateFunctions {
 	 * @return the rendered output
 	 */
 	private static String renderInline(GoTemplate factory, String text, Object data) throws Exception {
-		// Match Helm's missingkey=zero: a nil/absent value renders "" inside tpl too.
+		StringWriter writer = new StringWriter();
+		// Fast path: a tpl string that declares no `define` contributes only its own
+		// body, so
+		// parse and execute it directly in the parent factory under a reserved name. This
+		// reuses the factory's already-built function registry and named templates
+		// instead of
+		// constructing a fresh GoTemplate per call — which re-runs ServiceLoader function
+		// discovery and copies the entire root-node table on every tpl invocation. The
+		// factory
+		// is already missingkey=zero (set per render, the same option the slow path
+		// applies),
+		// the reserved name can't collide with a chart template/define, and it is
+		// overwritten
+		// on each call; execute() resolves its node at entry, so nested tpl calls stay
+		// correct.
+		if (!text.contains("define")) {
+			factory.parse(TPL_INLINE_NAME, text);
+			factory.execute(TPL_INLINE_NAME, data, writer);
+			return writer.toString();
+		}
+		// Slow path: the tpl string declares templates — isolate the parse in a child so
+		// its
+		// defines merge into the parent without overwriting existing ones (putIfAbsent),
+		// which
+		// matches Helm where a template defined within a tpl string joins the global
+		// namespace.
 		GoTemplate tplTemplate = new GoTemplate(factory.getFunctions()).option("missingkey=zero");
 		tplTemplate.getRootNodes().putAll(factory.getRootNodes());
 		tplTemplate.parse("inline", text);
@@ -128,7 +158,6 @@ public final class TemplateFunctions {
 				factory.getRootNodes().putIfAbsent(entry.getKey(), entry.getValue());
 			}
 		}
-		StringWriter writer = new StringWriter();
 		tplTemplate.execute("inline", data, writer);
 		return writer.toString();
 	}
