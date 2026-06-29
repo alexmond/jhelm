@@ -33,3 +33,12 @@
 # Diagnostic: render a copy with `{{ .Values.global | toYaml }}` via helm -s and jhelm,
 # diff the dumps.
 gitlab/gitlab,gitlab,https://charts.gitlab.io
+#
+# redpanda (LOW PRIORITY): jhelm rendering aborts in the chart's own _shims.parseResource
+# helper with `invalid Quantity expected string or float64 got: int (5368709120)`. The
+# value is the 5Gi tiered-storage cache size; redpanda's _shims does a Go type-switch that
+# only accepts string/float64. Go Helm represents YAML numbers as float64, so the literal
+# satisfies the switch; jhelm/gotmpl4j keeps integral numbers as int, so it falls through
+# and the chart raises. Root cause is engine-level number typing (how numeric values read
+# from .Values are typed), i.e. a gotmpl4j concern — not fixed here. Deferred low priority.
+redpanda/redpanda,redpanda,https://charts.redpanda.com
