@@ -229,6 +229,12 @@ public final class ConversionFunctions {
 				if (yaml.startsWith("---\n")) {
 					yaml = yaml.substring(4);
 				}
+				else if (yaml.startsWith("--- ")) {
+					// Jackson emits an inline document-start marker for a ROOT SCALAR
+					// (e.g. toYaml "" -> `--- ""`, toYaml 5 -> `--- 5`); strip it so the
+					// result is the bare scalar Helm's yaml.Marshal produces.
+					yaml = yaml.substring(4);
+				}
 				return removeUnnecessaryQuotes(yaml.trim());
 			}
 			catch (Exception ex) {
@@ -253,6 +259,12 @@ public final class ConversionFunctions {
 			try {
 				String yaml = PRETTY_YAML_MAPPER.get().writeValueAsString(args[0]);
 				if (yaml.startsWith("---\n")) {
+					yaml = yaml.substring(4);
+				}
+				else if (yaml.startsWith("--- ")) {
+					// Jackson emits an inline document-start marker for a ROOT SCALAR
+					// (e.g. toYaml "" -> `--- ""`, toYaml 5 -> `--- 5`); strip it so the
+					// result is the bare scalar Helm's yaml.Marshal produces.
 					yaml = yaml.substring(4);
 				}
 				return removeUnnecessaryQuotes(yaml.trim());
@@ -282,6 +294,12 @@ public final class ConversionFunctions {
 				String yaml = YAML_MAPPER.get().writeValueAsString(args[0]);
 				// Remove document start marker if present
 				if (yaml.startsWith("---\n")) {
+					yaml = yaml.substring(4);
+				}
+				else if (yaml.startsWith("--- ")) {
+					// Jackson emits an inline document-start marker for a ROOT SCALAR
+					// (e.g. toYaml "" -> `--- ""`, toYaml 5 -> `--- 5`); strip it so the
+					// result is the bare scalar Helm's yaml.Marshal produces.
 					yaml = yaml.substring(4);
 				}
 				return removeUnnecessaryQuotes(yaml.trim());
