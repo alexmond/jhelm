@@ -256,20 +256,50 @@ class EngineTest {
 		Chart subchart = simpleChart("redis", "17.0.0", List.of(tmpl("service.yaml", "kind: Service\nname: redis-svc")),
 				Map.of());
 
+		// Helm disables a subchart only via an explicit Chart.yaml condition, so the
+		// dependency declares condition: redis.enabled.
 		Chart parent = Chart.builder()
-			.metadata(ChartMetadata.builder().name("parent").version("1.0.0").build())
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("redis").condition("redis.enabled").build()))
+				.build())
 			.templates(List.of(tmpl("deploy.yaml", "kind: Deployment\nname: parent-app")))
 			.values(Map.of())
 			.dependencies(List.of(subchart))
 			.build();
 
-		// Disable redis subchart via values
+		// Disable redis subchart via the condition's value
 		Map<String, Object> vals = new HashMap<>();
 		vals.put("redis", new HashMap<>(Map.of("enabled", false)));
 
 		String result = engine.render(parent, vals, releaseInfo());
 		assertTrue(result.contains("name: parent-app"));
 		assertFalse(result.contains("name: redis-svc"));
+	}
+
+	@Test
+	void testBareEnabledFalseWithoutConditionStillRenders() {
+		// Without a Chart.yaml condition, a bare `enabled: false` is just an ordinary
+		// value — Helm renders the subchart regardless (e.g. dask/daskhub pulls in
+		// jupyterhub, whose own values default enabled to false, with no condition).
+		Chart subchart = simpleChart("redis", "17.0.0", List.of(tmpl("service.yaml", "kind: Service\nname: redis-svc")),
+				Map.of("enabled", false));
+
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder()
+				.name("parent")
+				.version("1.0.0")
+				.dependencies(List.of(Dependency.builder().name("redis").build()))
+				.build())
+			.templates(List.of(tmpl("deploy.yaml", "kind: Deployment\nname: parent-app")))
+			.values(Map.of())
+			.dependencies(List.of(subchart))
+			.build();
+
+		String result = engine.render(parent, new HashMap<>(), releaseInfo());
+		assertTrue(result.contains("name: parent-app"));
+		assertTrue(result.contains("name: redis-svc"), "subchart must render without a disabling condition");
 	}
 
 	// --- .Subcharts context ---

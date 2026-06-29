@@ -134,28 +134,6 @@ public class Engine {
 		templateCache.put(cacheKey, added);
 	}
 
-	private boolean isTruthy(Object context) {
-		if (context == null) {
-			return false;
-		}
-		if (context instanceof Boolean b) {
-			return b;
-		}
-		if (context instanceof String s) {
-			return !s.isEmpty();
-		}
-		if (context instanceof Iterable i) {
-			return i.iterator().hasNext();
-		}
-		if (context instanceof Map m) {
-			return !m.isEmpty();
-		}
-		if (context instanceof Number n) {
-			return n.doubleValue() != 0;
-		}
-		return true;
-	}
-
 	/**
 	 * Stack size for the render thread. Deeply nested {@code tpl}/{@code include} chains
 	 * — e.g. grafana/loki's {@code configMapOrSecretContentHash} →
@@ -685,13 +663,15 @@ public class Engine {
 						subchartOverrides.get("enabled"));
 			}
 
-			// If subchart is disabled, skip it
-			if (subchartOverrides.containsKey("enabled") && !isTruthy(subchartOverrides.get("enabled"))) {
-				if (log.isDebugEnabled()) {
-					log.debug("Subchart {} is disabled", subchartName);
-				}
-				continue;
-			}
+			// Do NOT skip on a bare `enabled: false` in the merged values. Helm only
+			// disables a subchart through an explicit Chart.yaml `condition` (or tags),
+			// evaluated above — a standalone `<subchart>.enabled` is just an ordinary
+			// value unless a condition references it. Some subcharts ship their own
+			// top-level `enabled` default (e.g. jupyterhub, pulled in by dask/daskhub
+			// with no condition); Helm renders them, so jhelm must too.
+			// mergeSubchartDefaults
+			// folds that default into the slice, which previously tripped a non-Helm
+			// skip.
 
 			// In Helm, global values are deep-merged: parent globals override subchart
 			// globals

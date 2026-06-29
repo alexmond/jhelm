@@ -520,3 +520,4 @@ stakater/fluentd,stakater,https://stakater.github.io/stakater-charts
 stakater/keycloak,stakater,https://stakater.github.io/stakater-charts
 stakater/chartmuseum-storage,stakater,https://stakater.github.io/stakater-charts
 cetic/pgadmin,cetic,https://cetic.github.io/helm-charts
+dask/daskhub,dask,https://helm.dask.org
