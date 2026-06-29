@@ -33,11 +33,6 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.install_time"
         reason: "install_time is the render Unix timestamp; differs by seconds between the two renders"
-    "[ananace-charts/matrix-synapse]":
-      # registration_shared_secret is generated per render (randAlphaNum)
-      - resource: "Secret/*"
-        path: "stringData.config.yaml.registration_shared_secret"
-        reason: "Randomly generated per render"
     "[elastic/elasticsearch]":
       # The Helm test-hook Pod has a random name suffix (randAlphaNum) that differs
       # every render, so the resource key never matches.
@@ -61,11 +56,6 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.flow.xml"
         reason: "flow.xml contains uuidv4-generated ids regenerated per render"
-    "[kiali/kiali-server]":
-      # login_token.signing_key is a per-render randAlphaNum secret.
-      - resource: "ConfigMap/*"
-        path: "data.config.yaml.login_token.signing_key"
-        reason: "signing_key is a randAlphaNum value regenerated per render"
     "[agones/agones]":
       # caBundle is a genCA/genSignedCert TLS cert, regenerated per render (same
       # class as the webhook TLS certs ignored globally above).
@@ -87,20 +77,12 @@ jhelmtest:
         path: "metadata.annotations.checksum/config"
         reason: "checksum of an inlined ConfigMap that matches Helm byte-for-byte; differs only by toYaml serialization (#237)"
     "[timescale/timescaledb-single]":
-      # The certificate Secret holds a genSignedCert TLS cert/key and the credentials
-      # Secret holds randAlphaNum passwords — both regenerated per render.
+      # The certificate Secret holds a genSignedCert TLS cert/key, regenerated per render
+      # (not settable). The credentials Secret's passwords ARE settable, so they are pinned
+      # via comparison-values below instead of ignored.
       - resource: "Secret/release-timescale-timescaledb-single-certificate"
         path: "stringData.*"
         reason: "TLS cert/key generated per render"
-      - resource: "Secret/release-timescale-timescaledb-single-credentials"
-        path: "stringData.*"
-        reason: "Patroni passwords are randAlphaNum, generated per render"
-    "[redpanda/console]":
-      # The JWT signing key defaults to randAlphaNum 32 when unset (chart.DotToState),
-      # so Helm and jhelm each generate a different value every render.
-      - resource: "Secret/*"
-        path: "stringData.authentication-jwt-signingkey"
-        reason: "JWT signing key is a randAlphaNum value generated per render"
     "[grafana/oncall]":
       # The migrate Job name embeds `now | date` (job-migrate.yaml), so Helm and jhelm
       # each produce a different timestamp suffix and the resource key never matches.
@@ -200,6 +182,28 @@ jhelmtest:
       serverName: matrix.example.com
       config:
         reportStats: false
+        # registration_shared_secret = `registrationSharedSecret | default (randAlphaNum 24)`;
+        # pinning it makes the synapse Secret deterministic (and validated).
+        registrationSharedSecret: parity-fixed-matrix-registration-secret
+    # kiali login_token.signing_key defaults to a randAlphaNum value when unset; pinning it
+    # makes the kiali ConfigMap (and the extracted Secret) deterministic.
+    "[kiali/kiali-server]":
+      login_token:
+        signing_key: parity-fixed-kiali-signing-key
+    # redpanda console's secret.authentication.jwtSigningKey defaults to `randAlphaNum 32`
+    # when empty; pinning it makes the console Secret deterministic.
+    "[redpanda/console]":
+      secret:
+        authentication:
+          jwtSigningKey: parity-fixed-redpanda-console-jwt-key
+    # timescaledb-single's Patroni passwords each default to `randAlphaNum 16` when unset
+    # (secret-patroni.yaml); pinning all three makes the credentials Secret deterministic.
+    "[timescale/timescaledb-single]":
+      secrets:
+        credentials:
+          PATRONI_SUPERUSER_PASSWORD: parity-fixed-patroni-superuser
+          PATRONI_REPLICATION_PASSWORD: parity-fixed-patroni-replication
+          PATRONI_admin_PASSWORD: parity-fixed-patroni-admin
     "[prometheus-community/prometheus-postgres-exporter]":
       config:
         datasource:
