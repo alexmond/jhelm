@@ -107,6 +107,14 @@ jhelmtest:
       - resource: "Job/release-grafana-oncall-engine-migrate-*"
         path: "*"
         reason: "migrate Job name has a per-render now-timestamp suffix"
+    "[ot-helm/otel-operator]":
+      # The opentelemetrycollectors CRD's conversion-webhook caBundle is a
+      # genCA/genSignedCert TLS cert (admissionWebhooks.autoGenerateCert, _helpers.tpl),
+      # regenerated per render with no value to pin it — same class as the agones
+      # APIService caBundle and the global webhook TLS certs.
+      - resource: "CustomResourceDefinition/*"
+        path: "spec.conversion.webhook.clientConfig.caBundle"
+        reason: "caBundle is a genCA/genSignedCert TLS cert regenerated per render (not settable)"
     "[fairwinds/fairwinds-insights]":
       # CACHE_BUST_TOKEN env value is `{{ randAlphaNum 10 }}` (_env.yaml) — not settable;
       # Helm and jhelm each generate a different 10-char token, repeated across every
