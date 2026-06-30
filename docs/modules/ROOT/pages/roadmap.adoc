@@ -19,13 +19,13 @@ extraction-ready engine*. The release is cut via `maven_release.yml`
 | *≥ 300 charts* render byte-identical to `helm template` in CI (the `KpsComparisonTest`
   suite, `charts.csv`), order-independent and with only the documented comparison-ignores
   (random/timestamp names, generated secrets/certs).
-| ✅ 346 / 346
+| ✅ 540 / 540
 
 | Engine maturity
 | The Go template + Sprig engine ships as the standalone
   https://github.com/alexmond/gotmpl4j[gotmpl4j] library on Maven Central; jhelm consumes it
-  as a dependency (`gotmpl4j 1.1.0`). The 346-chart suite is its de-facto conformance test.
-| ✅ Extracted — gotmpl4j on Maven Central; 346-chart suite green
+  as a dependency (`gotmpl4j 1.2.0`). The 540-chart suite is its de-facto conformance test.
+| ✅ Extracted — gotmpl4j on Maven Central; 540-chart suite green
 
 | Supported surface
 | All modules ship as supported: `gotemplate`/`sprig`/`helm` (engine), `core` (chart
@@ -53,13 +53,13 @@ extraction-ready engine*. The release is cut via `maven_release.yml`
 
 The Go template engine has been extracted into the standalone
 https://github.com/alexmond/gotmpl4j[gotmpl4j] library, published to Maven Central
-(`org.alexmond:gotmpl4j-core`, `gotmpl4j-sprig`, plus a Spring Boot starter; `gotmpl4j 1.1.0`).
+(`org.alexmond:gotmpl4j-core`, `gotmpl4j-sprig`, plus a Spring Boot starter; `gotmpl4j 1.2.0`).
 jhelm consumes
 it as an ordinary dependency, keeping only the Helm-specific function layer
 (`jhelm-gotemplate-helm`) in this repository. The extraction holds the properties that made it
 mechanical rather than a redesign:
 
-* *Correctness* — no known rendering gaps; the 346-chart parity suite is the conformance
+* *Correctness* — no known rendering gaps; the 540-chart parity suite is the conformance
   bar.
 * *Clean boundary* — the engine has zero dependencies on Sprig, Helm, or `core`; Sprig
   (priority 100) and Helm (priority 200) functions load only via `ServiceLoader`.
