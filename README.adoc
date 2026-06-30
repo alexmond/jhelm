@@ -21,7 +21,7 @@ the Go-based Helm binary.
 == Why jhelm
 
 * *Helm-faithful rendering, in pure Java* -- jhelm renders chart templates byte-for-byte
-  identically to `helm template` across a continuously-run suite of *346 real-world charts*
+  identically to `helm template` across a continuously-run suite of *540+ real-world charts*
   (Bitnami, Grafana, GitLab, Kubernetes-monitoring, and more), with no Go or `helm` binary.
   Parity is enforced in CI on every change.
 * *Pure JVM, no native binary* -- no `helm` executable, no `exec`, no platform-specific

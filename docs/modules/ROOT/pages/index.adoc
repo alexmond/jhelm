@@ -7,7 +7,7 @@ work with Helm charts from the JVM -- without shelling out to the Go-based Helm 
 == Helm-faithful rendering, in pure Java
 
 jhelm renders chart templates *byte-for-byte identically to `helm template`* across a
-continuously-run suite of *346 real-world charts* (Bitnami, Grafana, GitLab,
+continuously-run suite of *540+ real-world charts* (Bitnami, Grafana, GitLab,
 Kubernetes-monitoring, and more) -- in *pure Java, with no Go or `helm` binary*. Parity is
 enforced in CI on every change, so behaviour tracks upstream Helm closely rather than
 approximating it. Rendering is driven by the standalone
