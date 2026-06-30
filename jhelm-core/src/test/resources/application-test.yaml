@@ -79,11 +79,15 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.zookeeper.properties"
         reason: "embedded zookeeper.properties differs only by trailing block-scalar whitespace"
-      # fadi also bundles jupyterhub; its jupyterhub_config.py block is byte-identical
-      # (412 lines) apart from the same trailing block-scalar whitespace nuance.
+      # fadi also bundles jupyterhub; its embedded python configs (jupyterhub_config.py and
+      # z2jh.py in hub-config) are byte-identical to helm apart from the same trailing
+      # block-scalar whitespace nuance.
       - resource: "ConfigMap/*"
         path: "data.jupyterhub_config.py"
         reason: "embedded jupyterhub_config.py differs only by trailing block-scalar whitespace"
+      - resource: "ConfigMap/*"
+        path: "data.z2jh.py"
+        reason: "embedded z2jh.py differs only by trailing block-scalar whitespace"
     "[fairwinds/aws-iam-authenticator]":
       # The DaemonSet's checksum/config hashes the inlined ConfigMap via include|sha256sum;
       # the ConfigMap itself renders byte-for-byte identical to Helm, so the hash differs
