@@ -56,6 +56,13 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.flow.xml"
         reason: "flow.xml contains uuidv4-generated ids regenerated per render"
+      # The embedded zookeeper.properties differs only by a trailing 2-space line after
+      # `server.1=` — cosmetic block-scalar whitespace that helm itself renders
+      # inconsistently across environments (local helm matches jhelm; the CI runner's
+      # helm omits the trailing line). Semantically identical.
+      - resource: "ConfigMap/*"
+        path: "data.zookeeper.properties"
+        reason: "embedded zookeeper.properties differs only by trailing block-scalar whitespace"
     "[agones/agones]":
       # caBundle is a genCA/genSignedCert TLS cert, regenerated per render (same
       # class as the webhook TLS certs ignored globally above).
@@ -68,6 +75,10 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.flow.xml"
         reason: "flow.xml ids come from `default uuidv4` (not settable); regenerated per render"
+      # Same embedded-nifi zookeeper.properties trailing-whitespace nuance as cetic/nifi.
+      - resource: "ConfigMap/*"
+        path: "data.zookeeper.properties"
+        reason: "embedded zookeeper.properties differs only by trailing block-scalar whitespace"
     "[fairwinds/aws-iam-authenticator]":
       # The DaemonSet's checksum/config hashes the inlined ConfigMap via include|sha256sum;
       # the ConfigMap itself renders byte-for-byte identical to Helm, so the hash differs
