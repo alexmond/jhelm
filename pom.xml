@@ -301,6 +301,15 @@
                         <publishingServerId>central</publishingServerId>
                         <autoPublish>true</autoPublish>
                         <waitUntil>published</waitUntil>
+                        <!-- The sample/demo modules are apps, not libraries — keep them out
+                             of the Central bundle. central-publishing ignores
+                             maven.deploy.skip, so excludeArtifacts on the aggregator config
+                             is the safe lever (drops just these artifactIds). (#560) -->
+                        <excludeArtifacts>
+                            <excludeArtifact>jhelm-sample</excludeArtifact>
+                            <excludeArtifact>jhelm-rest-sample</excludeArtifact>
+                            <excludeArtifact>jhelm-mcp-sample</excludeArtifact>
+                        </excludeArtifacts>
                     </configuration>
                 </plugin>
                 <!-- Generate JavaDoc JAR -->
