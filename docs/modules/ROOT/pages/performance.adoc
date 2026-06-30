@@ -47,7 +47,13 @@ diffing, so the profile reflects jhelm's own work on a representative spread of 
 jhelm is profiled with https://github.com/alexmond/jvmlens[jvmlens], which turns a JFR recording
 into a compact, ranked hot-path / allocation / GC summary (and an A/B *diff* between two
 recordings). The loop is: capture a render batch, read the ranked summary, fix the top lever,
-re-capture, diff to prove the delta, and re-run the full parity suite to prove correctness.
+re-capture, diff to prove the delta, and re-run the full parity suite to prove correctness. The
+flags and diff semantics used below are on the
+https://www.alexmond.org/jvmlens/current/usage.html[jvmlens usage page]; for the same loop worked
+end-to-end on the engine layer see the
+https://www.alexmond.org/jvmlens/current/case-study-floatstring.html[jvmlens case study]. Several
+of jvmlens's safeguards were filed *from* this workload — the live-attach-over-`dumponexit` tip,
+the child-process-pipe I/O hint, and the flat-total profile-diff hedge described next.
 
 A few hard-won practicalities:
 
@@ -98,6 +104,13 @@ neighbour can read as "▲ slower" in a diff while its absolute work is flat —
 completes more batch rounds in a fixed capture window, so the unchanged crypto frames collect
 *more* samples. Always cross-check a share move against the absolute total (bytes / GC ms) before
 trusting it. This share-inversion is a known profiling artifact, not a regression.
+
+jvmlens now flags it for you: a `▲` hot-path row under a ~flat exec-sample total is annotated
+`(possible sampling redistribution …)`, and the diff adds a one-line caution that fixed-duration
+exec-sample deltas conflate per-op cost with throughput — pointing at a fixed-iteration `bench`
+A/B for a clean per-op comparison (see the
+https://www.alexmond.org/jvmlens/current/usage.html[jvmlens usage page]). Both safeguards were
+filed from this jhelm workload.
 
 == Optimization history
 
