@@ -2,11 +2,17 @@ name: Chart Parity Suite
 
 # The chart-parity suite (KpsComparisonTest, tagged `comparison`) renders every
 # chart in charts.csv with jhelm AND the real `helm template` and diffs the result.
-# It is slow and network-bound (it pulls every chart from its upstream repo), so it
-# is excluded from the normal build (see surefire `excludedGroups` in the root pom)
-# and runs here instead: nightly, and on demand.
+# It is excluded from the normal build (see surefire `excludedGroups` in the root pom)
+# and runs here instead: as a required PR gate, nightly, and on demand.
+#
+# The whole 540-chart corpus renders in a single surefire fork at the pom's default
+# 512 MB heap in ~5 min (no chunking, no -Xmx override needed — measured). The only
+# extra PR cost is fetching every chart from its upstream repo, which the chart cache
+# below amortises across runs.
 
 on:
+  pull_request:
+    branches: [ main ]
   schedule:
     # 03:17 UTC daily — off-peak, avoids the top-of-hour scheduler spike.
     - cron: '17 3 * * *'
@@ -16,6 +22,11 @@ on:
         description: 'Branch, tag or SHA to run the parity suite against'
         required: false
         default: 'main'
+
+# A newer push to the same PR cancels the in-flight parity run.
+concurrency:
+  group: parity-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   parity:
@@ -42,6 +53,19 @@ jobs:
         uses: azure/setup-helm@v4
         with:
           version: v3.14.2
+
+      # Cache the charts the suite pulls from upstream repos (KpsComparisonTest fetches
+      # each into target/temp-charts and reuses an existing dir). Keyed on charts.csv so
+      # the cache invalidates when the corpus changes; restore-keys lets a PR reuse the
+      # bulk of the cache even after adding a few charts. `mvn test` doesn't clean, so the
+      # restored charts survive into the run.
+      - name: Cache pulled charts
+        uses: actions/cache@v4
+        with:
+          path: jhelm-core/target/temp-charts
+          key: parity-charts-${{ hashFiles('jhelm-core/src/test/resources/charts.csv') }}
+          restore-keys: |
+            parity-charts-
 
       # Build/install the upstream modules without their tests, then run ONLY the
       # comparison-tagged tests in jhelm-core. `-Dsurefire.excludedGroups=` clears the
