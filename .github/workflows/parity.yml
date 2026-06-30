@@ -50,10 +50,14 @@ jobs:
         with:
           cluster_name: kind
 
+      # Pin helm to the version jhelm emulates in .Capabilities.HelmVersion (Engine.java:
+      # "v3.16.0"). Charts that branch on the helm version via semverCompare (e.g. bitnami
+      # `common`'s _capabilities.tpl) otherwise diverge across a threshold between this and
+      # jhelm's reported version — a comparison artifact, not a jhelm rendering bug.
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.14.2
+          version: v3.16.0
 
       # Cache the charts the suite pulls from upstream repos (KpsComparisonTest fetches
       # each into target/temp-charts and reuses an existing dir). Keyed on charts.csv so
@@ -71,9 +75,10 @@ jobs:
       # Build/install the upstream modules without their tests, then run ONLY the
       # comparison-tagged tests in jhelm-core. `-Dsurefire.excludedGroups=` clears the
       # default exclusion and `-Dgroups=comparison` selects the parity suite.
-      # -Djhelm.test.maxHeap=4g: the diff renders large manifests through SnakeYAML; the
-      #   normal-build 512 MB fork OOMs mid-suite ("Tests run: 0" — the fork dies). The
-      #   GitHub runner has ~7 GB, so a 4 GB fork is safe alongside Maven + kind.
+      # -Djhelm.test.maxHeap=2g: headroom for the diff (large manifests through SnakeYAML).
+      #   The normal-build 512 MB default is too small once the corpus is cold-fetched; the
+      #   index-cache leak that previously needed 4 GB is fixed (#579), so 2 GB is ample on
+      #   the ~7 GB runner.
       # -DredirectTestOutputToFile=true: stream the very large per-chart test output to
       #   files instead of buffering it in the fork's heap.
       - name: Run chart-parity suite
@@ -82,7 +87,7 @@ jobs:
           -Dsurefire.excludedGroups=
           -Dgroups=comparison
           -Dsurefire.failIfNoSpecifiedTests=false
-          -Djhelm.test.maxHeap=4g
+          -Djhelm.test.maxHeap=2g
           -DredirectTestOutputToFile=true
 
       - name: Upload test results
