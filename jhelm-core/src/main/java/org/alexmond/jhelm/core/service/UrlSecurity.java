@@ -46,7 +46,10 @@ public final class UrlSecurity {
 			addresses = InetAddress.getAllByName(host);
 		}
 		catch (UnknownHostException ex) {
-			throw new SecurityException("Refusing to fetch URL with unresolvable host '" + host + "': " + uri);
+			// A host that doesn't resolve can't reach anything internal, so it's not an
+			// SSRF risk — let the HTTP layer fail the connection naturally rather than
+			// turning a (possibly transient) DNS miss into a security rejection.
+			return;
 		}
 		for (InetAddress address : addresses) {
 			if (isBlocked(address)) {
