@@ -6,7 +6,9 @@ import org.alexmond.jhelm.core.service.RegistryManager;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+import java.io.Console;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Implements {@code jhelm registry}, managing authentication to OCI registries via the
@@ -46,8 +48,11 @@ public class RegistryCommand implements Runnable {
 		@CommandLine.Option(names = { "-u", "--username" }, description = "registry username", required = true)
 		private String username;
 
-		@CommandLine.Option(names = { "-p", "--password" }, description = "registry password", required = true)
+		@CommandLine.Option(names = { "-p", "--password" }, description = "registry password")
 		private String password;
+
+		@CommandLine.Option(names = "--password-stdin", description = "take the password from stdin")
+		private boolean passwordStdin;
 
 		/**
 		 * Creates the command.
@@ -60,12 +65,49 @@ public class RegistryCommand implements Runnable {
 		@Override
 		public void run() {
 			try {
-				registryManager.login(server, username, password);
+				registryManager.login(server, username, resolvePassword());
 				CliOutput.println(CliOutput.success("Login Succeeded"));
+			}
+			catch (IllegalArgumentException ex) {
+				CliOutput.errPrintln(CliOutput.error(ex.getMessage()));
 			}
 			catch (IOException ex) {
 				CliOutput.errPrintln(CliOutput.error("Error logging in: " + ex.getMessage()));
 			}
+		}
+
+		/**
+		 * Resolves the password, keeping it off the command line where possible: from
+		 * {@code --password-stdin} (piped), else {@code -p}, else an interactive hidden
+		 * prompt. {@code --password-stdin} and {@code -p} are mutually exclusive.
+		 * @return the resolved password
+		 * @throws IOException if reading stdin fails
+		 * @throws IllegalArgumentException if the options conflict or no password is
+		 * given
+		 */
+		private String resolvePassword() throws IOException {
+			if (passwordStdin) {
+				if (password != null) {
+					throw new IllegalArgumentException("--password and --password-stdin are mutually exclusive");
+				}
+				String fromStdin = new String(System.in.readAllBytes(), StandardCharsets.UTF_8).replaceAll("[\\r\\n]+$",
+						"");
+				if (fromStdin.isEmpty()) {
+					throw new IllegalArgumentException("No password supplied on stdin");
+				}
+				return fromStdin;
+			}
+			if (password != null) {
+				return password;
+			}
+			Console console = System.console();
+			if (console != null) {
+				char[] entered = console.readPassword("Password: ");
+				if (entered != null && entered.length > 0) {
+					return new String(entered);
+				}
+			}
+			throw new IllegalArgumentException("No password supplied; use -p, --password-stdin, or run interactively");
 		}
 
 	}
