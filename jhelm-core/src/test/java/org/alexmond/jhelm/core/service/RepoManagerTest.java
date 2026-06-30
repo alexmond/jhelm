@@ -15,6 +15,7 @@ import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.stubbing.Answer;
 
@@ -84,6 +85,15 @@ class RepoManagerTest {
 	void testRepoNotFound() {
 		RepoManager repoManager = new RepoManager();
 		assertThrows(IOException.class, () -> repoManager.getChartVersions("non-existent", "nginx"));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "../evil", "../../etc/cron.d/x", "a/b", "a\\b", "..", ".", "with space", "name;rm" })
+	void testAddRepoRejectsUnsafeNames(String badName) {
+		RepoManager repoManager = new RepoManager();
+		// validateRepoName runs before any file I/O, so a traversal name can never write
+		// its index cache outside the cache directory.
+		assertThrows(IllegalArgumentException.class, () -> repoManager.addRepo(badName, "https://example.com"));
 	}
 
 	@Test
