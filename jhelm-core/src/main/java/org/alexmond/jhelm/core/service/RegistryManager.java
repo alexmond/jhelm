@@ -9,7 +9,11 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -66,8 +70,27 @@ public class RegistryManager {
 
 	private void saveConfig(Config config) throws IOException {
 		File file = new File(configPath);
-		file.getParentFile().mkdirs();
+		File dir = file.getParentFile();
+		dir.mkdirs();
+		// The registry config holds base64 credentials — keep it owner-only (0600), and
+		// the containing directory 0700, mirroring how helm/docker protect their auth
+		// files. Best-effort: POSIX only, and a failure to tighten must not lose the
+		// save.
+		restrictPermissions(dir.toPath(), "rwx------");
 		jsonMapper.writeValue(file, config);
+		restrictPermissions(file.toPath(), "rw-------");
+	}
+
+	private static void restrictPermissions(Path path, String posix) {
+		if (!FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+			return;
+		}
+		try {
+			Files.setPosixFilePermissions(path, PosixFilePermissions.fromString(posix));
+		}
+		catch (IOException | UnsupportedOperationException ex) {
+			log.warn("Could not restrict permissions on {}: {}", path, ex.getMessage());
+		}
 	}
 
 	@Data
