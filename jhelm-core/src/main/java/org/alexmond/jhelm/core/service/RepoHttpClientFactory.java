@@ -2,6 +2,7 @@ package org.alexmond.jhelm.core.service;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -61,6 +62,12 @@ final class RepoHttpClientFactory {
 
 	<T> T executeGet(HttpGet request, RepositoryConfig.Repository repo, HttpClientResponseHandler<T> handler)
 			throws IOException {
+		try {
+			UrlSecurity.validateFetchUrl(request.getUri());
+		}
+		catch (URISyntaxException ex) {
+			throw new IOException("Invalid request URI: " + ex.getMessage(), ex);
+		}
 		configureAuth(request, repo);
 		if (needsCustomTls(repo)) {
 			try (CloseableHttpClient client = buildTlsClient(repo)) {
@@ -89,6 +96,7 @@ final class RepoHttpClientFactory {
 					: new DefaultClientTlsStrategy(sslContext);
 			HttpClientConnectionManager connManager = PoolingHttpClientConnectionManagerBuilder.create()
 				.setTlsSocketStrategy(tlsStrategy)
+				.setDnsResolver(new SsrfGuardingDnsResolver())
 				.build();
 			return HttpClients.custom().setConnectionManager(connManager).build();
 		}
