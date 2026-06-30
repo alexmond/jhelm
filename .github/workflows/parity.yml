@@ -50,14 +50,14 @@ jobs:
         with:
           cluster_name: kind
 
-      # Pin helm to the version jhelm emulates in .Capabilities.HelmVersion (Engine.java:
-      # "v3.16.0"). Charts that branch on the helm version via semverCompare (e.g. bitnami
-      # `common`'s _capabilities.tpl) otherwise diverge across a threshold between this and
-      # jhelm's reported version — a comparison artifact, not a jhelm rendering bug.
+      # Pin helm to the reference version the chart pins were validated against (3.19).
+      # The gate compares jhelm vs this exact helm, so a different helm build can flip
+      # version-gated template branches (e.g. bitnami `common`) and surface comparison-only
+      # diffs. Keep this in lockstep with the helm used to validate/refresh the pins.
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.16.0
+          version: v3.19.0
 
       # Cache the charts the suite pulls from upstream repos (KpsComparisonTest fetches
       # each into target/temp-charts and reuses an existing dir). Keyed on charts.csv so
