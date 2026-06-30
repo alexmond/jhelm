@@ -5,10 +5,11 @@ name: Chart Parity Suite
 # It is excluded from the normal build (see surefire `excludedGroups` in the root pom)
 # and runs here instead: as a required PR gate, nightly, and on demand.
 #
-# The whole 540-chart corpus renders in a single surefire fork at the pom's default
-# 512 MB heap in ~5 min (no chunking, no -Xmx override needed — measured). The only
-# extra PR cost is fetching every chart from its upstream repo, which the chart cache
-# below amortises across runs.
+# The whole 540-chart corpus renders + diffs in a single surefire fork (no chunking)
+# given enough heap: the job raises the test-fork heap via -Djhelm.test.maxHeap (the
+# normal build's 512 MB default OOMs once large manifests go through SnakeYAML for the
+# diff). Output is redirected to files so it isn't buffered in heap. The per-chart
+# upstream fetch is amortised by the chart cache below.
 
 on:
   pull_request:
@@ -70,17 +71,18 @@ jobs:
       # Build/install the upstream modules without their tests, then run ONLY the
       # comparison-tagged tests in jhelm-core. `-Dsurefire.excludedGroups=` clears the
       # default exclusion and `-Dgroups=comparison` selects the parity suite.
-      # redirectTestOutputToFile=true streams each test's stdout to a file instead of
-      # buffering it in the forked JVM's heap. The comparison tests emit very large
-      # per-chart output (rendered manifests), which otherwise OOMs the 512 MB fork
-      # mid-suite (surefire reports "Tests run: 0" when the fork dies). With output
-      # redirected the whole corpus renders comfortably in one fork at 512 MB.
+      # -Djhelm.test.maxHeap=4g: the diff renders large manifests through SnakeYAML; the
+      #   normal-build 512 MB fork OOMs mid-suite ("Tests run: 0" — the fork dies). The
+      #   GitHub runner has ~7 GB, so a 4 GB fork is safe alongside Maven + kind.
+      # -DredirectTestOutputToFile=true: stream the very large per-chart test output to
+      #   files instead of buffering it in the fork's heap.
       - name: Run chart-parity suite
         run: >
           ./mvnw -B -pl jhelm-core -am test
           -Dsurefire.excludedGroups=
           -Dgroups=comparison
           -Dsurefire.failIfNoSpecifiedTests=false
+          -Djhelm.test.maxHeap=4g
           -DredirectTestOutputToFile=true
 
       - name: Upload test results
