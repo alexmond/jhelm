@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
@@ -179,10 +181,29 @@ class OciRegistryClient {
 	}
 
 	/**
+	 * Caps the redirect chain when downloading a blob, so a redirect loop can't recurse
+	 * forever.
+	 */
+	private static final int MAX_BLOB_REDIRECTS = 10;
+
+	/**
 	 * Downloads a blob to a local file, following redirects.
 	 */
 	void downloadBlob(String urlStr, String token, File destFile) throws IOException {
+		downloadBlob(urlStr, token, destFile, MAX_BLOB_REDIRECTS);
+	}
+
+	private void downloadBlob(String urlStr, String token, File destFile, int redirectsLeft) throws IOException {
 		destFile.getParentFile().mkdirs();
+
+		// SSRF guard on the initial URL and every redirect target: a registry-controlled
+		// Location could otherwise point at file://, localhost, or the cloud-metadata IP.
+		try {
+			UrlSecurity.validateFetchUrl(new URI(urlStr));
+		}
+		catch (URISyntaxException ex) {
+			throw new IOException("Invalid OCI blob URL '" + urlStr + "': " + ex.getMessage(), ex);
+		}
 
 		HttpGet httpGet = new HttpGet(urlStr);
 		if (token != null) {
@@ -192,8 +213,17 @@ class OciRegistryClient {
 		httpClient.execute(httpGet, (response) -> {
 			int status = response.getCode();
 			if (status == 301 || status == 302 || status == 307 || status == 308) {
-				String newUrl = response.getFirstHeader("Location").getValue();
-				downloadBlob(newUrl, null, destFile);
+				if (redirectsLeft <= 0) {
+					throw new IOException("Too many redirects downloading OCI blob from " + urlStr);
+				}
+				Header location = response.getFirstHeader("Location");
+				if (location == null || location.getValue() == null || location.getValue().isBlank()) {
+					throw new IOException("OCI blob redirect (" + status + ") with no Location header from " + urlStr);
+				}
+				// Drop the bearer token on redirect — the target is often a different
+				// host
+				// (e.g. a signed CDN URL) that must not receive our registry credentials.
+				downloadBlob(location.getValue(), null, destFile, redirectsLeft - 1);
 				return null;
 			}
 
