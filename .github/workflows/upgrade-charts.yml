@@ -1,0 +1,79 @@
+name: Chart Version Upgrade
+
+# Semi-autonomous chart-version updater. Weekly, it resolves the latest upstream
+# version of every pinned chart in charts.csv, renders parity at it, and bumps the pin
+# only for versions that still match `helm template` byte-for-byte. Diverging newer
+# versions keep their old pin and are reported (job summary) for a human to investigate.
+# A review PR is opened only when at least one pin actually changes — never auto-merged.
+
+on:
+  schedule:
+    # Mondays 04:23 UTC — off-peak, after the nightly parity run.
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: chart-upgrade
+  cancel-in-progress: true
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Create Kubernetes Cluster (Kind)
+        uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: kind
+
+      # Match the helm version jhelm emulates (.Capabilities.HelmVersion in Engine.java),
+      # so version-gated templates (e.g. bitnami common) compare apples-to-apples.
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+
+      # Resolve latest versions, render parity at each, rewrite charts.csv pins for the
+      # ones that still match. Output redirected to files (large per-chart output would
+      # otherwise buffer in the fork's heap).
+      - name: Resolve + validate chart-version upgrades
+        run: >
+          ./mvnw -B -pl jhelm-core -am test
+          -Dtest=KpsComparisonTest#upgradePins
+          -Dsurefire.excludedGroups=
+          -Dgroups=comparison
+          -Dsurefire.failIfNoSpecifiedTests=false
+          -DredirectTestOutputToFile=true
+
+      # Always surface the report (bumped / held-diverging / errors) on the run, even when
+      # nothing bumped — so diverging newer versions are visible without a PR.
+      - name: Publish upgrade report to run summary
+        if: ${{ !cancelled() }}
+        run: cat jhelm-core/target/upgrade-report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      # Open a review PR only when at least one pin changed. peter-evans/create-pull-request
+      # no-ops when there is no diff, so a week with only held/error charts opens no PR.
+      - name: Open upgrade PR
+        if: ${{ !cancelled() }}
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/chart-version-upgrade
+          delete-branch: true
+          add-paths: jhelm-core/src/test/resources/charts.csv
+          commit-message: "chore(parity): bump pinned chart versions (still byte-for-byte vs helm)"
+          title: "chore(parity): weekly chart-version upgrade"
+          body-path: jhelm-core/target/upgrade-report.md
+          labels: chart-upgrade
