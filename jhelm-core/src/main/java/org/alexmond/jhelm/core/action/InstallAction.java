@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.action;
 
+import org.alexmond.jhelm.core.util.ReleaseNames;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -58,6 +59,8 @@ public class InstallAction {
 	 * @throws JhelmException if rendering or a cluster operation fails
 	 */
 	public Release install(InstallOptions options) {
+		ReleaseNames.validateReleaseName(options.getReleaseName());
+		ReleaseNames.validateNamespace(options.getNamespace());
 		Chart chart = options.getChart();
 		if ("library".equals(chart.getMetadata().getType())) {
 			throw new IllegalArgumentException(
