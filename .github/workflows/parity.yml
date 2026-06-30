@@ -2,11 +2,18 @@ name: Chart Parity Suite
 
 # The chart-parity suite (KpsComparisonTest, tagged `comparison`) renders every
 # chart in charts.csv with jhelm AND the real `helm template` and diffs the result.
-# It is slow and network-bound (it pulls every chart from its upstream repo), so it
-# is excluded from the normal build (see surefire `excludedGroups` in the root pom)
-# and runs here instead: nightly, and on demand.
+# It is excluded from the normal build (see surefire `excludedGroups` in the root pom)
+# and runs here instead: as a required PR gate, nightly, and on demand.
+#
+# The whole 540-chart corpus renders + diffs in a single surefire fork (no chunking)
+# given enough heap: the job raises the test-fork heap via -Djhelm.test.maxHeap (the
+# normal build's 512 MB default OOMs once large manifests go through SnakeYAML for the
+# diff). Output is redirected to files so it isn't buffered in heap. The per-chart
+# upstream fetch is amortised by the chart cache below.
 
 on:
+  pull_request:
+    branches: [ main ]
   schedule:
     # 03:17 UTC daily — off-peak, avoids the top-of-hour scheduler spike.
     - cron: '17 3 * * *'
@@ -16,6 +23,11 @@ on:
         description: 'Branch, tag or SHA to run the parity suite against'
         required: false
         default: 'main'
+
+# A newer push to the same PR cancels the in-flight parity run.
+concurrency:
+  group: parity-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   parity:
@@ -38,25 +50,55 @@ jobs:
         with:
           cluster_name: kind
 
+      # Pin helm to the reference version the chart pins were validated against (3.19).
+      # The gate compares jhelm vs this exact helm, so a different helm build can flip
+      # version-gated template branches (e.g. bitnami `common`) and surface comparison-only
+      # diffs. Keep this in lockstep with the helm used to validate/refresh the pins.
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.14.2
+          version: v3.19.0
+
+      # Cache the charts the suite pulls from upstream repos (KpsComparisonTest fetches
+      # each into target/temp-charts and reuses an existing dir). Keyed on charts.csv so
+      # the cache invalidates when the corpus changes; restore-keys lets a PR reuse the
+      # bulk of the cache even after adding a few charts. `mvn test` doesn't clean, so the
+      # restored charts survive into the run.
+      - name: Cache pulled charts
+        uses: actions/cache@v4
+        with:
+          path: jhelm-core/target/temp-charts
+          key: parity-charts-${{ hashFiles('jhelm-core/src/test/resources/charts.csv') }}
+          restore-keys: |
+            parity-charts-
 
       # Build/install the upstream modules without their tests, then run ONLY the
       # comparison-tagged tests in jhelm-core. `-Dsurefire.excludedGroups=` clears the
       # default exclusion and `-Dgroups=comparison` selects the parity suite.
+      # -Djhelm.test.maxHeap=2g: headroom for the diff (large manifests through SnakeYAML).
+      #   The normal-build 512 MB default is too small once the corpus is cold-fetched; the
+      #   index-cache leak that previously needed 4 GB is fixed (#579), so 2 GB is ample on
+      #   the ~7 GB runner.
+      # -DredirectTestOutputToFile=true: stream the very large per-chart test output to
+      #   files instead of buffering it in the fork's heap.
       - name: Run chart-parity suite
         run: >
           ./mvnw -B -pl jhelm-core -am test
           -Dsurefire.excludedGroups=
           -Dgroups=comparison
           -Dsurefire.failIfNoSpecifiedTests=false
+          -Djhelm.test.maxHeap=2g
+          -DredirectTestOutputToFile=true
 
       - name: Upload test results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: parity-surefire-reports
-          path: '**/surefire-reports/TEST-*.xml'
+          # Include the rendered manifests (expected_/actual_*.yaml) so a CI-only failure
+          # can be diffed offline — the surefire XML truncates large diff messages.
+          path: |
+            **/surefire-reports/TEST-*.xml
+            jhelm-core/target/test-output/expected_cetic_*.yaml
+            jhelm-core/target/test-output/actual_cetic_*.yaml
           if-no-files-found: warn

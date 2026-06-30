@@ -1,0 +1,81 @@
+name: Parity Debug (selected charts)
+
+# On-demand parity run for a hand-picked set of charts — for reproducing and diagnosing
+# charts that fail in CI but not locally. It renders only the selected charts (at their
+# pinned versions from charts.csv) and uploads the FULL per-chart test output (the diffs),
+# which the main parity gate truncates. Never auto-runs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      charts:
+        description: 'Comma-separated chart names (repoId/chart) to run'
+        required: false
+        default: 'cetic/nifi,cetic/fadi,signoz/signoz'
+      helm-version:
+        description: 'Helm version to compare against'
+        required: false
+        default: 'v3.19.0'
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    env:
+      CHARTS: ${{ inputs.charts }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Create Kubernetes Cluster (Kind)
+        uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: kind
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: ${{ inputs.helm-version }}
+
+      # Build single.csv from the selected charts' rows in charts.csv (so they run at the
+      # same pinned versions as the gate). $CHARTS comes from an env var, not inline
+      # interpolation, to avoid shell injection from the dispatch input.
+      - name: Select charts
+        run: |
+          : > jhelm-core/src/test/resources/single.csv
+          IFS=',' read -ra NAMES <<< "$CHARTS"
+          for c in "${NAMES[@]}"; do
+            c="$(echo "$c" | xargs)"
+            if ! grep -E "^${c}," jhelm-core/src/test/resources/charts.csv >> jhelm-core/src/test/resources/single.csv; then
+              echo "WARNING: $c not found in charts.csv"
+            fi
+          done
+          echo "=== selected charts ==="; cat jhelm-core/src/test/resources/single.csv
+
+      - name: Render + compare selected charts
+        run: >
+          ./mvnw -B -pl jhelm-core -am test
+          -Dtest=KpsComparisonTest#compareSingleChart
+          -Dsurefire.excludedGroups=
+          -Dsurefire.failIfNoSpecifiedTests=false
+          -Djhelm.test.maxHeap=2g
+          -DredirectTestOutputToFile=true
+
+      # Upload the full per-chart output (the un-truncated diffs) plus the rendered
+      # manifests for offline comparison.
+      - name: Upload diffs + rendered manifests
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-debug-output
+          path: |
+            jhelm-core/target/surefire-reports/*-output.txt
+            jhelm-core/target/surefire-reports/TEST-*.xml
+            jhelm-core/target/test-output/**
+          if-no-files-found: warn
