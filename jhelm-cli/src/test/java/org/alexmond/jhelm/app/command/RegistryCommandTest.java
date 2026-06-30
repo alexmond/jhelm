@@ -7,11 +7,17 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 class RegistryCommandTest {
 
@@ -43,6 +49,37 @@ class RegistryCommandTest {
 
 		CommandLine cmd = new CommandLine(loginCommand);
 		cmd.execute("registry.example.com", "-u", "user", "-p", "pass");
+	}
+
+	@Test
+	void testLoginReadsPasswordFromStdin() throws IOException {
+		doNothing().when(registryManager).login(anyString(), anyString(), anyString());
+		InputStream original = System.in;
+		try {
+			System.setIn(new ByteArrayInputStream("s3cret\n".getBytes(StandardCharsets.UTF_8)));
+			CommandLine cmd = new CommandLine(loginCommand);
+			cmd.execute("registry.example.com", "-u", "user", "--password-stdin");
+		}
+		finally {
+			System.setIn(original);
+		}
+		// trailing newline is stripped; the secret never appears on the command line
+		verify(registryManager).login(eq("registry.example.com"), eq("user"), eq("s3cret"));
+	}
+
+	@Test
+	void testLoginRejectsPasswordAndStdinTogether() throws IOException {
+		CommandLine cmd = new CommandLine(loginCommand);
+		cmd.execute("registry.example.com", "-u", "user", "-p", "pass", "--password-stdin");
+		verify(registryManager, never()).login(anyString(), anyString(), anyString());
+	}
+
+	@Test
+	void testLoginWithNoPasswordFails() throws IOException {
+		// no -p, no --password-stdin, and no console under test → clean failure, no login
+		CommandLine cmd = new CommandLine(loginCommand);
+		cmd.execute("registry.example.com", "-u", "user");
+		verify(registryManager, never()).login(anyString(), anyString(), anyString());
 	}
 
 	@Test
