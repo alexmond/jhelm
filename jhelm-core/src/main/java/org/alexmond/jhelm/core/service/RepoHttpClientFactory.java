@@ -96,6 +96,7 @@ final class RepoHttpClientFactory {
 					: new DefaultClientTlsStrategy(sslContext);
 			HttpClientConnectionManager connManager = PoolingHttpClientConnectionManagerBuilder.create()
 				.setTlsSocketStrategy(tlsStrategy)
+				.setDnsResolver(new SsrfGuardingDnsResolver())
 				.build();
 			return HttpClients.custom().setConnectionManager(connManager).build();
 		}

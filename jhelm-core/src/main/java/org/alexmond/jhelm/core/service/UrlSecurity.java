@@ -15,18 +15,19 @@ import java.util.regex.Pattern;
  * multicast.
  *
  * <p>
- * The guard deliberately does <em>not</em> resolve DNS names. An eager lookup on the
- * fetch hot path is an unbounded blocking call (a hang/DoS risk with no socket timeout),
- * and because the HTTP client resolves the host independently when it connects, a lookup
- * here can't reliably close the DNS-rebinding hole anyway — only pinning the resolved
- * address at connection time would, which is a stricter server-mode policy left for a
- * follow-up. So a host given as a literal internal IP is blocked, but a <em>name</em>
- * that resolves to one is left for the HTTP layer.
+ * This URL-level check deliberately does <em>not</em> resolve DNS names — an eager lookup
+ * on the fetch hot path is an unbounded blocking call, and a lookup here couldn't close
+ * the DNS-rebinding hole anyway (the HTTP client resolves independently when it
+ * connects). The case of a <em>name</em> that resolves to an internal address is instead
+ * handled at connection time by {@link SsrfGuardingDnsResolver}, which validates the
+ * addresses the client actually resolves and pins the connection to them, leaving no
+ * resolve-then- reconnect window. So between the two: a literal internal IP is rejected
+ * here up front, and a name resolving to one is rejected at connect time.
  *
  * <p>
  * Private/site-local ranges ({@code 10/8}, {@code 172.16/12}, {@code 192.168/16}) are
- * also <em>not</em> blocked by default so a CLI pull from a private/internal repo still
- * works; blocking those too is part of the same stricter server-mode policy.
+ * <em>not</em> blocked by default so a CLI pull from a private/internal repo still works;
+ * blocking those too is a stricter server-mode policy left for a follow-up.
  */
 public final class UrlSecurity {
 
@@ -62,7 +63,7 @@ public final class UrlSecurity {
 			throw new SecurityException("Refusing to fetch URL targeting localhost: " + uri);
 		}
 		InetAddress literal = parseIpLiteral(host);
-		if (literal != null && isBlocked(literal)) {
+		if (literal != null && isInternalAddress(literal)) {
 			throw new SecurityException("Refusing to fetch URL targeting a non-routable/internal address ("
 					+ literal.getHostAddress() + "): " + uri);
 		}
@@ -116,9 +117,15 @@ public final class UrlSecurity {
 		return true;
 	}
 
-	private static boolean isBlocked(InetAddress address) {
-		// Loopback (127/8, ::1), link-local (169.254/16 cloud metadata, fe80::/10), the
-		// wildcard (0.0.0.0, ::) and multicast are never a real chart repo.
+	/**
+	 * Whether {@code address} is one a chart repository should never resolve to —
+	 * loopback (127/8, ::1), link-local (169.254/16 cloud metadata, fe80::/10), the
+	 * wildcard (0.0.0.0, ::) or multicast. Shared with {@link SsrfGuardingDnsResolver},
+	 * which applies it to the addresses a DNS <em>name</em> actually resolves to.
+	 * @param address a resolved or literal address
+	 * @return {@code true} if the address is internal/non-routable
+	 */
+	static boolean isInternalAddress(InetAddress address) {
 		return address.isLoopbackAddress() || address.isLinkLocalAddress() || address.isAnyLocalAddress()
 				|| address.isMulticastAddress();
 	}

@@ -11,6 +11,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.core5.http.HttpEntity;
 
 import java.io.BufferedInputStream;
@@ -134,15 +135,16 @@ public class RepoManager {
 	}
 
 	private void initHttpClient() {
-		try {
-			httpClient = HttpClients.createDefault();
-		}
-		catch (Exception ex) {
-			if (log.isErrorEnabled()) {
-				log.error("Failed to initialize HTTP client", ex);
-			}
-			httpClient = HttpClients.createDefault();
-		}
+		// SSRF-validating DNS resolver: a host resolving to loopback/cloud-metadata is
+		// refused at connect time and the connection is pinned to the validated addresses
+		// (no rebinding window). The client owns and closes the connection manager.
+		// Shared
+		// with the OCI client below.
+		httpClient = HttpClients.custom()
+			.setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
+				.setDnsResolver(new SsrfGuardingDnsResolver())
+				.build())
+			.build();
 		httpClientFactory = new RepoHttpClientFactory(httpClient, insecureSkipTlsVerify);
 		ociClient = new OciRegistryClient(httpClient);
 	}
