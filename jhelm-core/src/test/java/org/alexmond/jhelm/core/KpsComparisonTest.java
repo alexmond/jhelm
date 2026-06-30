@@ -202,21 +202,21 @@ class KpsComparisonTest {
 
 		File nginxDir = new File(repoDir, "nginx");
 		if (nginxDir.exists()) {
-			compareChart("nginx", "pulled-nginx", "bitnami", "https://charts.bitnami.com/bitnami");
+			compareChart("nginx", "pulled-nginx", "bitnami", "https://charts.bitnami.com/bitnami", null);
 		}
 	}
 
 	@ParameterizedTest
 	@CsvFileSource(resources = "/single.csv")
-	void compareSingleChart(String chartName, String repoId, String repoUrl) throws Exception {
-		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+	void compareSingleChart(String chartName, String repoId, String repoUrl, String version) throws Exception {
+		compareChart(chartName, "release-" + chartName, repoId, repoUrl, version);
 	}
 
 	@Tag("comparison")
 	@ParameterizedTest
 	@CsvFileSource(resources = "/charts.csv")
-	void compareAllTopCharts(String chartName, String repoId, String repoUrl) throws Exception {
-		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+	void compareAllTopCharts(String chartName, String repoId, String repoUrl, String version) throws Exception {
+		compareChart(chartName, "release-" + chartName, repoId, repoUrl, version);
 	}
 
 	private List<String[]> readFailedCsv() throws Exception {
@@ -250,7 +250,7 @@ class KpsComparisonTest {
 			String repoId = parts[1].trim();
 			String repoUrl = parts[2].trim();
 			try {
-				compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+				compareChart(chartName, "release-" + chartName, repoId, repoUrl, null);
 				unexpectedPasses.add(chartName);
 				log.warn("{} - UNEXPECTEDLY PASSED — remove from failed.csv", chartName);
 			}
@@ -267,7 +267,8 @@ class KpsComparisonTest {
 		}
 	}
 
-	private void compareChart(String chartName, String releaseName, String repoId, String repoUrl) throws Exception {
+	private void compareChart(String chartName, String releaseName, String repoId, String repoUrl, String version)
+			throws Exception {
 		if (isSkipped(chartName)) {
 			log.info("{} - Skipped (listed in charts-skip.csv)", chartName);
 			assumeTrue(false, chartName + " is in charts-skip.csv");
@@ -277,14 +278,14 @@ class KpsComparisonTest {
 		// still points at the old (now 404) location.
 		String effectiveRepoUrl = REPO_URL_OVERRIDES.getOrDefault(repoUrl.replaceAll("/+$", ""), repoUrl);
 
-		File chartDir = findChartDir(chartName);
+		File chartDir = findChartDir(chartName, version);
 
 		if (chartDir == null) {
 			log.info("Chart {} not found locally, fetching from repository {}...", chartName, effectiveRepoUrl);
 			try {
 				addHelmRepo(repoId, effectiveRepoUrl);
-				fetchFromHelmRepo(chartName);
-				chartDir = findChartDir(chartName);
+				fetchFromHelmRepo(chartName, version);
+				chartDir = findChartDir(chartName, version);
 			}
 			catch (Exception ex) {
 				log.warn("Failed to fetch chart {} from repository: {}", chartName, ex.getMessage());
@@ -731,10 +732,19 @@ class KpsComparisonTest {
 		return sb.toString();
 	}
 
-	private File findChartDir(String chartFullName) {
+	private File findChartDir(String chartFullName, String version) {
 		String chartName = chartFullName.contains("/") ? chartFullName.substring(chartFullName.lastIndexOf("/") + 1)
 				: chartFullName;
 		String sanitized = chartFullName.replace("/", "_");
+		// When a version is pinned, the chart lives in a version-scoped dir so a re-pin
+		// (e.g. the weekly upgrade bot) re-fetches instead of reusing a stale copy.
+		if (version != null && !version.isBlank()) {
+			File pinned = new File("target/temp-charts/" + sanitized + "@" + version + "/" + chartName);
+			if (pinned.isDirectory() && new File(pinned, "Chart.yaml").exists()) {
+				return pinned;
+			}
+			return null;
+		}
 		// Per-chart subdirectory first (isolated), then legacy fallbacks
 		String[] paths = { "target/temp-charts/" + sanitized + "/" + chartName, "target/temp-charts/" + chartName,
 				"target/temp-charts/" + chartFullName, "sample-charts/" + chartName, "../sample-charts/" + chartName,
@@ -776,12 +786,14 @@ class KpsComparisonTest {
 		addedRepos.add(repoId);
 	}
 
-	private void fetchFromHelmRepo(String chartName) throws Exception {
-		log.info("Fetching chart {} via RepoManager...", chartName);
+	private void fetchFromHelmRepo(String chartName, String pinnedVersion) throws Exception {
+		log.info("Fetching chart {} (version {}) via RepoManager...", chartName,
+				(pinnedVersion == null || pinnedVersion.isBlank()) ? "latest" : pinnedVersion);
 		// Use a per-chart subdirectory to avoid cross-contamination between test
-		// iterations
+		// iterations; version-scoped when a version is pinned (see findChartDir).
 		String sanitized = chartName.replace("/", "_");
-		File tempDir = new File("target/temp-charts/" + sanitized);
+		boolean pinned = pinnedVersion != null && !pinnedVersion.isBlank();
+		File tempDir = new File("target/temp-charts/" + sanitized + (pinned ? "@" + pinnedVersion : ""));
 		if (tempDir.exists()) {
 			deleteDir(tempDir);
 		}
@@ -796,13 +808,16 @@ class KpsComparisonTest {
 			shortName = chartName.substring(i + 1);
 		}
 
-		// Use latest version from index
+		// Pull the pinned version when given, else the latest from the index.
 		try {
-			List<RepoManager.ChartVersion> versions = repoManager.getChartVersions(repoId, shortName);
-			if (versions.isEmpty()) {
-				throw new IOException("No versions found for chart '" + shortName + "' in repo '" + repoId + "'");
+			String version = pinnedVersion;
+			if (version == null || version.isBlank()) {
+				List<RepoManager.ChartVersion> versions = repoManager.getChartVersions(repoId, shortName);
+				if (versions.isEmpty()) {
+					throw new IOException("No versions found for chart '" + shortName + "' in repo '" + repoId + "'");
+				}
+				version = versions.getFirst().getChartVersion();
 			}
-			String version = versions.getFirst().getChartVersion();
 			repoManager.pull(chartName, repoId, version, tempDir.getAbsolutePath());
 		}
 		catch (IOException ex) {
@@ -952,7 +967,7 @@ class KpsComparisonTest {
 	@ParameterizedTest
 	@MethodSource("topCharts")
 	void compareTopCharts(String chartName, String repoId, String repoUrl) throws Exception {
-		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+		compareChart(chartName, "release-" + chartName, repoId, repoUrl, null);
 	}
 
 	private static String extractRootCause(Throwable ex) {
