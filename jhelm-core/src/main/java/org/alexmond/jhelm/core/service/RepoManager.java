@@ -30,7 +30,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -56,9 +57,21 @@ public class RepoManager {
 
 	private final RegistryManager registryManager;
 
-	// Shared across the threads that resolve dependencies concurrently; mutated under no
-	// lock, so a thread-safe map (a stale double-parse is harmless, corruption is not).
-	private final Map<String, Map<?, ?>> indexCache = new ConcurrentHashMap<>();
+	// Parsed repo indexes (the full entries map of an index.yaml) keyed by repo name.
+	// A repo's index can be tens of MB (e.g. bitnami), so this is bounded by an LRU:
+	// resolving many charts across many repos (the parity suite, or a long-running
+	// server) would otherwise retain every repo's parsed index at once and exhaust the
+	// heap. Access-ordered + size-capped, wrapped synchronized because dependency
+	// resolution hits it from several threads (a stale double-parse is harmless,
+	// corruption is not). Evicted indexes are re-parsed from the on-disk cache file.
+	private static final int INDEX_CACHE_MAX = 16;
+
+	private final Map<String, Map<?, ?>> indexCache = Collections.synchronizedMap(new LinkedHashMap<>(32, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<String, Map<?, ?>> eldest) {
+			return size() > INDEX_CACHE_MAX;
+		}
+	});
 
 	/**
 	 * Creates a manager for the default Helm repositories.yaml, no OCI auth, TLS
