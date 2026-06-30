@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.Locale;
 import java.util.Map;
 
@@ -170,6 +171,7 @@ public class RepoManager {
 	}
 
 	public void addRepo(String name, String url) throws IOException {
+		validateRepoName(name);
 		RepositoryConfig config = loadConfig();
 		config.getRepositories().removeIf((r) -> r.getName().equals(name));
 		RepositoryConfig.Repository repo = RepositoryConfig.Repository.builder().name(name).url(url).build();
@@ -220,7 +222,22 @@ public class RepoManager {
 		return base;
 	}
 
+	// A repository name is used directly as a filename component for its on-disk index
+	// cache, and repo names are attacker-controllable (e.g. the REST add-repo endpoint).
+	// Restrict them to a single safe path segment so a name like "../../etc/foo" can't
+	// escape the cache directory when the index is written.
+	private static final Pattern SAFE_REPO_NAME = Pattern.compile("^[A-Za-z0-9._-]+$");
+
+	private static void validateRepoName(String repoName) {
+		if (repoName == null || repoName.isBlank() || ".".equals(repoName) || "..".equals(repoName)
+				|| !SAFE_REPO_NAME.matcher(repoName).matches()) {
+			throw new IllegalArgumentException("Invalid repository name '" + repoName
+					+ "': must match [A-Za-z0-9._-]+ and contain no path separators");
+		}
+	}
+
 	private File getIndexCacheFile(String repoName) {
+		validateRepoName(repoName);
 		return new File(getCacheDir(), repoName + "-index.yaml");
 	}
 
