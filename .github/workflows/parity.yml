@@ -95,5 +95,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: parity-surefire-reports
-          path: '**/surefire-reports/TEST-*.xml'
+          # Include the rendered manifests (expected_/actual_*.yaml) so a CI-only failure
+          # can be diffed offline — the surefire XML truncates large diff messages.
+          path: |
+            **/surefire-reports/TEST-*.xml
+            jhelm-core/target/test-output/expected_cetic_*.yaml
+            jhelm-core/target/test-output/actual_cetic_*.yaml
           if-no-files-found: warn
