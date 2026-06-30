@@ -1,6 +1,9 @@
 package org.alexmond.jhelm.core.service;
 
+import org.apache.hc.client5.http.classic.methods.HttpUriRequest;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import tools.jackson.databind.JsonNode;
@@ -13,7 +16,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class OciRegistryClientTest {
 
@@ -82,6 +87,34 @@ class OciRegistryClientTest {
 				]}
 				""");
 		assertEquals("sha256:amd64", client.resolveDigestFromIndex(index));
+	}
+
+	@Test
+	void downloadBlobRejectsInternalInitialUrl() {
+		// SSRF: a blob URL targeting the cloud-metadata IP is refused before any request
+		assertThrows(SecurityException.class,
+				() -> client.downloadBlob("http://169.254.169.254/v2/blob", null, tempDir.resolve("b").toFile()));
+	}
+
+	@Test
+	void downloadBlobRejectsDisallowedScheme() {
+		assertThrows(SecurityException.class,
+				() -> client.downloadBlob("file:///etc/passwd", null, tempDir.resolve("b").toFile()));
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void downloadBlobRejectsRedirectWithNoLocation() throws Exception {
+		// A 3xx with a missing Location header must fail cleanly, not NPE
+		CloseableHttpClient http = mock(CloseableHttpClient.class);
+		ClassicHttpResponse response = mock(ClassicHttpResponse.class);
+		when(response.getCode()).thenReturn(302);
+		when(response.getFirstHeader("Location")).thenReturn(null);
+		when(http.execute(any(HttpUriRequest.class), any(HttpClientResponseHandler.class)))
+			.thenAnswer((inv) -> inv.getArgument(1, HttpClientResponseHandler.class).handleResponse(response));
+		OciRegistryClient redirectClient = new OciRegistryClient(http);
+		assertThrows(IOException.class, () -> redirectClient.downloadBlob("https://registry.example.com/v2/blob", "tok",
+				tempDir.resolve("b").toFile()));
 	}
 
 }
