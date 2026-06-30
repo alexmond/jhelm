@@ -70,12 +70,18 @@ jobs:
       # Build/install the upstream modules without their tests, then run ONLY the
       # comparison-tagged tests in jhelm-core. `-Dsurefire.excludedGroups=` clears the
       # default exclusion and `-Dgroups=comparison` selects the parity suite.
+      # redirectTestOutputToFile=true streams each test's stdout to a file instead of
+      # buffering it in the forked JVM's heap. The comparison tests emit very large
+      # per-chart output (rendered manifests), which otherwise OOMs the 512 MB fork
+      # mid-suite (surefire reports "Tests run: 0" when the fork dies). With output
+      # redirected the whole corpus renders comfortably in one fork at 512 MB.
       - name: Run chart-parity suite
         run: >
           ./mvnw -B -pl jhelm-core -am test
           -Dsurefire.excludedGroups=
           -Dgroups=comparison
           -Dsurefire.failIfNoSpecifiedTests=false
+          -DredirectTestOutputToFile=true
 
       - name: Upload test results
         if: ${{ !cancelled() }}
