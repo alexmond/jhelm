@@ -38,6 +38,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -202,21 +203,143 @@ class KpsComparisonTest {
 
 		File nginxDir = new File(repoDir, "nginx");
 		if (nginxDir.exists()) {
-			compareChart("nginx", "pulled-nginx", "bitnami", "https://charts.bitnami.com/bitnami");
+			compareChart("nginx", "pulled-nginx", "bitnami", "https://charts.bitnami.com/bitnami", null);
 		}
 	}
 
 	@ParameterizedTest
 	@CsvFileSource(resources = "/single.csv")
-	void compareSingleChart(String chartName, String repoId, String repoUrl) throws Exception {
-		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+	void compareSingleChart(String chartName, String repoId, String repoUrl, String version) throws Exception {
+		compareChart(chartName, "release-" + chartName, repoId, repoUrl, version);
 	}
 
 	@Tag("comparison")
 	@ParameterizedTest
 	@CsvFileSource(resources = "/charts.csv")
-	void compareAllTopCharts(String chartName, String repoId, String repoUrl) throws Exception {
-		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+	void compareAllTopCharts(String chartName, String repoId, String repoUrl, String version) throws Exception {
+		compareChart(chartName, "release-" + chartName, repoId, repoUrl, version);
+	}
+
+	/**
+	 * Semi-autonomous chart-version upgrade bot (run on demand by the weekly
+	 * upgrade-charts workflow, never in the normal build). For each pinned chart it
+	 * resolves the latest upstream version and, if newer, renders parity at it: a version
+	 * that still matches Helm byte-for-byte gets its pin bumped in charts.csv; one that
+	 * diverges keeps its current pin and is reported for a human to investigate. Writes a
+	 * markdown summary to target/upgrade-report.md (used as the PR body).
+	 */
+	@Tag("comparison")
+	@Test
+	void upgradePins() throws Exception {
+		Path csv = Path.of("src/test/resources/charts.csv");
+		List<String> lines = Files.readAllLines(csv);
+		List<String> out = new ArrayList<>();
+		List<String> bumped = new ArrayList<>();
+		List<String> held = new ArrayList<>();
+		List<String> errors = new ArrayList<>();
+		for (String line : lines) {
+			String[] p = line.split(",", 4);
+			if (line.isBlank() || line.startsWith("#") || p.length < 4) {
+				out.add(line);
+				continue;
+			}
+			String chart = p[0];
+			String repoId = p[1];
+			String repoUrl = p[2];
+			String pinned = p[3];
+			String newVersion = pinned;
+			try {
+				newVersion = tryUpgrade(chart, repoId, repoUrl, pinned, bumped, held, errors);
+			}
+			catch (Exception ex) {
+				errors.add(chart + ": " + ex.getMessage());
+			}
+			out.add(String.join(",", chart, repoId, repoUrl, newVersion));
+		}
+		Files.writeString(csv, String.join("\n", out) + "\n");
+		writeUpgradeReport(bumped, held, errors);
+		log.info("upgradePins: bumped={} held={} errors={}", bumped.size(), held.size(), errors.size());
+	}
+
+	/**
+	 * Resolves the latest version of one chart and bumps its pin if it still matches
+	 * Helm.
+	 */
+	private String tryUpgrade(String chart, String repoId, String repoUrl, String pinned, List<String> bumped,
+			List<String> held, List<String> errors) throws Exception {
+		if (isSkipped(chart)) {
+			return pinned;
+		}
+		String shortName = chart.contains("/") ? chart.substring(chart.indexOf('/') + 1) : chart;
+		String effectiveRepoUrl = REPO_URL_OVERRIDES.getOrDefault(repoUrl.replaceAll("/+$", ""), repoUrl);
+		addHelmRepo(repoId, effectiveRepoUrl);
+		List<RepoManager.ChartVersion> versions = repoManager.getChartVersions(repoId, shortName);
+		if (versions.isEmpty()) {
+			errors.add(chart + ": no versions found");
+			return pinned;
+		}
+		String latest = versions.getFirst().getChartVersion();
+		if (latest.equals(pinned)) {
+			return pinned;
+		}
+		String releaseName = sanitizeReleaseName("release-" + chart);
+		Map<String, Object> overrides = testProperties.getComparisonValues().getOrDefault(chart, Map.of());
+		fetchFromHelmRepo(chart, latest);
+		File dir = findChartDir(chart, latest);
+		if (dir == null) {
+			errors.add(chart + " " + latest + ": fetch failed");
+			return pinned;
+		}
+		String helm = runHelmInstallDryRun(dir, releaseName, "default", overrides);
+		if (helm == null) {
+			errors.add(chart + " " + latest + ": helm template failed");
+			return pinned;
+		}
+		Chart loaded = chartLoader.load(dir);
+		String jhelm = installAction
+			.install(InstallOptions.builder()
+				.chart(loaded)
+				.releaseName(releaseName)
+				.namespace("default")
+				.values(overrides)
+				.revision(1)
+				.dryRun(true)
+				.build())
+			.getManifest();
+		List<String> fails = computeManifestFailures(chart, jhelm, helm);
+		if (fails.isEmpty()) {
+			bumped.add(chart + ": " + pinned + " -> " + latest);
+			return latest;
+		}
+		held.add(chart + ": " + pinned + " held (latest " + latest + " diverges in " + fails.size() + " resource(s))");
+		return pinned;
+	}
+
+	private void writeUpgradeReport(List<String> bumped, List<String> held, List<String> errors) throws IOException {
+		StringBuilder r = new StringBuilder();
+		r.append("## Chart version upgrade\n\n");
+		r.append("Bumped **")
+			.append(bumped.size())
+			.append("**, held **")
+			.append(held.size())
+			.append("** (diverge), errors **")
+			.append(errors.size())
+			.append("**.\n\n");
+		appendSection(r, "Bumped — still byte-for-byte vs Helm at the new version", bumped);
+		appendSection(r, "Held — newer version diverges, kept old pin (needs investigation)", held);
+		appendSection(r, "Could not check (resolve/fetch/helm error)", errors);
+		Files.writeString(Path.of("target/upgrade-report.md"), r.toString());
+	}
+
+	private void appendSection(StringBuilder r, String title, List<String> items) {
+		if (items.isEmpty()) {
+			return;
+		}
+		r.append("### ").append(title).append("\n\n");
+		for (String item : items) {
+			r.append("- ").append(item).append('\n');
+		}
+		r.append('\n');
 	}
 
 	private List<String[]> readFailedCsv() throws Exception {
@@ -250,7 +373,7 @@ class KpsComparisonTest {
 			String repoId = parts[1].trim();
 			String repoUrl = parts[2].trim();
 			try {
-				compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+				compareChart(chartName, "release-" + chartName, repoId, repoUrl, null);
 				unexpectedPasses.add(chartName);
 				log.warn("{} - UNEXPECTEDLY PASSED — remove from failed.csv", chartName);
 			}
@@ -267,7 +390,8 @@ class KpsComparisonTest {
 		}
 	}
 
-	private void compareChart(String chartName, String releaseName, String repoId, String repoUrl) throws Exception {
+	private void compareChart(String chartName, String releaseName, String repoId, String repoUrl, String version)
+			throws Exception {
 		if (isSkipped(chartName)) {
 			log.info("{} - Skipped (listed in charts-skip.csv)", chartName);
 			assumeTrue(false, chartName + " is in charts-skip.csv");
@@ -277,14 +401,14 @@ class KpsComparisonTest {
 		// still points at the old (now 404) location.
 		String effectiveRepoUrl = REPO_URL_OVERRIDES.getOrDefault(repoUrl.replaceAll("/+$", ""), repoUrl);
 
-		File chartDir = findChartDir(chartName);
+		File chartDir = findChartDir(chartName, version);
 
 		if (chartDir == null) {
 			log.info("Chart {} not found locally, fetching from repository {}...", chartName, effectiveRepoUrl);
 			try {
 				addHelmRepo(repoId, effectiveRepoUrl);
-				fetchFromHelmRepo(chartName);
-				chartDir = findChartDir(chartName);
+				fetchFromHelmRepo(chartName, version);
+				chartDir = findChartDir(chartName, version);
 			}
 			catch (Exception ex) {
 				log.warn("Failed to fetch chart {} from repository: {}", chartName, ex.getMessage());
@@ -296,20 +420,7 @@ class KpsComparisonTest {
 
 		// Sanitize release name to be valid for Helm (alphanumeric and hyphens only, no
 		// slashes)
-		String sanitizedReleaseName = releaseName.replaceAll("[^a-z0-9-]", "-").replaceAll("-+", "-");
-		if (sanitizedReleaseName.startsWith("-")) {
-			sanitizedReleaseName = "r" + sanitizedReleaseName;
-		}
-		// Helm rejects release names longer than 53 characters — truncate (charts with
-		// long repo/name combos like prometheus-community/prometheus-blackbox-exporter).
-		// Applied to both Helm and jhelm, so resource names stay consistent.
-		if (sanitizedReleaseName.length() > 53) {
-			sanitizedReleaseName = sanitizedReleaseName.substring(0, 53);
-		}
-		if (sanitizedReleaseName.endsWith("-")) {
-			sanitizedReleaseName = sanitizedReleaseName.substring(0, sanitizedReleaseName.length() - 1);
-		}
-
+		String sanitizedReleaseName = sanitizeReleaseName(releaseName);
 		log.info("Using sanitized release name: {} (from {})", sanitizedReleaseName, releaseName);
 
 		String sanitizedName = chartName.replace("/", "_");
@@ -432,6 +543,32 @@ class KpsComparisonTest {
 
 	private void compareManifests(String chartName, String repoId, String repoUrl, String jhelm, String helm)
 			throws Exception {
+		List<String> failures = computeManifestFailures(chartName, jhelm, helm);
+		if (failures.isEmpty()) {
+			log.info("{} - All resources match Helm output!", chartName);
+			return;
+		}
+		StringBuilder msg = new StringBuilder();
+		msg.append(chartName).append(" - ").append(failures.size()).append(" comparison failure(s):\n");
+		for (String f : failures) {
+			msg.append("  - ").append(f).append('\n');
+		}
+		msg.append("  failed.csv: ")
+			.append(chartName)
+			.append(',')
+			.append(repoId)
+			.append(',')
+			.append(repoUrl)
+			.append('\n');
+		fail(msg.toString());
+	}
+
+	/**
+	 * Renders the per-resource diff between jhelm and helm output and returns the list of
+	 * un-ignored comparison failures (empty when they match). Shared by the asserting
+	 * comparison and the version-upgrade bot, which needs the result without failing.
+	 */
+	private List<String> computeManifestFailures(String chartName, String jhelm, String helm) throws Exception {
 		// Parse both manifests into YAML documents
 		List<JsonNode> jhelmDocs = parseYamlDocuments(jhelm);
 		List<JsonNode> helmDocs = parseYamlDocuments(helm);
@@ -498,24 +635,7 @@ class KpsComparisonTest {
 			}
 		}
 
-		if (failures.isEmpty()) {
-			log.info("{} - All resources match Helm output!", chartName);
-		}
-		else {
-			StringBuilder msg = new StringBuilder();
-			msg.append(chartName).append(" - ").append(failures.size()).append(" comparison failure(s):\n");
-			for (String f : failures) {
-				msg.append("  - ").append(f).append('\n');
-			}
-			msg.append("  failed.csv: ")
-				.append(chartName)
-				.append(',')
-				.append(repoId)
-				.append(',')
-				.append(repoUrl)
-				.append('\n');
-			fail(msg.toString());
-		}
+		return failures;
 	}
 
 	private List<JsonNode> parseYamlDocuments(String yaml) throws Exception {
@@ -731,10 +851,37 @@ class KpsComparisonTest {
 		return sb.toString();
 	}
 
-	private File findChartDir(String chartFullName) {
+	/**
+	 * Sanitize a release name to Helm's rules (alphanumeric/hyphen, leading char,
+	 * &le;53).
+	 */
+	private String sanitizeReleaseName(String releaseName) {
+		String name = releaseName.replaceAll("[^a-z0-9-]", "-").replaceAll("-+", "-");
+		if (name.startsWith("-")) {
+			name = "r" + name;
+		}
+		if (name.length() > 53) {
+			name = name.substring(0, 53);
+		}
+		if (name.endsWith("-")) {
+			name = name.substring(0, name.length() - 1);
+		}
+		return name;
+	}
+
+	private File findChartDir(String chartFullName, String version) {
 		String chartName = chartFullName.contains("/") ? chartFullName.substring(chartFullName.lastIndexOf("/") + 1)
 				: chartFullName;
 		String sanitized = chartFullName.replace("/", "_");
+		// When a version is pinned, the chart lives in a version-scoped dir so a re-pin
+		// (e.g. the weekly upgrade bot) re-fetches instead of reusing a stale copy.
+		if (version != null && !version.isBlank()) {
+			File pinned = new File("target/temp-charts/" + sanitized + "@" + version + "/" + chartName);
+			if (pinned.isDirectory() && new File(pinned, "Chart.yaml").exists()) {
+				return pinned;
+			}
+			return null;
+		}
 		// Per-chart subdirectory first (isolated), then legacy fallbacks
 		String[] paths = { "target/temp-charts/" + sanitized + "/" + chartName, "target/temp-charts/" + chartName,
 				"target/temp-charts/" + chartFullName, "sample-charts/" + chartName, "../sample-charts/" + chartName,
@@ -776,12 +923,14 @@ class KpsComparisonTest {
 		addedRepos.add(repoId);
 	}
 
-	private void fetchFromHelmRepo(String chartName) throws Exception {
-		log.info("Fetching chart {} via RepoManager...", chartName);
+	private void fetchFromHelmRepo(String chartName, String pinnedVersion) throws Exception {
+		log.info("Fetching chart {} (version {}) via RepoManager...", chartName,
+				(pinnedVersion == null || pinnedVersion.isBlank()) ? "latest" : pinnedVersion);
 		// Use a per-chart subdirectory to avoid cross-contamination between test
-		// iterations
+		// iterations; version-scoped when a version is pinned (see findChartDir).
 		String sanitized = chartName.replace("/", "_");
-		File tempDir = new File("target/temp-charts/" + sanitized);
+		boolean pinned = pinnedVersion != null && !pinnedVersion.isBlank();
+		File tempDir = new File("target/temp-charts/" + sanitized + (pinned ? "@" + pinnedVersion : ""));
 		if (tempDir.exists()) {
 			deleteDir(tempDir);
 		}
@@ -796,13 +945,16 @@ class KpsComparisonTest {
 			shortName = chartName.substring(i + 1);
 		}
 
-		// Use latest version from index
+		// Pull the pinned version when given, else the latest from the index.
 		try {
-			List<RepoManager.ChartVersion> versions = repoManager.getChartVersions(repoId, shortName);
-			if (versions.isEmpty()) {
-				throw new IOException("No versions found for chart '" + shortName + "' in repo '" + repoId + "'");
+			String version = pinnedVersion;
+			if (version == null || version.isBlank()) {
+				List<RepoManager.ChartVersion> versions = repoManager.getChartVersions(repoId, shortName);
+				if (versions.isEmpty()) {
+					throw new IOException("No versions found for chart '" + shortName + "' in repo '" + repoId + "'");
+				}
+				version = versions.getFirst().getChartVersion();
 			}
-			String version = versions.getFirst().getChartVersion();
 			repoManager.pull(chartName, repoId, version, tempDir.getAbsolutePath());
 		}
 		catch (IOException ex) {
@@ -952,7 +1104,7 @@ class KpsComparisonTest {
 	@ParameterizedTest
 	@MethodSource("topCharts")
 	void compareTopCharts(String chartName, String repoId, String repoUrl) throws Exception {
-		compareChart(chartName, "release-" + chartName, repoId, repoUrl);
+		compareChart(chartName, "release-" + chartName, repoId, repoUrl, null);
 	}
 
 	private static String extractRootCause(Throwable ex) {
