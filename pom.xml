@@ -258,7 +258,12 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <configuration>
-                        <failOnError>false</failOnError>
+                        <!-- Enforce clean published Javadoc: broken @links, malformed
+                             HTML, and doc syntax errors fail the build. Lombok-generated
+                             accessors are invisible to doclint, so link the declaring type
+                             rather than a generated getter. -->
+                        <doclint>reference,html,syntax</doclint>
+                        <failOnError>true</failOnError>
                     </configuration>
                     <executions>
                         <execution>
@@ -473,6 +478,13 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
+            </plugin>
+            <!-- Run Javadoc (with doclint enforcement, see pluginManagement) on every
+                 build so broken references / HTML / syntax fail PR CI, not just release.
+                 Skipped for the non-published cli + sample modules. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
             </plugin>
         </plugins>
     </build>

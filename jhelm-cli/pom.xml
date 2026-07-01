@@ -11,6 +11,11 @@
     <name>jhelm-cli</name>
     <description>Spring Boot application for Helm Java</description>
 
+    <properties>
+        <!-- Not published; skip Javadoc (and its doclint enforcement) for the app module. -->
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.alexmond</groupId>
