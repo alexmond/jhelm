@@ -30,6 +30,16 @@ The Go template engine, on Maven Central as `org.alexmond:gotmpl4j-core` and
 * The Sprig function set (strings, collections, math, encoding, crypto, date, semver, …)
 * `missingkey=zero` mode so an absent/nil value renders as the empty string, matching Helm
 
+[NOTE]
+.Version stance
+====
+jhelm pins gotmpl4j to a specific released version (managed as the `gotmpl4j.version` property
+in the root `pom.xml`) — never a `-SNAPSHOT`. gotmpl4j reached its own stable **1.x** line
+ahead of jhelm 1.0, so jhelm 1.x builds against a released gotmpl4j 1.x. Engine upgrades are a
+deliberate dependency bump (run against the full chart-parity suite before release), not a
+floating range, so a given jhelm release always renders with a known-good engine.
+====
+
 === jhelm-gotemplate-helm
 
 The Helm-specific template functions layered on top of gotmpl4j, registered via the engine's
