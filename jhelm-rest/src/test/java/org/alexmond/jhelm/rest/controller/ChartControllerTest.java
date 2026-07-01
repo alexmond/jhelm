@@ -80,7 +80,7 @@ class ChartControllerTest {
 						{"releaseName": "my-release"}
 						"""))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("chartRef is required"));
+			.andExpect(jsonPath("$.detail").value("chartRef is required"));
 	}
 
 	@Test
@@ -122,7 +122,7 @@ class ChartControllerTest {
 				.accept(MediaType.APPLICATION_JSON)
 				.content("{}"))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("name is required"));
+			.andExpect(jsonPath("$.detail").value("name is required"));
 	}
 
 	@Test

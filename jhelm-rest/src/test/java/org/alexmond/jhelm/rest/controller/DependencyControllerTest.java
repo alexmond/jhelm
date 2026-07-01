@@ -59,7 +59,7 @@ class DependencyControllerTest {
 				.accept(MediaType.APPLICATION_JSON)
 				.content("{}"))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("chartRef is required"));
+			.andExpect(jsonPath("$.detail").value("chartRef is required"));
 	}
 
 	@Test
