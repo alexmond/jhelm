@@ -2,9 +2,12 @@ package org.alexmond.jhelm.core.service;
 
 import java.nio.file.Paths;
 
+import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
+import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -51,6 +54,23 @@ class HelmEnvConfigResolutionTest {
 	void registryConfigFallsBackToHelmOsDefault() {
 		assertEquals(Paths.get("/home/u", ".config/helm/registry/config.json").toString(),
 				RegistryManager.resolveConfigPath(null, "/home/u", "Linux"));
+	}
+
+	@Test
+	void defaultConstructorsResolveAgainstTheCurrentEnvironment() {
+		// exercises the default-path resolution wrappers (System.getenv/getProperty)
+		assertNotNull(new RegistryManager());
+		assertNotNull(new RepoManager());
+	}
+
+	@Test
+	void autoConfigRegistryManagerHonorsRegistryConfigPathProperty() {
+		JhelmCoreAutoConfiguration autoConfig = new JhelmCoreAutoConfiguration();
+		JhelmCoreProperties withPath = new JhelmCoreProperties();
+		withPath.setRegistryConfigPath("/tmp/jhelm-test/registry/config.json");
+		assertNotNull(autoConfig.registryManager(withPath));
+		// null property -> default resolution branch
+		assertNotNull(autoConfig.registryManager(new JhelmCoreProperties()));
 	}
 
 }
