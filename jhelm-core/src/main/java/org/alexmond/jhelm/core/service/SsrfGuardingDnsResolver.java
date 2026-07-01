@@ -20,11 +20,25 @@ import org.apache.hc.client5.http.SystemDefaultDnsResolver;
  */
 final class SsrfGuardingDnsResolver extends SystemDefaultDnsResolver {
 
+	private final boolean blockPrivate;
+
+	SsrfGuardingDnsResolver() {
+		this(false);
+	}
+
+	/**
+	 * @param blockPrivate when {@code true}, names resolving to private/site-local
+	 * addresses are refused too (server-mode strict policy)
+	 */
+	SsrfGuardingDnsResolver(boolean blockPrivate) {
+		this.blockPrivate = blockPrivate;
+	}
+
 	@Override
 	public InetAddress[] resolve(String host) throws UnknownHostException {
 		InetAddress[] addresses = super.resolve(host);
 		for (InetAddress address : addresses) {
-			if (UrlSecurity.isInternalAddress(address)) {
+			if (UrlSecurity.isInternalAddress(address, blockPrivate)) {
 				throw new SecurityException("Refusing to connect to non-routable/internal address ("
 						+ address.getHostAddress() + ") resolved from host '" + host + "'");
 			}

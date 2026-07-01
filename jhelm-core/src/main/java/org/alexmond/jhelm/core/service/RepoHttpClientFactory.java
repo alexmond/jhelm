@@ -44,9 +44,17 @@ final class RepoHttpClientFactory {
 
 	private final boolean globalInsecureSkipTls;
 
+	private final boolean blockPrivateNetworks;
+
 	RepoHttpClientFactory(CloseableHttpClient defaultClient, boolean globalInsecureSkipTls) {
+		this(defaultClient, globalInsecureSkipTls, false);
+	}
+
+	RepoHttpClientFactory(CloseableHttpClient defaultClient, boolean globalInsecureSkipTls,
+			boolean blockPrivateNetworks) {
 		this.defaultClient = defaultClient;
 		this.globalInsecureSkipTls = globalInsecureSkipTls;
+		this.blockPrivateNetworks = blockPrivateNetworks;
 	}
 
 	void configureAuth(HttpGet request, RepositoryConfig.Repository repo) {
@@ -100,7 +108,7 @@ final class RepoHttpClientFactory {
 	<T> T executeGet(HttpGet request, RepositoryConfig.Repository repo, HttpClientResponseHandler<T> handler)
 			throws IOException {
 		try {
-			UrlSecurity.validateFetchUrl(request.getUri());
+			UrlSecurity.validateFetchUrl(request.getUri(), blockPrivateNetworks);
 		}
 		catch (URISyntaxException ex) {
 			throw new IOException("Invalid request URI: " + ex.getMessage(), ex);
@@ -133,7 +141,7 @@ final class RepoHttpClientFactory {
 					: new DefaultClientTlsStrategy(sslContext);
 			HttpClientConnectionManager connManager = PoolingHttpClientConnectionManagerBuilder.create()
 				.setTlsSocketStrategy(tlsStrategy)
-				.setDnsResolver(new SsrfGuardingDnsResolver())
+				.setDnsResolver(new SsrfGuardingDnsResolver(blockPrivateNetworks))
 				.build();
 			return HttpClients.custom().setConnectionManager(connManager).build();
 		}

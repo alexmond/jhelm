@@ -99,11 +99,12 @@ public class JhelmCoreAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public RepoManager repoManager(JhelmCoreProperties props, RegistryManager registryManager,
-			ObjectProvider<JhelmMetrics> metrics) {
+	public RepoManager repoManager(JhelmCoreProperties props, JhelmSecurityProperties securityProps,
+			RegistryManager registryManager, ObjectProvider<JhelmMetrics> metrics) {
+		boolean blockPrivate = securityProps.isBlockPrivateNetworks();
 		RepoManager repoManager = (props.getConfigPath() != null)
-				? new RepoManager(props.getConfigPath(), registryManager, props.isInsecureSkipTlsVerify())
-				: new RepoManager(registryManager, props.isInsecureSkipTlsVerify());
+				? new RepoManager(props.getConfigPath(), registryManager, props.isInsecureSkipTlsVerify(), blockPrivate)
+				: new RepoManager(registryManager, props.isInsecureSkipTlsVerify(), blockPrivate);
 		repoManager.setMetrics(metrics.getIfAvailable());
 		return repoManager;
 	}

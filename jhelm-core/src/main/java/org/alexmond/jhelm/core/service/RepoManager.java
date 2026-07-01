@@ -58,6 +58,8 @@ public class RepoManager {
 
 	private final boolean insecureSkipTlsVerify;
 
+	private final boolean blockPrivateNetworks;
+
 	private final RegistryManager registryManager;
 
 	// Optional metrics; set by the auto-configuration when a JhelmMetrics bean exists.
@@ -102,12 +104,37 @@ public class RepoManager {
 	}
 
 	/**
+	 * Creates a manager for the default config path with the given OCI auth, TLS setting,
+	 * and private-network policy.
+	 * @param registryManager OCI registry auth provider (may be {@code null})
+	 * @param insecureSkipTlsVerify whether to skip TLS verification on chart downloads
+	 * @param blockPrivateNetworks whether outbound fetches also refuse private/site-local
+	 * targets (server-mode strict SSRF policy)
+	 */
+	public RepoManager(RegistryManager registryManager, boolean insecureSkipTlsVerify, boolean blockPrivateNetworks) {
+		this(resolveDefaultConfigPath(), registryManager, insecureSkipTlsVerify, blockPrivateNetworks);
+	}
+
+	/**
 	 * Creates a repository manager.
 	 * @param configPath path to the Helm repositories.yaml
 	 * @param registryManager OCI registry auth provider (may be {@code null})
 	 * @param insecureSkipTlsVerify whether to skip TLS verification on chart downloads
 	 */
 	public RepoManager(String configPath, RegistryManager registryManager, boolean insecureSkipTlsVerify) {
+		this(configPath, registryManager, insecureSkipTlsVerify, false);
+	}
+
+	/**
+	 * Creates a repository manager.
+	 * @param configPath path to the Helm repositories.yaml
+	 * @param registryManager OCI registry auth provider (may be {@code null})
+	 * @param insecureSkipTlsVerify whether to skip TLS verification on chart downloads
+	 * @param blockPrivateNetworks whether outbound fetches also refuse private/site-local
+	 * targets (server-mode strict SSRF policy)
+	 */
+	public RepoManager(String configPath, RegistryManager registryManager, boolean insecureSkipTlsVerify,
+			boolean blockPrivateNetworks) {
 		LoadSettings loadSettings = LoadSettings.builder().setCodePointLimit(50_000_000).build();
 		YAMLFactory yamlFactory = YAMLFactory.builder()
 			.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
@@ -118,6 +145,7 @@ public class RepoManager {
 		this.configPath = configPath;
 		this.registryManager = registryManager;
 		this.insecureSkipTlsVerify = insecureSkipTlsVerify;
+		this.blockPrivateNetworks = blockPrivateNetworks;
 		initHttpClient();
 	}
 
@@ -141,8 +169,8 @@ public class RepoManager {
 
 	void setHttpClientForTest(CloseableHttpClient client) {
 		this.httpClient = client;
-		this.httpClientFactory = new RepoHttpClientFactory(client, insecureSkipTlsVerify);
-		this.ociClient = new OciRegistryClient(client);
+		this.httpClientFactory = new RepoHttpClientFactory(client, insecureSkipTlsVerify, blockPrivateNetworks);
+		this.ociClient = new OciRegistryClient(client, blockPrivateNetworks);
 	}
 
 	private static String resolveDefaultConfigPath() {
@@ -182,11 +210,11 @@ public class RepoManager {
 		// with the OCI client below.
 		httpClient = HttpClients.custom()
 			.setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
-				.setDnsResolver(new SsrfGuardingDnsResolver())
+				.setDnsResolver(new SsrfGuardingDnsResolver(blockPrivateNetworks))
 				.build())
 			.build();
-		httpClientFactory = new RepoHttpClientFactory(httpClient, insecureSkipTlsVerify);
-		ociClient = new OciRegistryClient(httpClient);
+		httpClientFactory = new RepoHttpClientFactory(httpClient, insecureSkipTlsVerify, blockPrivateNetworks);
+		ociClient = new OciRegistryClient(httpClient, blockPrivateNetworks);
 	}
 
 	RepositoryConfig.Repository getRepository(String name) throws IOException {

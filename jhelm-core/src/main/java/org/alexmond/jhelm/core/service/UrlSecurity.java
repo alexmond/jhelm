@@ -26,8 +26,10 @@ import java.util.regex.Pattern;
  *
  * <p>
  * Private/site-local ranges ({@code 10/8}, {@code 172.16/12}, {@code 192.168/16}) are
- * <em>not</em> blocked by default so a CLI pull from a private/internal repo still works;
- * blocking those too is a stricter server-mode policy left for a follow-up.
+ * <em>not</em> blocked by default so a CLI pull from a private/internal repo still works.
+ * The stricter server-mode policy that also refuses those ranges is opt-in via the
+ * {@code blockPrivate} parameter (wired to {@code jhelm.security.block-private-networks}
+ * for REST/MCP servers that fetch on behalf of untrusted callers).
  */
 public final class UrlSecurity {
 
@@ -47,6 +49,17 @@ public final class UrlSecurity {
 	 * @param uri the URI about to be fetched
 	 */
 	public static void validateFetchUrl(URI uri) {
+		validateFetchUrl(uri, false);
+	}
+
+	/**
+	 * Validates that {@code uri} is safe to fetch, throwing {@link SecurityException}
+	 * when it is not. When {@code blockPrivate} is set, private/site-local ranges are
+	 * refused too (server-mode strict policy).
+	 * @param uri the URI about to be fetched
+	 * @param blockPrivate whether to additionally reject private/site-local addresses
+	 */
+	public static void validateFetchUrl(URI uri, boolean blockPrivate) {
 		if (uri == null) {
 			throw new SecurityException("Refusing to fetch a null URL");
 		}
@@ -63,7 +76,7 @@ public final class UrlSecurity {
 			throw new SecurityException("Refusing to fetch URL targeting localhost: " + uri);
 		}
 		InetAddress literal = parseIpLiteral(host);
-		if (literal != null && isInternalAddress(literal)) {
+		if (literal != null && isInternalAddress(literal, blockPrivate)) {
 			throw new SecurityException("Refusing to fetch URL targeting a non-routable/internal address ("
 					+ literal.getHostAddress() + "): " + uri);
 		}
@@ -126,8 +139,22 @@ public final class UrlSecurity {
 	 * @return {@code true} if the address is internal/non-routable
 	 */
 	static boolean isInternalAddress(InetAddress address) {
-		return address.isLoopbackAddress() || address.isLinkLocalAddress() || address.isAnyLocalAddress()
+		return isInternalAddress(address, false);
+	}
+
+	/**
+	 * Whether {@code address} is one a chart repository should never resolve to. Always
+	 * covers loopback, link-local (cloud metadata), wildcard and multicast; when
+	 * {@code blockPrivate} is set, private/site-local ranges ({@code 10/8},
+	 * {@code 172.16/12}, {@code 192.168/16}) are treated as internal too.
+	 * @param address a resolved or literal address
+	 * @param blockPrivate whether private/site-local addresses count as internal
+	 * @return {@code true} if the address is internal/non-routable under the policy
+	 */
+	static boolean isInternalAddress(InetAddress address, boolean blockPrivate) {
+		boolean internal = address.isLoopbackAddress() || address.isLinkLocalAddress() || address.isAnyLocalAddress()
 				|| address.isMulticastAddress();
+		return internal || (blockPrivate && address.isSiteLocalAddress());
 	}
 
 }
