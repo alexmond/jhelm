@@ -166,6 +166,19 @@ class ReleaseControllerTest {
 	}
 
 	@Test
+	void installRejectsBlankChartRef() throws Exception {
+		// @NotBlank (not merely @NotNull) rejects a whitespace-only value
+		this.mockMvc
+			.perform(post("/api/v1/releases").contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.content("""
+						{"chartRef": "   ", "releaseName": "my-release"}
+						"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.detail").value("chartRef is required"));
+	}
+
+	@Test
 	void installUploadCreatesRelease() throws Exception {
 		stubUntar();
 		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("1.0.0").build()).build();

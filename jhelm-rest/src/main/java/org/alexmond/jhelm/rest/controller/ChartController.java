@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.rest.controller;
 
+import jakarta.validation.Valid;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -82,10 +84,7 @@ public class ChartController {
 	@PostMapping("/template")
 	@Operation(summary = "Render templates",
 			description = "Render chart templates from a repository chart reference with optional value overrides")
-	public ResponseEntity<String> template(@RequestBody TemplateRequest request) throws Exception {
-		if (request.getChartRef() == null || request.getChartRef().isBlank()) {
-			throw new IllegalArgumentException("chartRef is required");
-		}
+	public ResponseEntity<String> template(@Valid @RequestBody TemplateRequest request) throws Exception {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-template-")) {
 			String chartPath = pullChart(request.getChartRef(), request.getVersion(), tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
@@ -130,10 +129,7 @@ public class ChartController {
 	@PostMapping("/create")
 	@Operation(summary = "Create a chart",
 			description = "Scaffold a new chart and return it as a .tgz archive download")
-	public ResponseEntity<byte[]> create(@RequestBody CreateRequest request) throws Exception {
-		if (request.getName() == null || request.getName().isBlank()) {
-			throw new IllegalArgumentException("name is required");
-		}
+	public ResponseEntity<byte[]> create(@Valid @RequestBody CreateRequest request) throws Exception {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-create-")) {
 			Path chartPath = tempDir.sandboxedResolve(request.getName());
 			this.createAction.create(chartPath);

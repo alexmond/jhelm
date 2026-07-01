@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.rest.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 import java.util.Map;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -14,12 +16,14 @@ public class InstallRequest {
 
 	@Schema(description = "Chart reference (repo/chart or oci://...)", example = "bitnami/nginx",
 			requiredMode = Schema.RequiredMode.REQUIRED)
+	@NotBlank(message = "chartRef is required")
 	private String chartRef;
 
 	@Schema(description = "Chart version", example = "18.3.1")
 	private String version;
 
 	@Schema(description = "Name for the release", example = "my-release", requiredMode = Schema.RequiredMode.REQUIRED)
+	@NotBlank(message = "releaseName is required")
 	private String releaseName;
 
 	@Schema(description = "Kubernetes namespace", example = "default", defaultValue = "default")
