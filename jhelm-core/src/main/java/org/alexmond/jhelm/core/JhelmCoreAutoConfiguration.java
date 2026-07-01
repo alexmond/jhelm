@@ -93,15 +93,19 @@ public class JhelmCoreAutoConfiguration {
 	/**
 	 * Provides the chart repository manager, configured from the jhelm properties.
 	 * @param props the jhelm core configuration properties
+	 * @param registryManager the OCI registry auth provider
+	 * @param metrics optional metrics for instrumenting chart pulls
 	 * @return the repository manager bean
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public RepoManager repoManager(JhelmCoreProperties props, RegistryManager registryManager) {
-		if (props.getConfigPath() != null) {
-			return new RepoManager(props.getConfigPath(), registryManager, props.isInsecureSkipTlsVerify());
-		}
-		return new RepoManager(registryManager, props.isInsecureSkipTlsVerify());
+	public RepoManager repoManager(JhelmCoreProperties props, RegistryManager registryManager,
+			ObjectProvider<JhelmMetrics> metrics) {
+		RepoManager repoManager = (props.getConfigPath() != null)
+				? new RepoManager(props.getConfigPath(), registryManager, props.isInsecureSkipTlsVerify())
+				: new RepoManager(registryManager, props.isInsecureSkipTlsVerify());
+		repoManager.setMetrics(metrics.getIfAvailable());
+		return repoManager;
 	}
 
 	/**
@@ -235,7 +239,7 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnBean(KubeService.class)
 	public InstallAction installAction(Engine engine, KubeService kubeService,
 			ObjectProvider<List<PostRenderProcessor>> postRenderProcessors,
-			ObjectProvider<List<LifecycleListener>> lifecycleListeners) {
+			ObjectProvider<List<LifecycleListener>> lifecycleListeners, ObjectProvider<JhelmMetrics> metrics) {
 		InstallAction action = new InstallAction(engine, kubeService);
 		List<PostRenderProcessor> processors = postRenderProcessors.getIfAvailable();
 		if (processors != null) {
@@ -245,6 +249,7 @@ public class JhelmCoreAutoConfiguration {
 		if (listeners != null) {
 			action.setLifecycleListeners(listeners);
 		}
+		action.setMetrics(metrics.getIfAvailable());
 		return action;
 	}
 
@@ -262,7 +267,7 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnBean(KubeService.class)
 	public UpgradeAction upgradeAction(Engine engine, KubeService kubeService,
 			ObjectProvider<List<PostRenderProcessor>> postRenderProcessors,
-			ObjectProvider<List<LifecycleListener>> lifecycleListeners) {
+			ObjectProvider<List<LifecycleListener>> lifecycleListeners, ObjectProvider<JhelmMetrics> metrics) {
 		UpgradeAction action = new UpgradeAction(engine, kubeService);
 		List<PostRenderProcessor> processors = postRenderProcessors.getIfAvailable();
 		if (processors != null) {
@@ -272,6 +277,7 @@ public class JhelmCoreAutoConfiguration {
 		if (listeners != null) {
 			action.setLifecycleListeners(listeners);
 		}
+		action.setMetrics(metrics.getIfAvailable());
 		return action;
 	}
 
@@ -279,13 +285,16 @@ public class JhelmCoreAutoConfiguration {
 	 * Provides the {@code helm uninstall} action; only created when a {@link KubeService}
 	 * is present.
 	 * @param kubeService the cluster client
+	 * @param metrics optional metrics for instrumenting the action
 	 * @return the uninstall action bean
 	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
-	public UninstallAction uninstallAction(KubeService kubeService) {
-		return new UninstallAction(kubeService);
+	public UninstallAction uninstallAction(KubeService kubeService, ObjectProvider<JhelmMetrics> metrics) {
+		UninstallAction action = new UninstallAction(kubeService);
+		action.setMetrics(metrics.getIfAvailable());
+		return action;
 	}
 
 	/**
@@ -331,13 +340,16 @@ public class JhelmCoreAutoConfiguration {
 	 * Provides the {@code helm rollback} action; only created when a {@link KubeService}
 	 * is present.
 	 * @param kubeService the cluster client
+	 * @param metrics optional metrics for instrumenting the action
 	 * @return the rollback action bean
 	 */
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(KubeService.class)
-	public RollbackAction rollbackAction(KubeService kubeService) {
-		return new RollbackAction(kubeService);
+	public RollbackAction rollbackAction(KubeService kubeService, ObjectProvider<JhelmMetrics> metrics) {
+		RollbackAction action = new RollbackAction(kubeService);
+		action.setMetrics(metrics.getIfAvailable());
+		return action;
 	}
 
 	/**

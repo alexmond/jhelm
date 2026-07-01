@@ -5,8 +5,10 @@ import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.JhelmException;
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
@@ -21,6 +23,9 @@ public class RollbackAction {
 
 	private final KubeService kubeService;
 
+	@Setter
+	private JhelmMetrics metrics;
+
 	/**
 	 * Rolls a release back to a previous revision, optionally skipping its pre-rollback
 	 * and post-rollback hooks and pruning old revision history. After the new revision is
@@ -31,6 +36,11 @@ public class RollbackAction {
 	 * @return the newly created {@link Release} representing the rolled-back revision
 	 */
 	public Release rollback(RollbackOptions options) {
+		return (this.metrics == null) ? doRollback(options)
+				: this.metrics.timeAction("rollback", () -> doRollback(options));
+	}
+
+	private Release doRollback(RollbackOptions options) {
 		String name = options.getReleaseName();
 		String namespace = options.getNamespace();
 		int revision = options.getRevision();

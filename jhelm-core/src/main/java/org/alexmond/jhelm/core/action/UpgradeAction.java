@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,9 @@ public class UpgradeAction {
 	@Setter
 	private List<LifecycleListener> lifecycleListeners = List.of();
 
+	@Setter
+	private JhelmMetrics metrics;
+
 	/**
 	 * Upgrades a release, resolving values according to the configured
 	 * {@link UpgradeValueStrategy}, optionally skipping hooks and pruning old revision
@@ -49,6 +53,11 @@ public class UpgradeAction {
 	 * @return the upgraded release
 	 */
 	public Release upgrade(UpgradeOptions options) {
+		return (this.metrics == null) ? doUpgrade(options)
+				: this.metrics.timeAction("upgrade", () -> doUpgrade(options));
+	}
+
+	private Release doUpgrade(UpgradeOptions options) {
 		Chart newChart = options.getNewChart();
 		if ("library".equals(newChart.getMetadata().getType())) {
 			throw new IllegalArgumentException(

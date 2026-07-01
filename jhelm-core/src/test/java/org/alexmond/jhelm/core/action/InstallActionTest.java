@@ -21,7 +21,9 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.alexmond.jhelm.core.exception.DeploymentFailedException;
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.HelmHook;
@@ -74,6 +76,27 @@ class InstallActionTest {
 
 		verify(kubeService).apply("default", HookParser.stripHooks(manifest));
 		verify(kubeService).storeRelease(any(Release.class));
+	}
+
+	@Test
+	void testInstallRecordsActionMetrics() throws Exception {
+		SimpleMeterRegistry registry = new SimpleMeterRegistry();
+		installAction.setMetrics(new JhelmMetrics(registry));
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("---\n");
+
+		installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.dryRun(true)
+			.build());
+
+		assertEquals(1, registry.find("jhelm.action").tag("action", "install").timer().count());
+		assertEquals(1.0,
+				registry.find("jhelm.actions").tag("action", "install").tag("outcome", "success").counter().count());
 	}
 
 	@Test

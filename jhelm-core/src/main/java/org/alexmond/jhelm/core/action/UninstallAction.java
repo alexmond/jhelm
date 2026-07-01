@@ -5,8 +5,10 @@ import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.JhelmException;
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
@@ -21,11 +23,26 @@ public class UninstallAction {
 
 	private final KubeService kubeService;
 
+	@Setter
+	private JhelmMetrics metrics;
+
 	/**
 	 * Uninstalls a release, optionally skipping its pre-delete and post-delete hooks.
 	 * @param options the uninstall options (release name, namespace and no-hooks flag)
 	 */
 	public void uninstall(UninstallOptions options) {
+		if (this.metrics == null) {
+			doUninstall(options);
+		}
+		else {
+			this.metrics.timeAction("uninstall", () -> {
+				doUninstall(options);
+				return null;
+			});
+		}
+	}
+
+	private void doUninstall(UninstallOptions options) {
 		String releaseName = options.getReleaseName();
 		String namespace = options.getNamespace();
 		boolean noHooks = options.isNoHooks();
