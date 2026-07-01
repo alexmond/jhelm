@@ -8,15 +8,16 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Implements {@code jhelm repo}, managing chart repositories via the {@code add},
- * {@code list}, {@code remove}, and {@code search} subcommands.
+ * {@code list}, {@code remove}, {@code update}, and {@code search} subcommands.
  */
 @Component
 @CommandLine.Command(name = "repo", mixinStandardHelpOptions = true, description = "Manage chart repositories",
 		subcommands = { RepoCommand.AddCommand.class, RepoCommand.ListCommand.class, RepoCommand.RemoveCommand.class,
-				RepoCommand.SearchCommand.class })
+				RepoCommand.UpdateCommand.class, RepoCommand.SearchCommand.class })
 @Slf4j
 public class RepoCommand implements Runnable {
 
@@ -129,6 +130,51 @@ public class RepoCommand implements Runnable {
 			}
 			catch (IOException ex) {
 				CliOutput.errPrintln(CliOutput.error("Error removing repository: " + ex.getMessage()));
+			}
+		}
+
+	}
+
+	/**
+	 * Implements {@code repo update}: refreshes the cached index for one or more chart
+	 * repositories (all of them when no name is given), matching
+	 * {@code helm repo update}.
+	 */
+	@Component
+	@CommandLine.Command(name = "update", aliases = { "up" }, mixinStandardHelpOptions = true,
+			description = "Update the local cache of one or more chart repositories (default: all)")
+	@Slf4j
+	public static class UpdateCommand implements Runnable {
+
+		private final RepoManager repoManager;
+
+		@CommandLine.Parameters(index = "0", arity = "0..*", description = "repositories to update (default: all)")
+		private List<String> names;
+
+		/**
+		 * Creates the command.
+		 * @param repoManager the repository manager that refreshes the repo indexes
+		 */
+		public UpdateCommand(RepoManager repoManager) {
+			this.repoManager = repoManager;
+		}
+
+		@Override
+		public void run() {
+			try {
+				CliOutput.println("Hang tight while we grab the latest from your chart repositories...");
+				if (names == null || names.isEmpty()) {
+					repoManager.updateAll();
+				}
+				else {
+					for (String name : names) {
+						repoManager.updateRepo(name);
+					}
+				}
+				CliOutput.println(CliOutput.success("Update Complete. Happy Helming!"));
+			}
+			catch (IOException ex) {
+				CliOutput.errPrintln(CliOutput.error("Error updating repositories: " + ex.getMessage()));
 			}
 		}
 

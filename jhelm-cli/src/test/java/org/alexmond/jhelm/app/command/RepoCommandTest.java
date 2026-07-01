@@ -138,6 +138,35 @@ class RepoCommandTest {
 	}
 
 	@Test
+	void testRepoUpdateAllSuccess() throws IOException {
+		doNothing().when(repoManager).updateAll();
+
+		new CommandLine(new RepoCommand.UpdateCommand(repoManager)).execute();
+
+		verify(repoManager).updateAll();
+		assertTrue(outputStream.toString().contains("Update Complete"));
+	}
+
+	@Test
+	void testRepoUpdateNamedRepo() throws IOException {
+		doNothing().when(repoManager).updateRepo(anyString());
+
+		new CommandLine(new RepoCommand.UpdateCommand(repoManager)).execute("bitnami");
+
+		verify(repoManager).updateRepo("bitnami");
+	}
+
+	@Test
+	void testRepoUpdateWithError() throws IOException {
+		doThrow(new IOException("Test error")).when(repoManager).updateAll();
+
+		// covers the error branch; error goes to stderr and is handled without throwing
+		new CommandLine(new RepoCommand.UpdateCommand(repoManager)).execute();
+
+		verify(repoManager).updateAll();
+	}
+
+	@Test
 	void testRepoSearchCommand() {
 		RepoCommand.SearchCommand searchCommand = new RepoCommand.SearchCommand(repoManager);
 		CommandLine cmd = new CommandLine(searchCommand);
