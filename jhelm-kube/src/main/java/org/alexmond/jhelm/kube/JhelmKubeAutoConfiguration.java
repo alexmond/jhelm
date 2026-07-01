@@ -24,6 +24,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
 import java.time.Duration;
@@ -114,22 +115,6 @@ public class JhelmKubeAutoConfiguration {
 		return service;
 	}
 
-	/**
-	 * Registers a Kubernetes connectivity
-	 * {@link org.springframework.boot.health.contributor.HealthIndicator} when Spring
-	 * Boot Actuator is on the classpath. Reports {@code UP}/{@code DOWN} based on
-	 * reaching the cluster {@code /version} endpoint.
-	 * @param kubeClient the client wrapper to probe
-	 * @return the health indicator bean
-	 */
-	@Bean
-	@ConditionalOnClass(HealthIndicator.class)
-	@ConditionalOnBean(KubeClient.class)
-	@ConditionalOnMissingBean(KubernetesHealthIndicator.class)
-	public KubernetesHealthIndicator kubernetesHealthIndicator(KubeClient kubeClient) {
-		return new KubernetesHealthIndicator(kubeClient);
-	}
-
 	private RetryTemplate buildRetryTemplate(JhelmKubernetesProperties.Retry config) {
 		RetryPolicy policy = RetryPolicy.builder()
 			// maxRetries excludes the initial call, so subtract one to preserve the
@@ -143,6 +128,32 @@ public class JhelmKubeAutoConfiguration {
 			.predicate(RetryableKubeService::isTransient)
 			.build();
 		return new RetryTemplate(policy);
+	}
+
+	/**
+	 * Kubernetes health-indicator configuration, isolated in a nested class guarded by
+	 * {@link ConditionalOnClass} so the actuator {@code HealthIndicator} type is only
+	 * referenced when Spring Boot Actuator is on the classpath. This keeps the enclosing
+	 * {@link JhelmKubeAutoConfiguration} introspectable by consumers (e.g. the CLI) that
+	 * do not depend on actuator.
+	 */
+	@Configuration(proxyBeanMethods = false)
+	@ConditionalOnClass(HealthIndicator.class)
+	static class KubernetesHealthContributorConfiguration {
+
+		/**
+		 * Registers a Kubernetes connectivity health indicator reporting up/down based on
+		 * reaching the cluster {@code /version} endpoint.
+		 * @param kubeClient the client wrapper to probe
+		 * @return the health indicator bean
+		 */
+		@Bean
+		@ConditionalOnBean(KubeClient.class)
+		@ConditionalOnMissingBean(KubernetesHealthIndicator.class)
+		KubernetesHealthIndicator kubernetesHealthIndicator(KubeClient kubeClient) {
+			return new KubernetesHealthIndicator(kubeClient);
+		}
+
 	}
 
 }
