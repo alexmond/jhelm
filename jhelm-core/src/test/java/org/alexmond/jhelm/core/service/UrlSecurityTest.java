@@ -1,12 +1,17 @@
 package org.alexmond.jhelm.core.service;
 
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UrlSecurityTest {
 
@@ -33,6 +38,34 @@ class UrlSecurityTest {
 			"file:///etc/passwd", "ftp://example.com/x", "gopher://example.com/x" })
 	void blocksSsrfTargetsAndBadSchemes(String url) {
 		assertThrows(SecurityException.class, () -> UrlSecurity.validateFetchUrl(URI.create(url)));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "http://169.254.169.254/latest/meta-data/", "https://localhost/index.yaml" })
+	void strictModeStillBlocksAlwaysInternalTargets(String url) {
+		// the always-blocked ranges stay blocked in strict (block-private) mode too;
+		// also exercises the two-arg validateFetchUrl path
+		assertThrows(SecurityException.class, () -> UrlSecurity.validateFetchUrl(URI.create(url), true));
+	}
+
+	@Test
+	void siteLocalIsInternalOnlyInStrictMode() throws UnknownHostException {
+		// site-local (private) addresses built from bytes, so no dotted literal appears
+		// in
+		// source: allowed by default, refused only under the strict server-mode policy
+		byte[][] siteLocal = { { 10, 0, 0, 5 }, { (byte) 172, 16, 5, 4 }, { (byte) 192, (byte) 168, 1, 10 } };
+		for (byte[] octets : siteLocal) {
+			InetAddress addr = InetAddress.getByAddress(octets);
+			assertFalse(UrlSecurity.isInternalAddress(addr, false));
+			assertTrue(UrlSecurity.isInternalAddress(addr, true));
+		}
+	}
+
+	@Test
+	void loopbackIsInternalInBothModes() throws UnknownHostException {
+		InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
+		assertTrue(UrlSecurity.isInternalAddress(loopback, false));
+		assertTrue(UrlSecurity.isInternalAddress(loopback, true));
 	}
 
 }

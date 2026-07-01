@@ -31,9 +31,16 @@ class OciRegistryClient {
 
 	private final JsonMapper jsonMapper;
 
+	private final boolean blockPrivateNetworks;
+
 	OciRegistryClient(CloseableHttpClient httpClient) {
+		this(httpClient, false);
+	}
+
+	OciRegistryClient(CloseableHttpClient httpClient, boolean blockPrivateNetworks) {
 		this.httpClient = httpClient;
 		this.jsonMapper = JsonMapper.builder().build();
+		this.blockPrivateNetworks = blockPrivateNetworks;
 	}
 
 	/**
@@ -66,8 +73,8 @@ class OciRegistryClient {
 	 * (unchecked) when the URL is unsafe.
 	 * @param url the registry URL about to be requested
 	 */
-	private static void validateOciUrl(String url) {
-		UrlSecurity.validateFetchUrl(URI.create(url));
+	private void validateOciUrl(String url) {
+		UrlSecurity.validateFetchUrl(URI.create(url), blockPrivateNetworks);
 	}
 
 	/**

@@ -45,4 +45,14 @@ public class JhelmSecurityProperties {
 	 */
 	private String apiKeyHeader = "X-API-Key";
 
+	/**
+	 * When {@code true}, outbound chart/repository fetches also refuse private/site-local
+	 * targets ({@code 10/8}, {@code 172.16/12}, {@code 192.168/16}) in addition to the
+	 * always-blocked loopback/link-local/wildcard/multicast ranges. This is the stricter
+	 * SSRF policy appropriate for a server (REST/MCP) that fetches on behalf of untrusted
+	 * callers. Defaults to {@code false} so a CLI pull from a private/internal repository
+	 * still works.
+	 */
+	private boolean blockPrivateNetworks;
+
 }

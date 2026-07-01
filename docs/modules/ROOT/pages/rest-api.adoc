@@ -80,6 +80,10 @@ Open http://localhost:8080/swagger-ui.html to see all endpoints.
 | _(none)_
 | API key required on mutating requests via the `X-API-Key` header. With no key set, mutating operations stay disabled even in `FULL` mode.
 
+| `jhelm.security.block-private-networks`
+| `false`
+| When `true`, outbound chart/repository fetches also refuse private/site-local targets (`10/8`, `172.16/12`, `192.168/16`) in addition to the always-blocked loopback/link-local/cloud-metadata ranges. Recommended for a server that fetches on behalf of untrusted callers (SSRF hardening). Left `false` by default so a private/internal repository stays reachable.
+
 | `jhelm.rest.base-path`
 | `/api/v1`
 | Base path prefix for all REST endpoints

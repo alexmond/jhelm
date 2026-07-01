@@ -53,6 +53,16 @@ class OciRegistryClientTest {
 	}
 
 	@Test
+	void testStrictModeConstructorStillGuardsMetadataHost() {
+		// the block-private (strict) OCI client still refuses the always-blocked
+		// cloud-metadata host (private-range blocking itself is covered in
+		// UrlSecurityTest)
+		OciRegistryClient strict = new OciRegistryClient(mock(CloseableHttpClient.class), true);
+		assertThrows(SecurityException.class,
+				() -> strict.fetchToken("169.254.169.254", "library/nginx", null, "pull"));
+	}
+
+	@Test
 	void testParseOciUrlWithTag() throws IOException {
 		String[] parts = client.parseOciUrl("oci://my.registry.io/charts/mychart:1.2.3");
 		assertEquals("my.registry.io", parts[0]);
