@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.kube.service;
+package org.alexmond.jhelm.kube.service.internal;
 
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;

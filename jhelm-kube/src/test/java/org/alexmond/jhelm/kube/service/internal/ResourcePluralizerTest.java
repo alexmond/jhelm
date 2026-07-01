@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.kube.service;
+package org.alexmond.jhelm.kube.service.internal;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

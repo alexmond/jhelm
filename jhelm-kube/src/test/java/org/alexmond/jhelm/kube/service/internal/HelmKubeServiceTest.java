@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.kube.service;
+package org.alexmond.jhelm.kube.service.internal;
 
 import tools.jackson.databind.json.JsonMapper;
 import io.kubernetes.client.custom.V1Patch;

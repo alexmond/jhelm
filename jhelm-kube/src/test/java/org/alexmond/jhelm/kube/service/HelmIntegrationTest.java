@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.kube.service;
 
+import org.alexmond.jhelm.kube.service.internal.HelmKubeService;
+
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.model.Release;

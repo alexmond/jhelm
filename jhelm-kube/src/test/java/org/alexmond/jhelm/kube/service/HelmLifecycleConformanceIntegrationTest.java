@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.kube.service;
 
+import org.alexmond.jhelm.kube.service.internal.HelmKubeService;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
