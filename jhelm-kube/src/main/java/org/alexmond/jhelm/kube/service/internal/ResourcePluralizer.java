@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.kube.service;
+package org.alexmond.jhelm.kube.service.internal;
 
 import java.util.HashMap;
 import java.util.Locale;
