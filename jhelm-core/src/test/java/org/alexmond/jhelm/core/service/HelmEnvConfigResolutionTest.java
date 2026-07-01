@@ -45,6 +45,16 @@ class HelmEnvConfigResolutionTest {
 	}
 
 	@Test
+	void resolvesTheMacOsHelmLocations() {
+		assertEquals(Paths.get("/home/u", "Library/Preferences/helm/repositories.yaml").toString(),
+				RepoManager.resolveConfigPath(null, "/home/u", "Mac OS X"));
+		assertEquals(Paths.get("/home/u", "Library/Caches/jhelm/repository").toFile(),
+				RepoManager.resolveCacheDir(null, "/home/u", "Mac OS X"));
+		assertEquals(Paths.get("/home/u", "Library/Preferences/helm/registry/config.json").toString(),
+				RegistryManager.resolveConfigPath(null, "/home/u", "Mac OS X"));
+	}
+
+	@Test
 	void registryConfigHonorsHelmRegistryConfig() {
 		assertEquals("/custom/registry.json",
 				RegistryManager.resolveConfigPath("/custom/registry.json", "/home/u", "Linux"));
