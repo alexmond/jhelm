@@ -52,8 +52,9 @@ public class InstallCommand implements Runnable {
 	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
 
-	@CommandLine.Option(names = { "--dry-run" }, description = "simulate an install")
-	private boolean dryRun;
+	@CommandLine.Option(names = { "--dry-run" }, arity = "0..1", fallbackValue = "client", paramLabel = "MODE",
+			description = "simulate an install without installing: client (default), server, or none")
+	private String dryRun;
 
 	@Option(names = { "-f", "--values" }, description = "specify values YAML files")
 	private List<String> valuesFiles = new ArrayList<>();
@@ -72,6 +73,11 @@ public class InstallCommand implements Runnable {
 
 	@Option(names = { "--wait" }, description = "wait until all resources are ready")
 	private boolean wait;
+
+	@Option(names = { "--wait-for-jobs" },
+			description = "wait for Jobs to complete before marking deployed (implies --wait; "
+					+ "jhelm's --wait already waits for Jobs)")
+	private boolean waitForJobs;
 
 	@Option(names = { "--timeout" }, defaultValue = "300", description = "timeout in seconds for --wait (default 300)")
 	private int timeout;
@@ -107,6 +113,7 @@ public class InstallCommand implements Runnable {
 	@Override
 	public void run() {
 		try {
+			boolean dryRunEnabled = resolveDryRun();
 			Chart chart = chartResolver.resolve(chartPath, verify, keyring);
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
 					setFileValues, setJsonValues);
@@ -117,13 +124,13 @@ public class InstallCommand implements Runnable {
 				.namespace(namespace)
 				.values(overrides)
 				.revision(1)
-				.dryRun(dryRun)
+				.dryRun(dryRunEnabled)
 				.noHooks(noHooks)
 				.createNamespace(createNamespace)
 				.build());
 			release = applyCliPostRenderers(release);
 
-			if (dryRun) {
+			if (dryRunEnabled) {
 				CliOutput.println(CliOutput.bold("NAME:") + " " + release.getName());
 				CliOutput.println(CliOutput.bold("LAST DEPLOYED:") + " " + release.getInfo().getLastDeployed());
 				CliOutput.println(CliOutput.bold("NAMESPACE:") + " " + release.getNamespace());
@@ -133,7 +140,7 @@ public class InstallCommand implements Runnable {
 			}
 			else {
 				CliOutput.println(CliOutput.success("Release \"" + name + "\" has been installed."));
-				if (wait || atomic) {
+				if (wait || atomic || waitForJobs) {
 					kubeService.waitForReady(namespace, release.getManifest(), timeout);
 				}
 			}
@@ -169,6 +176,30 @@ public class InstallCommand implements Runnable {
 			manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
 		}
 		return release.toBuilder().manifest(manifest).build();
+	}
+
+	/**
+	 * Resolves the {@code --dry-run} mode to whether a dry run should be performed.
+	 * {@code client} (the default when the flag is given bare) and {@code server} both
+	 * enable a dry run; {@code none} (or the flag omitted) disables it. Server-side
+	 * simulation is not yet supported, so {@code server} performs a client-side dry run
+	 * with a notice.
+	 * @return {@code true} if the install should be a dry run
+	 */
+	private boolean resolveDryRun() {
+		if (dryRun == null || dryRun.isBlank() || "none".equalsIgnoreCase(dryRun)) {
+			return false;
+		}
+		if ("server".equalsIgnoreCase(dryRun)) {
+			CliOutput
+				.errPrintln(CliOutput.warn("--dry-run=server is not yet supported; performing a client-side dry-run."));
+			return true;
+		}
+		if (!"client".equalsIgnoreCase(dryRun)) {
+			throw new IllegalArgumentException(
+					"invalid --dry-run mode '" + dryRun + "' (expected client, server, or none)");
+		}
+		return true;
 	}
 
 }

@@ -25,13 +25,17 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 class UpgradeCommandTest {
 
@@ -81,6 +85,33 @@ class UpgradeCommandTest {
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
+	}
+
+	@Test
+	void testUpgradeWaitForJobsTriggersWait() throws Exception {
+		File chartDir = createMockChart();
+		when(kubeService.getRelease(anyString(), anyString()))
+			.thenReturn(Optional.of(createMockRelease("my-release", 1)));
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(createMockRelease("my-release", 2));
+
+		new CommandLine(upgradeCommand).execute("my-release", chartDir.getAbsolutePath(), "--wait-for-jobs");
+
+		verify(kubeService).waitForReady(eq("default"), anyString(), anyInt());
+	}
+
+	@Test
+	void testUpgradeDryRunServerModeIsDryRun() throws Exception {
+		File chartDir = createMockChart();
+		when(kubeService.getRelease(anyString(), anyString()))
+			.thenReturn(Optional.of(createMockRelease("my-release", 1)));
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(createMockRelease("my-release", 2));
+		ArgumentCaptor<UpgradeOptions> opts = ArgumentCaptor.forClass(UpgradeOptions.class);
+
+		new CommandLine(upgradeCommand).execute("my-release", chartDir.getAbsolutePath(), "--dry-run=server");
+
+		verify(upgradeAction).upgrade(opts.capture());
+		assertTrue(opts.getValue().isDryRun());
+		verify(kubeService, never()).waitForReady(anyString(), anyString(), anyInt());
 	}
 
 	@Test

@@ -15,8 +15,8 @@ Status legend: ✅ same flag · ✎ supported but differs (see note) · ✗ not 
 | `-n`, `--namespace` | ✅ | Defaults to `default` (Helm uses the kube-context namespace).
 | `-f`, `--values` | ✅ |
 | `--set`, `--set-string`, `--set-file`, `--set-json` | ✅ |
-| `--dry-run` | ✎ | Boolean; Helm's `--dry-run=client\|server` value form is not parsed.
-| `--wait` | ✅ |
+| `--dry-run[=client\|server\|none]` | ✅ | Bare `--dry-run` = `client`. `client`/`none` fully supported; `server` currently performs a client-side dry run with a notice (server-side simulation not yet wired).
+| `--wait` | ✅ | Waits for all resources, **including Jobs** (Helm needs `--wait-for-jobs` for that).
 | `--timeout` | ✎ | Takes **seconds** (e.g. `--timeout 300`); Helm takes a duration (`5m0s`).
 | `--atomic` | ✅ |
 | `--no-hooks` | ✅ |
@@ -27,7 +27,7 @@ Status legend: ✅ same flag · ✎ supported but differs (see note) · ✗ not 
 | `--verify`, `--keyring` | ✅ |
 | `--post-renderer` | ✅ |
 | `--force` | ✗ | Force resource replacement is not implemented.
-| `--wait-for-jobs` | ✗ | `--wait` does not yet extend to Jobs.
+| `--wait-for-jobs` | ✅ | Accepted for Helm compatibility; implies `--wait`. jhelm's `--wait` already waits for Job completion.
 | `--version`, `--repo`, `--username`/`--password` (install from a repo) | ✗ | Install from an added repo/OCI ref; inline repo+auth flags aren't wired.
 |===
 

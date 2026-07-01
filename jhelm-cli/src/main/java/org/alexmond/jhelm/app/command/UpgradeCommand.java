@@ -65,8 +65,11 @@ public class UpgradeCommand implements Runnable {
 	@CommandLine.Option(names = { "--install" }, description = "install if not exists")
 	private boolean install;
 
-	@CommandLine.Option(names = { "--dry-run" }, description = "simulate an upgrade")
-	private boolean dryRun;
+	@CommandLine.Option(names = { "--dry-run" }, arity = "0..1", fallbackValue = "client", paramLabel = "MODE",
+			description = "simulate an upgrade without applying: client (default), server, or none")
+	private String dryRun;
+
+	private boolean dryRunEnabled;
 
 	@Option(names = { "-f", "--values" }, description = "specify values YAML files")
 	private List<String> valuesFiles = new ArrayList<>();
@@ -85,6 +88,11 @@ public class UpgradeCommand implements Runnable {
 
 	@Option(names = { "--wait" }, description = "wait until all resources are ready")
 	private boolean wait;
+
+	@Option(names = { "--wait-for-jobs" },
+			description = "wait for Jobs to complete before marking deployed (implies --wait; "
+					+ "jhelm's --wait already waits for Jobs)")
+	private boolean waitForJobs;
 
 	@Option(names = { "--timeout" }, defaultValue = "300", description = "timeout in seconds for --wait (default 300)")
 	private int timeout;
@@ -142,6 +150,7 @@ public class UpgradeCommand implements Runnable {
 		int previousVersion = -1;
 		boolean wasInstall = false;
 		try {
+			this.dryRunEnabled = resolveDryRun();
 			Optional<Release> currentReleaseOpt = kubeService.getRelease(name, namespace);
 			Chart chart = chartResolver.resolve(chartPath, verify, keyring);
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
@@ -152,13 +161,13 @@ public class UpgradeCommand implements Runnable {
 					wasInstall = true;
 					Release release = installAction.install(buildInstallOptions(chart, overrides));
 					release = applyCliPostRenderers(release);
-					if (dryRun) {
+					if (dryRunEnabled) {
 						printRelease(release);
 					}
 					else {
 						CliOutput
 							.println(CliOutput.success("Release \"" + name + "\" does not exist. Installing it now."));
-						if (wait || atomic) {
+						if (wait || atomic || waitForJobs) {
 							kubeService.waitForReady(namespace, release.getManifest(), timeout);
 						}
 					}
@@ -177,12 +186,12 @@ public class UpgradeCommand implements Runnable {
 				.upgrade(buildUpgradeOptions(currentReleaseOpt.get(), chart, overrides, strategy));
 			upgradedRelease = applyCliPostRenderers(upgradedRelease);
 
-			if (dryRun) {
+			if (dryRunEnabled) {
 				printRelease(upgradedRelease);
 			}
 			else {
 				CliOutput.println(CliOutput.success("Release \"" + name + "\" has been upgraded. Happy Helming!"));
-				if (wait || atomic) {
+				if (wait || atomic || waitForJobs) {
 					kubeService.waitForReady(namespace, upgradedRelease.getManifest(), timeout);
 				}
 			}
@@ -225,7 +234,7 @@ public class UpgradeCommand implements Runnable {
 			.namespace(namespace)
 			.values(overrides)
 			.revision(1)
-			.dryRun(dryRun)
+			.dryRun(dryRunEnabled)
 			.noHooks(noHooks)
 			.build();
 	}
@@ -237,7 +246,7 @@ public class UpgradeCommand implements Runnable {
 			.newChart(chart)
 			.values(overrides)
 			.valueStrategy(strategy)
-			.dryRun(dryRun)
+			.dryRun(dryRunEnabled)
 			.noHooks(noHooks)
 			.maxHistory(historyMax)
 			.build();
@@ -261,6 +270,30 @@ public class UpgradeCommand implements Runnable {
 		CliOutput.println(CliOutput.bold("STATUS:") + " " + release.getInfo().getStatus().getValue());
 		CliOutput.println(CliOutput.bold("REVISION:") + " " + release.getVersion());
 		CliOutput.println("\n" + CliOutput.bold("MANIFEST:") + "\n" + release.getManifest());
+	}
+
+	/**
+	 * Resolves the {@code --dry-run} mode to whether a dry run should be performed.
+	 * {@code client} (the default when the flag is given bare) and {@code server} both
+	 * enable a dry run; {@code none} (or the flag omitted) disables it. Server-side
+	 * simulation is not yet supported, so {@code server} performs a client-side dry run
+	 * with a notice.
+	 * @return {@code true} if the upgrade should be a dry run
+	 */
+	private boolean resolveDryRun() {
+		if (dryRun == null || dryRun.isBlank() || "none".equalsIgnoreCase(dryRun)) {
+			return false;
+		}
+		if ("server".equalsIgnoreCase(dryRun)) {
+			CliOutput
+				.errPrintln(CliOutput.warn("--dry-run=server is not yet supported; performing a client-side dry-run."));
+			return true;
+		}
+		if (!"client".equalsIgnoreCase(dryRun)) {
+			throw new IllegalArgumentException(
+					"invalid --dry-run mode '" + dryRun + "' (expected client, server, or none)");
+		}
+		return true;
 	}
 
 }

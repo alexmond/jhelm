@@ -21,13 +21,17 @@ import picocli.CommandLine;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 class InstallCommandTest {
@@ -117,6 +121,64 @@ class InstallCommandTest {
 
 		// waitForReady should NOT be called when --dry-run is active
 		verify(kubeService, Mockito.never()).waitForReady(anyString(), anyString(), anyInt());
+	}
+
+	@Test
+	void testInstallDryRunClientModeEnablesDryRun() throws Exception {
+		File chartDir = createMockChart();
+		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("my-release", 1));
+		ArgumentCaptor<InstallOptions> opts = ArgumentCaptor.forClass(InstallOptions.class);
+
+		new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath(), "--dry-run=client");
+
+		verify(installAction).install(opts.capture());
+		assertTrue(opts.getValue().isDryRun());
+		verify(kubeService, never()).waitForReady(anyString(), anyString(), anyInt());
+	}
+
+	@Test
+	void testInstallDryRunNoneModeInstallsForReal() throws Exception {
+		File chartDir = createMockChart();
+		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("my-release", 1));
+		ArgumentCaptor<InstallOptions> opts = ArgumentCaptor.forClass(InstallOptions.class);
+
+		new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath(), "--dry-run=none", "--wait");
+
+		verify(installAction).install(opts.capture());
+		assertFalse(opts.getValue().isDryRun());
+		verify(kubeService).waitForReady(eq("default"), anyString(), anyInt());
+	}
+
+	@Test
+	void testInstallDryRunServerModeIsDryRun() throws Exception {
+		File chartDir = createMockChart();
+		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("my-release", 1));
+		ArgumentCaptor<InstallOptions> opts = ArgumentCaptor.forClass(InstallOptions.class);
+
+		new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath(), "--dry-run=server");
+
+		verify(installAction).install(opts.capture());
+		assertTrue(opts.getValue().isDryRun());
+	}
+
+	@Test
+	void testInstallWaitForJobsTriggersWait() throws Exception {
+		File chartDir = createMockChart();
+		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("my-release", 1));
+
+		new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath(), "--wait-for-jobs");
+
+		verify(kubeService).waitForReady(eq("default"), anyString(), anyInt());
+	}
+
+	@Test
+	void testInstallInvalidDryRunModeIsHandled() throws Exception {
+		File chartDir = createMockChart();
+
+		new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath(), "--dry-run=bogus");
+
+		// invalid mode is reported, not crashed; installAction is never invoked
+		verify(installAction, never()).install(any(InstallOptions.class));
 	}
 
 	@Test
