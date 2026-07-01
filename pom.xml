@@ -306,11 +306,15 @@
                         <publishingServerId>central</publishingServerId>
                         <autoPublish>true</autoPublish>
                         <waitUntil>published</waitUntil>
-                        <!-- The sample/demo modules are apps, not libraries — keep them out
-                             of the Central bundle. central-publishing ignores
+                        <!-- The sample/demo modules and the CLI are apps, not libraries —
+                             keep them out of the Central bundle. central-publishing ignores
                              maven.deploy.skip, so excludeArtifacts on the aggregator config
-                             is the safe lever (drops just these artifactIds). (#560) -->
+                             is the safe lever (drops just these artifactIds). The CLI
+                             (artifactId 'jhelm') is a Spring Boot fat jar with javadoc
+                             skipped, so Central would reject it for a missing -javadoc.jar
+                             and abort the whole publish. (#560) -->
                         <excludeArtifacts>
+                            <excludeArtifact>jhelm</excludeArtifact>
                             <excludeArtifact>jhelm-sample</excludeArtifact>
                             <excludeArtifact>jhelm-rest-sample</excludeArtifact>
                             <excludeArtifact>jhelm-mcp-sample</excludeArtifact>

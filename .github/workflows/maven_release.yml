@@ -71,5 +71,8 @@ jobs:
           tag_name: ${{ github.event.inputs.releaseVersion }}
           name: Release ${{ github.event.inputs.releaseVersion }}
           generate_release_notes: true
+          # The CLI is not published to Central (it is a fat jar, not a library);
+          # attach it here so users have a downloadable runnable jar per release.
+          files: jhelm-cli/target/jhelm-${{ github.event.inputs.releaseVersion }}.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

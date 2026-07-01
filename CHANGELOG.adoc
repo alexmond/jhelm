@@ -20,10 +20,10 @@ The pre-1.0 *API freeze* release.
 * *Engine* -- now on `gotmpl4j 1.1.0`; recursive/too-deep renders fail with a
   `TemplateRenderException` instead of an inline `ERROR:` string.
 
-== Unreleased (targeting 0.1.0)
+== Unreleased (targeting 1.0.0)
 
-Toward the *0.1.0 prerelease target* (see the Roadmap in the docs): a *≥ 300-chart*
-byte-parity gate against `helm template` plus an extraction-ready template engine.
+Toward the *1.0.0 release* (see the Roadmap in the docs): a broad byte-parity gate
+against `helm template` plus an extraction-ready template engine.
 
 === Engine — Helm byte-parity
 
