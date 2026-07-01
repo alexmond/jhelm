@@ -384,6 +384,43 @@ CompletableFuture<List<Release>> releases =
     kubeService.listReleasesAsync("production");
 ----
 
+== Metrics
+
+When a Micrometer `MeterRegistry` is on the context (e.g. via
+`spring-boot-starter-actuator`), jhelm auto-configures a `JhelmMetrics` bean and publishes the
+following meters. With no registry present there is no bean and no overhead.
+
+[cols="2,1,3"]
+|===
+| Meter | Type | Tags
+
+| `jhelm.engine.render`
+| timer
+| — (chart template render duration)
+
+| `jhelm.cache.requests`
+| counter
+| `result` = `hit` \| `miss`
+
+| `jhelm.cache.size`
+| gauge
+| — (current template-cache entries)
+
+| `jhelm.action` / `jhelm.actions`
+| timer / counter
+| `action` = `install` \| `upgrade` \| `uninstall` \| `rollback`; counter adds `outcome` = `success` \| `error`
+
+| `jhelm.chart.pull` / `jhelm.chart.pulls`
+| timer / counter
+| `source` = `http` \| `oci`; counter adds `outcome` = `success` \| `error`
+
+| `jhelm.kube.operation` / `jhelm.kube.operations`
+| timer / counter
+| `operation` (e.g. `apply`, `delete`, `store`); counter adds `outcome` = `success` \| `error`
+|===
+
+Exposing them (Prometheus, etc.) is standard Spring Boot Actuator configuration.
+
 == Custom Bean Overrides
 
 All auto-configured beans are registered with `@ConditionalOnMissingBean`. You can replace any bean by defining your own:

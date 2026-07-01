@@ -45,7 +45,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.ArgumentCaptor;
 
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.model.RepositoryConfig;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.net.URL;
 import java.util.Base64;
@@ -347,6 +349,22 @@ class RepoManagerTest {
 			.thenAnswer(httpAnswer(200, tgz));
 		rm.pullFromUrl("https://charts.example.com/mychart-1.0.0.tgz", tempDir.toString(), "mychart-1.0.0.tgz");
 		assertTrue(tempDir.resolve("mychart-1.0.0.tgz").toFile().exists());
+	}
+
+	@Test
+	void testPullFromUrlRecordsHttpMetrics() throws Exception {
+		RepoManager rm = new RepoManager();
+		SimpleMeterRegistry registry = new SimpleMeterRegistry();
+		rm.setMetrics(new JhelmMetrics(registry));
+		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
+		rm.setHttpClientForTest(mockClient);
+		byte[] tgz = createMinimalTgz();
+		when(mockClient.execute(isA(HttpGet.class), any(HttpClientResponseHandler.class)))
+			.thenAnswer(httpAnswer(200, tgz));
+		rm.pullFromUrl("https://charts.example.com/mychart-1.0.0.tgz", tempDir.toString(), "mychart-1.0.0.tgz");
+		assertEquals(1, registry.find("jhelm.chart.pull").tag("source", "http").timer().count());
+		assertEquals(1.0,
+				registry.find("jhelm.chart.pulls").tag("source", "http").tag("outcome", "success").counter().count());
 	}
 
 	@Test

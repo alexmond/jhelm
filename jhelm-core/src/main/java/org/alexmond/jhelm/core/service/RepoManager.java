@@ -40,6 +40,7 @@ import java.util.Map;
 
 import tools.jackson.databind.JsonNode;
 
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.model.RepositoryConfig;
 
 @Slf4j
@@ -58,6 +59,10 @@ public class RepoManager {
 	private final boolean insecureSkipTlsVerify;
 
 	private final RegistryManager registryManager;
+
+	// Optional metrics; set by the auto-configuration when a JhelmMetrics bean exists.
+	// Null in library/direct-construction use (no instrumentation, no overhead).
+	private JhelmMetrics metrics;
 
 	// Parsed repo indexes (the full entries map of an index.yaml) keyed by repo name.
 	// A repo's index can be tens of MB (e.g. bitnami), so this is bounded by an LRU:
@@ -114,6 +119,24 @@ public class RepoManager {
 		this.registryManager = registryManager;
 		this.insecureSkipTlsVerify = insecureSkipTlsVerify;
 		initHttpClient();
+	}
+
+	/**
+	 * Sets the optional metrics service used to instrument chart pulls. Wired by the
+	 * auto-configuration; leave unset (null) to disable instrumentation.
+	 * @param metrics the metrics service, or {@code null}
+	 */
+	public void setMetrics(JhelmMetrics metrics) {
+		this.metrics = metrics;
+	}
+
+	private void recordChartPull(String source, JhelmMetrics.IoRunnable op) throws IOException {
+		if (metrics == null) {
+			op.run();
+		}
+		else {
+			metrics.timeChartPull(source, op);
+		}
 	}
 
 	void setHttpClientForTest(CloseableHttpClient client) {
@@ -724,6 +747,11 @@ public class RepoManager {
 			pullOci(chartUrl, destDir, fileName);
 			return;
 		}
+		recordChartPull("http", () -> doHttpPull(chartUrl, destDir, fileName, repo));
+	}
+
+	private void doHttpPull(String chartUrl, String destDir, String fileName, RepositoryConfig.Repository repo)
+			throws IOException {
 		if (log.isInfoEnabled()) {
 			log.info("Pulling chart from {} to {}", chartUrl, destDir);
 		}
@@ -755,6 +783,10 @@ public class RepoManager {
 	}
 
 	public void pullOci(String ociUrl, String destDir, String fileName) throws IOException {
+		recordChartPull("oci", () -> doPullOci(ociUrl, destDir, fileName));
+	}
+
+	private void doPullOci(String ociUrl, String destDir, String fileName) throws IOException {
 		if (log.isInfoEnabled()) {
 			log.info("Pulling OCI chart from {} to {}", ociUrl, destDir);
 		}

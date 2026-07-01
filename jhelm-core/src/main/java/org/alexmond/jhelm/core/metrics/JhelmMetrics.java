@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.metrics;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -113,11 +114,122 @@ public class JhelmMetrics {
 	}
 
 	/**
+	 * Times an action-layer operation (install, upgrade, uninstall, rollback), recording
+	 * its duration on {@code jhelm.action} and incrementing {@code jhelm.actions} with
+	 * the outcome. The operation's own exceptions propagate unchanged (counted as
+	 * {@code error}).
+	 * @param <T> the result type
+	 * @param action the action name (e.g. "install", "upgrade")
+	 * @param op the action to run
+	 * @return the action result
+	 */
+	public <T> T timeAction(String action, Supplier<T> op) {
+		boolean success = false;
+		try {
+			T result = actionTimer(action).record(op);
+			success = true;
+			return result;
+		}
+		finally {
+			actionCounter(action, success ? "success" : "error").increment();
+		}
+	}
+
+	/**
+	 * Create a timer for the given action-layer operation.
+	 * @param action the action name
+	 * @return the timer
+	 */
+	public Timer actionTimer(String action) {
+		return Timer.builder(PREFIX + ".action")
+			.description("Helm action-layer operation duration")
+			.tag("action", action)
+			.register(registry);
+	}
+
+	/**
+	 * Create a counter for the given action-layer outcome.
+	 * @param action the action name
+	 * @param outcome "success" or "error"
+	 * @return the counter
+	 */
+	public Counter actionCounter(String action, String outcome) {
+		return Counter.builder(PREFIX + ".actions")
+			.description("Helm action-layer operation count")
+			.tag("action", action)
+			.tag("outcome", outcome)
+			.register(registry);
+	}
+
+	/**
+	 * Times a chart pull, recording its duration on {@code jhelm.chart.pull} and
+	 * incrementing {@code jhelm.chart.pulls} with the outcome. Checked
+	 * {@link IOException} (and any runtime exception) from the pull propagates unchanged
+	 * (counted as {@code error}).
+	 * @param source the pull source ("http" or "oci")
+	 * @param op the pull to run
+	 * @throws IOException if the pull fails
+	 */
+	public void timeChartPull(String source, IoRunnable op) throws IOException {
+		Timer.Sample sample = Timer.start(registry);
+		boolean success = false;
+		try {
+			op.run();
+			success = true;
+		}
+		finally {
+			sample.stop(chartPullTimer(source));
+			chartPullCounter(source, success ? "success" : "error").increment();
+		}
+	}
+
+	/**
+	 * Create a timer for chart pulls from the given source.
+	 * @param source the pull source ("http" or "oci")
+	 * @return the timer
+	 */
+	public Timer chartPullTimer(String source) {
+		return Timer.builder(PREFIX + ".chart.pull")
+			.description("Chart pull duration")
+			.tag("source", source)
+			.register(registry);
+	}
+
+	/**
+	 * Create a counter for chart pull outcomes from the given source.
+	 * @param source the pull source ("http" or "oci")
+	 * @param outcome "success" or "error"
+	 * @return the counter
+	 */
+	public Counter chartPullCounter(String source, String outcome) {
+		return Counter.builder(PREFIX + ".chart.pulls")
+			.description("Chart pull count")
+			.tag("source", source)
+			.tag("outcome", outcome)
+			.register(registry);
+	}
+
+	/**
 	 * Returns the underlying {@link MeterRegistry}.
 	 * @return the registry backing this metrics service
 	 */
 	public MeterRegistry getRegistry() {
 		return registry;
+	}
+
+	/**
+	 * A chart-pull operation that may throw {@link IOException}. Enables
+	 * {@link #timeChartPull(String, IoRunnable)} to wrap the checked download calls.
+	 */
+	@FunctionalInterface
+	public interface IoRunnable {
+
+		/**
+		 * Runs the pull.
+		 * @throws IOException if the pull fails
+		 */
+		void run() throws IOException;
+
 	}
 
 }

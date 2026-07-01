@@ -12,7 +12,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -87,6 +89,45 @@ class JhelmMetricsTest {
 		assertNotNull(counter);
 		counter.increment();
 		assertEquals(1.0, counter.count());
+	}
+
+	@Test
+	void testTimeActionSuccessRecordsTimerAndCounter() {
+		String result = metrics.timeAction("install", () -> "ok");
+		assertEquals("ok", result);
+		assertEquals(1, registry.find("jhelm.action").tag("action", "install").timer().count());
+		assertEquals(1.0,
+				registry.find("jhelm.actions").tag("action", "install").tag("outcome", "success").counter().count());
+	}
+
+	@Test
+	void testTimeActionErrorCountsErrorOutcomeAndRethrows() {
+		assertThrows(IllegalStateException.class, () -> metrics.timeAction("upgrade", () -> {
+			throw new IllegalStateException("boom");
+		}));
+		assertEquals(1, registry.find("jhelm.action").tag("action", "upgrade").timer().count());
+		assertEquals(1.0,
+				registry.find("jhelm.actions").tag("action", "upgrade").tag("outcome", "error").counter().count());
+	}
+
+	@Test
+	void testTimeChartPullSuccessRecordsHttpSource() throws IOException {
+		metrics.timeChartPull("http", () -> {
+			// a successful pull does nothing observable here
+		});
+		assertEquals(1, registry.find("jhelm.chart.pull").tag("source", "http").timer().count());
+		assertEquals(1.0,
+				registry.find("jhelm.chart.pulls").tag("source", "http").tag("outcome", "success").counter().count());
+	}
+
+	@Test
+	void testTimeChartPullErrorCountsErrorAndRethrows() {
+		assertThrows(IOException.class, () -> metrics.timeChartPull("oci", () -> {
+			throw new IOException("nope");
+		}));
+		assertEquals(1, registry.find("jhelm.chart.pull").tag("source", "oci").timer().count());
+		assertEquals(1.0,
+				registry.find("jhelm.chart.pulls").tag("source", "oci").tag("outcome", "error").counter().count());
 	}
 
 	@Test

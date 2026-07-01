@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,9 @@ public class InstallAction {
 	@Setter
 	private List<LifecycleListener> lifecycleListeners = List.of();
 
+	@Setter
+	private JhelmMetrics metrics;
+
 	/**
 	 * Installs a chart as a new release. Chart default values are merged with the
 	 * supplied overrides, the templates are rendered, and—unless this is a dry run—the
@@ -59,6 +63,11 @@ public class InstallAction {
 	 * @throws JhelmException if rendering or a cluster operation fails
 	 */
 	public Release install(InstallOptions options) {
+		return (this.metrics == null) ? doInstall(options)
+				: this.metrics.timeAction("install", () -> doInstall(options));
+	}
+
+	private Release doInstall(InstallOptions options) {
 		ReleaseNames.validateReleaseName(options.getReleaseName());
 		ReleaseNames.validateNamespace(options.getNamespace());
 		Chart chart = options.getChart();
