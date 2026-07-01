@@ -20,13 +20,20 @@ import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.DependencyResolver;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
+import org.alexmond.jhelm.rest.config.OpenApiErrorResponsesCustomizer;
 import org.alexmond.jhelm.rest.controller.ChartController;
 import org.alexmond.jhelm.rest.controller.DependencyController;
 import org.alexmond.jhelm.rest.controller.HubController;
 import org.alexmond.jhelm.rest.controller.ReleaseController;
 import org.alexmond.jhelm.rest.controller.RepoController;
 import org.alexmond.jhelm.rest.security.AccessModeInterceptor;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
 import jakarta.servlet.MultipartConfigElement;
+
+import java.util.Optional;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -64,6 +71,38 @@ public class JhelmRestAutoConfiguration {
 	@ConditionalOnMissingBean
 	public JhelmRestExceptionHandler jhelmRestExceptionHandler() {
 		return new JhelmRestExceptionHandler();
+	}
+
+	/**
+	 * Supplies the OpenAPI document metadata (title, description, version, license, and
+	 * contact) that springdoc serves at {@code /v3/api-docs} and renders in Swagger UI.
+	 * The version is read from the {@code jhelm-rest} jar manifest so it tracks releases
+	 * without a hard-coded string. Defined with {@link ConditionalOnMissingBean} so an
+	 * application can replace it wholesale.
+	 * @return the OpenAPI metadata bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public OpenAPI jhelmOpenAPI() {
+		String version = Optional.ofNullable(getClass().getPackage().getImplementationVersion()).orElse("dev");
+		return new OpenAPI().info(new Info().title("jhelm REST API")
+			.description("REST API for Helm chart and release operations, backed by jhelm.")
+			.version(version)
+			.license(new License().name("Apache-2.0").url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
+			.contact(new Contact().name("jhelm").url("https://github.com/alexmond/jhelm")));
+	}
+
+	/**
+	 * Registers the customizer that documents the shared RFC 7807 error responses (and
+	 * the {@code ProblemDetail} schema) on every generated operation, so the served
+	 * OpenAPI document reflects the real error contract. springdoc applies every
+	 * {@code OpenApiCustomizer} bean it finds in the context.
+	 * @return the error-responses customizer bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public OpenApiErrorResponsesCustomizer jhelmOpenApiErrorResponsesCustomizer() {
+		return new OpenApiErrorResponsesCustomizer();
 	}
 
 	/**
