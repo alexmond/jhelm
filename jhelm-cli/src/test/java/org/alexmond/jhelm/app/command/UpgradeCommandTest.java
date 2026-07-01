@@ -115,6 +115,31 @@ class UpgradeCommandTest {
 	}
 
 	@Test
+	void testUpgradeInvalidDryRunModeIsHandled() throws Exception {
+		File chartDir = createMockChart();
+
+		new CommandLine(upgradeCommand).execute("my-release", chartDir.getAbsolutePath(), "--dry-run=bogus");
+
+		// invalid mode is reported before any work; upgrade is never attempted
+		verify(upgradeAction, never()).upgrade(any(UpgradeOptions.class));
+	}
+
+	@Test
+	void testUpgradeDryRunNoneUpgradesForReal() throws Exception {
+		File chartDir = createMockChart();
+		when(kubeService.getRelease(anyString(), anyString()))
+			.thenReturn(Optional.of(createMockRelease("my-release", 1)));
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(createMockRelease("my-release", 2));
+		ArgumentCaptor<UpgradeOptions> opts = ArgumentCaptor.forClass(UpgradeOptions.class);
+
+		new CommandLine(upgradeCommand).execute("my-release", chartDir.getAbsolutePath(), "--dry-run=none", "--wait");
+
+		verify(upgradeAction).upgrade(opts.capture());
+		assertTrue(!opts.getValue().isDryRun());
+		verify(kubeService).waitForReady(eq("default"), anyString(), anyInt());
+	}
+
+	@Test
 	void testUpgradeCommandWithInstallFlag() throws Exception {
 		File chartDir = createMockChart();
 		Release newRelease = createMockRelease("my-release", 1);
