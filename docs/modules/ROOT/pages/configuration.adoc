@@ -2,6 +2,141 @@
 
 jhelm uses Spring Boot `@ConfigurationProperties` for all configuration. Properties can be set in `application.yaml`, `application.properties`, environment variables, or system properties.
 
+The section below is the practical "how do I set this" guide for operators; the property
+reference tables further down list every available setting.
+
+== Configuring jhelm (for operators)
+
+The `jhelm` CLI is a Spring Boot application, so it reads the settings on this page from three
+sources — no Spring knowledge required. Pick whichever fits your environment; they can be
+combined, and later ones in this list win:
+
+. a *config file* (`application.yaml` or `.properties`),
+. an *environment variable*,
+. a *JVM system property* (`-D`).
+
+TIP: The command line itself is reserved for helm-style subcommands and flags
+(`jhelm install …`, `-n`, `--set`). Do *not* pass settings as `--jhelm.config-path=…` on the
+command line — that is a Spring option, not a jhelm flag, and the CLI rejects it as unknown. Use
+one of the three sources below.
+
+=== 1. A YAML (or properties) file
+
+Put an `application.yaml` next to where you run `jhelm` (the current directory, or a `config/`
+subdirectory) and it is picked up automatically:
+
+[source,yaml]
+----
+jhelm:
+  config-path: /etc/jhelm/repositories.yaml
+  insecure-skip-tls-verify: false
+  kubernetes:
+    kubeconfig-path: /home/deploy/.kube/config
+----
+
+The same settings in `application.properties` form:
+
+[source,properties]
+----
+jhelm.config-path=/etc/jhelm/repositories.yaml
+jhelm.kubernetes.kubeconfig-path=/home/deploy/.kube/config
+----
+
+To keep the file anywhere else, point at it with an environment variable (trailing slash for a
+directory, or give the full file path):
+
+[source,bash]
+----
+export SPRING_CONFIG_ADDITIONAL_LOCATION=/etc/jhelm/
+jhelm list -n production
+----
+
+=== 2. Environment variables
+
+Every property maps to an environment variable: uppercase it and replace `.` and `-` with `_`.
+This is usually the simplest option for CI and containers:
+
+[source,bash]
+----
+export JHELM_CONFIG_PATH=/etc/jhelm/repositories.yaml
+export JHELM_KUBERNETES_KUBECONFIG_PATH=/home/deploy/.kube/config
+jhelm list -n production
+----
+
+[cols="2,2"]
+|===
+| Property | Environment variable
+
+| `jhelm.config-path` | `JHELM_CONFIG_PATH`
+| `jhelm.registry-config-path` | `JHELM_REGISTRY_CONFIG_PATH`
+| `jhelm.insecure-skip-tls-verify` | `JHELM_INSECURE_SKIP_TLS_VERIFY`
+| `jhelm.template-cache-enabled` | `JHELM_TEMPLATE_CACHE_ENABLED`
+| `jhelm.template-cache-max-size` | `JHELM_TEMPLATE_CACHE_MAX_SIZE`
+| `jhelm.kubernetes.kubeconfig-path` | `JHELM_KUBERNETES_KUBECONFIG_PATH`
+|===
+
+=== 3. JVM system properties (`-D`)
+
+When you launch the jar directly, pass `-D<property>=<value>` *before* `-jar`:
+
+[source,bash]
+----
+java -Djhelm.config-path=/etc/jhelm/repositories.yaml -jar jhelm.jar list -n production
+----
+
+If `jhelm` is a wrapper or alias (so you cannot control the `java` arguments), put the same
+`-D` flags in the standard JVM environment variable instead — the JVM applies them and they
+never reach the command parser:
+
+[source,bash]
+----
+export JAVA_TOOL_OPTIONS="-Djhelm.config-path=/etc/jhelm/repositories.yaml"
+jhelm list -n production
+----
+
+=== Profiles (environment-specific config)
+
+A *profile* is a named set of overrides — one file per environment (`dev`, `staging`, `prod`)
+layered on top of the base `application.yaml`. Create `application-prod.yaml` beside your base
+file, then activate it by name:
+
+[source,yaml]
+----
+# application-prod.yaml — only used when the "prod" profile is active
+jhelm:
+  config-path: /etc/jhelm/prod-repositories.yaml
+  insecure-skip-tls-verify: false
+----
+
+[source,bash]
+----
+export SPRING_PROFILES_ACTIVE=prod          # or: java -Dspring.profiles.active=prod -jar jhelm.jar …
+jhelm list -n production
+----
+
+You can also keep every environment in a single file, separated by `---`, gating each block with
+`spring.config.activate.on-profile`:
+
+[source,yaml]
+----
+jhelm:
+  template-cache-enabled: true      # shared by all profiles
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+jhelm:
+  insecure-skip-tls-verify: false
+----
+
+=== Spring Boot references
+
+These external pages cover the mechanics in more depth (jhelm uses them unchanged):
+
+* https://docs.spring.io/spring-boot/reference/features/external-config.html[Externalized Configuration] — files, environment variables, `-D`, and their precedence.
+* https://docs.spring.io/spring-boot/reference/features/external-config.html#features.external-config.files.profile-specific[Profile-specific files] — how `application-<profile>.yaml` and `---` documents are selected.
+
 == Core Properties (`jhelm.*`)
 
 Provided by `JhelmCoreAutoConfiguration` when `jhelm-core` is on the classpath.
@@ -50,52 +185,10 @@ Provided by `JhelmKubeAutoConfiguration` when `jhelm-kube` is on the classpath.
 | Path to the kubeconfig file. When not set, uses standard Kubernetes auto-detection: `~/.kube/config` or in-cluster credentials.
 |===
 
-== Example Configuration
+== Precedence
 
-=== application.yaml
-
-[source,yaml]
-----
-jhelm:
-  config-path: /etc/jhelm/repositories.yaml
-  insecure-skip-tls-verify: false
-  template-cache-enabled: true
-  template-cache-max-size: 512
-  kubernetes:
-    kubeconfig-path: /home/deploy/.kube/config
-----
-
-=== application.properties
-
-[source,properties]
-----
-jhelm.config-path=/etc/jhelm/repositories.yaml
-jhelm.insecure-skip-tls-verify=false
-jhelm.template-cache-enabled=true
-jhelm.template-cache-max-size=512
-jhelm.kubernetes.kubeconfig-path=/home/deploy/.kube/config
-----
-
-== Environment Variables
-
-Spring Boot maps properties to environment variables using relaxed binding. Replace dots with underscores and use uppercase:
-
-[cols="2,2"]
-|===
-| Property | Environment Variable
-
-| `jhelm.config-path`
-| `JHELM_CONFIG_PATH`
-
-| `jhelm.insecure-skip-tls-verify`
-| `JHELM_INSECURE_SKIP_TLS_VERIFY`
-
-| `jhelm.template-cache-enabled`
-| `JHELM_TEMPLATE_CACHE_ENABLED`
-
-| `jhelm.template-cache-max-size`
-| `JHELM_TEMPLATE_CACHE_MAX_SIZE`
-
-| `jhelm.kubernetes.kubeconfig-path`
-| `JHELM_KUBERNETES_KUBECONFIG_PATH`
-|===
+When the same setting is supplied in more than one place, Spring Boot resolves it in this order
+(highest wins): JVM system properties (`-D`) > environment variables > profile-specific file
+(`application-<profile>.yaml`) > base `application.yaml`. So a `-D` flag or an environment
+variable always overrides a value baked into a config file — handy for a one-off override in CI
+without editing the file.
