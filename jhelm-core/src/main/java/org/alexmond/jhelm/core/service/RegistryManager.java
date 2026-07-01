@@ -40,6 +40,15 @@ public class RegistryManager {
 		}
 	}
 
+	/**
+	 * Creates a manager backed by an explicit config file. Package-private: used by tests
+	 * to point at a temporary file instead of the real per-user helm registry config.
+	 * @param configPath the path to the registry credentials file
+	 */
+	RegistryManager(String configPath) {
+		this.configPath = configPath;
+	}
+
 	public void login(String registry, String username, String password) throws IOException {
 		Config config = loadConfig();
 		String auth = Base64.getEncoder().encodeToString((username + ":" + password).getBytes());

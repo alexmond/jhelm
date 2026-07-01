@@ -21,21 +21,31 @@ class RegistryManagerTest {
 
 	@BeforeEach
 	void setUp() {
-		registryManager = new RegistryManager();
+		// Back the manager with a temp config file so the login/logout tests below never
+		// touch the developer's real ~/.config/helm/registry/config.json.
+		registryManager = new RegistryManager(tempDir.resolve("registry-config.json").toString());
 	}
 
 	@Test
-	void testConstructorCreatesDefaultConfigPath() {
-		assertNotNull(registryManager);
-		String os = System.getProperty("os.name").toLowerCase();
-		assertNotNull(os);
+	void testDefaultConstructorCreatesConfigPath() {
+		// exercises the OS-specific default path selection without writing anything
+		assertNotNull(new RegistryManager());
 	}
 
 	@Test
-	void testLoadConfigReturnsValidConfig() throws IOException {
+	void testLoadConfigReturnsEmptyConfigWhenFileMissing() throws IOException {
 		RegistryManager.Config config = registryManager.loadConfig();
 		assertNotNull(config);
 		assertNotNull(config.getAuths());
+	}
+
+	@Test
+	void testLoadConfigReadsPersistedFile() throws IOException {
+		// login writes the file; a fresh manager on the same path must read it back
+		// (covers the loadConfig file-exists branch)
+		registryManager.login("ghcr.io", "user", "pass");
+		RegistryManager reopened = new RegistryManager(tempDir.resolve("registry-config.json").toString());
+		assertNotNull(reopened.getAuth("ghcr.io"));
 	}
 
 	@Test

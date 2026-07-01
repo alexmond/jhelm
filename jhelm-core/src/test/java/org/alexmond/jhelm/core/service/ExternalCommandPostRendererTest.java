@@ -52,6 +52,17 @@ class ExternalCommandPostRendererTest {
 	}
 
 	@Test
+	void processIncludesStderrInErrorOnNonZeroExit() throws Exception {
+		// a non-zero exit that also writes to stderr — the error message folds the
+		// captured stderr in (the stderr-non-blank branch)
+		ExternalCommandPostRenderer renderer = new ExternalCommandPostRenderer(
+				List.of("bash", "-c", "echo 'boom happened' >&2; exit 2"));
+		IOException ex = assertThrows(IOException.class, () -> renderer.process("input"));
+		assertTrue(ex.getMessage().contains("boom happened"));
+		assertTrue(ex.getMessage().contains("code 2"));
+	}
+
+	@Test
 	void processThrowsOnTimeout() throws Exception {
 		// Use bash -c to read stdin first (so the process doesn't exit when stdin closes)
 		// then sleep
