@@ -42,4 +42,27 @@ class EnvCommandTest {
 		assertTrue(out.contains("KUBECONFIG=\"/tmp/jhelm-env/kubeconfig\""), out);
 	}
 
+	@Test
+	void testEnvKubeconfigFallsBackWhenNoOverride() {
+		// no jhelm.kubernetes.kubeconfig-path set -> falls back to $KUBECONFIG or
+		// ~/.kube/config
+		RepoManager repoManager = new RepoManager("/tmp/jhelm-env/repositories.yaml");
+		RegistryManager registryManager = new RegistryManager("/tmp/jhelm-env/registry/config.json");
+		JhelmKubernetesProperties kubeProperties = new JhelmKubernetesProperties();
+
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		PrintStream original = System.out;
+		System.setOut(new PrintStream(bos, true, StandardCharsets.UTF_8));
+		try {
+			new CommandLine(new EnvCommand(repoManager, registryManager, kubeProperties)).execute();
+		}
+		finally {
+			System.setOut(original);
+		}
+		String out = bos.toString(StandardCharsets.UTF_8);
+		String expected = (System.getenv("KUBECONFIG") != null) ? System.getenv("KUBECONFIG")
+				: System.getProperty("user.home") + "/.kube/config";
+		assertTrue(out.contains("KUBECONFIG=\"" + expected + "\""), out);
+	}
+
 }
