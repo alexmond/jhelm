@@ -115,6 +115,20 @@ class UpgradeCommandTest {
 	}
 
 	@Test
+	void testUpgradeForceIsWiredIntoOptions() throws Exception {
+		File chartDir = createMockChart();
+		when(kubeService.getRelease(anyString(), anyString()))
+			.thenReturn(Optional.of(createMockRelease("my-release", 1)));
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(createMockRelease("my-release", 2));
+		ArgumentCaptor<UpgradeOptions> opts = ArgumentCaptor.forClass(UpgradeOptions.class);
+
+		new CommandLine(upgradeCommand).execute("my-release", chartDir.getAbsolutePath(), "--force");
+
+		verify(upgradeAction).upgrade(opts.capture());
+		assertTrue(opts.getValue().isForce());
+	}
+
+	@Test
 	void testUpgradeInvalidDryRunModeIsHandled() throws Exception {
 		File chartDir = createMockChart();
 

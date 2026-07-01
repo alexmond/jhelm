@@ -122,6 +122,76 @@ class UpgradeActionTest {
 	}
 
 	@Test
+	void testUpgradeForceDeletesBeforeApply() throws Exception {
+		Chart oldChart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(oldChart)
+			.info(Release.ReleaseInfo.builder().status(ReleaseStatus.DEPLOYED).build())
+			.build();
+
+		Chart newChart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("2.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		String renderedManifest = "---\napiVersion: v1\nkind: Service";
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class))).thenReturn(renderedManifest);
+		doNothing().when(kubeService).delete(anyString(), anyString());
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(newChart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.force(true)
+			.build());
+
+		String stripped = HookParser.stripHooks(renderedManifest);
+		// --force deletes the existing resources before recreating them
+		InOrder order = inOrder(kubeService);
+		order.verify(kubeService).delete("default", stripped);
+		order.verify(kubeService).apply("default", stripped);
+	}
+
+	@Test
+	void testUpgradeWithoutForceDoesNotDelete() throws Exception {
+		Chart oldChart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(oldChart)
+			.info(Release.ReleaseInfo.builder().status(ReleaseStatus.DEPLOYED).build())
+			.build();
+		Chart newChart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("2.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class)))
+			.thenReturn("---\napiVersion: v1\nkind: Service");
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(newChart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.build());
+
+		// no --force and no orphans (previous release had no manifest) -> no delete
+		verify(kubeService, never()).delete(anyString(), anyString());
+	}
+
+	@Test
 	void testUpgradeWithOverrideValues() throws Exception {
 		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
 		Map<String, Object> chartValues = new HashMap<>();

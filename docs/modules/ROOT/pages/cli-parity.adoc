@@ -26,7 +26,7 @@ Status legend: ✅ same flag · ✎ supported but differs (see note) · ✗ not 
 | `--history-max` (upgrade) | ✅ |
 | `--verify`, `--keyring` | ✅ |
 | `--post-renderer` | ✅ |
-| `--force` | ✗ | Force resource replacement is not implemented.
+| `--force` (upgrade) | ✅ | Delete-and-recreate strategy: existing resources are deleted before the new manifest is applied. May cause downtime or data loss for stateful resources — use with care.
 | `--wait-for-jobs` | ✅ | Accepted for Helm compatibility; implies `--wait`. jhelm's `--wait` already waits for Job completion.
 | `--version`, `--repo`, `--username`/`--password` (install from a repo) | ✗ | Install from an added repo/OCI ref; inline repo+auth flags aren't wired.
 |===
