@@ -1,0 +1,88 @@
+= API Surface & Stability
+
+This page defines what counts as jhelm's *supported public API* — the surface that the
+xref:roadmap.adoc[1.0 API freeze] will hold stable — and the convention that separates it
+from internal implementation detail.
+
+[IMPORTANT]
+====
+jhelm does not use the Java Module System (JPMS), so the compiler alone cannot mark a type
+as non-API. The rule instead is:
+
+*A `public` type is supported API only if it lives outside an `+.internal+` package and
+outside a package documented as internal below. Everything else — package-private types, any
+type in an `+.internal+` package, and the implementation classes listed under "Internal" —
+may change or be removed in any release, including patch releases, without notice.*
+====
+
+== The `.internal` convention
+
+Genuinely-internal classes that must stay `public` for the module's Spring auto-configuration
+to construct them (the auto-config lives in a sibling package and cannot reach package-private
+types) are grouped into an `+.internal+` sub-package. Each such package carries a
+`package-info.java` restating that its contents are unsupported. Depend on the published
+interfaces and the auto-configured beans instead of these classes.
+
+Where a type can be package-private, it already is; `+.internal+` is only for the cases where
+cross-package construction forces `public`.
+
+== Supported API by module
+
+=== `jhelm-core`
+
+The library's core surface.
+
+* *Rendering* — `service.Engine`, and the `model` package (`Chart`, `ChartMetadata`,
+  `Release`, `Values`, `ReleaseStatus`, …).
+* *Action layer* — everything in `action` (`InstallAction`, `UpgradeAction`, `TemplateAction`,
+  `PackageAction`, `VerifyAction`, …) together with the immutable `+*Options+` objects
+  (`InstallOptions`, `UpgradeOptions`, …). This is the primary programmatic entry point.
+* *Repositories & charts* — `service.RepoManager`, `service.ChartLoader`.
+* *Provenance* — `service.SignatureService`, `service.VerificationKeyring`, `action.VerifyAction`.
+* *Kubernetes contract* — `service.KubeService` / `service.AsyncKubeService` (the interfaces;
+  the implementations live in `jhelm-kube`, see below).
+* *Extension points* — `service.PostRenderProcessor`, `service.LifecycleListener` /
+  `service.LifecyclePhase`.
+* *Configuration & auto-config* — `JhelmCoreAutoConfiguration`, `config.JhelmCoreProperties`,
+  `config.JhelmSecurityPolicy`.
+* *Exceptions* — the `exception` package.
+
+*Internal:* the HTTP-fetch plumbing (`RepoHttpClientFactory`, `SsrfGuardingDnsResolver` — already
+package-private), the template cache, and other package-private helpers.
+
+=== `jhelm-kube`
+
+The public surface is only `JhelmKubeAutoConfiguration` and `JhelmKubernetesProperties`. The
+entire `+org.alexmond.jhelm.kube.service+` implementation — the `KubeService` decorators, the
+Kubernetes client wrapper, the health indicator — lives in
+`+org.alexmond.jhelm.kube.service.internal+` and is *not* API. Consume the cluster through the
+core `KubeService` interface and the auto-configured bean.
+
+=== `jhelm-rest` / `jhelm-rest-starter`
+
+The HTTP endpoints are the contract (see xref:rest-api.adoc[REST API]); the Java surface is the
+auto-configuration and `config.JhelmRestProperties`. Controllers are beans, not a call-in API.
+
+=== `jhelm-mcp` / `jhelm-mcp-starter`
+
+The MCP tools are the contract (see xref:mcp.adoc[MCP Server]); the Java surface is the
+auto-configuration and its properties.
+
+=== `jhelm-gotemplate-helm`
+
+The Helm template functions, contributed to the external
+https://github.com/alexmond/gotmpl4j[gotmpl4j] engine via its `FunctionProvider` ServiceLoader
+SPI.
+
+=== `jhelm-plugin`
+
+The WASM plugin SPI — `Plugin` and its sub-interfaces (`DownloaderPlugin`,
+`LifecycleHookPlugin`, `PostRendererPlugin`), `PluginManager`, and the descriptor/manifest
+model. The runtime internals (the WASM bridge, sandbox executor) are implementation detail.
+
+== What "frozen at 1.0" means
+
+At 1.0 the types above are held to semantic-versioning compatibility: no breaking change to a
+supported type without a major-version bump. The `+.internal+` packages, package-private types,
+and the CLI's internal command classes carry no such guarantee. New API may still be added in
+minor releases.

@@ -70,7 +70,8 @@ mechanical rather than a redesign:
 === API freeze (shipped in 0.4.0 — toward 1.0)
 
 The pre-1.0 *API freeze* milestone landed in `0.4.0`, settling the public surface ahead of a
-stable `1.0`:
+stable `1.0`. The supported surface — and the `+.internal+` convention that separates it from
+implementation detail — is documented in xref:api-surface.adoc[API Surface & Stability]:
 
 * *Unchecked exceptions* — the action layer and `KubeService` throw the `JhelmException`
   hierarchy instead of `throws Exception`.

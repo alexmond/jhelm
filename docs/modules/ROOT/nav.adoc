@@ -2,6 +2,7 @@
 * xref:getting-started.adoc[Getting Started]
 * xref:architecture.adoc[Architecture]
 * xref:spring-boot-starter.adoc[Library & Spring Boot Starter]
+* xref:api-surface.adoc[API Surface & Stability]
 * xref:rest-api.adoc[REST API]
 * xref:mcp.adoc[MCP Server]
 * xref:cli-reference.adoc[CLI Reference]
