@@ -97,6 +97,11 @@ public class ObservableKubeService implements KubeService {
 	}
 
 	@Override
+	public void applyDryRun(String namespace, String yamlContent) {
+		timeVoid(applyTimer, () -> delegate.applyDryRun(namespace, yamlContent));
+	}
+
+	@Override
 	public void delete(String namespace, String yamlContent) {
 		timeVoid(deleteTimer, () -> delegate.delete(namespace, yamlContent));
 	}

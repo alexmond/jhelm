@@ -61,6 +61,15 @@ class ObservableKubeServiceTest {
 	}
 
 	@Test
+	void testApplyDryRunForwardsToDelegate() throws Exception {
+		service.applyDryRun("default", "apiVersion: v1");
+		verify(delegate).applyDryRun("default", "apiVersion: v1");
+		Timer timer = registry.find("jhelm.kube.operation").tag("operation", "apply").timer();
+		assertNotNull(timer);
+		assertEquals(1, timer.count());
+	}
+
+	@Test
 	void testDeleteRecordsTimer() throws Exception {
 		service.delete("default", "yaml");
 		verify(delegate).delete("default", "yaml");

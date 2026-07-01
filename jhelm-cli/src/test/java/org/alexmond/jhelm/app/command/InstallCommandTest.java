@@ -159,6 +159,7 @@ class InstallCommandTest {
 
 		verify(installAction).install(opts.capture());
 		assertTrue(opts.getValue().isDryRun());
+		assertTrue(opts.getValue().isServerDryRun());
 	}
 
 	@Test

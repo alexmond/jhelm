@@ -71,6 +71,8 @@ public class UpgradeCommand implements Runnable {
 
 	private boolean dryRunEnabled;
 
+	private boolean serverDryRun;
+
 	@Option(names = { "-f", "--values" }, description = "specify values YAML files")
 	private List<String> valuesFiles = new ArrayList<>();
 
@@ -239,6 +241,7 @@ public class UpgradeCommand implements Runnable {
 			.values(overrides)
 			.revision(1)
 			.dryRun(dryRunEnabled)
+			.serverDryRun(serverDryRun)
 			.noHooks(noHooks)
 			.build();
 	}
@@ -251,6 +254,7 @@ public class UpgradeCommand implements Runnable {
 			.values(overrides)
 			.valueStrategy(strategy)
 			.dryRun(dryRunEnabled)
+			.serverDryRun(serverDryRun)
 			.noHooks(noHooks)
 			.maxHistory(historyMax)
 			.force(force)
@@ -278,20 +282,19 @@ public class UpgradeCommand implements Runnable {
 	}
 
 	/**
-	 * Resolves the {@code --dry-run} mode to whether a dry run should be performed.
-	 * {@code client} (the default when the flag is given bare) and {@code server} both
-	 * enable a dry run; {@code none} (or the flag omitted) disables it. Server-side
-	 * simulation is not yet supported, so {@code server} performs a client-side dry run
-	 * with a notice.
+	 * Resolves the {@code --dry-run} mode. {@code client} (the default when the flag is
+	 * given bare) renders locally; {@code server} additionally validates the manifest
+	 * against the API server via a server-side dry-run apply (setting
+	 * {@link #serverDryRun}); {@code none} (or the flag omitted) disables the dry run.
 	 * @return {@code true} if the upgrade should be a dry run
 	 */
 	private boolean resolveDryRun() {
+		this.serverDryRun = false;
 		if (dryRun == null || dryRun.isBlank() || "none".equalsIgnoreCase(dryRun)) {
 			return false;
 		}
 		if ("server".equalsIgnoreCase(dryRun)) {
-			CliOutput
-				.errPrintln(CliOutput.warn("--dry-run=server is not yet supported; performing a client-side dry-run."));
+			this.serverDryRun = true;
 			return true;
 		}
 		if (!"client".equalsIgnoreCase(dryRun)) {

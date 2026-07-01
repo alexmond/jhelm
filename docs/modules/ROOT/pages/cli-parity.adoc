@@ -15,7 +15,7 @@ Status legend: ✅ same flag · ✎ supported but differs (see note) · ✗ not 
 | `-n`, `--namespace` | ✅ | Defaults to `default` (Helm uses the kube-context namespace).
 | `-f`, `--values` | ✅ |
 | `--set`, `--set-string`, `--set-file`, `--set-json` | ✅ |
-| `--dry-run[=client\|server\|none]` | ✅ | Bare `--dry-run` = `client`. `client`/`none` fully supported; `server` currently performs a client-side dry run with a notice (server-side simulation not yet wired).
+| `--dry-run[=client\|server\|none]` | ✅ | Bare `--dry-run` = `client`. `client` renders locally; `server` also validates the manifest against the API server via a server-side dry-run apply (admission/defaulting/quota, persists nothing); `none` disables the dry run.
 | `--wait` | ✅ | Waits for all resources, **including Jobs** (Helm needs `--wait-for-jobs` for that).
 | `--timeout` | ✎ | Takes **seconds** (e.g. `--timeout 300`); Helm takes a duration (`5m0s`).
 | `--atomic` | ✅ |

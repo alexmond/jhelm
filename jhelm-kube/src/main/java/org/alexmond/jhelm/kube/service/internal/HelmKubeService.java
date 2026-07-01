@@ -312,11 +312,20 @@ public class HelmKubeService implements KubeService {
 	 */
 	@Override
 	public void apply(String namespace, String yamlContent) {
+		applyManifest(namespace, yamlContent, false);
+	}
+
+	@Override
+	public void applyDryRun(String namespace, String yamlContent) {
+		applyManifest(namespace, yamlContent, true);
+	}
+
+	private void applyManifest(String namespace, String yamlContent, boolean serverDryRun) {
 		try {
 			Iterable<Object> objects = Yaml.loadAll(yamlContent);
 			for (Object obj : objects) {
 				if (obj instanceof KubernetesObject k8sObj) {
-					applyResource(namespace, k8sObj);
+					applyResource(namespace, k8sObj, serverDryRun);
 				}
 			}
 		}
@@ -328,7 +337,7 @@ public class HelmKubeService implements KubeService {
 		}
 	}
 
-	private void applyResource(String namespace, KubernetesObject obj) throws ApiException {
+	private void applyResource(String namespace, KubernetesObject obj, boolean serverDryRun) throws ApiException {
 		String apiVersion = obj.getApiVersion();
 		String group = apiVersion.contains("/") ? apiVersion.split("/")[0] : "";
 		String version = apiVersion.contains("/") ? apiVersion.split("/")[1] : apiVersion;
@@ -337,13 +346,17 @@ public class HelmKubeService implements KubeService {
 		String plural = inferPlural(kind);
 
 		if (log.isInfoEnabled()) {
-			log.info("Applying {} ({}/{}) {} in namespace {}", kind, group, version, name, namespace);
+			log.info("{} {} ({}/{}) {} in namespace {}", serverDryRun ? "Validating (server dry-run)" : "Applying",
+					kind, group, version, name, namespace);
 		}
 
 		V1Patch patch = new V1Patch(Yaml.dump(obj));
 		PatchOptions options = new PatchOptions();
 		options.setFieldManager("helm");
 		options.setForce(true);
+		if (serverDryRun) {
+			options.setDryRun("All");
+		}
 		// DynamicKubernetesApi resolves the request path from the group, so core-group
 		// resources (empty group, e.g. Service/ConfigMap/Secret) hit /api/<version>
 		// while named groups hit /apis/<group>/<version>. CustomObjectsApi always emits

@@ -43,6 +43,13 @@ public final class InstallOptions {
 	private final boolean dryRun;
 
 	/**
+	 * When {@code true}, validate the rendered manifest against the API server via a
+	 * server-side dry-run apply (Helm {@code --dry-run=server}) without persisting
+	 * anything. Implies {@link #dryRun}. Defaults to {@code false}.
+	 */
+	private final boolean serverDryRun;
+
+	/**
 	 * When {@code true}, skip running pre-install and post-install hooks. Defaults to
 	 * {@code false}.
 	 */

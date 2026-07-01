@@ -90,6 +90,26 @@ public interface KubeService {
 	void apply(String namespace, String yamlContent);
 
 	/**
+	 * Validates a rendered manifest against the cluster via a server-side dry-run apply
+	 * (Helm {@code --dry-run=server}). The API server admits and validates the resources
+	 * (defaulting, admission webhooks, quota) but persists nothing.
+	 * <p>
+	 * The default throws {@link UnsupportedOperationException} so that an implementation
+	 * which does not support server-side dry-run fails loudly rather than silently
+	 * applying the manifest for real. Decorators must forward this call to their
+	 * delegate.
+	 * @param namespace the target namespace
+	 * @param yamlContent rendered YAML manifest (may contain multiple documents)
+	 * @throws KubernetesOperationException if a resource fails server-side validation
+	 * @throws UnsupportedOperationException if the implementation has no server-side
+	 * dry-run support
+	 */
+	default void applyDryRun(String namespace, String yamlContent) {
+		throw new UnsupportedOperationException(
+				"server-side dry-run is not supported by this KubeService implementation");
+	}
+
+	/**
 	 * Deletes the resources described in a rendered manifest.
 	 * @param namespace the target namespace
 	 * @param yamlContent rendered YAML manifest (may contain multiple documents)

@@ -98,6 +98,14 @@ public class RetryableKubeService implements KubeService {
 	}
 
 	@Override
+	public void applyDryRun(String namespace, String yamlContent) {
+		executeWithRetry("applyDryRun", () -> {
+			delegate.applyDryRun(namespace, yamlContent);
+			return null;
+		});
+	}
+
+	@Override
 	public void delete(String namespace, String yamlContent) {
 		executeWithRetry("delete", () -> {
 			delegate.delete(namespace, yamlContent);
