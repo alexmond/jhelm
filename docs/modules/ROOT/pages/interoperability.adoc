@@ -85,9 +85,81 @@ jhelm upgrade wordpress ./wordpress -n web --set replicaCount=3
 helm rollback wordpress -n web
 ----
 
-Repository and registry configuration is shared too: jhelm reads Helm's `repositories.yaml` and
-OCI `registry/config.json` from Helm's standard paths, so `helm repo add` / `helm registry login`
-also apply to jhelm. See xref:configuration.adoc[Configuration].
+Repository and registry configuration is shared too — see the next section.
+
+[#shared-config]
+== Shared configuration with Helm
+
+jhelm reads Helm's own configuration files, at Helm's own locations, honoring the same
+`HELM_*` environment variables. In most setups there is nothing to configure: what you set up
+for `helm` already applies to `jhelm`.
+
+[cols="2,3,1"]
+|===
+| Helm setting | jhelm behaviour | Shared?
+
+| *Repositories* — `repositories.yaml`
+(`$HELM_REPOSITORY_CONFIG`, default `~/.config/helm/repositories.yaml`)
+| Reads/writes the same file. Honors `$HELM_REPOSITORY_CONFIG`; override with the
+`jhelm.config-path` property.
+| ✅ drop-in
+
+| *Registry auth* — `registry/config.json`
+(`$HELM_REGISTRY_CONFIG`, default `~/.config/helm/registry/config.json`)
+| Reads/writes the same docker-style credentials file. Honors `$HELM_REGISTRY_CONFIG`;
+override with `jhelm.registry-config-path`.
+| ✅ drop-in
+
+| *Release storage* — `sh.helm.release.v1.*` Secrets
+| Same format and location (see the release-storage section above).
+| ✅ drop-in
+
+| *Kubeconfig* — `$KUBECONFIG`, `~/.kube/config`, in-cluster
+| Uses the standard Kubernetes client resolution (`$KUBECONFIG` → `~/.kube/config` →
+in-cluster); override with `jhelm.kubernetes.kubeconfig-path`.
+| ✅ drop-in
+
+| *Repository cache* — index files
+(`$HELM_REPOSITORY_CACHE`, default `~/.cache/helm/repository`)
+| Honors `$HELM_REPOSITORY_CACHE`; otherwise uses a jhelm-native default
+(`~/.cache/jhelm/repository`) so the two tools' caches don't collide by default.
+| ⚠️ jhelm-native default, shareable via env
+
+| *Namespace* — `$HELM_NAMESPACE`, kube-context namespace
+| jhelm does not read `$HELM_NAMESPACE`; the namespace defaults to `default` and is set
+per-command with `-n`/`--namespace`.
+| ⚠️ jhelm-native
+|===
+
+Because the repository, registry, and release stores are shared, the tools interleave directly:
+
+[source,bash]
+----
+# add a repo and log in to a registry with helm
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm registry login registry.example.com -u ci -p "$TOKEN"
+
+# jhelm sees both immediately — same repositories.yaml, same registry/config.json
+jhelm search repo bitnami
+jhelm pull oci://registry.example.com/charts/app --version 1.2.3
+----
+
+To point every tool at an isolated config tree (common in CI), set the `HELM_*` variables once
+and both honor them:
+
+[source,bash]
+----
+export HELM_REPOSITORY_CONFIG=/work/helm/repositories.yaml
+export HELM_REGISTRY_CONFIG=/work/helm/registry/config.json
+export HELM_REPOSITORY_CACHE=/work/helm/cache
+# helm … and jhelm … now share this tree
+----
+
+Settings that are jhelm's own — cache tuning, security, or the paths above when you prefer a
+property over an env var — live in Spring Boot configuration (`application.yaml`, environment
+variables, or `-D`), documented in xref:configuration.adoc[Configuration]. The `HELM_*`
+variables and `jhelm.*` properties resolve in this order: explicit `jhelm.*` property >
+`HELM_*` environment variable > per-OS Helm default.
 
 == Caveats
 

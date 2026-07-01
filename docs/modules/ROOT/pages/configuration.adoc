@@ -5,6 +5,13 @@ jhelm uses Spring Boot `@ConfigurationProperties` for all configuration. Propert
 The section below is the practical "how do I set this" guide for operators; the property
 reference tables further down list every available setting.
 
+[TIP]
+====
+The repository, registry, and kubeconfig paths default to Helm's own locations and honor Helm's
+`HELM_*` environment variables, so a Helm setup drops in with no jhelm configuration. See
+xref:interoperability.adoc#shared-config[Shared configuration with Helm] for the full mapping.
+====
+
 == Configuring jhelm (for operators)
 
 The `jhelm` CLI is a Spring Boot application, so it reads the settings on this page from three
