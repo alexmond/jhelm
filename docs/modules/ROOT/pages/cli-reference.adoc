@@ -2,6 +2,12 @@
 
 jhelm provides a command-line interface built on Picocli and Spring Boot.
 
+[TIP]
+====
+Coming from Helm? See xref:cli-parity.adoc[CLI Flag Parity with Helm] for a per-command
+helm-flag → jhelm-flag mapping and a "porting a helm script" checklist.
+====
+
 [source,bash]
 ----
 java -jar jhelm-cli/target/jhelm-{jhelm-version}.jar [command] [options]

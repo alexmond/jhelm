@@ -1,0 +1,105 @@
+= CLI Flag Parity with Helm
+
+The `jhelm` CLI mirrors the Helm command set and, for the common lifecycle commands, the common
+flags — so most `helm` scripts run against `jhelm` with little or no change. This page maps the
+flags Helm users reach for most to their jhelm equivalent, and lists the gaps honestly.
+
+Status legend: ✅ same flag · ✎ supported but differs (see note) · ✗ not yet supported.
+
+== install / upgrade
+
+[cols="2,1,3"]
+|===
+| Helm flag | jhelm | Notes
+
+| `-n`, `--namespace` | ✅ | Defaults to `default` (Helm uses the kube-context namespace).
+| `-f`, `--values` | ✅ |
+| `--set`, `--set-string`, `--set-file`, `--set-json` | ✅ |
+| `--dry-run` | ✎ | Boolean; Helm's `--dry-run=client\|server` value form is not parsed.
+| `--wait` | ✅ |
+| `--timeout` | ✎ | Takes **seconds** (e.g. `--timeout 300`); Helm takes a duration (`5m0s`).
+| `--atomic` | ✅ |
+| `--no-hooks` | ✅ |
+| `--create-namespace` (install) | ✅ |
+| `--install` (upgrade `-i`) | ✅ |
+| `--reset-values`, `--reuse-values`, `--reset-then-reuse-values` (upgrade) | ✅ |
+| `--history-max` (upgrade) | ✅ |
+| `--verify`, `--keyring` | ✅ |
+| `--post-renderer` | ✅ |
+| `--force` | ✗ | Force resource replacement is not implemented.
+| `--wait-for-jobs` | ✗ | `--wait` does not yet extend to Jobs.
+| `--version`, `--repo`, `--username`/`--password` (install from a repo) | ✗ | Install from an added repo/OCI ref; inline repo+auth flags aren't wired.
+|===
+
+== uninstall
+
+[cols="2,1,3"]
+|===
+| Helm flag | jhelm | Notes
+
+| `-n`, `--namespace` | ✅ |
+| `--no-hooks` | ✅ |
+| `--keep-history` | ✅ |
+| `--wait`, `--timeout`, `--cascade` | ✗ |
+|===
+
+== list
+
+[cols="2,1,3"]
+|===
+| Helm flag | jhelm | Notes
+
+| `-n`, `--namespace` | ✅ |
+| `-o`, `--output` | ✅ | `table` (default), `json`, `yaml`. JSON/YAML use Helm's snake_case keys.
+| `-A`, `--all-namespaces` | ✗ | List is per-namespace for now.
+| `-a`, `--all`; status filters (`--deployed`, `--failed`, …); `--max`, `--filter` | ✗ |
+|===
+
+== rollback / status / history
+
+[cols="2,1,3"]
+|===
+| Command | Helm flag | jhelm
+
+| rollback | `-n`, `--no-hooks`, `--wait`, `--timeout` | ✅
+| rollback | `--force`, `--cleanup-on-fail`, `--recreate-pods`, `--wait-for-jobs` | ✗
+| status | `-n`, `--show-resources` | ✅
+| status | `--revision`, `-o/--output` | ✗
+| history | `-n` | ✅
+| history | `-o/--output`, `--max` | ✗
+|===
+
+== get
+
+`get values`, `get manifest`, `get notes`, `get hooks`, `get metadata`, `get all` all take
+`-n/--namespace` and `--revision`; `get values` and `get metadata` take `-o/--output`
+(yaml/json), and `get values` takes `-a/--all`. This mirrors Helm's `get` subcommands.
+
+== repo / registry / pull
+
+[cols="2,1,3"]
+|===
+| Command | jhelm | Notes
+
+| `repo add`, `repo list`, `repo remove` | ✅ |
+| `repo update [name...]` | ✅ | Refreshes all repos, or the named ones.
+| `repo add` auth (`--username`, `--password`, `--ca-file`) | ✗ |
+| `registry login` (`-u`, `-p`, `--password-stdin`) / `logout` | ✅ |
+| `pull` (`--version`, `-d/--dest`) | ✅ | `--untar`, `--verify`, `--repo`, auth flags: ✗
+|===
+
+== Porting a Helm script to jhelm
+
+Most scripts work unchanged. Watch for these deliberate differences:
+
+* *Namespace* — jhelm defaults to `default`; pass `-n` explicitly (jhelm does not read the
+  kube-context namespace or `$HELM_NAMESPACE`).
+* *`--timeout`* — jhelm expects **seconds** (`--timeout 300`), not a Go duration (`5m0s`).
+* *`--dry-run`* — use the bare flag; the `=client|server` value form is not parsed.
+* *`list -A`* — not supported; iterate namespaces, or pass `-n`.
+* *`--force` / `--wait-for-jobs`* — not yet supported on install/upgrade/rollback.
+* *Output* — `jhelm list -o json` and `jhelm get values -o json` produce Helm-shaped output for
+  scripts; other commands' `-o` support is still growing.
+
+For sharing repositories, registry credentials, and releases with the `helm` binary itself, see
+xref:interoperability.adoc[Interoperability with Helm].
