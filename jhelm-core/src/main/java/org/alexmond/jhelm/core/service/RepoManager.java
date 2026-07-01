@@ -699,6 +699,53 @@ public class RepoManager {
 		}
 	}
 
+	/**
+	 * Pulls a chart directly from a repository URL (Helm's {@code --repo}), fetching that
+	 * repo's {@code index.yaml} with the supplied credentials and TLS settings instead of
+	 * resolving a named repository from {@code repositories.yaml}. Backs
+	 * {@code jhelm pull --repo URL CHART --version V}.
+	 * @param repoUrl the repository base URL (its {@code index.yaml} is fetched)
+	 * @param chartName the chart name to resolve in the index
+	 * @param version the chart version (required)
+	 * @param destDir the destination directory
+	 * @param auth a repository descriptor carrying auth and TLS settings; its URL is set
+	 * to {@code repoUrl} (may be {@code null} for an anonymous pull)
+	 * @throws IOException if the index or chart cannot be downloaded
+	 */
+	public void pullFromRepoUrl(String repoUrl, String chartName, String version, String destDir,
+			RepositoryConfig.Repository auth) throws IOException {
+		if (version == null || version.isBlank()) {
+			throw new IOException("version is required when pulling with --repo");
+		}
+		RepositoryConfig.Repository repo = (auth != null) ? auth : RepositoryConfig.Repository.builder().build();
+		repo.setUrl(repoUrl);
+		String indexUrl = repoUrl.endsWith("/") ? repoUrl + "index.yaml" : repoUrl + "/index.yaml";
+		File indexTmp = File.createTempFile("jhelm-index-", ".yaml");
+		try {
+			HttpGet httpGet = new HttpGet(indexUrl);
+			httpGet.setHeader("User-Agent", "jhelm");
+			httpClientFactory.executeGet(httpGet, repo, (response) -> {
+				if (response.getCode() != 200) {
+					throw new IOException("Failed to download index from " + indexUrl + ": " + response.getCode() + " "
+							+ response.getReasonPhrase());
+				}
+				HttpEntity entity = response.getEntity();
+				if (entity != null) {
+					try (InputStream in = entity.getContent(); OutputStream out = new FileOutputStream(indexTmp)) {
+						in.transferTo(out);
+					}
+				}
+				return null;
+			});
+			String[] indexEntry = lookupChartInIndex(indexTmp, chartName, version);
+			String chartUrl = resolveChartUrl((indexEntry != null) ? indexEntry[0] : null, repoUrl, chartName, version);
+			pullFromUrl(chartUrl, destDir, chartName + "-" + version + ".tgz", repo);
+		}
+		finally {
+			Files.deleteIfExists(indexTmp.toPath());
+		}
+	}
+
 	String[] lookupChartInIndex(File indexFile, String chartName, String version) throws IOException {
 		if (!indexFile.exists()) {
 			return null;

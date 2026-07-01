@@ -85,7 +85,9 @@ Status legend: ✅ same flag · ✎ supported but differs (see note) · ✗ not 
 | `repo update [name...]` | ✅ | Refreshes all repos, or the named ones.
 | `repo add` auth (`--username`, `--password`, `--ca-file`) | ✗ |
 | `registry login` (`-u`, `-p`, `--password-stdin`) / `logout` | ✅ |
-| `pull` (`--version`, `-d/--dest`) | ✅ | `--untar`, `--verify`, `--repo`, auth flags: ✗
+| `pull` (`--version`, `-d/--dest`) | ✅ |
+| `pull --repo URL` + auth/TLS (`--username`, `--password`, `--cert-file`, `--key-file`, `--ca-file`, `--insecure-skip-tls-verify`, `--pass-credentials`) | ✅ | Pull a chart directly from a repository URL with inline credentials, without a prior `repo add`.
+| `pull` (`--untar`, `--verify`) | ✗ | Charts are unpacked into `--dest`; provenance verification not yet wired.
 |===
 
 == Porting a Helm script to jhelm

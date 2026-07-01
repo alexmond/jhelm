@@ -368,6 +368,34 @@ class RepoManagerTest {
 	}
 
 	@Test
+	void testPullFromRepoUrl() throws Exception {
+		RepoManager rm = new RepoManager();
+		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
+		rm.setHttpClientForTest(mockClient);
+		byte[] tgz = createMinimalTgz();
+		String index = """
+				entries:
+				  mychart:
+				    - version: "1.0.0"
+				      urls:
+				        - "https://charts.example.com/mychart-1.0.0.tgz"
+				""";
+		when(mockClient.execute(isA(HttpGet.class), any(HttpClientResponseHandler.class)))
+			.thenAnswer(httpAnswer(200, index.getBytes(StandardCharsets.UTF_8)))
+			.thenAnswer(httpAnswer(200, tgz));
+		RepositoryConfig.Repository auth = RepositoryConfig.Repository.builder().username("u").password("p").build();
+		rm.pullFromRepoUrl("https://charts.example.com", "mychart", "1.0.0", tempDir.toString(), auth);
+		assertTrue(tempDir.resolve("mychart-1.0.0.tgz").toFile().exists());
+	}
+
+	@Test
+	void testPullFromRepoUrlRequiresVersion() {
+		RepoManager rm = new RepoManager();
+		assertThrows(java.io.IOException.class,
+				() -> rm.pullFromRepoUrl("https://charts.example.com", "mychart", null, tempDir.toString(), null));
+	}
+
+	@Test
 	void testPullOci() throws Exception {
 		RepoManager rm = new RepoManager();
 		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
