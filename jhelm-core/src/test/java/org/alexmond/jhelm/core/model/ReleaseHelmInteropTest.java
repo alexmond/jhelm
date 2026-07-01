@@ -1,6 +1,10 @@
 package org.alexmond.jhelm.core.model;
 
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -85,6 +89,78 @@ class ReleaseHelmInteropTest {
 		assertEquals(ReleaseStatus.DEPLOYED, r.getInfo().getStatus());
 		assertNotNull(r.getConfig());
 		assertEquals(5, r.getConfig().getValues().get("replicaCount"));
+	}
+
+	@Test
+	void encodesChartTemplatesAndFilesInHelmFormat() {
+		HelmReleaseCodec codec = new HelmReleaseCodec();
+		ObjectNode root = (ObjectNode) this.mapper.readTree(codec.toJson(sampleReleaseWithChart()));
+		ObjectNode chart = (ObjectNode) root.get("chart");
+		// Helm stores chart file bytes base64-encoded
+		String expectedTemplate = Base64.getEncoder()
+			.encodeToString("apiVersion: apps/v1".getBytes(StandardCharsets.UTF_8));
+		assertEquals(expectedTemplate, chart.get("templates").get(0).get("data").asString());
+		// files: Helm uses an array of {name, data(base64)}, not jhelm's map
+		assertTrue(chart.get("files").isArray(), chart.get("files").toString());
+		assertEquals("NOTES.txt", chart.get("files").get(0).get("name").asString());
+		// values schema: Helm's field is "schema" (base64), not "valuesSchema"
+		assertFalse(chart.has("valuesSchema"), chart.toString());
+		assertEquals(Base64.getEncoder().encodeToString("{}".getBytes(StandardCharsets.UTF_8)),
+				chart.get("schema").asString());
+	}
+
+	@Test
+	void roundTripsChartThroughHelmStorageFormat() {
+		HelmReleaseCodec codec = new HelmReleaseCodec();
+		Release back = codec.fromJson(codec.toJson(sampleReleaseWithChart()));
+		Chart chart = back.getChart();
+		assertNotNull(chart);
+		// raw text is restored for the in-memory model the engine renders from
+		assertEquals("apiVersion: apps/v1", chart.getTemplates().get(0).getData());
+		assertEquals("templates/deployment.yaml", chart.getTemplates().get(0).getName());
+		assertEquals("hello", chart.getFiles().get("NOTES.txt"));
+		assertEquals("{}", chart.getValuesSchema());
+	}
+
+	@Test
+	void readsAHelmShapedChartPayload() {
+		// A chart embedded as the Helm CLI writes it: base64 template/file data, files as
+		// an
+		// array, schema base64. jhelm must decode it back to raw text.
+		String rawTemplate = "kind: Deployment";
+		String helmChartJson = """
+				{
+				  "name": "app", "namespace": "default", "version": 1,
+				  "chart": {
+				    "metadata": { "name": "app", "version": "1.0.0", "apiVersion": "v2" },
+				    "templates": [ { "name": "templates/deployment.yaml", "data": "%s" } ],
+				    "files": [ { "name": "README.md", "data": "%s" } ],
+				    "schema": "%s"
+				  }
+				}
+				""".formatted(b64(rawTemplate), b64("readme body"), b64("{\"type\":\"object\"}"));
+		Release r = new HelmReleaseCodec().fromJson(helmChartJson.getBytes(StandardCharsets.UTF_8));
+		assertEquals(rawTemplate, r.getChart().getTemplates().get(0).getData());
+		assertEquals("readme body", r.getChart().getFiles().get("README.md"));
+		assertEquals("{\"type\":\"object\"}", r.getChart().getValuesSchema());
+	}
+
+	private static String b64(String raw) {
+		return Base64.getEncoder().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+	}
+
+	private Release sampleReleaseWithChart() {
+		Map<String, String> files = new LinkedHashMap<>();
+		files.put("NOTES.txt", "hello");
+		Chart chart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("demo").version("1.0.0").apiVersion("v2").build())
+			.templates(List
+				.of(Chart.Template.builder().name("templates/deployment.yaml").data("apiVersion: apps/v1").build()))
+			.values(Map.of("replicaCount", 2))
+			.valuesSchema("{}")
+			.files(files)
+			.build();
+		return sampleRelease().toBuilder().chart(chart).build();
 	}
 
 	private Release sampleRelease() {
