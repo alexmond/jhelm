@@ -4,7 +4,7 @@ version: master
 start_page: ROOT:index.adoc
 asciidoc:
   attributes:
-    jhelm-version: 0.4.1
+    jhelm-version: 0.6.0
     toc: left
     sectnums: ''
     keywords: 'Helm, Java, Kubernetes, Spring Boot, Chart management, Template engine'
