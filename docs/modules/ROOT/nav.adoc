@@ -7,6 +7,7 @@
 * xref:mcp.adoc[MCP Server]
 * xref:cli-reference.adoc[CLI Reference]
 * xref:configuration.adoc[Configuration]
+* xref:interoperability.adoc[Interoperability with Helm]
 * xref:security.adoc[Security]
 * xref:core-engine.adoc[Core Engine]
 * xref:performance.adoc[Performance]

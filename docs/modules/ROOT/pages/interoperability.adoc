@@ -1,0 +1,102 @@
+= Interoperability with Helm
+
+jhelm and the Go `helm` CLI are *interchangeable at the release-storage layer*: they read and
+write the same on-cluster release records, so you can install a release with one tool and
+list, inspect, upgrade, roll back, or uninstall it with the other. This page documents what is
+compatible, how to switch between the tools, and the current caveats.
+
+[NOTE]
+====
+This interoperability is covered by a two-way integration suite
+(`HelmTwoWayInteropIntegrationTest`) that runs against a real cluster and the real `helm`
+binary in CI, so it does not silently regress. See xref:development.adoc[Development Guide] for
+running the integration tests.
+====
+
+== Release storage format
+
+Helm stores each release revision in a Kubernetes `Secret` in the release's namespace. jhelm
+writes byte-compatible records:
+
+[cols="1,3"]
+|===
+| Aspect | Value
+
+| Secret name
+| `sh.helm.release.v1.<release>.v<revision>` (e.g. `sh.helm.release.v1.wordpress.v3`)
+
+| Secret type
+| `helm.sh/release.v1`
+
+| Labels
+| `owner=helm`, `name=<release>`, `status=<status>`, `version=<revision>` — these are what
+  `helm list` and jhelm's list query on.
+
+| Payload (`data.release`)
+| The release record as JSON, gzip-compressed, then base64-encoded (the Kubernetes client adds
+  its own base64 layer on top).
+|===
+
+The JSON payload follows Helm's release schema:
+
+* release `info` timestamps are the snake_case `first_deployed` / `last_deployed`;
+* `config` (the user-supplied values) is a bare map, exactly what `helm get values` returns;
+* `status` uses Helm's wire strings (`deployed`, `superseded`, `pending-install`, …);
+* empty fields are omitted (`omitempty`), and fields Helm writes but jhelm does not model
+  (e.g. `hooks`, `labels`) are tolerated on read;
+* the embedded `chart` matches Helm's chart JSON — template and file content is base64-encoded,
+  `files` is a `[{name, data}]` array, and the values schema is the base64 `schema` field.
+
+== What works across both tools
+
+Given the same cluster and namespace (jhelm uses your active kubeconfig, just like `helm`):
+
+[cols="1,1,3"]
+|===
+| Installed by | Managed by | Works
+
+| jhelm | `helm` | `helm list`, `helm status`, `helm get values/manifest/notes`, `helm history`,
+  `helm upgrade`, `helm rollback`, `helm uninstall`
+
+| `helm` | jhelm | list, `get` (values/manifest/notes), status, history, upgrade, rollback,
+  uninstall — jhelm decodes Helm's release record, including the embedded chart
+|===
+
+Because revisions are shared, you can interleave the tools freely — for example install with
+`helm`, upgrade with jhelm, then roll back with `helm` again. Each tool writes the next revision
+in the shared format and supersedes the previous one.
+
+== Switching between the tools
+
+There is nothing to migrate or import. Point both tools at the same cluster/namespace and they
+operate on the same releases:
+
+[source,bash]
+----
+# install with helm
+helm install wordpress ./wordpress -n web
+
+# inspect and upgrade the same release with jhelm
+jhelm list -n web
+jhelm status wordpress -n web
+jhelm upgrade wordpress ./wordpress -n web --set replicaCount=3
+
+# roll back with helm
+helm rollback wordpress -n web
+----
+
+Repository and registry configuration is shared too: jhelm reads Helm's `repositories.yaml` and
+OCI `registry/config.json` from Helm's standard paths, so `helm repo add` / `helm registry login`
+also apply to jhelm. See xref:configuration.adoc[Configuration].
+
+== Caveats
+
+* *jhelm-only chart fields.* jhelm's in-memory chart carries a few fields that are not part of
+  Helm's chart schema (for example a separate CRD list); Helm ignores unknown fields, so they do
+  not break `helm`, but they are not surfaced by it either.
+* *Hooks.* Hook records that Helm stores in the release are preserved on read but are not yet
+  modelled by jhelm; they round-trip as-is when jhelm rewrites a release.
+* *Helm 3 format.* The `helm.sh/release.v1` Secret format targets Helm 3. Helm 2's ConfigMap /
+  Tiller storage is not supported.
+
+For the exact model, see the `Release` and `HelmReleaseCodec` types in `jhelm-core`.
