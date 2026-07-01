@@ -86,7 +86,7 @@
                 in addition to the parent's BUNDLE LINE >= 0.75 gate. LINE alone is weak
                 for these: a fully-line-covered method can leave half its conditional
                 branches untested. These minimums are ratchet floors set just below the
-                current measured branch coverage (action 76%, service 65%) — they block
+                current measured branch coverage (action 76%, service 66%) — they block
                 regression today and are raised as the negative/error-path tests land.
             -->
             <plugin>
@@ -122,7 +122,7 @@
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.60</minimum>
+                                            <minimum>0.65</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
