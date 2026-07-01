@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.unit.DataSize;
 
 /**
  * Configuration properties for the jhelm REST API module.
@@ -28,6 +29,12 @@ public class JhelmRestProperties {
 	 * Base directory for temporary files. Defaults to the system temp directory.
 	 */
 	private Path tempDir;
+
+	/**
+	 * Maximum size of an uploaded chart archive (applied to both the multipart file and
+	 * the whole request), capping upload-based resource use. Defaults to 100 MB.
+	 */
+	private DataSize maxUploadSize = DataSize.ofMegabytes(100);
 
 	/**
 	 * Returns the configured temp directory, or the system default if not set. The

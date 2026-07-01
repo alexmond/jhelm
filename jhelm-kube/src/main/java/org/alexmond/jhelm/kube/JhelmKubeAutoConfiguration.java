@@ -13,13 +13,18 @@ import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
 import org.alexmond.jhelm.kube.service.AsyncHelmKubeService;
 import org.alexmond.jhelm.kube.service.KubeClient;
+import org.alexmond.jhelm.kube.service.KubernetesHealthIndicator;
 import org.alexmond.jhelm.kube.service.ObservableKubeService;
 import org.alexmond.jhelm.kube.service.RetryableKubeService;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
 import java.time.Duration;
@@ -123,6 +128,32 @@ public class JhelmKubeAutoConfiguration {
 			.predicate(RetryableKubeService::isTransient)
 			.build();
 		return new RetryTemplate(policy);
+	}
+
+	/**
+	 * Kubernetes health-indicator configuration, isolated in a nested class guarded by
+	 * {@link ConditionalOnClass} so the actuator {@code HealthIndicator} type is only
+	 * referenced when Spring Boot Actuator is on the classpath. This keeps the enclosing
+	 * {@link JhelmKubeAutoConfiguration} introspectable by consumers (e.g. the CLI) that
+	 * do not depend on actuator.
+	 */
+	@Configuration(proxyBeanMethods = false)
+	@ConditionalOnClass(HealthIndicator.class)
+	static class KubernetesHealthContributorConfiguration {
+
+		/**
+		 * Registers a Kubernetes connectivity health indicator reporting up/down based on
+		 * reaching the cluster {@code /version} endpoint.
+		 * @param kubeClient the client wrapper to probe
+		 * @return the health indicator bean
+		 */
+		@Bean
+		@ConditionalOnBean(KubeClient.class)
+		@ConditionalOnMissingBean(KubernetesHealthIndicator.class)
+		KubernetesHealthIndicator kubernetesHealthIndicator(KubeClient kubeClient) {
+			return new KubernetesHealthIndicator(kubeClient);
+		}
+
 	}
 
 }
