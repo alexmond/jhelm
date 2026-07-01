@@ -100,6 +100,10 @@ public class UpgradeCommand implements Runnable {
 	@Option(names = { "--atomic" }, description = "rollback on failure (implies --wait)")
 	private boolean atomic;
 
+	@Option(names = { "--force" }, description = "force resource updates through a delete-and-recreate strategy "
+			+ "(may cause downtime or data loss for stateful resources)")
+	private boolean force;
+
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
 
@@ -249,6 +253,7 @@ public class UpgradeCommand implements Runnable {
 			.dryRun(dryRunEnabled)
 			.noHooks(noHooks)
 			.maxHistory(historyMax)
+			.force(force)
 			.build();
 	}
 

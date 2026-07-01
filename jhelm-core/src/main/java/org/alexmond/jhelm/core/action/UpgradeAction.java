@@ -135,6 +135,12 @@ public class UpgradeAction {
 		if (!noHooks) {
 			runHooks(hookExecutor, newRelease.getNamespace(), hooks, "pre-upgrade");
 		}
+		if (options.isForce()) {
+			if (log.isInfoEnabled()) {
+				log.info("--force: deleting existing resources of release {} before recreation", newRelease.getName());
+			}
+			kubeService.delete(newRelease.getNamespace(), regularManifest);
+		}
 		kubeService.apply(newRelease.getNamespace(), regularManifest);
 		try {
 			kubeService.storeRelease(newRelease);

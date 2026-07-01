@@ -60,4 +60,11 @@ public final class UpgradeOptions {
 	@Builder.Default
 	private final int maxHistory = 10;
 
+	/**
+	 * When {@code true}, force resource updates through a delete-and-recreate strategy
+	 * (Helm {@code --force}): existing resources are deleted before the new manifest is
+	 * applied, rather than patched in place. Defaults to {@code false}.
+	 */
+	private final boolean force;
+
 }
