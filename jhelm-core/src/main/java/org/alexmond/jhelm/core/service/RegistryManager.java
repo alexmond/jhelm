@@ -70,6 +70,15 @@ public class RegistryManager {
 				System.getProperty("os.name"));
 	}
 
+	/**
+	 * Returns the effective registry {@code config.json} path this manager reads and
+	 * writes.
+	 * @return the registry config path
+	 */
+	public String getConfigPath() {
+		return this.configPath;
+	}
+
 	public void login(String registry, String username, String password) throws IOException {
 		Config config = loadConfig();
 		String auth = Base64.getEncoder().encodeToString((username + ":" + password).getBytes());
