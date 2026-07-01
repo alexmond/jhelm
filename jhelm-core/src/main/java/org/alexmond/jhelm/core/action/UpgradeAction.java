@@ -113,6 +113,11 @@ public class UpgradeAction {
 		if (kubeService != null && !options.isDryRun()) {
 			applyRelease(options, currentRelease, newRelease, manifest);
 		}
+		else if (kubeService != null && options.isServerDryRun()) {
+			// server-side dry-run: validate against the API server without persisting the
+			// release or running hooks
+			kubeService.applyDryRun(newRelease.getNamespace(), HookParser.stripHooks(manifest));
+		}
 
 		return newRelease;
 	}

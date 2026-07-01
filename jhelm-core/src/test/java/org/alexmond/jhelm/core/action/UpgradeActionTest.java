@@ -160,6 +160,41 @@ class UpgradeActionTest {
 	}
 
 	@Test
+	void testUpgradeServerDryRunValidatesWithoutPersisting() throws Exception {
+		Chart oldChart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(oldChart)
+			.info(Release.ReleaseInfo.builder().status(ReleaseStatus.DEPLOYED).build())
+			.build();
+		Chart newChart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("2.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		String renderedManifest = "---\napiVersion: v1\nkind: Service";
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class))).thenReturn(renderedManifest);
+
+		upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(newChart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.dryRun(true)
+			.serverDryRun(true)
+			.build());
+
+		// server-side dry-run validates against the API server but never applies or
+		// stores
+		verify(kubeService).applyDryRun("default", HookParser.stripHooks(renderedManifest));
+		verify(kubeService, never()).apply(anyString(), anyString());
+		verify(kubeService, never()).storeRelease(any(Release.class));
+	}
+
+	@Test
 	void testUpgradeWithoutForceDoesNotDelete() throws Exception {
 		Chart oldChart = Chart.builder()
 			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").build())

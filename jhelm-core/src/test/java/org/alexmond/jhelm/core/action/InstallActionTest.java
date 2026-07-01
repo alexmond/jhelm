@@ -141,6 +141,31 @@ class InstallActionTest {
 	}
 
 	@Test
+	void testInstallServerDryRunValidatesWithoutPersisting() throws Exception {
+		Chart chart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class))).thenReturn("---\nkind: ConfigMap\n");
+
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.dryRun(true)
+			.serverDryRun(true)
+			.build());
+
+		assertEquals(ReleaseStatus.PENDING_INSTALL, release.getInfo().getStatus());
+		// server-side dry-run validates against the API server but never applies or
+		// stores
+		verify(kubeService).applyDryRun("default", HookParser.stripHooks("---\nkind: ConfigMap\n"));
+		verify(kubeService, never()).apply(anyString(), anyString());
+		verify(kubeService, never()).storeRelease(any(Release.class));
+	}
+
+	@Test
 	void testInstallRunsHooksAndStripsManifest() throws Exception {
 		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();

@@ -85,6 +85,12 @@ class RetryableKubeServiceTest {
 	}
 
 	@Test
+	void testApplyDryRunDelegatesToWrapped() throws Exception {
+		retryableService.applyDryRun("default", "yaml-content");
+		verify(delegate).applyDryRun("default", "yaml-content");
+	}
+
+	@Test
 	void testDeleteDelegatesToWrapped() throws Exception {
 		retryableService.delete("default", "yaml-content");
 		verify(delegate).delete("default", "yaml-content");

@@ -111,6 +111,7 @@ class UpgradeCommandTest {
 
 		verify(upgradeAction).upgrade(opts.capture());
 		assertTrue(opts.getValue().isDryRun());
+		assertTrue(opts.getValue().isServerDryRun());
 		verify(kubeService, never()).waitForReady(anyString(), anyString(), anyInt());
 	}
 

@@ -113,35 +113,53 @@ public class InstallAction {
 		release = release.toBuilder().manifest(manifest).build();
 
 		if (kubeService != null && !options.isDryRun()) {
-			String namespace = options.getNamespace();
-			boolean noHooks = options.isNoHooks();
-			if (options.isCreateNamespace()) {
-				kubeService.ensureNamespace(namespace);
-			}
-			applyCrds(chart, namespace);
-			fireLifecycleEvent(LifecyclePhase.PRE_INSTALL, options.getReleaseName(), namespace);
-			String regularManifest = HookParser.stripHooks(manifest);
-			List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
-			HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
-			if (!noHooks) {
-				runHooks(hookExecutor, namespace, hooks, "pre-install");
-			}
-			kubeService.apply(namespace, regularManifest);
-			try {
-				kubeService.storeRelease(release);
-			}
-			catch (Exception ex) {
-				rollbackAppliedResources(namespace, regularManifest);
-				throw new DeploymentFailedException("Failed to store release after apply; resources rolled back", ex,
-						regularManifest);
-			}
-			if (!noHooks) {
-				runHooks(hookExecutor, namespace, hooks, "post-install");
-			}
-			fireLifecycleEvent(LifecyclePhase.POST_INSTALL, options.getReleaseName(), namespace);
+			applyRelease(options, chart, release, manifest);
+		}
+		else if (kubeService != null && options.isServerDryRun()) {
+			// server-side dry-run: validate against the API server without persisting the
+			// release or running hooks
+			kubeService.applyDryRun(options.getNamespace(), HookParser.stripHooks(manifest));
 		}
 
 		return release;
+	}
+
+	/**
+	 * Applies a non-dry-run install to the cluster: ensures the namespace, applies CRDs,
+	 * runs pre-install hooks, applies the hook-stripped manifest, stores the release
+	 * (rolling back applied resources on failure) and runs post-install hooks.
+	 * @param options the install options
+	 * @param chart the chart being installed (for CRDs)
+	 * @param release the release being applied
+	 * @param manifest the full rendered manifest (hooks not yet stripped)
+	 */
+	private void applyRelease(InstallOptions options, Chart chart, Release release, String manifest) {
+		String namespace = options.getNamespace();
+		boolean noHooks = options.isNoHooks();
+		if (options.isCreateNamespace()) {
+			kubeService.ensureNamespace(namespace);
+		}
+		applyCrds(chart, namespace);
+		fireLifecycleEvent(LifecyclePhase.PRE_INSTALL, options.getReleaseName(), namespace);
+		String regularManifest = HookParser.stripHooks(manifest);
+		List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
+		HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
+		if (!noHooks) {
+			runHooks(hookExecutor, namespace, hooks, "pre-install");
+		}
+		kubeService.apply(namespace, regularManifest);
+		try {
+			kubeService.storeRelease(release);
+		}
+		catch (Exception ex) {
+			rollbackAppliedResources(namespace, regularManifest);
+			throw new DeploymentFailedException("Failed to store release after apply; resources rolled back", ex,
+					regularManifest);
+		}
+		if (!noHooks) {
+			runHooks(hookExecutor, namespace, hooks, "post-install");
+		}
+		fireLifecycleEvent(LifecyclePhase.POST_INSTALL, options.getReleaseName(), namespace);
 	}
 
 	private String runPostRenderProcessors(String manifest) {
