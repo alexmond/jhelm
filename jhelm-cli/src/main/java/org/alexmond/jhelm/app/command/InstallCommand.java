@@ -1,6 +1,5 @@
 package org.alexmond.jhelm.app.command;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +12,6 @@ import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
-import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
@@ -37,13 +35,19 @@ public class InstallCommand implements Runnable {
 
 	private final KubeService kubeService;
 
-	private final ChartLoader chartLoader;
+	private final ChartResolver chartResolver;
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
 
 	@CommandLine.Parameters(index = "1", description = "chart path")
 	private String chartPath;
+
+	@Option(names = { "--verify" }, description = "verify the packaged chart's provenance before installing")
+	private boolean verify;
+
+	@Option(names = { "--keyring" }, description = "path to the PGP public keyring file (for --verify)")
+	private String keyring;
 
 	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
@@ -89,20 +93,21 @@ public class InstallCommand implements Runnable {
 	 * @param installAction the action that performs the install
 	 * @param uninstallAction the action used to roll back when {@code --atomic} is set
 	 * @param kubeService the Kubernetes service used to wait for resource readiness
-	 * @param chartLoader the loader that reads the chart from disk
+	 * @param chartResolver resolves the chart source (directory or {@code .tgz}), with
+	 * optional provenance verification
 	 */
 	public InstallCommand(InstallAction installAction, UninstallAction uninstallAction, KubeService kubeService,
-			ChartLoader chartLoader) {
+			ChartResolver chartResolver) {
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
 		this.kubeService = kubeService;
-		this.chartLoader = chartLoader;
+		this.chartResolver = chartResolver;
 	}
 
 	@Override
 	public void run() {
 		try {
-			Chart chart = chartLoader.load(new File(chartPath));
+			Chart chart = chartResolver.resolve(chartPath, verify, keyring);
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
 					setFileValues, setJsonValues);
 

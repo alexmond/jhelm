@@ -1,6 +1,5 @@
 package org.alexmond.jhelm.app.command;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +18,6 @@ import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
-import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
@@ -47,13 +45,19 @@ public class UpgradeCommand implements Runnable {
 
 	private final RollbackAction rollbackAction;
 
-	private final ChartLoader chartLoader;
+	private final ChartResolver chartResolver;
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
 
 	@CommandLine.Parameters(index = "1", description = "chart path")
 	private String chartPath;
+
+	@Option(names = { "--verify" }, description = "verify the packaged chart's provenance before upgrading")
+	private boolean verify;
+
+	@Option(names = { "--keyring" }, description = "path to the PGP public keyring file (for --verify)")
+	private String keyring;
 
 	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
@@ -120,16 +124,17 @@ public class UpgradeCommand implements Runnable {
 	 * @param upgradeAction the action that performs the upgrade
 	 * @param rollbackAction the action used to roll back to the previous revision on
 	 * atomic failure
-	 * @param chartLoader the loader that reads the chart from disk
+	 * @param chartResolver resolves the chart source (directory or {@code .tgz}), with
+	 * optional provenance verification
 	 */
 	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UninstallAction uninstallAction,
-			UpgradeAction upgradeAction, RollbackAction rollbackAction, ChartLoader chartLoader) {
+			UpgradeAction upgradeAction, RollbackAction rollbackAction, ChartResolver chartResolver) {
 		this.kubeService = kubeService;
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
 		this.upgradeAction = upgradeAction;
 		this.rollbackAction = rollbackAction;
-		this.chartLoader = chartLoader;
+		this.chartResolver = chartResolver;
 	}
 
 	@Override
@@ -138,7 +143,7 @@ public class UpgradeCommand implements Runnable {
 		boolean wasInstall = false;
 		try {
 			Optional<Release> currentReleaseOpt = kubeService.getRelease(name, namespace);
-			Chart chart = chartLoader.load(new File(chartPath));
+			Chart chart = chartResolver.resolve(chartPath, verify, keyring);
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
 					setFileValues, setJsonValues);
 
