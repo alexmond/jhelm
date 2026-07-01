@@ -106,9 +106,9 @@ public class JhelmRestAutoConfiguration {
 	}
 
 	/**
-	 * Caps multipart uploads (chart archives) at
-	 * {@link JhelmRestProperties#getMaxUploadSize()}, registered before Spring Boot's own
-	 * so the module default applies unless the application defines its own
+	 * Caps multipart uploads (chart archives) at the configured {@code maxUploadSize}
+	 * (see {@link JhelmRestProperties}), registered before Spring Boot's own so the
+	 * module default applies unless the application defines its own
 	 * {@link MultipartConfigElement}.
 	 * @param properties REST module configuration providing the upload cap
 	 * @return the multipart configuration bean

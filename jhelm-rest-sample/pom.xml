@@ -11,6 +11,11 @@
 	<name>jhelm-rest-sample</name>
 	<description>Sample Spring Boot application with jhelm REST API and Swagger UI</description>
 
+	<properties>
+		<!-- Not published; skip Javadoc (and its doclint enforcement) for the sample. -->
+		<maven.javadoc.skip>true</maven.javadoc.skip>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.alexmond</groupId>
