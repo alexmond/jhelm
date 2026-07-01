@@ -31,7 +31,10 @@ jobs:
           version: v3.14.2
 
       - name: Build with Maven
-        run: ./mvnw clean install -B --fail-at-end
+        # redirectTestOutputToFile keeps the per-chart rendered manifests out of the
+        # surefire system-out (jhelm's tests embed full charts — GBs of XML otherwise),
+        # which is what let the junit upload below widen to every module.
+        run: ./mvnw clean install -B --fail-at-end -DredirectTestOutputToFile=true
 
       - name: Report tests + coverage to UniTrack
         if: always()
@@ -41,12 +44,11 @@ jobs:
           token: ${{ secrets.UNITRACK_TOKEN }}
           # soft-fail: reporting to UniTrack must never fail the build.
           split-by-module: "true"
-          # jhelm's tests embed full rendered charts in surefire system-out — ~GBs of XML,
-          # >100MB even gzipped. Until surefire <redirectTestOutputToFile>true</...> trims that
-          # (or you shard per-module with a shared run-key), upload coverage for everything plus
-          # tests from one small module; widen `junit` to **/ afterwards.
+          # The build runs with -DredirectTestOutputToFile=true, so the per-chart rendered
+          # manifests no longer bloat the surefire system-out — the junit upload can now
+          # cover every module instead of a single small one.
           soft-fail: "true"
-          junit: 'jhelm-gotemplate-helm/**/surefire-reports/TEST-*.xml'
+          junit: '**/surefire-reports/TEST-*.xml'
           jacoco: '**/target/site/jacoco/jacoco.xml'
 
 #      - name: Publish Test Results
@@ -64,10 +66,12 @@ jobs:
             ${{ github.workspace }}/jhelm-core/target/site/jacoco/jacoco.xml,
             ${{ github.workspace }}/jhelm-kube/target/site/jacoco/jacoco.xml,
             ${{ github.workspace }}/jhelm-cli/target/site/jacoco/jacoco.xml,
-            ${{ github.workspace }}/jhelm-gotemplate/target/site/jacoco/jacoco.xml
+            ${{ github.workspace }}/jhelm-rest/target/site/jacoco/jacoco.xml,
+            ${{ github.workspace }}/jhelm-gotemplate-helm/target/site/jacoco/jacoco.xml
           token: ${{ secrets.GITHUB_TOKEN }}
-          min-coverage-overall: 40
-          min-coverage-changed-files: 60
+          # Aligned with the JaCoCo build gate (BUNDLE LINE >= 0.75).
+          min-coverage-overall: 75
+          min-coverage-changed-files: 75
 
       - name: Add coverage to PR
         if: ${{ !cancelled() }}
@@ -78,7 +82,8 @@ jobs:
             ${{ github.workspace }}/jhelm-core/target/site/jacoco/jacoco.xml,
             ${{ github.workspace }}/jhelm-kube/target/site/jacoco/jacoco.xml,
             ${{ github.workspace }}/jhelm-cli/target/site/jacoco/jacoco.xml,
-            ${{ github.workspace }}/jhelm-gotemplate/target/site/jacoco/jacoco.xml
+            ${{ github.workspace }}/jhelm-rest/target/site/jacoco/jacoco.xml,
+            ${{ github.workspace }}/jhelm-gotemplate-helm/target/site/jacoco/jacoco.xml
           fail_ci_if_error: true
 
       - name: Upload test results to Codecov
