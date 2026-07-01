@@ -123,8 +123,25 @@ public class RepoManager {
 	}
 
 	private static String resolveDefaultConfigPath() {
-		String home = System.getProperty("user.home");
-		String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+		return resolveConfigPath(System.getenv("HELM_REPOSITORY_CONFIG"), System.getProperty("user.home"),
+				System.getProperty("os.name"));
+	}
+
+	/**
+	 * Resolves the repositories.yaml path the way Helm does:
+	 * {@code $HELM_REPOSITORY_CONFIG} when set, otherwise the per-OS Helm default.
+	 * Package-private for testing.
+	 * @param helmRepositoryConfig the value of {@code $HELM_REPOSITORY_CONFIG} (may be
+	 * {@code null})
+	 * @param home the user home directory
+	 * @param osName the OS name
+	 * @return the resolved repositories.yaml path
+	 */
+	static String resolveConfigPath(String helmRepositoryConfig, String home, String osName) {
+		if (helmRepositoryConfig != null && !helmRepositoryConfig.isBlank()) {
+			return helmRepositoryConfig;
+		}
+		String os = osName.toLowerCase(Locale.ROOT);
 		if (os.contains("mac")) {
 			return Paths.get(home, "Library/Preferences/helm/repositories.yaml").toString();
 		}
@@ -208,20 +225,34 @@ public class RepoManager {
 	}
 
 	private File getCacheDir() {
-		String home = System.getProperty("user.home");
-		String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-		File base;
-		if (os.contains("mac")) {
-			base = Paths.get(home, "Library/Caches/jhelm/repository").toFile();
-		}
-		else if (os.contains("win")) {
-			base = Paths.get(System.getenv("LOCALAPPDATA"), "jhelm/repository").toFile();
-		}
-		else {
-			base = Paths.get(home, ".cache/jhelm/repository").toFile();
-		}
+		File base = resolveCacheDir(System.getenv("HELM_REPOSITORY_CACHE"), System.getProperty("user.home"),
+				System.getProperty("os.name"));
 		base.mkdirs();
 		return base;
+	}
+
+	/**
+	 * Resolves the repository index cache directory: {@code $HELM_REPOSITORY_CACHE} when
+	 * set (so it can be shared with Helm), otherwise a per-OS jhelm-native default.
+	 * Package-private for testing.
+	 * @param helmRepositoryCache the value of {@code $HELM_REPOSITORY_CACHE} (may be
+	 * {@code null})
+	 * @param home the user home directory
+	 * @param osName the OS name
+	 * @return the resolved cache directory
+	 */
+	static File resolveCacheDir(String helmRepositoryCache, String home, String osName) {
+		if (helmRepositoryCache != null && !helmRepositoryCache.isBlank()) {
+			return Paths.get(helmRepositoryCache).toFile();
+		}
+		String os = osName.toLowerCase(Locale.ROOT);
+		if (os.contains("mac")) {
+			return Paths.get(home, "Library/Caches/jhelm/repository").toFile();
+		}
+		if (os.contains("win")) {
+			return Paths.get(System.getenv("LOCALAPPDATA"), "jhelm/repository").toFile();
+		}
+		return Paths.get(home, ".cache/jhelm/repository").toFile();
 	}
 
 	// A repository name is used directly as a filename component for its on-disk index
