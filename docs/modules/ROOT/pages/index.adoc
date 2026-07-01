@@ -1,4 +1,5 @@
 = jhelm -- Java Implementation of Helm
+:description: Native Java implementation of Helm — render charts, manage releases, and template without the Go binary. Embeddable library, Spring Boot starter, REST API, and CLI.
 
 jhelm is a native Java implementation of the https://helm.sh[Helm] package manager for Kubernetes.
 It provides an embeddable library, a Spring Boot starter, a REST API, and a standalone CLI to
