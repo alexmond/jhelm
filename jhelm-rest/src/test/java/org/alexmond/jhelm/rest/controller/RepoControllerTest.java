@@ -63,7 +63,7 @@ class RepoControllerTest {
 						{"url": "https://charts.bitnami.com/bitnami"}
 						"""))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("name is required"));
+			.andExpect(jsonPath("$.detail").value("name is required"));
 	}
 
 	@Test
@@ -157,7 +157,7 @@ class RepoControllerTest {
 				.accept(MediaType.APPLICATION_JSON)
 				.content("{}"))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("chart is required"));
+			.andExpect(jsonPath("$.detail").value("chart is required"));
 	}
 
 	@Test
@@ -186,7 +186,7 @@ class RepoControllerTest {
 
 		this.mockMvc.perform(multipart("/api/v1/repos/push").file(chartFile).param("remote", ""))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("remote is required"));
+			.andExpect(jsonPath("$.detail").value("remote is required"));
 	}
 
 }

@@ -162,7 +162,7 @@ class ReleaseControllerTest {
 						{"releaseName": "my-release"}
 						"""))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.message").value("chartRef is required"));
+			.andExpect(jsonPath("$.detail").value("chartRef is required"));
 	}
 
 	@Test
@@ -201,6 +201,20 @@ class ReleaseControllerTest {
 						"""))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.version").value(2));
+	}
+
+	@Test
+	void upgradeMissingReleaseReturnsNotFound() throws Exception {
+		when(this.getAction.getRelease("missing", "default")).thenReturn(Optional.empty());
+
+		this.mockMvc
+			.perform(put("/api/v1/releases/missing").contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.content("""
+						{"chartRef": "bitnami/nginx", "version": "2.0.0"}
+						"""))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.detail").value("Release 'missing' not found"));
 	}
 
 	@Test

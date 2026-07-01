@@ -28,6 +28,7 @@ import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.core.util.HookParser;
+import org.alexmond.jhelm.rest.NotFoundException;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.alexmond.jhelm.rest.security.MutatingOperation;
 import org.alexmond.jhelm.rest.dto.HelmHookDto;
@@ -241,7 +242,7 @@ public class ReleaseController {
 			throw new IllegalArgumentException("chartRef is required");
 		}
 		Release current = this.getAction.getRelease(name, namespace)
-			.orElseThrow(() -> new IllegalArgumentException("Release '" + name + "' not found"));
+			.orElseThrow(() -> new NotFoundException("Release '" + name + "' not found"));
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-upgrade-")) {
 			Chart chart = ChartSourceResolver.fromChartRef(request.getChartRef(), request.getVersion(),
 					this.repoManager, this.chartLoader, tempDir);
@@ -279,7 +280,7 @@ public class ReleaseController {
 			@RequestPart("chart") MultipartFile chart, @RequestPart("request") UpgradeUploadRequest request)
 			throws Exception {
 		Release current = this.getAction.getRelease(name, namespace)
-			.orElseThrow(() -> new IllegalArgumentException("Release '" + name + "' not found"));
+			.orElseThrow(() -> new NotFoundException("Release '" + name + "' not found"));
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-upgrade-upload-")) {
 			Chart loaded = ChartSourceResolver.fromUpload(chart, this.repoManager, this.chartLoader, tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
