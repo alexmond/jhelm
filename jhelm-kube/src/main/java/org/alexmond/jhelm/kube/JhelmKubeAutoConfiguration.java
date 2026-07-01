@@ -13,10 +13,14 @@ import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
 import org.alexmond.jhelm.kube.service.AsyncHelmKubeService;
 import org.alexmond.jhelm.kube.service.KubeClient;
+import org.alexmond.jhelm.kube.service.KubernetesHealthIndicator;
 import org.alexmond.jhelm.kube.service.ObservableKubeService;
 import org.alexmond.jhelm.kube.service.RetryableKubeService;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -108,6 +112,22 @@ public class JhelmKubeAutoConfiguration {
 			service = new ObservableKubeService(service, metrics);
 		}
 		return service;
+	}
+
+	/**
+	 * Registers a Kubernetes connectivity
+	 * {@link org.springframework.boot.health.contributor.HealthIndicator} when Spring
+	 * Boot Actuator is on the classpath. Reports {@code UP}/{@code DOWN} based on
+	 * reaching the cluster {@code /version} endpoint.
+	 * @param kubeClient the client wrapper to probe
+	 * @return the health indicator bean
+	 */
+	@Bean
+	@ConditionalOnClass(HealthIndicator.class)
+	@ConditionalOnBean(KubeClient.class)
+	@ConditionalOnMissingBean(KubernetesHealthIndicator.class)
+	public KubernetesHealthIndicator kubernetesHealthIndicator(KubeClient kubeClient) {
+		return new KubernetesHealthIndicator(kubeClient);
 	}
 
 	private RetryTemplate buildRetryTemplate(JhelmKubernetesProperties.Retry config) {

@@ -26,11 +26,13 @@ import org.alexmond.jhelm.rest.controller.HubController;
 import org.alexmond.jhelm.rest.controller.ReleaseController;
 import org.alexmond.jhelm.rest.controller.RepoController;
 import org.alexmond.jhelm.rest.security.AccessModeInterceptor;
+import jakarta.servlet.MultipartConfigElement;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.servlet.MultipartConfigFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -48,7 +50,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * key is the floor; wire Spring Security in the application for real multi-user auth. The
  * startup security posture is logged by the core module.
  */
-@AutoConfiguration(after = JhelmCoreAutoConfiguration.class)
+@AutoConfiguration(after = JhelmCoreAutoConfiguration.class,
+		beforeName = "org.springframework.boot.servlet.autoconfigure.MultipartAutoConfiguration")
 @ConditionalOnWebApplication
 @EnableConfigurationProperties(JhelmRestProperties.class)
 public class JhelmRestAutoConfiguration {
@@ -61,6 +64,23 @@ public class JhelmRestAutoConfiguration {
 	@ConditionalOnMissingBean
 	public JhelmRestExceptionHandler jhelmRestExceptionHandler() {
 		return new JhelmRestExceptionHandler();
+	}
+
+	/**
+	 * Caps multipart uploads (chart archives) at
+	 * {@link JhelmRestProperties#getMaxUploadSize()}, registered before Spring Boot's own
+	 * so the module default applies unless the application defines its own
+	 * {@link MultipartConfigElement}.
+	 * @param properties REST module configuration providing the upload cap
+	 * @return the multipart configuration bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public MultipartConfigElement multipartConfigElement(JhelmRestProperties properties) {
+		MultipartConfigFactory factory = new MultipartConfigFactory();
+		factory.setMaxFileSize(properties.getMaxUploadSize());
+		factory.setMaxRequestSize(properties.getMaxUploadSize());
+		return factory.createMultipartConfig();
 	}
 
 	/**
