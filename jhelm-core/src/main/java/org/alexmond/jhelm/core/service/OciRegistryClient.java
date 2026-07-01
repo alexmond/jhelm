@@ -59,6 +59,18 @@ class OciRegistryClient {
 	}
 
 	/**
+	 * Applies the SSRF guard to a registry URL built from a caller-supplied
+	 * {@code oci://host/path} reference, rejecting disallowed schemes and
+	 * internal/non-routable hosts before the request is sent. Complements the
+	 * connection-time {@link SsrfGuardingDnsResolver}; throws {@link SecurityException}
+	 * (unchecked) when the URL is unsafe.
+	 * @param url the registry URL about to be requested
+	 */
+	private static void validateOciUrl(String url) {
+		UrlSecurity.validateFetchUrl(URI.create(url));
+	}
+
+	/**
 	 * Fetches a bearer token from the registry's token endpoint.
 	 * @param registry the registry hostname
 	 * @param path the repository path
@@ -75,6 +87,7 @@ class OciRegistryClient {
 		}
 
 		String url = tokenUrlPrefix + "?service=" + tokenService + "&scope=repository:" + path + ":" + scope;
+		validateOciUrl(url);
 		HttpGet httpGet = new HttpGet(url);
 		if (auth != null) {
 			httpGet.setHeader("Authorization", "Basic " + auth);
@@ -118,6 +131,7 @@ class OciRegistryClient {
 	 * @return the manifest as a JSON tree
 	 */
 	JsonNode getManifest(String manifestUrl, String token, String accept) throws IOException {
+		validateOciUrl(manifestUrl);
 		HttpGet httpGet = new HttpGet(manifestUrl);
 		if (token != null) {
 			httpGet.setHeader("Authorization", "Bearer " + token);
@@ -245,6 +259,7 @@ class OciRegistryClient {
 	 */
 	boolean blobExists(String registry, String path, String token, String digest) {
 		String url = "https://" + registry + "/v2/" + path + "/blobs/" + digest;
+		validateOciUrl(url);
 		HttpHead head = new HttpHead(url);
 		if (token != null) {
 			head.setHeader("Authorization", "Bearer " + token);
@@ -265,6 +280,7 @@ class OciRegistryClient {
 	 */
 	void uploadBlob(String registry, String path, String token, String digest, byte[] content) throws IOException {
 		String initiateUrl = "https://" + registry + "/v2/" + path + "/blobs/uploads/";
+		validateOciUrl(initiateUrl);
 		HttpPost post = new HttpPost(initiateUrl);
 		if (token != null) {
 			post.setHeader("Authorization", "Bearer " + token);
@@ -284,6 +300,9 @@ class OciRegistryClient {
 		});
 
 		String putUrl = uploadUrl.contains("?") ? uploadUrl + "&digest=" + digest : uploadUrl + "?digest=" + digest;
+		// The upload URL comes from the registry's Location header and may point at a
+		// different host — re-validate before sending credentials/content there.
+		validateOciUrl(putUrl);
 		HttpPut put = new HttpPut(putUrl);
 		if (token != null) {
 			put.setHeader("Authorization", "Bearer " + token);
@@ -304,6 +323,7 @@ class OciRegistryClient {
 	 */
 	void pushManifest(String registry, String path, String tag, String token, byte[] manifest) throws IOException {
 		String url = "https://" + registry + "/v2/" + path + "/manifests/" + tag;
+		validateOciUrl(url);
 		HttpPut put = new HttpPut(url);
 		if (token != null) {
 			put.setHeader("Authorization", "Bearer " + token);

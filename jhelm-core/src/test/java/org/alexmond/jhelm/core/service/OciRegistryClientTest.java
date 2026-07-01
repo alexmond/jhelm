@@ -33,6 +33,26 @@ class OciRegistryClientTest {
 	private final OciRegistryClient client = new OciRegistryClient(mock(CloseableHttpClient.class));
 
 	@Test
+	void testFetchTokenRejectsInternalMetadataHost() {
+		// SSRF guard must fire before any request when the registry host is the
+		// cloud-metadata (link-local) address
+		assertThrows(SecurityException.class,
+				() -> client.fetchToken("169.254.169.254", "library/nginx", null, "pull"));
+	}
+
+	@Test
+	void testGetManifestRejectsInternalMetadataHost() {
+		assertThrows(SecurityException.class,
+				() -> client.getManifest("https://169.254.169.254/v2/library/nginx/manifests/latest", "tok", null));
+	}
+
+	@Test
+	void testBlobExistsRejectsInternalMetadataHost() {
+		assertThrows(SecurityException.class,
+				() -> client.blobExists("169.254.169.254", "library/nginx", "tok", "sha256:abc"));
+	}
+
+	@Test
 	void testParseOciUrlWithTag() throws IOException {
 		String[] parts = client.parseOciUrl("oci://my.registry.io/charts/mychart:1.2.3");
 		assertEquals("my.registry.io", parts[0]);

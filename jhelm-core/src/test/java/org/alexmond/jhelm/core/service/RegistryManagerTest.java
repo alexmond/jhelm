@@ -5,12 +5,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Base64;
+import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class RegistryManagerTest {
 
@@ -37,6 +43,19 @@ class RegistryManagerTest {
 		RegistryManager.Config config = registryManager.loadConfig();
 		assertNotNull(config);
 		assertNotNull(config.getAuths());
+	}
+
+	@Test
+	void testLoginWritesOwnerOnlyCredentialsFile() throws IOException {
+		Path configFile = tempDir.resolve("registry-config.json");
+		assumeTrue(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"),
+				"POSIX permissions not supported on this filesystem");
+
+		registryManager.login("ghcr.io", "user", "pass");
+
+		Set<PosixFilePermission> perms = Files.getPosixFilePermissions(configFile);
+		// credentials file must be owner-only (0600) — no group/other access
+		assertEquals(PosixFilePermissions.fromString("rw-------"), perms);
 	}
 
 	@Test
