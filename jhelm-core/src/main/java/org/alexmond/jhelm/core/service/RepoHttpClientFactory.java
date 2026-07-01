@@ -2,6 +2,7 @@ package org.alexmond.jhelm.core.service;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -53,10 +54,46 @@ final class RepoHttpClientFactory {
 			return;
 		}
 		if (repo.getUsername() != null && !repo.getUsername().isEmpty()) {
+			if (!maySendCredentials(request, repo)) {
+				return;
+			}
 			String password = (repo.getPassword() != null) ? repo.getPassword() : "";
 			String credentials = repo.getUsername() + ":" + password;
 			String encoded = Base64.getEncoder().encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
 			request.setHeader("Authorization", "Basic " + encoded);
+		}
+	}
+
+	/**
+	 * Whether Basic-Auth credentials may be attached to this request. By default
+	 * credentials are only sent to the repository's own host: a chart URL resolved from a
+	 * third-party {@code index.yaml} can point at an arbitrary host, and sending the repo
+	 * credentials there would leak them (this mirrors Helm, where
+	 * {@code --pass-credentials} is off by default). When the repository's
+	 * {@code passCredentialsAll} flag (see {@link RepositoryConfig.Repository}) is set
+	 * the credentials go to any host. Fails closed (no credentials) if the hosts cannot
+	 * be compared.
+	 * @param request the request about to be sent
+	 * @param repo the repository whose credentials would be attached
+	 * @return {@code true} if credentials may be sent
+	 */
+	private boolean maySendCredentials(HttpGet request, RepositoryConfig.Repository repo) {
+		if (repo.isPassCredentialsAll()) {
+			return true;
+		}
+		String repoUrl = repo.getUrl();
+		if (repoUrl == null || repoUrl.isBlank()) {
+			// No repository host to compare against — fail closed rather than risk a
+			// leak.
+			return false;
+		}
+		try {
+			String repoHost = URI.create(repoUrl).getHost();
+			String requestHost = request.getUri().getHost();
+			return repoHost != null && repoHost.equalsIgnoreCase(requestHost);
+		}
+		catch (Exception ex) {
+			return false;
 		}
 	}
 

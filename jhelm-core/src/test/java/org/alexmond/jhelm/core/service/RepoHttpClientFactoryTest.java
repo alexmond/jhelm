@@ -46,6 +46,54 @@ class RepoHttpClientFactoryTest {
 	}
 
 	@Test
+	void testConfigureAuthSkipsCredentialsOnDifferentHost() {
+		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
+		RepoHttpClientFactory factory = new RepoHttpClientFactory(mockClient, false);
+		RepositoryConfig.Repository repo = RepositoryConfig.Repository.builder()
+			.name("test")
+			.url("https://charts.example.com")
+			.username("myuser")
+			.password("mypass")
+			.build();
+		// chart URL resolved from a third-party index points at a different host —
+		// credentials must not be leaked there
+		HttpGet request = new HttpGet("https://evil.example.net/charts/pkg.tgz");
+		factory.configureAuth(request, repo);
+		assertNull(request.getFirstHeader("Authorization"));
+	}
+
+	@Test
+	void testConfigureAuthSendsCrossHostWhenPassCredentialsAll() {
+		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
+		RepoHttpClientFactory factory = new RepoHttpClientFactory(mockClient, false);
+		RepositoryConfig.Repository repo = RepositoryConfig.Repository.builder()
+			.name("test")
+			.url("https://charts.example.com")
+			.username("myuser")
+			.password("mypass")
+			.passCredentialsAll(true)
+			.build();
+		HttpGet request = new HttpGet("https://cdn.example.net/charts/pkg.tgz");
+		factory.configureAuth(request, repo);
+		assertNotNull(request.getFirstHeader("Authorization"));
+	}
+
+	@Test
+	void testConfigureAuthFailsClosedWhenRepoUrlMissing() {
+		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
+		RepoHttpClientFactory factory = new RepoHttpClientFactory(mockClient, false);
+		RepositoryConfig.Repository repo = RepositoryConfig.Repository.builder()
+			.name("test")
+			.username("myuser")
+			.password("mypass")
+			.build();
+		HttpGet request = new HttpGet("https://example.com/index.yaml");
+		factory.configureAuth(request, repo);
+		// no repo host to compare against -> do not send credentials
+		assertNull(request.getFirstHeader("Authorization"));
+	}
+
+	@Test
 	void testConfigureAuthSkipsNullRepo() {
 		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
 		RepoHttpClientFactory factory = new RepoHttpClientFactory(mockClient, false);

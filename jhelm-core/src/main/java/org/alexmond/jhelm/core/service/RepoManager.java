@@ -977,6 +977,17 @@ public class RepoManager {
 		}
 	}
 
+	/**
+	 * Maximum total uncompressed bytes a chart archive may expand to (decompression-bomb
+	 * guard).
+	 */
+	private static final long MAX_UNTAR_TOTAL_BYTES = 1L << 30; // 1 GiB
+
+	/**
+	 * Maximum number of entries a chart archive may contain (decompression-bomb guard).
+	 */
+	private static final int MAX_UNTAR_ENTRIES = 50_000;
+
 	public void untar(File tgzFile, File destDir) throws IOException {
 		if (log.isInfoEnabled()) {
 			log.info("Untarring {} to {}", tgzFile.getAbsolutePath(), destDir.getAbsolutePath());
@@ -993,7 +1004,13 @@ public class RepoManager {
 				TarArchiveInputStream ti = new TarArchiveInputStream(gzi)) {
 
 			TarArchiveEntry entry;
+			long totalBytes = 0;
+			int entryCount = 0;
 			while ((entry = ti.getNextEntry()) != null) {
+				if (++entryCount > MAX_UNTAR_ENTRIES) {
+					throw new IOException("chart archive has too many entries (> " + MAX_UNTAR_ENTRIES
+							+ "): possible decompression bomb");
+				}
 				if (!ti.canReadEntryData(entry)) {
 					continue;
 				}
@@ -1013,12 +1030,37 @@ public class RepoManager {
 					if (!parent.isDirectory() && !parent.mkdirs()) {
 						throw new IOException("failed to create directory " + parent);
 					}
-					try (OutputStream o = Files.newOutputStream(f.toPath())) {
-						ti.transferTo(o);
-					}
+					totalBytes = copyEntryBounded(ti, f, totalBytes);
 				}
 			}
 		}
+	}
+
+	/**
+	 * Copies a single tar entry to {@code dest}, enforcing a cumulative uncompressed-size
+	 * cap ({@link #MAX_UNTAR_TOTAL_BYTES}) so a maliciously small archive cannot expand
+	 * to exhaust disk (decompression bomb).
+	 * @param ti the tar stream positioned at the entry's data
+	 * @param dest the destination file
+	 * @param totalBytesSoFar bytes already written across previous entries
+	 * @return the updated running total of bytes written
+	 * @throws IOException if writing fails or the cumulative size cap is exceeded
+	 */
+	private long copyEntryBounded(TarArchiveInputStream ti, File dest, long totalBytesSoFar) throws IOException {
+		long total = totalBytesSoFar;
+		byte[] buffer = new byte[8192];
+		try (OutputStream o = Files.newOutputStream(dest.toPath())) {
+			int read;
+			while ((read = ti.read(buffer)) != -1) {
+				total += read;
+				if (total > MAX_UNTAR_TOTAL_BYTES) {
+					throw new IOException("chart archive expands beyond the maximum allowed size ("
+							+ MAX_UNTAR_TOTAL_BYTES + " bytes): possible decompression bomb");
+				}
+				o.write(buffer, 0, read);
+			}
+		}
+		return total;
 	}
 
 	@lombok.Data

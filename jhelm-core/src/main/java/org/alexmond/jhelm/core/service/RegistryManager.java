@@ -110,14 +110,42 @@ public class RegistryManager {
 	private void saveConfig(Config config) throws IOException {
 		File file = new File(configPath);
 		File dir = file.getParentFile();
-		dir.mkdirs();
 		// The registry config holds base64 credentials — keep it owner-only (0600), and
 		// the containing directory 0700, mirroring how helm/docker protect their auth
 		// files. Best-effort: POSIX only, and a failure to tighten must not lose the
 		// save.
-		restrictPermissions(dir.toPath(), "rwx------");
+		if (dir != null) {
+			dir.mkdirs();
+			restrictPermissions(dir.toPath(), "rwx------");
+		}
+		// Create the file with owner-only perms BEFORE writing the credentials, so there
+		// is no window where it exists on disk with default (looser) permissions.
+		ensureOwnerOnlyFile(file.toPath());
 		jsonMapper.writeValue(file, config);
-		restrictPermissions(file.toPath(), "rw-------");
+	}
+
+	/**
+	 * Ensures the credentials file exists with owner-only ({@code 0600}) permissions
+	 * before it is written. A new file is created atomically with the restrictive mode
+	 * (closing the create-then-chmod TOCTOU window); an existing file is re-tightened.
+	 * Best-effort on non-POSIX filesystems.
+	 * @param path the credentials file path
+	 * @throws IOException if the file cannot be created
+	 */
+	private static void ensureOwnerOnlyFile(Path path) throws IOException {
+		boolean posix = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
+		if (Files.notExists(path)) {
+			if (posix) {
+				Files.createFile(path,
+						PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
+			}
+			else {
+				Files.createFile(path);
+			}
+		}
+		else {
+			restrictPermissions(path, "rw-------");
+		}
 	}
 
 	private static void restrictPermissions(Path path, String posix) {
