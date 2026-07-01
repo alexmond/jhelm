@@ -4,6 +4,9 @@ jhelm is designed to be embedded. Its modules are Spring Boot starters: adding t
 to your classpath auto-configures every bean you need to render templates and manage Helm
 charts and releases programmatically -- no CLI, no `helm` binary.
 
+TIP: For the published Javadoc of every artifact and deep links to the key public types, see
+xref:api.adoc[API Documentation].
+
 == Module Selection
 
 [cols="1,3,2"]

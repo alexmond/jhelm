@@ -1,0 +1,67 @@
+= API Documentation
+
+jhelm's library artifacts publish versioned Javadoc to https://javadoc.io[javadoc.io], which
+serves it automatically from Maven Central — no build or hosting required. The links below track
+the {jhelm-version} release.
+
+* For how to add these as dependencies and worked usage examples, see
+  xref:spring-boot-starter.adoc[Library & Spring Boot Starter].
+* For which types are supported API versus internal implementation, see
+  xref:api-surface.adoc[API Surface & Stability].
+
+== Javadoc per artifact
+
+[cols="1,2"]
+|===
+| Artifact | Javadoc
+
+| `jhelm-core` — chart model, rendering engine, action layer, repositories
+| {api-core}/{jhelm-version}/index.html[browse^]
+
+| `jhelm-gotemplate-helm` — Helm template functions
+| {api-gotemplate-helm}/{jhelm-version}/index.html[browse^]
+
+| `jhelm-kube` — Kubernetes install / upgrade / rollback / uninstall
+| {api-kube}/{jhelm-version}/index.html[browse^]
+
+| `jhelm-rest` — REST API and controllers
+| {api-rest}/{jhelm-version}/index.html[browse^]
+
+| `jhelm-mcp` — MCP server tools
+| {api-mcp}/{jhelm-version}/index.html[browse^]
+
+| `jhelm-plugin` — WASM plugin runtime
+| {api-plugin}/{jhelm-version}/index.html[browse^]
+|===
+
+[NOTE]
+====
+`jhelm-rest-starter` and `jhelm-mcp-starter` are dependency-only starters — they pull in and
+auto-configure `jhelm-rest` / `jhelm-mcp` and carry no code of their own, so their API is the
+Javadoc of `jhelm-rest` / `jhelm-mcp` above. The `jhelm-cli` application and the sample modules
+are not published to Maven Central.
+====
+
+== Key public types
+
+*Core engine and model* (`jhelm-core`)
+
+* {api-core}/{jhelm-version}/org/alexmond/jhelm/core/service/Engine.html[Engine^] — renders a chart to Kubernetes manifests
+* {api-core}/{jhelm-version}/org/alexmond/jhelm/core/model/Chart.html[Chart^] — the in-memory chart model
+* {api-core}/{jhelm-version}/org/alexmond/jhelm/core/service/ChartLoader.html[ChartLoader^] — loads a chart from a directory or archive
+* {api-core}/{jhelm-version}/org/alexmond/jhelm/core/service/RepoManager.html[RepoManager^] — chart repositories and pulls
+* {api-core}/{jhelm-version}/org/alexmond/jhelm/core/service/KubeService.html[KubeService^] — the cluster-operations SPI
+
+*Action layer* (`jhelm-core`, package `org.alexmond.jhelm.core.action`)
+
+* {api-core}/{jhelm-version}/org/alexmond/jhelm/core/action/InstallAction.html[InstallAction^], with the sibling `UpgradeAction`, `UninstallAction`, `RollbackAction`, `ListAction`, `StatusAction`, `HistoryAction`, `GetAction`, and `TemplateAction` in the same package.
+
+*Helm template functions* (`jhelm-gotemplate-helm`)
+
+* {api-gotemplate-helm}/{jhelm-version}/org/alexmond/jhelm/gotemplate/helm/HelmFunctions.html[HelmFunctions^] — the Helm function provider. The Go template engine itself is the external https://github.com/alexmond/gotmpl4j[gotmpl4j] library, which publishes its own Javadoc.
+
+*Spring Boot auto-configuration entry points*
+
+* {api-kube}/{jhelm-version}/org/alexmond/jhelm/kube/JhelmKubeAutoConfiguration.html[JhelmKubeAutoConfiguration^]
+* {api-rest}/{jhelm-version}/org/alexmond/jhelm/rest/JhelmRestAutoConfiguration.html[JhelmRestAutoConfiguration^]
+* {api-mcp}/{jhelm-version}/org/alexmond/jhelm/mcp/JhelmMcpAutoConfiguration.html[JhelmMcpAutoConfiguration^]
