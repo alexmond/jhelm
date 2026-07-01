@@ -27,26 +27,47 @@ public class RegistryManager {
 	private final String configPath;
 
 	public RegistryManager() {
-		String home = System.getProperty("user.home");
-		String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-		if (os.contains("mac")) {
-			this.configPath = Paths.get(home, "Library/Preferences/helm/registry/config.json").toString();
-		}
-		else if (os.contains("win")) {
-			this.configPath = Paths.get(System.getenv("APPDATA"), "helm/registry/config.json").toString();
-		}
-		else {
-			this.configPath = Paths.get(home, ".config/helm/registry/config.json").toString();
-		}
+		this(resolveDefaultConfigPath());
 	}
 
 	/**
-	 * Creates a manager backed by an explicit config file. Package-private: used by tests
-	 * to point at a temporary file instead of the real per-user helm registry config.
+	 * Creates a manager backed by an explicit config file. Used to honor
+	 * {@code jhelm.registry-config-path} and, in tests, to point at a temporary file
+	 * instead of the real per-user helm registry config.
 	 * @param configPath the path to the registry credentials file
 	 */
-	RegistryManager(String configPath) {
+	public RegistryManager(String configPath) {
 		this.configPath = configPath;
+	}
+
+	/**
+	 * Resolves the registry config.json path the way Helm does:
+	 * {@code $HELM_REGISTRY_CONFIG} when set, otherwise the per-OS Helm default
+	 * (docker-style credentials, shared with {@code helm registry login}).
+	 * Package-private for testing.
+	 * @param helmRegistryConfig the value of {@code $HELM_REGISTRY_CONFIG} (may be
+	 * {@code null})
+	 * @param home the user home directory
+	 * @param osName the OS name
+	 * @return the resolved registry config.json path
+	 */
+	static String resolveConfigPath(String helmRegistryConfig, String home, String osName) {
+		if (helmRegistryConfig != null && !helmRegistryConfig.isBlank()) {
+			return helmRegistryConfig;
+		}
+		String os = osName.toLowerCase(Locale.ROOT);
+		if (os.contains("mac")) {
+			return Paths.get(home, "Library/Preferences/helm/registry/config.json").toString();
+		}
+		if (os.contains("win")) {
+			return Paths.get(System.getenv("APPDATA"), "helm/registry/config.json").toString();
+		}
+		return Paths.get(home, ".config/helm/registry/config.json").toString();
+	}
+
+	private static String resolveDefaultConfigPath() {
+		return resolveConfigPath(System.getenv("HELM_REGISTRY_CONFIG"), System.getProperty("user.home"),
+				System.getProperty("os.name"));
 	}
 
 	public void login(String registry, String username, String password) throws IOException {

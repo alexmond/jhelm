@@ -105,12 +105,18 @@ public class JhelmCoreAutoConfiguration {
 	}
 
 	/**
-	 * Provides the OCI registry manager used for OCI-based charts.
+	 * Provides the OCI registry manager used for OCI-based charts. Honors
+	 * {@code jhelm.registry-config-path}, then {@code $HELM_REGISTRY_CONFIG}, then the
+	 * per-OS Helm default.
+	 * @param props the jhelm core configuration properties
 	 * @return the registry manager bean
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public RegistryManager registryManager() {
+	public RegistryManager registryManager(JhelmCoreProperties props) {
+		if (props.getRegistryConfigPath() != null) {
+			return new RegistryManager(props.getRegistryConfigPath());
+		}
 		return new RegistryManager();
 	}
 
