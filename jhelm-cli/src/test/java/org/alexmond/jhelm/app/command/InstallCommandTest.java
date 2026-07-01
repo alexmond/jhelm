@@ -1,7 +1,6 @@
 package org.alexmond.jhelm.app.command;
 
 import org.alexmond.jhelm.core.model.Chart;
-import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.model.Release;
@@ -24,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -42,7 +42,7 @@ class InstallCommandTest {
 	private KubeService kubeService;
 
 	@Mock
-	private ChartLoader chartLoader;
+	private ChartResolver chartResolver;
 
 	private InstallCommand installCommand;
 
@@ -56,8 +56,8 @@ class InstallCommandTest {
 			.metadata(ChartMetadata.builder().name("test-chart").version("1.0.0").build())
 			.values(new HashMap<>())
 			.build();
-		when(chartLoader.load(any(File.class))).thenReturn(defaultChart);
-		installCommand = new InstallCommand(installAction, uninstallAction, kubeService, chartLoader);
+		when(chartResolver.resolve(anyString(), anyBoolean(), any())).thenReturn(defaultChart);
+		installCommand = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver);
 	}
 
 	@Test

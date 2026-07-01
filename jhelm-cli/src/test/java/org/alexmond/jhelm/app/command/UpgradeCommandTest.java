@@ -1,7 +1,6 @@
 package org.alexmond.jhelm.app.command;
 
 import org.alexmond.jhelm.core.model.Chart;
-import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
@@ -27,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -51,7 +51,7 @@ class UpgradeCommandTest {
 	private RollbackAction rollbackAction;
 
 	@Mock
-	private ChartLoader chartLoader;
+	private ChartResolver chartResolver;
 
 	private UpgradeCommand upgradeCommand;
 
@@ -65,9 +65,9 @@ class UpgradeCommandTest {
 			.metadata(ChartMetadata.builder().name("test-chart").version("1.0.0").build())
 			.values(new HashMap<>())
 			.build();
-		when(chartLoader.load(any(File.class))).thenReturn(defaultChart);
+		when(chartResolver.resolve(anyString(), anyBoolean(), any())).thenReturn(defaultChart);
 		upgradeCommand = new UpgradeCommand(kubeService, installAction, uninstallAction, upgradeAction, rollbackAction,
-				chartLoader);
+				chartResolver);
 	}
 
 	@Test
