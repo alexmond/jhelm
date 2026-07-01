@@ -1,6 +1,5 @@
 package org.alexmond.jhelm.kube.service.internal;
 
-import tools.jackson.databind.json.JsonMapper;
 import io.kubernetes.client.common.KubernetesObject;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -30,6 +29,7 @@ import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.model.HelmReleaseCodec;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import java.io.ByteArrayInputStream;
@@ -64,7 +64,7 @@ public class HelmKubeService implements KubeService {
 	/** Configured Kubernetes API client used for all cluster operations. */
 	private final ApiClient apiClient;
 
-	private final JsonMapper objectMapper = JsonMapper.builder().build();
+	private final HelmReleaseCodec releaseCodec = new HelmReleaseCodec();
 
 	private ResourcePluralizer pluralizer;
 
@@ -635,7 +635,7 @@ public class HelmKubeService implements KubeService {
 			// The k8s client auto-decodes the outer base64, so raw is the inner base64
 			byte[] gzipped = Base64.getDecoder().decode(raw);
 			byte[] json = gunzip(gzipped);
-			return objectMapper.readValue(json, Release.class);
+			return releaseCodec.fromJson(json);
 		}
 		catch (Exception ex) {
 			throw new ReleaseStorageException("Failed to decode release from Secret: " + secret.getMetadata().getName(),
@@ -644,7 +644,7 @@ public class HelmKubeService implements KubeService {
 	}
 
 	private byte[] encodeRelease(Release release) throws Exception {
-		byte[] json = objectMapper.writeValueAsBytes(release);
+		byte[] json = releaseCodec.toJson(release);
 		byte[] gzipped = gzip(json);
 		String b64 = Base64.getEncoder().encodeToString(gzipped);
 		return b64.getBytes(StandardCharsets.UTF_8);
