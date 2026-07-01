@@ -5,14 +5,19 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.action.ListAction;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -23,10 +28,24 @@ class ListCommandTest {
 
 	private ListCommand listCommand;
 
+	private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+	private final PrintStream originalOut = System.out;
+
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
 		listCommand = new ListCommand(listAction);
+		System.setOut(new PrintStream(outputStream, true, StandardCharsets.UTF_8));
+	}
+
+	@AfterEach
+	void tearDown() {
+		System.setOut(originalOut);
+	}
+
+	private String captured() {
+		return outputStream.toString(StandardCharsets.UTF_8);
 	}
 
 	@Test
@@ -52,6 +71,32 @@ class ListCommandTest {
 
 		CommandLine cmd = new CommandLine(listCommand);
 		cmd.execute();
+	}
+
+	@Test
+	void testListCommandJsonOutput() throws Exception {
+		when(listAction.list(anyString())).thenReturn(Arrays.asList(createMockRelease("release1", 3)));
+
+		new CommandLine(listCommand).execute("-o", "json");
+
+		String out = captured();
+		// Helm-style snake_case keys, and the release fields
+		assertTrue(out.contains("\"name\":\"release1\""), out);
+		assertTrue(out.contains("\"revision\":3"), out);
+		assertTrue(out.contains("\"status\":\"deployed\""), out);
+		assertTrue(out.contains("\"chart\":\"test-chart-1.0.0\""), out);
+		assertTrue(out.contains("\"app_version\""), out);
+	}
+
+	@Test
+	void testListCommandYamlOutput() throws Exception {
+		when(listAction.list(anyString())).thenReturn(Arrays.asList(createMockRelease("release1", 1)));
+
+		new CommandLine(listCommand).execute("--output", "yaml");
+
+		String out = captured();
+		assertTrue(out.contains("name: \"release1\""), out);
+		assertTrue(out.contains("status: \"deployed\""), out);
 	}
 
 	private Release createMockRelease(String name, int version) {
