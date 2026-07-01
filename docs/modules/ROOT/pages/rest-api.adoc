@@ -21,16 +21,38 @@ Add `jhelm-rest-starter` to your Spring Boot web application:
 </dependency>
 ----
 
-For Swagger UI, add springdoc-openapi:
+Swagger UI and the OpenAPI document are **included** — `jhelm-rest` ships
+`springdoc-openapi-starter-webmvc-ui`, so once the module is on the classpath you get, with no
+extra dependency:
 
-[source,xml]
+* the interactive UI at `/swagger-ui.html`, and
+* the machine-readable spec at `/v3/api-docs` (JSON) and `/v3/api-docs.yaml`.
+
+The document's title, description, version, license (Apache-2.0) and contact come from a
+default `OpenAPI` bean the auto-configuration registers. It is annotated with
+`@ConditionalOnMissingBean`, so to customize the metadata (or add servers, security schemes,
+tags) just define your own:
+
+[source,java]
 ----
-<dependency>
-    <groupId>org.springdoc</groupId>
-    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-    <version>3.0.2</version>
-</dependency>
+@Bean
+OpenAPI openAPI() {
+    return new OpenAPI().info(new Info()
+        .title("My Platform — Helm API")
+        .version("2.0")
+        .license(new License().name("Apache-2.0")));
+}
 ----
+
+Every operation in the document is annotated with a summary, its parameters, and the shared
+error responses the API can return — `400` (invalid request), `404` (unknown chart / release /
+repository), `500` (server error), plus `401`/`403` on mutating endpoints when the API-key
+policy applies. Errors use RFC&nbsp;7807 `application/problem+json`, described by the
+`ProblemDetail` schema in the document's components.
+
+TIP: springdoc's own behaviour (paths, grouping, whether the UI is enabled in production) is
+tuned with the standard `springdoc.*` properties — see the
+https://springdoc.org[springdoc-openapi docs].
 
 === Sample Application
 
