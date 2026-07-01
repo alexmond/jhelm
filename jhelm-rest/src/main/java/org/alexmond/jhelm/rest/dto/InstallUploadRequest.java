@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.rest.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 import java.util.Map;
 
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -13,6 +15,7 @@ import lombok.Data;
 public class InstallUploadRequest {
 
 	@Schema(description = "Name for the release", example = "my-release", requiredMode = Schema.RequiredMode.REQUIRED)
+	@NotBlank(message = "releaseName is required")
 	private String releaseName;
 
 	@Schema(description = "Kubernetes namespace", example = "default", defaultValue = "default")

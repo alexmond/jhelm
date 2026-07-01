@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.rest.controller;
 
+import jakarta.validation.Valid;
+
 import java.util.List;
 import java.util.Map;
 
@@ -66,10 +68,7 @@ public class DependencyController {
 	@PostMapping("/resolve")
 	@Operation(summary = "Resolve dependencies",
 			description = "Resolve chart dependency versions from a repository chart reference and return the Chart.lock content")
-	public ResponseEntity<String> resolve(@RequestBody DependencyResolveRequest request) throws Exception {
-		if (request.getChartRef() == null || request.getChartRef().isBlank()) {
-			throw new IllegalArgumentException("chartRef is required");
-		}
+	public ResponseEntity<String> resolve(@Valid @RequestBody DependencyResolveRequest request) throws Exception {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-dep-resolve-")) {
 			this.repoManager.pull(request.getChartRef(), request.getVersion(), tempDir.path().toString());
 			Chart chart = this.chartLoader.load(ChartLoader.findChartDir(tempDir.path()).toFile());

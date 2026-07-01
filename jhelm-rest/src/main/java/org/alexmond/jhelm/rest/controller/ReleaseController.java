@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.rest.controller;
 
+import jakarta.validation.Valid;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -169,13 +171,7 @@ public class ReleaseController {
 	@MutatingOperation
 	@Operation(summary = "Install a release",
 			description = "Install a new Helm release from a repository chart reference")
-	public ResponseEntity<ReleaseDto> install(@RequestBody InstallRequest request) throws Exception {
-		if (request.getChartRef() == null || request.getChartRef().isBlank()) {
-			throw new IllegalArgumentException("chartRef is required");
-		}
-		if (request.getReleaseName() == null || request.getReleaseName().isBlank()) {
-			throw new IllegalArgumentException("releaseName is required");
-		}
+	public ResponseEntity<ReleaseDto> install(@Valid @RequestBody InstallRequest request) throws Exception {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-install-")) {
 			Chart chart = ChartSourceResolver.fromChartRef(request.getChartRef(), request.getVersion(),
 					this.repoManager, this.chartLoader, tempDir);
@@ -204,10 +200,7 @@ public class ReleaseController {
 	@Operation(summary = "Install a release from upload",
 			description = "Install a new Helm release from an uploaded .tgz chart archive")
 	public ResponseEntity<ReleaseDto> installUpload(@RequestPart("chart") MultipartFile chart,
-			@RequestPart("request") InstallUploadRequest request) throws Exception {
-		if (request.getReleaseName() == null || request.getReleaseName().isBlank()) {
-			throw new IllegalArgumentException("releaseName is required");
-		}
+			@Valid @RequestPart("request") InstallUploadRequest request) throws Exception {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-install-upload-")) {
 			Chart loaded = ChartSourceResolver.fromUpload(chart, this.repoManager, this.chartLoader, tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
@@ -237,10 +230,7 @@ public class ReleaseController {
 			description = "Upgrade an existing release from a repository chart reference")
 	public ReleaseDto upgrade(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
-			@RequestBody UpgradeRequest request) throws Exception {
-		if (request.getChartRef() == null || request.getChartRef().isBlank()) {
-			throw new IllegalArgumentException("chartRef is required");
-		}
+			@Valid @RequestBody UpgradeRequest request) throws Exception {
 		Release current = this.getAction.getRelease(name, namespace)
 			.orElseThrow(() -> new NotFoundException("Release '" + name + "' not found"));
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-upgrade-")) {
@@ -343,7 +333,7 @@ public class ReleaseController {
 	@Operation(summary = "Rollback a release", description = "Rollback a release to a previous revision")
 	public ResponseEntity<Void> rollback(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
-			@RequestBody RollbackRequest request) throws Exception {
+			@Valid @RequestBody RollbackRequest request) throws Exception {
 		this.rollbackAction.rollback(RollbackOptions.builder()
 			.releaseName(name)
 			.namespace(namespace)

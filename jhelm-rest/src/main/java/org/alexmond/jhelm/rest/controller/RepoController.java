@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.rest.controller;
 
+import jakarta.validation.Valid;
+
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -67,13 +69,7 @@ public class RepoController {
 	 */
 	@PostMapping
 	@Operation(summary = "Add a repository")
-	public ResponseEntity<Void> addRepo(@RequestBody RepoAddRequest request) throws Exception {
-		if (request.getName() == null || request.getName().isBlank()) {
-			throw new IllegalArgumentException("name is required");
-		}
-		if (request.getUrl() == null || request.getUrl().isBlank()) {
-			throw new IllegalArgumentException("url is required");
-		}
+	public ResponseEntity<Void> addRepo(@Valid @RequestBody RepoAddRequest request) throws Exception {
 		this.repoManager.addRepo(request.getName(), request.getUrl());
 		return ResponseEntity.status(HttpStatus.CREATED).build();
 	}
@@ -158,10 +154,7 @@ public class RepoController {
 	@PostMapping("/pull")
 	@Operation(summary = "Pull a chart",
 			description = "Pull a chart from a repository or OCI registry and return it as a .tgz archive")
-	public ResponseEntity<byte[]> pull(@RequestBody PullRequest request) throws Exception {
-		if (request.getChart() == null || request.getChart().isBlank()) {
-			throw new IllegalArgumentException("chart is required");
-		}
+	public ResponseEntity<byte[]> pull(@Valid @RequestBody PullRequest request) throws Exception {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-pull-")) {
 			this.repoManager.pull(request.getChart(), request.getVersion(), tempDir.path().toString());
 			String fileName = resolveFileName(request.getChart(), request.getVersion());

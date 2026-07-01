@@ -1,11 +1,15 @@
 package org.alexmond.jhelm.rest;
 
 import java.time.Instant;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -26,6 +30,25 @@ public class JhelmRestExceptionHandler {
 	public ProblemDetail handleNotFound(NotFoundException ex) {
 		log.debug("Not found: {}", ex.getMessage());
 		return problem(HttpStatus.NOT_FOUND, ex.getMessage());
+	}
+
+	/**
+	 * Maps Bean Validation failures on a request body to a {@code 400 Bad Request}
+	 * problem response, folding the field messages into the {@code detail}.
+	 * @param ex the validation exception
+	 * @return the problem detail
+	 */
+	@ExceptionHandler(MethodArgumentNotValidException.class)
+	public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
+		String detail = ex.getBindingResult()
+			.getFieldErrors()
+			.stream()
+			.map(FieldError::getDefaultMessage)
+			.filter(Objects::nonNull)
+			.distinct()
+			.collect(Collectors.joining("; "));
+		log.debug("Validation failed: {}", detail);
+		return problem(HttpStatus.BAD_REQUEST, detail.isEmpty() ? "Validation failed" : detail);
 	}
 
 	/**
