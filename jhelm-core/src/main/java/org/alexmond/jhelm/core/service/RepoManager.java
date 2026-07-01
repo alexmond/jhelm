@@ -224,6 +224,25 @@ public class RepoManager {
 			.orElse(null);
 	}
 
+	/**
+	 * Returns the effective {@code repositories.yaml} path this manager reads and writes.
+	 * @return the repository config path
+	 */
+	public String getConfigPath() {
+		return this.configPath;
+	}
+
+	/**
+	 * Returns the effective repository index cache directory
+	 * ({@code $HELM_REPOSITORY_CACHE} or the per-OS default), without creating it.
+	 * @return the repository cache directory path
+	 */
+	public String getRepositoryCachePath() {
+		return resolveCacheDir(System.getenv("HELM_REPOSITORY_CACHE"), System.getProperty("user.home"),
+				System.getProperty("os.name"))
+			.getPath();
+	}
+
 	private File getCacheDir() {
 		File base = resolveCacheDir(System.getenv("HELM_REPOSITORY_CACHE"), System.getProperty("user.home"),
 				System.getProperty("os.name"));
