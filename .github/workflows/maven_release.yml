@@ -32,7 +32,6 @@ jobs:
           server-username: OSSRH_USERNAME
           server-password: OSSRH_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
-          gpg-passphrase: GPG_PASSPHRASE
 
       - name: Configure Git
         run: |
@@ -51,11 +50,13 @@ jobs:
           git tag -a ${{ github.event.inputs.releaseVersion }} -m "Release ${{ github.event.inputs.releaseVersion }}"
 
       - name: Deploy to Maven Central
-        run: ./mvnw --batch-mode clean deploy -Prelease -Dgpg.passphrase="${GPG_PASSPHRASE}" --no-transfer-progress
+        run: ./mvnw --batch-mode clean deploy -Prelease --no-transfer-progress
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          # maven-gpg-plugin 3.x reads the passphrase from this env var (batch mode with
+          # --pinentry-mode loopback), avoiding the deprecated -Dgpg.passphrase property.
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Set Next Development Version
         run: |
