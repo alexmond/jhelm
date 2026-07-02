@@ -6,6 +6,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -186,22 +187,6 @@ public class PackageAction {
 			}
 		}
 		return false;
-	}
-
-	private static class UncheckedIOException extends RuntimeException {
-
-		private final IOException cause;
-
-		UncheckedIOException(IOException cause) {
-			super(cause);
-			this.cause = cause;
-		}
-
-		@Override
-		public IOException getCause() {
-			return this.cause;
-		}
-
 	}
 
 }

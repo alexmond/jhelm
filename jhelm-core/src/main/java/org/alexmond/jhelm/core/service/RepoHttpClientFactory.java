@@ -208,6 +208,13 @@ final class RepoHttpClientFactory {
 		return kf.generatePrivate(spec);
 	}
 
+	/**
+	 * Trust-all manager used only when the caller explicitly opts in with
+	 * {@code --insecure-skip-tls-verify} (mirroring Helm's flag of the same name).
+	 * Disabling certificate validation is the documented, user-requested behaviour for
+	 * that flag, not a default; secure verification is used otherwise.
+	 */
+	@SuppressWarnings("java:S4830") // intentional: opt-in --insecure-skip-tls-verify path
 	private static final class InsecureTrustManager implements X509TrustManager {
 
 		@Override
