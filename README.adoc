@@ -20,10 +20,14 @@ the Go-based Helm binary.
 
 == Why jhelm
 
-* *Helm-faithful rendering, in pure Java* -- jhelm renders chart templates byte-for-byte
-  identically to `helm template` across a continuously-run suite of *540+ real-world charts*
-  (Bitnami, Grafana, GitLab, Kubernetes-monitoring, and more), with no Go or `helm` binary.
-  Parity is enforced in CI on every change.
+* *Helm-faithful rendering, in pure Java* -- jhelm renders chart templates identically to
+  `helm template` (same charts, default values, pinned `--kube-version v1.35.0`) across a
+  continuously-run suite of *540+ real-world charts* (Bitnami, Grafana, GitLab,
+  Kubernetes-monitoring, and more), with no Go or `helm` binary. The comparison is
+  byte-for-byte apart from a small set of documented, non-semantic differences (generated
+  secrets/certs and `toYaml` key-ordering in `checksum/*` annotations). This is
+  _template-rendering_ parity; `install`/`upgrade` reuse the same renderer but talk to the
+  cluster through the Kubernetes Java client. Parity is enforced in CI on every change.
 * *Pure JVM, no native binary* -- no `helm` executable, no `exec`, no platform-specific
   distribution. Just a Maven dependency.
 * *MCP-native* -- the same operations are exposed as
