@@ -56,6 +56,10 @@ public class ChartResolver {
 	 * @throws IllegalArgumentException if the path is missing, or {@code verify} is set
 	 * for a directory
 	 */
+	// S5443: the work directory is created via NIO createTempDirectory with owner-only
+	// permissions and holds only the extracted chart (no secrets), so the shared temp
+	// directory is used safely here.
+	@SuppressWarnings("java:S5443")
 	public Chart resolve(String chartPath, boolean verify, String keyring) throws IOException {
 		File source = new File(chartPath);
 		if (!source.exists()) {

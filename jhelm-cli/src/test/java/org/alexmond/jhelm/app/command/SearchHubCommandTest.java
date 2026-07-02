@@ -51,7 +51,7 @@ class SearchHubCommandTest {
 	}
 
 	@Test
-	void testSearchHubDefaultShowsArtifactHubUrl() throws Exception {
+	void testSearchHubDefaultShowsArtifactHubUrl() {
 		when(searchHubAction.search(anyString(), anyInt())).thenReturn(List.of(sampleResult()));
 
 		String out = captureStdout(() -> new CommandLine(searchHubCommand).execute("nginx"));
@@ -61,7 +61,7 @@ class SearchHubCommandTest {
 	}
 
 	@Test
-	void testSearchHubListRepoUrlShowsRepositoryUrl() throws Exception {
+	void testSearchHubListRepoUrlShowsRepositoryUrl() {
 		when(searchHubAction.search(anyString(), anyInt())).thenReturn(List.of(sampleResult()));
 
 		String out = captureStdout(() -> new CommandLine(searchHubCommand).execute("nginx", "--list-repo-url"));

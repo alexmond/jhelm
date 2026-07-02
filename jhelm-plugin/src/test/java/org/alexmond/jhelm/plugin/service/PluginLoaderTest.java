@@ -15,8 +15,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PluginLoaderTest {
 
@@ -79,6 +81,20 @@ class PluginLoaderTest {
 	void loadNonexistentArchiveThrowsLoadException() {
 		File nonexistent = new File(tempDir, "nonexistent.jhp");
 		assertThrows(PluginLoadException.class, () -> loader.load(nonexistent));
+	}
+
+	@Test
+	void loadResultEqualsHashCodeAndToStringUseContent() {
+		PluginLoader.LoadResult a = new PluginLoader.LoadResult(null, new byte[] { 1, 2, 3 });
+		PluginLoader.LoadResult b = new PluginLoader.LoadResult(null, new byte[] { 1, 2, 3 });
+		PluginLoader.LoadResult different = new PluginLoader.LoadResult(null, new byte[] { 9 });
+
+		// Array components must compare by content, not identity.
+		assertEquals(a, b);
+		assertEquals(a.hashCode(), b.hashCode());
+		assertNotEquals(a, different);
+		// toString reports the byte count, not a raw array dump.
+		assertTrue(a.toString().contains("3 bytes"), a.toString());
 	}
 
 	private File createArchive(String name, String manifest, String wasmName, byte[] wasmBytes) throws Exception {

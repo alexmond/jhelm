@@ -98,7 +98,11 @@ public class PluginLoader {
 	 */
 	public record LoadResult(PluginManifest manifest, byte[] wasmBytes) {
 
+		// S6878 (prefer a record deconstruction pattern) is suppressed: the Checkstyle
+		// grammar in this build cannot parse record patterns, so the type-pattern form is
+		// used instead.
 		@Override
+		@SuppressWarnings("java:S6878")
 		public boolean equals(Object o) {
 			if (this == o) {
 				return true;
