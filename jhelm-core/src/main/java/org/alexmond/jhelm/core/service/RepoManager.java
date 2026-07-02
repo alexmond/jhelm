@@ -740,6 +740,12 @@ public class RepoManager {
 	 * to {@code repoUrl} (may be {@code null} for an anonymous pull)
 	 * @throws IOException if the index or chart cannot be downloaded
 	 */
+	// S5443: the temp file is created via NIO with owner-only permissions and holds only
+	// a
+	// downloaded public repository index.yaml (no secrets), so the shared temp directory
+	// is
+	// used safely here.
+	@SuppressWarnings("java:S5443")
 	public void pullFromRepoUrl(String repoUrl, String chartName, String version, String destDir,
 			RepositoryConfig.Repository auth) throws IOException {
 		if (version == null || version.isBlank()) {

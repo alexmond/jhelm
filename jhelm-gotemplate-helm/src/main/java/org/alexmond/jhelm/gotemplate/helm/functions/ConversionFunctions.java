@@ -133,12 +133,12 @@ public final class ConversionFunctions {
 	 * over-quoted by Jackson and need plain-style normalisation to match Go's
 	 * {@code yaml.Marshal} (#312).
 	 */
-	// The quoted-content group uses the unrolled form [^"\]*(?:\.[^"\]*)* rather than
-	// (?:[^"\]|\.)* : both match the same language (chars and backslash-escapes) but the
-	// unrolled loop cannot backtrack/recurse on a long scalar, so it can't
-	// stack-overflow.
+	// The quoted-content group uses possessive quantifiers ([^"\]*+ and (?:...)*+)
+	// instead
+	// of (?:[^"\]|\.)* : it matches the same language (chars and backslash-escapes) but
+	// never backtracks, so it cannot exhaust the regex engine's stack on a long scalar.
 	private static final Pattern QUOTED_VALUE = Pattern
-		.compile("^(\\s*(?:\\S+:|-)\\s+)\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"\\s*$");
+		.compile("^(\\s*(?:\\S+:|-)\\s+)\"([^\"\\\\]*+(?:\\\\.[^\"\\\\]*+)*+)\"\\s*$");
 
 	/** YAML boolean and null literals that must remain quoted. */
 	private static final Set<String> YAML_KEYWORDS = Set.of("true", "false", "yes", "no", "on", "off", "null", "~");
