@@ -30,7 +30,7 @@ jhelm's render cost splits across two codebases, and it helps to keep them separ
 |===
 
 The engine layer has its own benchmark suite and optimization history — see the
-https://www.alexmond.org/gotmpl4j/current/performance.html[gotmpl4j performance page]. This page
+https://www.alexmond.org/gotmpl4j/current/performance/[gotmpl4j performance page]. This page
 is about the *jhelm* layer: the cost of turning a chart into manifests.
 
 == The workload
@@ -51,9 +51,9 @@ into a compact, ranked hot-path / allocation / GC summary (and an A/B *diff* bet
 recordings). The loop is: capture a render batch, read the ranked summary, fix the top lever,
 re-capture, diff to prove the delta, and re-run the full parity suite to prove correctness. The
 flags and diff semantics used below are on the
-https://www.alexmond.org/jvmlens/current/usage.html[jvmlens usage page]; for the same loop worked
+https://www.alexmond.org/jvmlens/current/usage/[jvmlens usage page]; for the same loop worked
 end-to-end on the engine layer see the
-https://www.alexmond.org/jvmlens/current/case-study-floatstring.html[jvmlens case study]. Several
+https://www.alexmond.org/jvmlens/current/case-study-floatstring/[jvmlens case study]. Several
 of jvmlens's safeguards were filed *from* this workload — the live-attach-over-`dumponexit` tip,
 the child-process-pipe I/O hint, and the flat-total profile-diff hedge described next.
 
@@ -111,7 +111,7 @@ jvmlens now flags it for you: a `▲` hot-path row under a ~flat exec-sample tot
 `(possible sampling redistribution …)`, and the diff adds a one-line caution that fixed-duration
 exec-sample deltas conflate per-op cost with throughput — pointing at a fixed-iteration `bench`
 A/B for a clean per-op comparison (see the
-https://www.alexmond.org/jvmlens/current/usage.html[jvmlens usage page]). Both safeguards were
+https://www.alexmond.org/jvmlens/current/usage/[jvmlens usage page]). Both safeguards were
 filed from this jhelm workload.
 
 == Optimization history
