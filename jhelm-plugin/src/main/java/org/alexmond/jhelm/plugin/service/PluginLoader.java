@@ -6,6 +6,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Objects;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.plugin.exception.PluginLoadException;
@@ -95,6 +97,28 @@ public class PluginLoader {
 	 * @param wasmBytes the raw bytes of the plugin's WASM binary
 	 */
 	public record LoadResult(PluginManifest manifest, byte[] wasmBytes) {
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			if (!(o instanceof LoadResult other)) {
+				return false;
+			}
+			return Objects.equals(this.manifest, other.manifest) && Arrays.equals(this.wasmBytes, other.wasmBytes);
+		}
+
+		@Override
+		public int hashCode() {
+			return 31 * Objects.hashCode(this.manifest) + Arrays.hashCode(this.wasmBytes);
+		}
+
+		@Override
+		public String toString() {
+			return "LoadResult[manifest=" + this.manifest + ", wasmBytes="
+					+ ((this.wasmBytes != null) ? this.wasmBytes.length + " bytes" : "null") + "]";
+		}
 	}
 
 }

@@ -52,22 +52,14 @@ public class SearchHubCommand implements Runnable {
 	}
 
 	private void printTable(List<SearchHubAction.HubResult> results) {
-		if (listRepoUrl) {
-			CliOutput.println(String.format("%-40s\t%-8s\t%-12s\t%s", "URL", "VERSION", "APP VERSION", "DESCRIPTION"));
-		}
-		else {
-			CliOutput.println(String.format("%-40s\t%-8s\t%-12s\t%s", "URL", "VERSION", "APP VERSION", "DESCRIPTION"));
-		}
+		CliOutput.println(String.format("%-40s\t%-8s\t%-12s\t%s", "URL", "VERSION", "APP VERSION", "DESCRIPTION"));
 		for (SearchHubAction.HubResult r : results) {
 			String description = truncate(r.getDescription(), maxColWidth);
-			if (listRepoUrl) {
-				CliOutput.println(String.format("%-40s\t%-8s\t%-12s\t%s", r.getUrl(), r.getVersion(), r.getAppVersion(),
-						description));
-			}
-			else {
-				CliOutput.println(String.format("%-40s\t%-8s\t%-12s\t%s", r.getUrl(), r.getVersion(), r.getAppVersion(),
-						description));
-			}
+			// --list-repo-url prints the chart's repository URL; the default prints the
+			// Artifact Hub package URL (matching `helm search hub [--list-repo-url]`).
+			String url = listRepoUrl ? r.getRepoUrl() : r.getUrl();
+			CliOutput
+				.println(String.format("%-40s\t%-8s\t%-12s\t%s", url, r.getVersion(), r.getAppVersion(), description));
 		}
 	}
 

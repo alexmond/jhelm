@@ -748,7 +748,10 @@ public class RepoManager {
 		RepositoryConfig.Repository repo = (auth != null) ? auth : RepositoryConfig.Repository.builder().build();
 		repo.setUrl(repoUrl);
 		String indexUrl = repoUrl.endsWith("/") ? repoUrl + "index.yaml" : repoUrl + "/index.yaml";
-		File indexTmp = File.createTempFile("jhelm-index-", ".yaml");
+		// NIO createTempFile creates the file atomically with owner-only permissions on
+		// POSIX, unlike File.createTempFile which uses the umask default in the shared
+		// temp directory.
+		File indexTmp = Files.createTempFile("jhelm-index-", ".yaml").toFile();
 		try {
 			HttpGet httpGet = new HttpGet(indexUrl);
 			httpGet.setHeader("User-Agent", "jhelm");

@@ -48,7 +48,11 @@ public final class ConversionFunctions {
 	private ConversionFunctions() {
 	}
 
-	private static final ThreadLocal<YAMLMapper> YAML_MAPPER = ThreadLocal.withInitial(() -> YAMLMapper.builder()
+	// Jackson mappers are immutable and thread-safe once built, so a single shared
+	// instance
+	// is safe for concurrent renders and avoids a per-thread mapper (plus the ThreadLocal
+	// leak in pooled / virtual threads). Every use below is a stateless read/write call.
+	private static final YAMLMapper YAML_MAPPER = YAMLMapper.builder()
 		.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
 		// Go's yaml.Marshal never wraps long lines; Jackson defaults to 80-char width
 		// which inserts \ line continuations that break tpl(toYaml ...) patterns (#203)
@@ -63,20 +67,20 @@ public final class ConversionFunctions {
 		.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
 		// Render whole-number floats as ints (1.0 -> 1) like Helm's JSON-based marshal.
 		.addModule(goNumberModule())
-		.build());
+		.build();
 
 	/**
 	 * YAML mapper for {@code toYamlPretty}. Identical to {@link #YAML_MAPPER} but indents
 	 * block sequence items under their key ({@code   - x} instead of {@code - x}),
 	 * matching Helm's {@code toYamlPretty} (a yaml.v3 encoder with indent 2).
 	 */
-	private static final ThreadLocal<YAMLMapper> PRETTY_YAML_MAPPER = ThreadLocal.withInitial(() -> YAMLMapper.builder()
+	private static final YAMLMapper PRETTY_YAML_MAPPER = YAMLMapper.builder()
 		.disable(YAMLWriteFeature.WRITE_DOC_START_MARKER)
 		.disable(YAMLWriteFeature.SPLIT_LINES)
 		.enable(YAMLWriteFeature.MINIMIZE_QUOTES)
 		.enable(YAMLWriteFeature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS)
 		.enable(YAMLWriteFeature.INDENT_ARRAYS_WITH_INDICATOR)
-		.build());
+		.build();
 
 	/**
 	 * YAML 1.1 octal pattern: bare-zero prefix followed by octal digits (e.g. 0660,
@@ -129,8 +133,12 @@ public final class ConversionFunctions {
 	 * over-quoted by Jackson and need plain-style normalisation to match Go's
 	 * {@code yaml.Marshal} (#312).
 	 */
+	// The quoted-content group uses the unrolled form [^"\]*(?:\.[^"\]*)* rather than
+	// (?:[^"\]|\.)* : both match the same language (chars and backslash-escapes) but the
+	// unrolled loop cannot backtrack/recurse on a long scalar, so it can't
+	// stack-overflow.
 	private static final Pattern QUOTED_VALUE = Pattern
-		.compile("^(\\s*(?:\\S+:|-)\\s+)\"((?:[^\"\\\\]|\\\\.)*)\"\\s*$");
+		.compile("^(\\s*(?:\\S+:|-)\\s+)\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"\\s*$");
 
 	/** YAML boolean and null literals that must remain quoted. */
 	private static final Set<String> YAML_KEYWORDS = Set.of("true", "false", "yes", "no", "on", "off", "null", "~");
@@ -139,19 +147,18 @@ public final class ConversionFunctions {
 	private static final Pattern NUMERIC = Pattern
 		.compile("^[+-]?(\\d[\\d_]*(\\.[\\d_]*)?([eE][+-]?\\d+)?|\\.inf|\\.nan|0x[\\da-fA-F]+|0o[0-7]+)$");
 
-	private static final ThreadLocal<JsonMapper> JSON_MAPPER = ThreadLocal.withInitial(() -> JsonMapper.builder()
+	private static final JsonMapper JSON_MAPPER = JsonMapper.builder()
 		.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
 		.addModule(goNumberModule())
-		.build());
+		.build();
 
-	private static final ThreadLocal<JsonMapper> RAW_JSON_MAPPER = ThreadLocal.withInitial(() -> JsonMapper.builder()
+	private static final JsonMapper RAW_JSON_MAPPER = JsonMapper.builder()
 		.enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
 		.disable(JsonWriteFeature.ESCAPE_NON_ASCII)
 		.addModule(goNumberModule())
-		.build());
+		.build();
 
-	private static final ThreadLocal<TomlMapper> TOML_MAPPER = ThreadLocal
-		.withInitial(() -> TomlMapper.builder().build());
+	private static final TomlMapper TOML_MAPPER = TomlMapper.builder().build();
 
 	/**
 	 * Go's json.Marshal normalizes whole-number float64 values to integer representation
@@ -224,7 +231,7 @@ public final class ConversionFunctions {
 				return "null";
 			}
 			try {
-				String yaml = YAML_MAPPER.get().writeValueAsString(args[0]);
+				String yaml = YAML_MAPPER.writeValueAsString(args[0]);
 				// Remove document start marker if present
 				if (yaml.startsWith("---\n")) {
 					yaml = yaml.substring(4);
@@ -257,7 +264,7 @@ public final class ConversionFunctions {
 				return "null";
 			}
 			try {
-				String yaml = PRETTY_YAML_MAPPER.get().writeValueAsString(args[0]);
+				String yaml = PRETTY_YAML_MAPPER.writeValueAsString(args[0]);
 				if (yaml.startsWith("---\n")) {
 					yaml = yaml.substring(4);
 				}
@@ -291,7 +298,7 @@ public final class ConversionFunctions {
 				return "null";
 			}
 			try {
-				String yaml = YAML_MAPPER.get().writeValueAsString(args[0]);
+				String yaml = YAML_MAPPER.writeValueAsString(args[0]);
 				// Remove document start marker if present
 				if (yaml.startsWith("---\n")) {
 					yaml = yaml.substring(4);
@@ -525,7 +532,7 @@ public final class ConversionFunctions {
 				return "null";
 			}
 			try {
-				return JSON_MAPPER.get().writeValueAsString(args[0]);
+				return JSON_MAPPER.writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
 				log.debug("toJson failed: {}", ex.getMessage());
@@ -544,7 +551,7 @@ public final class ConversionFunctions {
 				throw new FunctionExecutionException("mustToJson: no value provided");
 			}
 			try {
-				return JSON_MAPPER.get().writeValueAsString(args[0]);
+				return JSON_MAPPER.writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
 				throw new FunctionExecutionException("mustToJson: failed to convert to JSON: " + ex.getMessage(), ex);
@@ -562,7 +569,7 @@ public final class ConversionFunctions {
 				return "null";
 			}
 			try {
-				return JSON_MAPPER.get().writerWithDefaultPrettyPrinter().writeValueAsString(args[0]);
+				return JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
 				log.debug("toPrettyJson failed: {}", ex.getMessage());
@@ -581,7 +588,7 @@ public final class ConversionFunctions {
 				throw new FunctionExecutionException("mustToPrettyJson: no value provided");
 			}
 			try {
-				return JSON_MAPPER.get().writerWithDefaultPrettyPrinter().writeValueAsString(args[0]);
+				return JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
 				throw new FunctionExecutionException("mustToPrettyJson: failed to convert to JSON: " + ex.getMessage(),
@@ -600,7 +607,7 @@ public final class ConversionFunctions {
 				return "null";
 			}
 			try {
-				return RAW_JSON_MAPPER.get().writeValueAsString(args[0]);
+				return RAW_JSON_MAPPER.writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
 				log.debug("toRawJson failed: {}", ex.getMessage());
@@ -619,7 +626,7 @@ public final class ConversionFunctions {
 				throw new FunctionExecutionException("mustToRawJson: no value provided");
 			}
 			try {
-				return RAW_JSON_MAPPER.get().writeValueAsString(args[0]);
+				return RAW_JSON_MAPPER.writeValueAsString(args[0]);
 			}
 			catch (Exception ex) {
 				throw new FunctionExecutionException("mustToRawJson: failed to convert to JSON: " + ex.getMessage(),
@@ -641,7 +648,7 @@ public final class ConversionFunctions {
 				if (json.isBlank() || "null".equals(json)) {
 					return Map.of();
 				}
-				Object result = JSON_MAPPER.get().readValue(json, Object.class);
+				Object result = JSON_MAPPER.readValue(json, Object.class);
 				if (result instanceof Map<?, ?> map) {
 					return map;
 				}
@@ -676,7 +683,7 @@ public final class ConversionFunctions {
 				// via an Error entry; only mustFromJson is shape-agnostic.) "null"
 				// decodes
 				// to null, matching Helm.
-				return JSON_MAPPER.get().readValue(json, Object.class);
+				return JSON_MAPPER.readValue(json, Object.class);
 			}
 			catch (FunctionExecutionException ex) {
 				throw ex;
@@ -700,7 +707,7 @@ public final class ConversionFunctions {
 				if (json.isBlank() || "null".equals(json)) {
 					return Collections.emptyList();
 				}
-				Object result = JSON_MAPPER.get().readValue(json, Object.class);
+				Object result = JSON_MAPPER.readValue(json, Object.class);
 				if (result instanceof List<?> list) {
 					return list;
 				}
@@ -731,7 +738,7 @@ public final class ConversionFunctions {
 				if ("null".equals(json)) {
 					throw new FunctionExecutionException("mustFromJsonArray: cannot parse null");
 				}
-				return JSON_MAPPER.get().readValue(json, List.class);
+				return JSON_MAPPER.readValue(json, List.class);
 			}
 			catch (Exception ex) {
 				throw new FunctionExecutionException(
@@ -783,7 +790,7 @@ public final class ConversionFunctions {
 				if (toml.isBlank()) {
 					return Map.of();
 				}
-				return TOML_MAPPER.get().readValue(toml, Map.class);
+				return TOML_MAPPER.readValue(toml, Map.class);
 			}
 			catch (Exception ex) {
 				log.debug("fromToml failed: {}", ex.getMessage());
@@ -802,7 +809,7 @@ public final class ConversionFunctions {
 				if (toml.isBlank()) {
 					throw new FunctionExecutionException("mustFromToml: empty TOML string");
 				}
-				return TOML_MAPPER.get().readValue(toml, Map.class);
+				return TOML_MAPPER.readValue(toml, Map.class);
 			}
 			catch (Exception ex) {
 				throw new FunctionExecutionException("mustFromToml: failed to parse TOML: " + ex.getMessage(), ex);
