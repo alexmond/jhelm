@@ -14,8 +14,7 @@ public interface PostRenderProcessor {
 	 * @param renderedManifest the rendered YAML manifest
 	 * @return the transformed manifest
 	 * @throws IOException if reading from or writing to the post-render process fails
-	 * @throws InterruptedException if the post-render process is interrupted
 	 */
-	String process(String renderedManifest) throws IOException, InterruptedException;
+	String process(String renderedManifest) throws IOException;
 
 }

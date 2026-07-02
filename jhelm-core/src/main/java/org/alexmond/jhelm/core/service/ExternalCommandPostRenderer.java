@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.service;
 
+import org.alexmond.jhelm.core.exception.JhelmException;
 import java.io.UncheckedIOException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -48,7 +49,7 @@ public class ExternalCommandPostRenderer implements PostRenderProcessor {
 	}
 
 	@Override
-	public String process(String renderedManifest) throws IOException, InterruptedException {
+	public String process(String renderedManifest) throws IOException {
 		ProcessBuilder pb = new ProcessBuilder(command);
 		pb.redirectErrorStream(false);
 
@@ -106,6 +107,10 @@ public class ExternalCommandPostRenderer implements PostRenderProcessor {
 				log.debug("Post-renderer completed successfully");
 			}
 			return stdout;
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new JhelmException("Interrupted while running post-renderer: " + String.join(" ", command), ex);
 		}
 		finally {
 			process.destroyForcibly();
