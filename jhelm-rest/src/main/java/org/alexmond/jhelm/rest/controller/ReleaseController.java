@@ -237,14 +237,11 @@ public class ReleaseController {
 			Chart chart = ChartSourceResolver.fromChartRef(request.getChartRef(), request.getVersion(),
 					this.repoManager, this.chartLoader, tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
-			// TODO: expose UpgradeValueStrategy (reset/reuse/reset-then-reuse) on the
-			// REST
-			// request as a follow-up.
 			Release upgraded = this.upgradeAction.upgrade(UpgradeOptions.builder()
 				.currentRelease(current)
 				.newChart(chart)
 				.values(values)
-				.valueStrategy(UpgradeValueStrategy.DEFAULT)
+				.valueStrategy(resolveStrategy(request.getValueStrategy()))
 				.dryRun(request.isDryRun())
 				.build());
 			return ReleaseDto.from(upgraded);
@@ -274,18 +271,25 @@ public class ReleaseController {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-upgrade-upload-")) {
 			Chart loaded = ChartSourceResolver.fromUpload(chart, this.repoManager, this.chartLoader, tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
-			// TODO: expose UpgradeValueStrategy (reset/reuse/reset-then-reuse) on the
-			// REST
-			// request as a follow-up.
 			Release upgraded = this.upgradeAction.upgrade(UpgradeOptions.builder()
 				.currentRelease(current)
 				.newChart(loaded)
 				.values(values)
-				.valueStrategy(UpgradeValueStrategy.DEFAULT)
+				.valueStrategy(resolveStrategy(request.getValueStrategy()))
 				.dryRun(request.isDryRun())
 				.build());
 			return ReleaseDto.from(upgraded);
 		}
+	}
+
+	/**
+	 * Resolves the request's value strategy, defaulting to
+	 * {@link UpgradeValueStrategy#DEFAULT} when the client omits it.
+	 * @param strategy the strategy from the request, or {@code null}
+	 * @return the strategy to apply, never {@code null}
+	 */
+	private static UpgradeValueStrategy resolveStrategy(UpgradeValueStrategy strategy) {
+		return (strategy != null) ? strategy : UpgradeValueStrategy.DEFAULT;
 	}
 
 	/**

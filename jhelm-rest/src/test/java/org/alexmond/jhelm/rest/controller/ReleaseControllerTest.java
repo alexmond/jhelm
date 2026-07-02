@@ -20,6 +20,7 @@ import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.UpgradeOptions;
+import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
@@ -214,6 +215,50 @@ class ReleaseControllerTest {
 						"""))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.version").value(2));
+	}
+
+	@Test
+	void upgradeReleaseHonorsRequestedValueStrategy() throws Exception {
+		Release current = sampleRelease();
+		when(this.getAction.getRelease("my-release", "default")).thenReturn(Optional.of(current));
+		stubPull();
+		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("2.0.0").build()).build();
+		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
+		when(this.upgradeAction.upgrade(any(UpgradeOptions.class)))
+			.thenReturn(sampleRelease().toBuilder().version(2).build());
+
+		this.mockMvc
+			.perform(put("/api/v1/releases/my-release").contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.content("""
+						{"chartRef": "bitnami/nginx", "version": "2.0.0", "valueStrategy": "REUSE"}
+						"""))
+			.andExpect(status().isOk());
+
+		verify(this.upgradeAction)
+			.upgrade(argThat((UpgradeOptions options) -> options.getValueStrategy() == UpgradeValueStrategy.REUSE));
+	}
+
+	@Test
+	void upgradeReleaseDefaultsValueStrategyWhenOmitted() throws Exception {
+		Release current = sampleRelease();
+		when(this.getAction.getRelease("my-release", "default")).thenReturn(Optional.of(current));
+		stubPull();
+		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("2.0.0").build()).build();
+		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
+		when(this.upgradeAction.upgrade(any(UpgradeOptions.class)))
+			.thenReturn(sampleRelease().toBuilder().version(2).build());
+
+		this.mockMvc
+			.perform(put("/api/v1/releases/my-release").contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.content("""
+						{"chartRef": "bitnami/nginx", "version": "2.0.0"}
+						"""))
+			.andExpect(status().isOk());
+
+		verify(this.upgradeAction)
+			.upgrade(argThat((UpgradeOptions options) -> options.getValueStrategy() == UpgradeValueStrategy.DEFAULT));
 	}
 
 	@Test
