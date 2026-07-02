@@ -1,8 +1,8 @@
 = jhelm
 :jhelm-version: 1.0.0
-:url-docs: https://www.alexmond.org/jhelm/current/index.html
-:url-docs-mcp: https://www.alexmond.org/jhelm/current/mcp.html
-:url-docs-rest: https://www.alexmond.org/jhelm/current/rest-api.html
+:url-docs: https://www.alexmond.org/jhelm/current/
+:url-docs-mcp: https://www.alexmond.org/jhelm/current/mcp/
+:url-docs-rest: https://www.alexmond.org/jhelm/current/rest-api/
 :toc:
 
 image:https://img.shields.io/maven-central/v/org.alexmond/jhelm-core.svg?label=Maven%20Central[Maven Central,link=https://search.maven.org/artifact/org.alexmond/jhelm-core]
