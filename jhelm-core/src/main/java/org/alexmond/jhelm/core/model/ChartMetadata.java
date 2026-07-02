@@ -14,6 +14,16 @@ import lombok.NoArgsConstructor;
  * The contents of a chart's {@code Chart.yaml}: name, version, description, API version,
  * type, app version, supported Kubernetes range, dependency declarations and annotations.
  * Unknown keys are ignored on deserialization.
+ *
+ * <p>
+ * <strong>Mutability contract (1.0):</strong> this is a mutable internal model. The
+ * loader and engine mutate it during loading and rendering — the loader backfills
+ * v1-chart {@code requirements.yaml} dependencies, and the engine sets the
+ * {@code .Chart.IsRoot} flag (and, for aliased dependencies, the effective name) as it
+ * walks the render tree. Treat an instance obtained from the API as read-only in your own
+ * code and construct new ones via the generated {@code builder()}; the {@code set*}
+ * methods exist for the loading/rendering pipeline, not as a supported mutation surface.
+ * (Contrast {@link Release}, which is fully immutable.)
  */
 @Data
 @Builder(toBuilder = true)
