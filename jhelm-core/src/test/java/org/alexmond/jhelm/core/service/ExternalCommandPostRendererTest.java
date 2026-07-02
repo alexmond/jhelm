@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.service;
 
+import org.alexmond.jhelm.core.exception.JhelmException;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -84,6 +85,20 @@ class ExternalCommandPostRendererTest {
 		String input = "apiVersion: apps/v1\nkind: Deployment\nspec:\n  replicas: 1\n";
 		String result = renderer.process(input);
 		assertTrue(result.contains("replicas: 3"));
+	}
+
+	@Test
+	void processReInterruptsWhenThreadInterrupted() {
+		// A long-running command keeps the process alive so waitFor() is still blocking
+		// when
+		// it observes the pre-set interrupt and throws InterruptedException.
+		ExternalCommandPostRenderer renderer = new ExternalCommandPostRenderer(List.of("sleep", "10"));
+		Thread.currentThread().interrupt();
+		JhelmException ex = assertThrows(JhelmException.class, () -> renderer.process("data: x\n"));
+		// The interrupt flag must be restored (cleared here so it does not leak to other
+		// tests).
+		assertTrue(Thread.interrupted(), "interrupt flag should be restored");
+		assertTrue(ex.getMessage().contains("Interrupted"), ex.getMessage());
 	}
 
 }

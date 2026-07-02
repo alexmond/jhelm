@@ -1,6 +1,5 @@
 package org.alexmond.jhelm.app.command;
 
-import org.alexmond.jhelm.core.exception.JhelmException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -269,13 +268,7 @@ public class UpgradeCommand implements Runnable {
 		}
 		String manifest = release.getManifest();
 		for (String renderer : postRenderers) {
-			try {
-				manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
-			}
-			catch (InterruptedException ex) {
-				Thread.currentThread().interrupt();
-				throw new JhelmException("Interrupted while running post-renderer: " + renderer, ex);
-			}
+			manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
 		}
 		return release.toBuilder().manifest(manifest).build();
 	}
