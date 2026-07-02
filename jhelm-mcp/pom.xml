@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.alexmond</groupId>
         <artifactId>jhelm-parent</artifactId>
-        <version>0.6.1-SNAPSHOT</version>
+        <version>1.0.0</version>
     </parent>
     <artifactId>jhelm-mcp</artifactId>
     <name>jhelm-mcp</name>
