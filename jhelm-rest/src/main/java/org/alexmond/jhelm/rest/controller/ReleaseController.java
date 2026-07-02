@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.rest.controller;
 
+import java.io.IOException;
 import jakarta.validation.Valid;
 
 import java.util.Collections;
@@ -130,13 +131,11 @@ public class ReleaseController {
 	 * {@code GET} - lists all Helm releases in a namespace.
 	 * @param namespace the Kubernetes namespace
 	 * @return the releases found in the namespace
-	 * @throws Exception if the releases cannot be listed
 	 */
 	@GetMapping
 	@Operation(summary = "List releases", description = "List all Helm releases in a namespace")
 	public List<ReleaseDto> list(
-			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
-			throws Exception {
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
 		return this.listAction.list(namespace).stream().map(ReleaseDto::from).toList();
 	}
 
@@ -145,15 +144,13 @@ public class ReleaseController {
 	 * @param name the release name
 	 * @param namespace the Kubernetes namespace
 	 * @return {@code 200} with the release, or {@code 404} if it does not exist
-	 * @throws Exception if the status cannot be read
 	 */
 	@GetMapping("/{name}")
 	@Operation(summary = "Get release status",
 			responses = { @ApiResponse(responseCode = "200", description = "Release found"),
 					@ApiResponse(responseCode = "404", description = "Release not found") })
 	public ResponseEntity<ReleaseDto> status(@Parameter(description = "Release name") @PathVariable String name,
-			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
-			throws Exception {
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
 		return this.statusAction.status(name, namespace)
 			.map(ReleaseDto::from)
 			.map(ResponseEntity::ok)
@@ -165,13 +162,13 @@ public class ReleaseController {
 	 * @param request the chart reference, release name, namespace, values and dry-run
 	 * flag
 	 * @return {@code 201} with the created release
-	 * @throws Exception if the chart cannot be pulled or installed
+	 * @throws IOException if the chart cannot be pulled or installed
 	 */
 	@PostMapping
 	@MutatingOperation
 	@Operation(summary = "Install a release",
 			description = "Install a new Helm release from a repository chart reference")
-	public ResponseEntity<ReleaseDto> install(@Valid @RequestBody InstallRequest request) throws Exception {
+	public ResponseEntity<ReleaseDto> install(@Valid @RequestBody InstallRequest request) throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-install-")) {
 			Chart chart = ChartSourceResolver.fromChartRef(request.getChartRef(), request.getVersion(),
 					this.repoManager, this.chartLoader, tempDir);
@@ -193,14 +190,14 @@ public class ReleaseController {
 	 * @param chart the uploaded chart archive
 	 * @param request the release name, namespace, values and dry-run flag
 	 * @return {@code 201} with the created release
-	 * @throws Exception if the upload cannot be extracted or installed
+	 * @throws IOException if the upload cannot be extracted or installed
 	 */
 	@PostMapping(path = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@MutatingOperation
 	@Operation(summary = "Install a release from upload",
 			description = "Install a new Helm release from an uploaded .tgz chart archive")
 	public ResponseEntity<ReleaseDto> installUpload(@RequestPart("chart") MultipartFile chart,
-			@Valid @RequestPart("request") InstallUploadRequest request) throws Exception {
+			@Valid @RequestPart("request") InstallUploadRequest request) throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-install-upload-")) {
 			Chart loaded = ChartSourceResolver.fromUpload(chart, this.repoManager, this.chartLoader, tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
@@ -222,7 +219,7 @@ public class ReleaseController {
 	 * @param namespace the Kubernetes namespace
 	 * @param request the chart reference, version, values and dry-run flag
 	 * @return the upgraded release
-	 * @throws Exception if the release is not found or the upgrade fails
+	 * @throws IOException if the chart cannot be pulled or the upgrade fails
 	 */
 	@PutMapping("/{name}")
 	@MutatingOperation
@@ -230,7 +227,7 @@ public class ReleaseController {
 			description = "Upgrade an existing release from a repository chart reference")
 	public ReleaseDto upgrade(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
-			@Valid @RequestBody UpgradeRequest request) throws Exception {
+			@Valid @RequestBody UpgradeRequest request) throws IOException {
 		Release current = this.getAction.getRelease(name, namespace)
 			.orElseThrow(() -> new NotFoundException("Release '" + name + "' not found"));
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-upgrade-")) {
@@ -256,7 +253,7 @@ public class ReleaseController {
 	 * @param chart the uploaded chart archive
 	 * @param request the values and dry-run flag
 	 * @return the upgraded release
-	 * @throws Exception if the release is not found or the upgrade fails
+	 * @throws IOException if the upload cannot be extracted or the upgrade fails
 	 */
 	@PostMapping(path = "/{name}/upgrade/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@MutatingOperation
@@ -265,7 +262,7 @@ public class ReleaseController {
 	public ReleaseDto upgradeUpload(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
 			@RequestPart("chart") MultipartFile chart, @RequestPart("request") UpgradeUploadRequest request)
-			throws Exception {
+			throws IOException {
 		Release current = this.getAction.getRelease(name, namespace)
 			.orElseThrow(() -> new NotFoundException("Release '" + name + "' not found"));
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-upgrade-upload-")) {
@@ -297,14 +294,12 @@ public class ReleaseController {
 	 * @param name the release name
 	 * @param namespace the Kubernetes namespace
 	 * @return {@code 204} when the release is uninstalled
-	 * @throws Exception if the release cannot be uninstalled
 	 */
 	@DeleteMapping("/{name}")
 	@MutatingOperation
 	@Operation(summary = "Uninstall a release")
 	public ResponseEntity<Void> uninstall(@Parameter(description = "Release name") @PathVariable String name,
-			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
-			throws Exception {
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
 		this.uninstallAction.uninstall(UninstallOptions.builder().releaseName(name).namespace(namespace).build());
 		return ResponseEntity.noContent().build();
 	}
@@ -314,13 +309,11 @@ public class ReleaseController {
 	 * @param name the release name
 	 * @param namespace the Kubernetes namespace
 	 * @return the release revisions, newest first
-	 * @throws Exception if the history cannot be read
 	 */
 	@GetMapping("/{name}/history")
 	@Operation(summary = "Get release history", description = "List all revisions of a release")
 	public List<ReleaseDto> history(@Parameter(description = "Release name") @PathVariable String name,
-			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
-			throws Exception {
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
 		return this.historyAction.history(name, namespace).stream().map(ReleaseDto::from).toList();
 	}
 
@@ -330,14 +323,13 @@ public class ReleaseController {
 	 * @param namespace the Kubernetes namespace
 	 * @param request the target revision number
 	 * @return {@code 204} when the rollback completes
-	 * @throws Exception if the rollback fails
 	 */
 	@PostMapping("/{name}/rollback")
 	@MutatingOperation
 	@Operation(summary = "Rollback a release", description = "Rollback a release to a previous revision")
 	public ResponseEntity<Void> rollback(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
-			@Valid @RequestBody RollbackRequest request) throws Exception {
+			@Valid @RequestBody RollbackRequest request) {
 		this.rollbackAction.rollback(RollbackOptions.builder()
 			.releaseName(name)
 			.namespace(namespace)
@@ -352,15 +344,13 @@ public class ReleaseController {
 	 * @param namespace the Kubernetes namespace
 	 * @param timeoutSeconds the per-test timeout in seconds
 	 * @return one result per executed test hook
-	 * @throws Exception if the tests cannot be run
 	 */
 	@PostMapping("/{name}/test")
 	@MutatingOperation
 	@Operation(summary = "Test a release", description = "Run test hooks for a release")
 	public List<TestResultDto> test(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
-			@Parameter(description = "Timeout in seconds") @RequestParam(defaultValue = "300") int timeoutSeconds)
-			throws Exception {
+			@Parameter(description = "Timeout in seconds") @RequestParam(defaultValue = "300") int timeoutSeconds) {
 		return this.testAction.test(name, namespace, timeoutSeconds).stream().map(TestResultDto::from).toList();
 	}
 
@@ -372,14 +362,12 @@ public class ReleaseController {
 	 * only user-supplied overrides
 	 * @return {@code 200} with the values YAML, or {@code 404} if the release does not
 	 * exist
-	 * @throws Exception if the values cannot be read
 	 */
 	@GetMapping("/{name}/values")
 	@Operation(summary = "Get release values", description = "Get the values used by a release")
 	public ResponseEntity<String> getValues(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
-			@Parameter(description = "Include computed values") @RequestParam(defaultValue = "false") boolean all)
-			throws Exception {
+			@Parameter(description = "Include computed values") @RequestParam(defaultValue = "false") boolean all) {
 		return this.getAction.getRelease(name, namespace)
 			.map((release) -> ResponseEntity.ok(safeGetValues(release, all)))
 			.orElse(ResponseEntity.notFound().build());
@@ -390,13 +378,11 @@ public class ReleaseController {
 	 * @param name the release name
 	 * @param namespace the Kubernetes namespace
 	 * @return {@code 200} with the manifest, or {@code 404} if the release does not exist
-	 * @throws Exception if the manifest cannot be read
 	 */
 	@GetMapping("/{name}/manifest")
 	@Operation(summary = "Get release manifest", description = "Get the rendered Kubernetes manifest")
 	public ResponseEntity<String> getManifest(@Parameter(description = "Release name") @PathVariable String name,
-			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
-			throws Exception {
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
 		return this.getAction.getRelease(name, namespace)
 			.map((release) -> ResponseEntity.ok(this.getAction.getManifest(release)))
 			.orElse(ResponseEntity.notFound().build());
@@ -407,13 +393,11 @@ public class ReleaseController {
 	 * @param name the release name
 	 * @param namespace the Kubernetes namespace
 	 * @return {@code 200} with the notes, or {@code 404} if the release does not exist
-	 * @throws Exception if the notes cannot be read
 	 */
 	@GetMapping("/{name}/notes")
 	@Operation(summary = "Get release notes")
 	public ResponseEntity<String> getNotes(@Parameter(description = "Release name") @PathVariable String name,
-			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
-			throws Exception {
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
 		return this.getAction.getRelease(name, namespace)
 			.map((release) -> ResponseEntity.ok(this.getAction.getNotes(release)))
 			.orElse(ResponseEntity.notFound().build());
@@ -424,14 +408,12 @@ public class ReleaseController {
 	 * @param name the release name
 	 * @param namespace the Kubernetes namespace
 	 * @return {@code 200} with the hooks, or {@code 404} if the release does not exist
-	 * @throws Exception if the hooks cannot be read
 	 */
 	@GetMapping("/{name}/hooks")
 	@Operation(summary = "Get release hooks", description = "List Helm hooks defined in the release")
 	public ResponseEntity<List<HelmHookDto>> getHooks(
 			@Parameter(description = "Release name") @PathVariable String name,
-			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
-			throws Exception {
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
 		return this.getAction.getRelease(name, namespace).map((release) -> {
 			List<HelmHookDto> hooks = HookParser.parseHooks(release.getManifest())
 				.stream()
@@ -448,14 +430,12 @@ public class ReleaseController {
 	 * @param namespace the Kubernetes namespace
 	 * @return {@code 200} with the resource statuses, or {@code 404} if the release does
 	 * not exist
-	 * @throws Exception if the statuses cannot be read
 	 */
 	@GetMapping("/{name}/resources")
 	@Operation(summary = "Get resource statuses", description = "List Kubernetes resources and their status")
 	public ResponseEntity<List<ResourceStatusDto>> getResources(
 			@Parameter(description = "Release name") @PathVariable String name,
-			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace)
-			throws Exception {
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
 		return this.statusAction.status(name, namespace).map((release) -> {
 			List<ResourceStatusDto> statuses = safeGetResourceStatuses(release);
 			return ResponseEntity.ok(statuses);

@@ -1,7 +1,18 @@
 package org.alexmond.jhelm.rest;
 
 import java.lang.reflect.Method;
+import java.util.List;
 
+import org.alexmond.jhelm.core.exception.ChartLoadException;
+import org.alexmond.jhelm.core.exception.DeploymentFailedException;
+import org.alexmond.jhelm.core.exception.JhelmException;
+import org.alexmond.jhelm.core.exception.KubernetesOperationException;
+import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
+import org.alexmond.jhelm.core.exception.ReleaseStorageException;
+import org.alexmond.jhelm.core.exception.SchemaValidationException;
+import org.alexmond.jhelm.core.exception.SignatureException;
+import org.alexmond.jhelm.core.exception.TemplateRenderException;
+import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.core.MethodParameter;
@@ -80,6 +91,63 @@ class JhelmRestExceptionHandlerTest {
 		assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), problem.getStatus());
 		assertEquals("Unknown error", problem.getDetail());
 		assertTrue(problem.getProperties().containsKey("timestamp"));
+	}
+
+	@Test
+	void releaseNotFoundMapsTo404() {
+		ProblemDetail problem = this.handler.handleReleaseNotFound(new ReleaseNotFoundException("no release 'x'"));
+
+		assertEquals(HttpStatus.NOT_FOUND.value(), problem.getStatus());
+		assertEquals("no release 'x'", problem.getDetail());
+	}
+
+	@Test
+	void malformedChartMapsTo400() {
+		ProblemDetail chartLoad = this.handler
+			.handleBadChart(new ChartLoadException("bad chart", "/tmp/c", "check Chart.yaml"));
+		ProblemDetail signature = this.handler.handleBadChart(new SignatureException("provenance failed"));
+
+		assertEquals(HttpStatus.BAD_REQUEST.value(), chartLoad.getStatus());
+		assertEquals(HttpStatus.BAD_REQUEST.value(), signature.getStatus());
+	}
+
+	@Test
+	void schemaAndTemplateFailuresMapTo422() {
+		ProblemDetail schema = this.handler
+			.handleUnprocessable(new SchemaValidationException("mychart", List.of("values.replicas: must be >= 0")));
+		ProblemDetail template = this.handler
+			.handleUnprocessable(new TemplateRenderException("render failed", "mychart", "deployment.yaml"));
+
+		assertEquals(HttpStatus.UNPROCESSABLE_ENTITY.value(), schema.getStatus());
+		assertEquals(HttpStatus.UNPROCESSABLE_ENTITY.value(), template.getStatus());
+	}
+
+	@Test
+	void waitTimeoutMapsTo504() {
+		ProblemDetail problem = this.handler
+			.handleTimeout(new WaitTimeoutException("timed out waiting for readiness", List.of()));
+
+		assertEquals(HttpStatus.GATEWAY_TIMEOUT.value(), problem.getStatus());
+	}
+
+	@Test
+	void upstreamClusterFailuresMapTo502() {
+		ProblemDetail kube = this.handler.handleUpstream(new KubernetesOperationException("apply failed"));
+		ProblemDetail deploy = this.handler
+			.handleUpstream(new DeploymentFailedException("deploy failed", new RuntimeException("api"), "manifest"));
+		ProblemDetail storage = this.handler.handleUpstream(new ReleaseStorageException("secret write failed"));
+
+		assertEquals(HttpStatus.BAD_GATEWAY.value(), kube.getStatus());
+		assertEquals(HttpStatus.BAD_GATEWAY.value(), deploy.getStatus());
+		assertEquals(HttpStatus.BAD_GATEWAY.value(), storage.getStatus());
+	}
+
+	@Test
+	void otherJhelmExceptionMapsTo500() {
+		ProblemDetail problem = this.handler.handleJhelm(new JhelmException("generic jhelm failure"));
+
+		assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), problem.getStatus());
+		assertEquals("generic jhelm failure", problem.getDetail());
 	}
 
 	private MethodArgumentNotValidException methodArgNotValid(BeanPropertyBindingResult binding) throws Exception {

@@ -2,6 +2,7 @@ package org.alexmond.jhelm.rest.util;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,10 +21,15 @@ public class TempDir implements Closeable {
 	 * Creates a fresh temporary directory under the given base path.
 	 * @param baseDir the base directory in which to create the temporary directory
 	 * @param prefix the prefix for the generated directory name
-	 * @throws IOException if the directory cannot be created
+	 * @throws UncheckedIOException if the directory cannot be created
 	 */
-	public TempDir(Path baseDir, String prefix) throws IOException {
-		this.path = Files.createTempDirectory(baseDir, prefix);
+	public TempDir(Path baseDir, String prefix) {
+		try {
+			this.path = Files.createTempDirectory(baseDir, prefix);
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException("Failed to create temp directory under " + baseDir, ex);
+		}
 	}
 
 	/**
@@ -49,9 +55,18 @@ public class TempDir implements Closeable {
 		return resolved;
 	}
 
+	/**
+	 * Recursively deletes this temporary directory. Narrows {@link Closeable#close()} to
+	 * throw an unchecked {@link UncheckedIOException} so try-with-resources callers need
+	 * no checked-exception handling.
+	 * @throws UncheckedIOException if the directory cannot be deleted
+	 */
 	@Override
-	public void close() throws IOException {
-		if (Files.exists(this.path)) {
+	public void close() {
+		if (!Files.exists(this.path)) {
+			return;
+		}
+		try {
 			Files.walkFileTree(this.path, new SimpleFileVisitor<>() {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -65,6 +80,9 @@ public class TempDir implements Closeable {
 					return FileVisitResult.CONTINUE;
 				}
 			});
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException("Failed to delete temp directory: " + this.path, ex);
 		}
 	}
 

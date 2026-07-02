@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.service;
 
+import java.security.GeneralSecurityException;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -195,7 +196,7 @@ final class RepoHttpClientFactory {
 		return sslContext;
 	}
 
-	private PrivateKey loadPrivateKey(String keyFilePath) throws Exception {
+	private PrivateKey loadPrivateKey(String keyFilePath) throws IOException, GeneralSecurityException {
 		String pem = Files.readString(Paths.get(keyFilePath));
 		String base64 = pem.replace("-----BEGIN PRIVATE KEY-----", "")
 			.replace("-----END PRIVATE KEY-----", "")

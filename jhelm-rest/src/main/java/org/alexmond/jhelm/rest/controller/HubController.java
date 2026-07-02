@@ -37,13 +37,11 @@ public class HubController {
 	 * @param keyword the search keyword
 	 * @param maxResults the maximum number of results to return (capped at 60)
 	 * @return the matching chart results
-	 * @throws Exception if the ArtifactHub query fails
 	 */
 	@GetMapping("/search")
 	@Operation(summary = "Search ArtifactHub", description = "Search for Helm charts on ArtifactHub")
 	public List<HubSearchResultDto> search(@Parameter(description = "Search keyword") @RequestParam String keyword,
-			@Parameter(description = "Maximum results (max 60)") @RequestParam(defaultValue = "20") int maxResults)
-			throws Exception {
+			@Parameter(description = "Maximum results (max 60)") @RequestParam(defaultValue = "20") int maxResults) {
 		return this.searchHubAction.search(keyword, maxResults).stream().map(HubSearchResultDto::from).toList();
 	}
 

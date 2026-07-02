@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.rest.util;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 
 import org.alexmond.jhelm.core.model.Chart;
@@ -25,10 +26,10 @@ public final class ChartSourceResolver {
 	 * @param chartLoader loader to parse the chart directory
 	 * @param tempDir temporary directory to pull into
 	 * @return the loaded chart
-	 * @throws Exception if the pull fails or the chart cannot be located or parsed
+	 * @throws IOException if the pull fails or the chart cannot be located or parsed
 	 */
 	public static Chart fromChartRef(String chartRef, String version, RepoManager repoManager, ChartLoader chartLoader,
-			TempDir tempDir) throws Exception {
+			TempDir tempDir) throws IOException {
 		repoManager.pull(chartRef, version, tempDir.path().toString());
 		Path chartDir = ChartLoader.findChartDir(tempDir.path());
 		return chartLoader.load(chartDir.toFile());
@@ -41,10 +42,10 @@ public final class ChartSourceResolver {
 	 * @param chartLoader loader to parse the chart directory
 	 * @param tempDir temporary directory to extract into
 	 * @return the loaded chart
-	 * @throws Exception if the upload cannot be stored, extracted, located, or parsed
+	 * @throws IOException if the upload cannot be stored, extracted, located, or parsed
 	 */
 	public static Chart fromUpload(MultipartFile file, RepoManager repoManager, ChartLoader chartLoader,
-			TempDir tempDir) throws Exception {
+			TempDir tempDir) throws IOException {
 		File tgzFile = tempDir.path().resolve("upload.tgz").toFile();
 		file.transferTo(tgzFile);
 		repoManager.untar(tgzFile, tempDir.path().toFile());

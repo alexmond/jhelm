@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core.service;
 
+import java.io.UncheckedIOException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,7 +48,7 @@ public class ExternalCommandPostRenderer implements PostRenderProcessor {
 	}
 
 	@Override
-	public String process(String renderedManifest) throws Exception {
+	public String process(String renderedManifest) throws IOException, InterruptedException {
 		ProcessBuilder pb = new ProcessBuilder(command);
 		pb.redirectErrorStream(false);
 
@@ -63,7 +64,7 @@ public class ExternalCommandPostRenderer implements PostRenderProcessor {
 					stdin.write(renderedManifest.getBytes(StandardCharsets.UTF_8));
 				}
 				catch (IOException ex) {
-					throw new RuntimeException(ex);
+					throw new UncheckedIOException(ex);
 				}
 			});
 
@@ -122,7 +123,7 @@ public class ExternalCommandPostRenderer implements PostRenderProcessor {
 			return bos.toString(StandardCharsets.UTF_8);
 		}
 		catch (IOException ex) {
-			throw new RuntimeException(ex);
+			throw new UncheckedIOException(ex);
 		}
 	}
 

@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.core.service;
 
+import java.io.IOException;
+
 /**
  * Callback interface for custom chart downloading from non-standard protocols.
  */
@@ -16,8 +18,8 @@ public interface ChartDownloader {
 	 * Download content from the given URL.
 	 * @param url the URL to download from
 	 * @return the raw bytes
-	 * @throws Exception if the download fails
+	 * @throws IOException if the download fails
 	 */
-	byte[] download(String url) throws Exception;
+	byte[] download(String url) throws IOException;
 
 }
