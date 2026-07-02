@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.gotemplate.helm.functions;
 
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
@@ -123,7 +124,7 @@ public final class TemplateFunctions {
 	 * @param data the rendering context
 	 * @return the rendered output
 	 */
-	private static String renderInline(GoTemplate factory, String text, Object data) throws Exception {
+	private static String renderInline(GoTemplate factory, String text, Object data) throws IOException {
 		StringWriter writer = new StringWriter();
 		// Fast path: a tpl string that declares no `define` contributes only its own
 		// body, so

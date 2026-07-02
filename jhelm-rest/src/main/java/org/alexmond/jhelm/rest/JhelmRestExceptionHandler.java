@@ -105,7 +105,7 @@ public class JhelmRestExceptionHandler {
 	@ExceptionHandler({ SchemaValidationException.class, TemplateRenderException.class })
 	public ProblemDetail handleUnprocessable(JhelmException ex) {
 		log.debug("Unprocessable entity: {}", ex.getMessage());
-		return problem(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+		return problem(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
 	}
 
 	/**
