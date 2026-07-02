@@ -109,20 +109,21 @@ jhelmtest:
       - resource: "Job/release-grafana-oncall-engine-migrate-*"
         path: "*"
         reason: "migrate Job name has a per-render now-timestamp suffix"
-      # The grafana subchart's templates/tests/test-*.yaml are annotated
-      # `helm.sh/hook: test`. `helm template` excludes `test`-hook resources (they run
-      # only under `helm test`), but jhelm does not yet filter them from its output, so
-      # it over-emits these three. Lifecycle hooks (pre-install, ...) are emitted by both.
-      # Remove once test-hook filtering lands. Tracked in #634.
+      # The grafana subchart's templates/tests/test-*.yaml are gated by
+      # `{{- if .Values.testFramework.enabled }}`. helm resolves that parent-scoped subchart
+      # value to false here and omits the three resources; jhelm's subchart value coalescing
+      # resolves it truthy and emits them. This is a subchart value-resolution difference
+      # (NOT test-hook filtering — `helm template` keeps test hooks). The resources are
+      # `helm test` fixtures, so the divergence is non-semantic. Tracked in #634.
       - resource: "ConfigMap/release-grafana-oncall-test"
         path: "*"
-        reason: "helm.sh/hook: test resource omitted by `helm template`; jhelm does not yet filter test hooks (#634)"
+        reason: "subchart testFramework.enabled resolves differently; non-semantic test fixture (#634)"
       - resource: "ServiceAccount/release-grafana-oncall-test"
         path: "*"
-        reason: "helm.sh/hook: test resource omitted by `helm template`; jhelm does not yet filter test hooks (#634)"
+        reason: "subchart testFramework.enabled resolves differently; non-semantic test fixture (#634)"
       - resource: "Pod/release-grafana-oncall-test"
         path: "*"
-        reason: "helm.sh/hook: test resource omitted by `helm template`; jhelm does not yet filter test hooks (#634)"
+        reason: "subchart testFramework.enabled resolves differently; non-semantic test fixture (#634)"
     "[argo/argo]":
       # argo ships its CRDs in the chart's crds/ directory. `helm template` omits crds/
       # resources unless `--include-crds` is passed; the parity harness runs plain

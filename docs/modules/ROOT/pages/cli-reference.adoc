@@ -10,7 +10,7 @@ helm-flag → jhelm-flag mapping and a "porting a helm script" checklist.
 
 [source,bash]
 ----
-java -jar jhelm-cli/target/jhelm-{jhelm-version}.jar [command] [options]
+java -jar jhelm-cli/target/jhelm-{page-component-version}.jar [command] [options]
 ----
 
 == Chart Lifecycle Commands

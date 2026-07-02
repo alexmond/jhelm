@@ -114,6 +114,14 @@ Open / under investigation:
   annotation string (which would trigger a spurious pod rollout), not the resource content,
   so the parity suite excludes such `checksum/*` annotations via documented comparison-ignore
   rules rather than treating them as rendering bugs (see issues #237, #491).
+* Subchart-gated test resources. A subchart whose test templates are guarded by a value it
+  defaults on (e.g. the `grafana` subchart's `templates/tests/*` behind
+  `{{- if .Values.testFramework.enabled }}`) can render under jhelm while `helm template`
+  omits them, because jhelm's subchart value coalescing resolves the parent-scoped default
+  differently. The one known instance is `grafana/oncall` (three `+*-test+` resources);
+  it is covered by a documented per-chart comparison-ignore rather than a rendering
+  correctness fix (tracked in #634). This is a *non-semantic* difference — the affected
+  resources are `helm test` fixtures, not part of the deployed workload.
 
 == References
 

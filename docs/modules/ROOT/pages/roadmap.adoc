@@ -2,72 +2,58 @@
 
 This document outlines the planned improvements, feature priorities, and strategic vision for jhelm.
 
-== 0.1.0 Prerelease Target
+== 1.0.0 — first stable release
 
-The first published prerelease (`0.1.0`, on Maven Central, marked _pre-release_) is defined
-by two things being true at once: a *broad real-world conformance bar* and a *stable,
-extraction-ready engine*. The release is cut via `maven_release.yml`
-(`releaseVersion=0.1.0`, `nextVersion=0.2.0-SNAPSHOT`).
+jhelm `1.0.0` is the first stable release on Maven Central, defined by two things being true
+at once: a *broad real-world conformance bar* and a *stable, extraction-ready engine and API*.
 
-=== Exit criteria (Definition of Done)
+=== What 1.0 delivers
 
-[cols="1,3,1"]
+[cols="1,3"]
 |===
-| Area | Criterion | Status
+| Area | Delivered in 1.0
 
-| Conformance gate
-| *≥ 300 charts* render byte-identical to `helm template` in CI (the `KpsComparisonTest`
-  suite, `charts.csv`), order-independent and with only the documented comparison-ignores
-  (random/timestamp names, generated secrets/certs).
-| ✅ 540 / 540
+| Conformance
+| *540 / 540* real-world charts render byte-identical to `helm template` in CI (the parity
+  suite, `charts.csv`), order-independent, with only a small set of documented
+  comparison-ignores (random/timestamp names, generated secrets/certs, and the known
+  non-semantic differences in xref:interoperability.adoc[Interoperability]).
 
-| Engine maturity
+| Engine
 | The Go template + Sprig engine ships as the standalone
   https://github.com/alexmond/gotmpl4j[gotmpl4j] library on Maven Central; jhelm consumes it
-  as a dependency (`gotmpl4j 1.2.0`). The 540-chart suite is its de-facto conformance test.
-| ✅ Extracted — gotmpl4j on Maven Central; 540-chart suite green
+  as a dependency and keeps only the Helm-specific function layer (`jhelm-gotemplate-helm`).
 
-| Supported surface
-| All modules ship as supported: `gotemplate`/`sprig`/`helm` (engine), `core` (chart
-  lifecycle: install/upgrade/rollback/uninstall/list/status/history), `kube` (apply/wait),
-  `rest`, `plugin`, `cli`, plus the Spring Boot starter.
-| —
+| Chart lifecycle
+| install / upgrade / rollback / uninstall / list / status / history / get / template /
+  package / lint / dependency, plus hooks, JSON-Schema validation, and Helm-faithful SemVer
+  version selection.
 
-| Repo + deps
-| HTTP and OCI repositories with digest verification; Helm-faithful SemVer version
-  selection; recursive dependency value coalescing; hooks; JSON-Schema validation.
-| Mostly done
+| Repositories
+| HTTP and OCI repositories with digest verification and recursive dependency value
+  coalescing.
 
-| Quality gates
-| `spring-javaformat`, Checkstyle, PMD, and JaCoCo coverage all green on a full
-  `./mvnw clean verify`.
-| Green
+| Real cluster
+| `.Capabilities` populated from the live cluster; `template --kube-version` /
+  `--api-versions` overrides for offline rendering.
 
-| Docs
-| Antora docs current; `CHANGELOG.adoc` `0.1.0` section; README "`Status`" reflects the
-  prerelease.
-| In progress
+| Provenance & security
+| Chart signing / verification (PGP), opt-in SSRF protection for server mode, and host-gated
+  repository credentials.
+
+| Distribution
+| Published modules: `gotemplate-helm`, `core`, `kube`, `rest` (+ starter), `mcp` (+ starter),
+  `plugin`. The `jhelm` CLI and sample apps build from source and are not published to
+  Central. All quality gates (`spring-javaformat`, Checkstyle, PMD, JaCoCo) are green on a
+  full `./mvnw clean verify`.
+
+| API stability
+| The public surface was frozen in `0.4.0` (below) and is documented in
+  xref:api-surface.adoc[API Surface & Stability]; `1.0` commits to it under semantic
+  versioning.
 |===
 
-=== `gotmpl4j` (engine extraction — done)
-
-The Go template engine has been extracted into the standalone
-https://github.com/alexmond/gotmpl4j[gotmpl4j] library, published to Maven Central
-(`org.alexmond:gotmpl4j-core`, `gotmpl4j-sprig`, plus a Spring Boot starter; `gotmpl4j 1.2.0`).
-jhelm consumes
-it as an ordinary dependency, keeping only the Helm-specific function layer
-(`jhelm-gotemplate-helm`) in this repository. The extraction holds the properties that made it
-mechanical rather than a redesign:
-
-* *Correctness* — no known rendering gaps; the 540-chart parity suite is the conformance
-  bar.
-* *Clean boundary* — the engine has zero dependencies on Sprig, Helm, or `core`; Sprig
-  (priority 100) and Helm (priority 200) functions load only via `ServiceLoader`.
-* *Stable API* — `GoTemplate`, `Function`, `FunctionProvider` are settled.
-* *Coverage* — comprehensive unit tests for lexer/parser/executor and every function
-  category, independent of the chart suite.
-
-=== API freeze (shipped in 0.4.0 — toward 1.0)
+=== API freeze (shipped in 0.4.0)
 
 The pre-1.0 *API freeze* milestone landed in `0.4.0`, settling the public surface ahead of a
 stable `1.0`. The supported surface — and the `+.internal+` convention that separates it from
@@ -82,15 +68,12 @@ implementation detail — is documented in xref:api-surface.adoc[API Surface & S
 * *Immutable result models* — `Release`/`ReleaseInfo`/`MapConfig` are immutable; release
   `status` is a typed `ReleaseStatus` enum and the lifecycle phase a `LifecyclePhase` enum.
 
-=== Explicit non-goals for 0.1.0
+=== Post-1.0 direction
 
-* Full *gitlab* parity — blocked on a complete Helm `CoalesceValues`/`ProcessDependencies`
-  reimplementation (deep, high-risk); tracked separately.
-* The `gotmpl4j` *extraction itself* — `0.1.0` makes the engine _ready_; the split lands
-  post-`0.1.0`.
-* Charts that are inherently uncomparable to a separate `helm template` run (wall-clock
-  timestamps or random suffixes in resource _names_).
-* Server-Side Apply, WASM plugins, post-renderers, and chart signing (later phases below).
+The phases and design below are forward-looking. The near-term priorities after 1.0 are
+Server-Side Apply in `HelmKubeService`, structured logging, and closing the remaining OCI and
+gitlab value-coalescing gaps; the longer-term vision is the Spring Boot management platform
+described at the end of this page.
 
 == Recommended Implementation Roadmap
 

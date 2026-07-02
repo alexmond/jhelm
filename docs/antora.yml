@@ -1,10 +1,9 @@
 name: jhelm
 title: jhelm Documentation
-version: master
+version: true
 start_page: ROOT:index.adoc
 asciidoc:
   attributes:
-    jhelm-version: 1.0.0
     api-core: 'https://javadoc.io/page/org.alexmond/jhelm-core'
     api-gotemplate-helm: 'https://javadoc.io/page/org.alexmond/jhelm-gotemplate-helm'
     api-kube: 'https://javadoc.io/page/org.alexmond/jhelm-kube'
