@@ -569,7 +569,7 @@ class KpsComparisonTest {
 	 * comparison and the version-upgrade bot, which needs the result without failing.
 	 */
 	private List<String> computeManifestFailures(String chartName, String jhelm, String helm) throws Exception {
-		// Parse both manifests into YAML documents
+		// Parse both manifests into YAML documents.
 		List<JsonNode> jhelmDocs = parseYamlDocuments(jhelm);
 		List<JsonNode> helmDocs = parseYamlDocuments(helm);
 
@@ -590,6 +590,7 @@ class KpsComparisonTest {
 
 		var extraInJhelm = new LinkedHashSet<>(jhelmMap.keySet());
 		extraInJhelm.removeAll(helmMap.keySet());
+		extraInJhelm.removeIf((key) -> isIgnored(key, "*", ignoreRules));
 
 		List<String> failures = new ArrayList<>();
 
@@ -597,8 +598,11 @@ class KpsComparisonTest {
 			failures.add("Resources missing in JHelm: " + missingInJhelm);
 		}
 
+		// Emitting a resource Helm does not is a real divergence — fail rather than warn
+		// (symmetric with the missing-resource check; an explicitly ignored extra is
+		// filtered out above).
 		if (!extraInJhelm.isEmpty()) {
-			log.warn("{} - Extra resources in JHelm (not in Helm): {}", chartName, extraInJhelm);
+			failures.add("Extra resources in JHelm (not in Helm): " + extraInJhelm);
 		}
 
 		// Compare each resource — fast-path with equals(), detailed diff only when needed
@@ -670,8 +674,21 @@ class KpsComparisonTest {
 				}
 			}
 			catch (Exception ex) {
-				log.warn("Skipping unparseable YAML fragment at position {}: {}. Doc preview: {}", i, ex.getMessage(),
-						doc.substring(0, Math.min(100, doc.length())));
+				// Tolerated on purpose: this crude "\n---\n" split can slice through a
+				// YAML
+				// block scalar (|-, >) whose content spans the separator, yielding a
+				// fragment
+				// that is not valid standalone YAML even though the manifest is fine.
+				// This is
+				// a harness limitation, not a jhelm rendering bug — it fires
+				// symmetrically for
+				// both helm and jhelm output — so skip the fragment rather than failing
+				// the
+				// chart on a false positive. (A real rendering divergence still surfaces
+				// via
+				// the missing/extra-resource and per-field diff checks.)
+				log.warn("Skipping unparseable YAML fragment at position {} (block-scalar split): {}", i,
+						ex.getMessage());
 			}
 		}
 

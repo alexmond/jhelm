@@ -37,8 +37,10 @@ is about the *jhelm* layer: the cost of turning a chart into manifests.
 
 jhelm's render benchmark is the same corpus that guards its correctness: the chart-parity suite
 (`KpsComparisonTest`), which renders **540+ real-world Helm charts** — bitnami, grafana,
-prometheus, gitlab, cilium, harbor, datadog, and many more — and compares each byte-for-byte
-against `helm template`. For profiling, those charts are pre-fetched and driven through jhelm's
+prometheus, gitlab, cilium, harbor, datadog, and many more — and compares each against
+`helm template` (default values, pinned `--kube-version v1.35.0`). The match is byte-for-byte
+apart from a small set of documented, non-semantic comparison-ignores (generated secrets/certs,
+random names, and `toYaml` key-ordering in `checksum/*` annotations). For profiling, those charts are pre-fetched and driven through jhelm's
 render path alone (load → `install --dry-run` → manifest), with no `helm` subprocess and no
 diffing, so the profile reflects jhelm's own work on a representative spread of chart shapes.
 
@@ -124,7 +126,7 @@ full byte-for-byte parity suite (no manifest may change).
   (link:https://github.com/alexmond/jhelm/pull/573[#573])
 | `parseWithCache` CPU 42% → 31% (−28% samples); parse allocation 2.3 GB → 1.3 GB (−45%);
   `Engine.*` allocation 3.6 GB → 3.0 GB (−18%); GC pause −20%
-| 540/540 parity charts byte-identical
+| 540/540 parity charts pass (byte-for-byte modulo documented ignores)
 | *Quote-normalize regex fast-path in `toYaml`/`toJson`*
   (link:https://github.com/alexmond/jhelm/pull/509[#509])
 | `removeUnnecessaryQuotes` GONE from hot paths (was 6% CPU) and allocation (was 1.2 GB); total

@@ -7,11 +7,16 @@ work with Helm charts from the JVM -- without shelling out to the Go-based Helm 
 
 == Helm-faithful rendering, in pure Java
 
-jhelm renders chart templates *byte-for-byte identically to `helm template`* across a
-continuously-run suite of *540+ real-world charts* (Bitnami, Grafana, GitLab,
-Kubernetes-monitoring, and more) -- in *pure Java, with no Go or `helm` binary*. Parity is
-enforced in CI on every change, so behaviour tracks upstream Helm closely rather than
-approximating it. Rendering is driven by the standalone
+jhelm renders chart templates *identically to `helm template`* across a continuously-run
+suite of *540+ real-world charts* (Bitnami, Grafana, GitLab, Kubernetes-monitoring, and
+more) -- in *pure Java, with no Go or `helm` binary*. Each chart is compared against
+`helm template` with default values and a pinned `--kube-version v1.35.0`; the match is
+byte-for-byte apart from a small set of documented, non-semantic differences (generated
+secrets/certs and `toYaml` key-ordering in `checksum/*` annotations, see
+xref:function-coverage.adoc[Function coverage]). This is _template-rendering_ parity --
+`install`/`upgrade` reuse the same renderer but drive the cluster through the Kubernetes
+Java client. Parity is enforced in CI on every change, so behaviour tracks upstream Helm
+closely rather than approximating it. Rendering is driven by the standalone
 https://github.com/alexmond/gotmpl4j[gotmpl4j] Go-template engine.
 
 == MCP-native

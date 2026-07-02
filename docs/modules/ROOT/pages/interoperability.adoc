@@ -7,6 +7,16 @@ compatible, how to switch between the tools, and the current caveats.
 
 [NOTE]
 ====
+This page is about *storage- and config-level* interoperability (release records, repo/registry
+config), verified by a two-way integration suite. It is a separate axis from *template-rendering
+parity* — how closely jhelm's rendered manifests match `helm template` — which is measured by
+the chart-parity suite and documented in xref:function-coverage.adoc[Function coverage]. A
+release installed by either tool is manageable by the other; the rendered content itself is
+byte-for-byte equal modulo the documented parity comparison-ignores.
+====
+
+[NOTE]
+====
 This interoperability is covered by a two-way integration suite
 (`HelmTwoWayInteropIntegrationTest`) that runs against a real cluster and the real `helm`
 binary in CI, so it does not silently regress. See xref:development.adoc[Development Guide] for

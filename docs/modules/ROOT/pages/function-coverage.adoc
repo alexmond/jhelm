@@ -104,6 +104,16 @@ items (see git history / issues):
 Open / under investigation:
 
 * Nested `tpl` (a `tpl` call whose rendered output contains another `tpl`) can still fail to parse on some charts (e.g. `grafana/loki` `loki.calculatedConfig`).
+* `toYaml` key-ordering / checksum divergence. jhelm's `toYaml` can emit map keys in a
+  different order than Helm's Go marshaller, and its `.Values` coalescing can differ subtly
+  from Helm's on a few large umbrella charts (e.g. `gitlab`). Charts that hash rendered
+  content into an annotation — the common
+  `checksum/config: {{ include "…configmap" . | sha256sum }}` or
+  `sha256sum (toYaml .Values)` pattern — can therefore produce a *different checksum value*
+  even when the referenced ConfigMap/Secret is byte-identical. This changes only the
+  annotation string (which would trigger a spurious pod rollout), not the resource content,
+  so the parity suite excludes such `checksum/*` annotations via documented comparison-ignore
+  rules rather than treating them as rendering bugs (see issues #237, #491).
 
 == References
 
