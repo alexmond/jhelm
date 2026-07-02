@@ -1,5 +1,80 @@
 = Changelog
 
+== 1.0.0
+
+The first stable release. 1.0 draws a supported public API surface, hardens security and
+provenance, verifies Helm interoperability against the real `helm` binary, and makes the
+chart-parity claims honest about exactly what is measured.
+
+=== Security
+
+* *SSRF controls* -- an opt-in server-mode block of private / link-local / site-local targets
+  (`jhelm.security.block-private-networks`, default off) applied through the repository and OCI
+  HTTP clients and a DNS-resolver guard, so a hosted jhelm cannot be steered at internal
+  addresses.
+* *Credential and archive hardening* -- repository credentials are host-gated (not sent on a
+  redirect to a different host), chart un-tar is capped against decompression bombs, OCI
+  reference URLs are validated, and the written registry-credentials file gets owner-only
+  permissions.
+
+=== Provenance
+
+* *Key usability checks* -- `verify` now rejects a *revoked* or *expired* signing key, so a
+  retired or compromised provenance key can no longer validate a chart even with an intact
+  signature.
+* *Clear-sign correctness* -- OpenPGP dash-escaping (RFC 4880 §7.1) is reversed before
+  verifying, so a `helm`/GnuPG-produced `.prov` whose signed body contains a `-`-leading line
+  verifies correctly.
+
+=== Real cluster capabilities
+
+* *`.Capabilities` from the cluster* -- `.Capabilities.KubeVersion` and `.APIVersions` are now
+  populated from the connected cluster for `install`/`upgrade`; `template` accepts
+  `--kube-version` and `-a`/`--api-versions` to pin them offline (defaulting to a fixed
+  Kubernetes version for deterministic rendering).
+
+=== Helm interoperability
+
+* *Shared release storage* -- the release record (including the embedded chart) is now
+  byte-schema-compatible with Helm 3's `sh.helm.release.v1` Secret format, so a release
+  installed by one tool is listable, upgradable, roll-back-able, and removable by the other.
+  Covered by a two-way `helm` ↔ `jhelm` integration suite that runs against a real cluster and
+  the real `helm` binary in CI. See xref:interoperability.adoc[Interoperability with Helm].
+* *Shared configuration* -- jhelm honors Helm's `HELM_*` environment variables and reads/writes
+  Helm's own `repositories.yaml` and `registry/config.json` at Helm's locations. See
+  xref:configuration.adoc[Configuration].
+
+=== CLI parity
+
+* *New commands / flags* -- `repo update`; `list -o json|yaml`; `pull --repo <URL>` with inline
+  auth/TLS flags; `upgrade --force` (delete-and-recreate);
+  `--dry-run=client|server|none` with real server-side dry-run and `--wait-for-jobs`; and an
+  enriched `env` that reports the effective Helm config locations.
+* See the xref:cli-parity.adoc[CLI flag parity reference] for the full helm ↔ jhelm map.
+
+=== REST & MCP
+
+* *OpenAPI* -- `jhelm-rest` ships a well-documented springdoc OpenAPI document.
+* *Upgrade value strategy* -- the upgrade endpoints expose `valueStrategy`
+  (`DEFAULT`/`RESET`/`REUSE`/`RESET_THEN_REUSE`), mirroring the CLI's value-retention flags.
+
+=== API surface & stability
+
+* *Published API surface* -- a documented, supported public API with a stability statement
+  (xref:api-surface.adoc[Supported API]); the `jhelm-kube` service implementation moved behind
+  an `.internal` package, and the `KubernetesProvider` SPI plus the 1.0 model mutability
+  contract are documented.
+* *Metrics* -- action-layer and chart-pull metrics in `JhelmMetrics`.
+
+=== Correctness & release quality
+
+* *Honest parity* -- the chart-parity suite compares against `helm template` with default
+  values and a pinned `--kube-version`, byte-for-byte apart from a documented set of
+  non-semantic comparison-ignores; over-emitting a resource `helm` does not is now a hard test
+  failure rather than a warning. The docs state precisely what parity does and does not cover.
+* *Packaging* -- the CLI fat-jar is excluded from the Maven Central bundle; Javadoc doclint is
+  enforced on build.
+
 == 0.4.0
 
 The pre-1.0 *API freeze* release, plus an MCP server, a REST library/starter split, and the
