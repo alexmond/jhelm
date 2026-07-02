@@ -15,6 +15,15 @@ import java.util.Map;
  * value read downstream came back null. Like {@link ChartFiles}, this is a map that also
  * exposes a helper method; the template executor resolves {@code AsMap} by name (falling
  * back from map-key lookup) once the key is absent.
+ *
+ * <p>
+ * <strong>Mutability contract (1.0):</strong> {@code Values} extends {@link HashMap} so
+ * the template executor can resolve {@code .Values.foo} through the {@link Map}
+ * interface, which means it structurally inherits the mutating map methods. In practice
+ * it is built once from the already-merged values and only read during rendering — jhelm
+ * never mutates it after construction, and callers should treat it as read-only. The
+ * {@code HashMap} superclass is an interop detail (so it <em>is-a</em> {@code Map} for
+ * the engine), not an invitation to mutate.
  */
 @SuppressWarnings("PMD.MethodNamingConventions")
 public class Values extends HashMap<String, Object> {

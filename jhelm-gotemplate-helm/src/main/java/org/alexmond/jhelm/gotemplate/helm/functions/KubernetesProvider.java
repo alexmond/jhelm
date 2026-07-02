@@ -6,6 +6,14 @@ import java.util.Map;
  * Provider interface for Kubernetes operations. This allows jhelm-gotemplate to remain
  * lightweight and not depend on Kubernetes client libraries. Implementations can be
  * provided by jhelm-kube or other modules.
+ *
+ * <p>
+ * This is a <strong>public extension point (SPI)</strong>: it is a supported, stable part
+ * of the 1.0 API that downstream code may implement to back the {@code lookup} and
+ * {@code kubeVersion} template functions against a custom source (a live cluster, a
+ * fixture, a cache). The default cluster-backed implementation lives in jhelm-kube. Keep
+ * implementations side-effect-free and fast — the methods are called during template
+ * rendering.
  */
 public interface KubernetesProvider {
 

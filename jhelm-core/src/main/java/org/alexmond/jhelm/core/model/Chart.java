@@ -14,6 +14,16 @@ import lombok.NoArgsConstructor;
  * In-memory representation of a loaded Helm chart: its {@link ChartMetadata}, default
  * values, templates, CRDs, subchart dependencies and any non-template files exposed via
  * {@code .Files}. Produced by the chart loader and consumed by the rendering engine.
+ *
+ * <p>
+ * <strong>Mutability contract (1.0):</strong> this is a mutable internal model. The chart
+ * loader and rendering engine mutate it during loading and rendering — the loader
+ * resolves subchart aliases from the on-disk layout, and the engine marks
+ * {@code .Chart.IsRoot} and applies dependency aliases while walking the render tree.
+ * Treat an instance obtained from the API as read-only in your own code: build one with
+ * the generated {@code builder()} and do not call the {@code set*} methods, whose
+ * presence is an implementation detail of loading/rendering rather than part of the
+ * supported surface. (Contrast {@link Release}, which is fully immutable.)
  */
 @Data
 @Builder(toBuilder = true)
