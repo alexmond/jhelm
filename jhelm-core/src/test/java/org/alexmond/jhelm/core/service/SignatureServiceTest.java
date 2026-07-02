@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Security;
+import java.time.Duration;
 import java.util.Date;
 import java.util.List;
 
@@ -21,15 +22,22 @@ import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.PGPKeyPair;
 import org.bouncycastle.openpgp.PGPKeyRingGenerator;
+import org.bouncycastle.openpgp.PGPPrivateKey;
+import org.bouncycastle.openpgp.PGPPublicKey;
+import org.bouncycastle.openpgp.PGPPublicKeyRing;
 import org.bouncycastle.openpgp.PGPPublicKeyRingCollection;
 import org.bouncycastle.openpgp.PGPSecretKey;
 import org.bouncycastle.openpgp.PGPSecretKeyRing;
 import org.bouncycastle.openpgp.PGPSecretKeyRingCollection;
 import org.bouncycastle.openpgp.PGPSignature;
+import org.bouncycastle.openpgp.PGPSignatureGenerator;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketGenerator;
+import org.bouncycastle.openpgp.PGPSignatureSubpacketVector;
 import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPContentSignerBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPKeyPair;
+import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyEncryptorBuilder;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +46,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -265,6 +274,54 @@ class SignatureServiceTest {
 				() -> signatureService.verify(chartFile, "no signature content", verificationKeyring));
 	}
 
+	@Test
+	void testExtractSignedDataUnescapesDashEscapedLines() {
+		// A clear-signed body dash-escaped per RFC 4880 §7.1: text lines that begin with
+		// '-' are prefixed with "- " for transport. extractSignedData must reverse this
+		// so
+		// the signed bytes match what was actually signed.
+		String clearSigned = "-----BEGIN PGP SIGNED MESSAGE-----\n" + "Hash: SHA256\n\n"
+				+ "- -----BEGIN CERTIFICATE-----\n" + "- - name: an item\n" + "plain: value\n"
+				+ "-----BEGIN PGP SIGNATURE-----\n";
+
+		String signed = signatureService.extractSignedData(clearSigned);
+
+		assertTrue(signed.contains("-----BEGIN CERTIFICATE-----"), "dash-escaped armor line should be unescaped");
+		assertFalse(signed.contains("- -----BEGIN CERTIFICATE-----"), "dash escape should be removed");
+		assertTrue(signed.contains("- name: an item"), "escaped YAML sequence line should be unescaped once");
+		assertTrue(signed.contains("plain: value"), "non-escaped lines should be untouched");
+	}
+
+	@Test
+	void testVerifyRejectsExpiredKey() throws Exception {
+		// Key created 10 days ago with a 1-day validity period => expired 9 days ago.
+		PGPSignatureSubpacketGenerator sp = new PGPSignatureSubpacketGenerator();
+		sp.setKeyExpirationTime(false, Duration.ofDays(1).toSeconds());
+		Date created = new Date(System.currentTimeMillis() - Duration.ofDays(10).toMillis());
+		KeyBundle bundle = buildKeyBundle(created, sp.generate(), false);
+
+		File chartFile = createTempChartFile("expired-1.0.0.tgz", "data");
+		ChartMetadata metadata = ChartMetadata.builder().name("expired").version("1.0.0").apiVersion("v2").build();
+		String prov = signatureService.sign(chartFile, metadata, bundle.signingKey(), PASSPHRASE);
+
+		SignatureVerificationException ex = assertThrows(SignatureVerificationException.class,
+				() -> signatureService.verify(chartFile, prov, bundle.keyring()));
+		assertTrue(ex.getMessage().contains("expired"), "message should mention expiry: " + ex.getMessage());
+	}
+
+	@Test
+	void testVerifyRejectsRevokedKey() throws Exception {
+		KeyBundle bundle = buildKeyBundle(new Date(), null, true);
+
+		File chartFile = createTempChartFile("revoked-1.0.0.tgz", "data");
+		ChartMetadata metadata = ChartMetadata.builder().name("revoked").version("1.0.0").apiVersion("v2").build();
+		String prov = signatureService.sign(chartFile, metadata, bundle.signingKey(), PASSPHRASE);
+
+		SignatureVerificationException ex = assertThrows(SignatureVerificationException.class,
+				() -> signatureService.verify(chartFile, prov, bundle.keyring()));
+		assertTrue(ex.getMessage().contains("revoked"), "message should mention revocation: " + ex.getMessage());
+	}
+
 	@SuppressWarnings("deprecation") // JcaPGPKeyPair 3-arg constructor; 4-arg version has
 										// a BouncyCastle bug
 	private static PGPKeyRingGenerator createKeyRingGenerator(String userId) throws Exception {
@@ -285,12 +342,57 @@ class SignatureServiceTest {
 					.build(PASSPHRASE));
 	}
 
+	/**
+	 * Builds a matching signing key + verification keyring, optionally with a
+	 * key-expiration subpacket and/or a self-revocation, so key-usability rejection can
+	 * be exercised.
+	 */
+	@SuppressWarnings("deprecation") // JcaPGPKeyPair 3-arg constructor; 4-arg version has
+										// a
+										// BouncyCastle bug
+	private static KeyBundle buildKeyBundle(Date creation, PGPSignatureSubpacketVector hashedPackets, boolean revoke)
+			throws Exception {
+		KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", "BC");
+		kpg.initialize(2048);
+		PGPKeyPair pgpKeyPair = new JcaPGPKeyPair(PublicKeyAlgorithmTags.RSA_GENERAL, kpg.generateKeyPair(), creation);
+		PGPKeyRingGenerator gen = new PGPKeyRingGenerator(PGPSignature.POSITIVE_CERTIFICATION, pgpKeyPair, USER_ID,
+				new JcaPGPDigestCalculatorProviderBuilder().setProvider("BC").build().get(HashAlgorithmTags.SHA1),
+				hashedPackets, null,
+				new JcaPGPContentSignerBuilder(pgpKeyPair.getPublicKey().getAlgorithm(), HashAlgorithmTags.SHA256)
+					.setProvider("BC"),
+				new JcePBESecretKeyEncryptorBuilder(SymmetricKeyAlgorithmTags.AES_256,
+						new JcaPGPDigestCalculatorProviderBuilder().setProvider("BC")
+							.build()
+							.get(HashAlgorithmTags.SHA256))
+					.setProvider("BC")
+					.build(PASSPHRASE));
+
+		PGPSecretKey sk = gen.generateSecretKeyRing().getSecretKey();
+		PGPPublicKeyRing ring = gen.generatePublicKeyRing();
+		if (revoke) {
+			PGPPublicKey master = ring.getPublicKey();
+			PGPPrivateKey priv = sk
+				.extractPrivateKey(new JcePBESecretKeyDecryptorBuilder().setProvider("BC").build(PASSPHRASE));
+			PGPSignatureGenerator sigGen = new PGPSignatureGenerator(
+					new JcaPGPContentSignerBuilder(master.getAlgorithm(), HashAlgorithmTags.SHA256).setProvider("BC"),
+					master);
+			sigGen.init(PGPSignature.KEY_REVOCATION, priv);
+			PGPPublicKey revoked = PGPPublicKey.addCertification(master, sigGen.generateCertification(master));
+			ring = PGPPublicKeyRing.insertPublicKey(ring, revoked);
+		}
+		PGPPublicKeyRingCollection keyring = new PGPPublicKeyRingCollection(List.of(ring));
+		return new KeyBundle(new SigningKey(sk), new VerificationKeyring(keyring));
+	}
+
 	private File createTempChartFile(String name, String content) throws IOException {
 		File file = tempDir.resolve(name).toFile();
 		try (OutputStream os = new FileOutputStream(file)) {
 			os.write(content.getBytes());
 		}
 		return file;
+	}
+
+	private record KeyBundle(SigningKey signingKey, VerificationKeyring keyring) {
 	}
 
 }

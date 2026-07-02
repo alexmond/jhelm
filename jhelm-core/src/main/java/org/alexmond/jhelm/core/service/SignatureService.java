@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
+import java.time.Instant;
 import java.util.Iterator;
 
 import lombok.extern.slf4j.Slf4j;
@@ -128,6 +129,7 @@ public class SignatureService {
 				throw new SignatureVerificationException(
 						"No public key found for key ID " + Long.toHexString(signature.getKeyID()));
 			}
+			checkKeyUsable(verifyKey);
 
 			signature.init(new JcaPGPContentVerifierBuilderProvider().setProvider("BC"), verifyKey);
 			byte[] signedBytes = signedData.getBytes(StandardCharsets.UTF_8);
@@ -153,6 +155,27 @@ public class SignatureService {
 		}
 		catch (IOException | PGPException ex) {
 			throw new SignatureException("Failed to verify chart: " + chartTgz.getName(), ex);
+		}
+	}
+
+	/**
+	 * Rejects a signing key that has been revoked or has passed its expiry time, so a
+	 * retired or compromised provenance key can no longer validate a chart even when the
+	 * signature itself is cryptographically intact.
+	 * @param key the public key that produced the signature
+	 * @throws SignatureVerificationException if the key is revoked or expired
+	 */
+	private void checkKeyUsable(PGPPublicKey key) {
+		String keyId = Long.toHexString(key.getKeyID());
+		if (key.hasRevocation()) {
+			throw new SignatureVerificationException("Signing key " + keyId + " has been revoked");
+		}
+		long validSeconds = key.getValidSeconds();
+		if (validSeconds > 0) {
+			Instant expiry = key.getCreationTime().toInstant().plusSeconds(validSeconds);
+			if (Instant.now().isAfter(expiry)) {
+				throw new SignatureVerificationException("Signing key " + keyId + " expired at " + expiry);
+			}
 		}
 	}
 
@@ -271,7 +294,22 @@ public class SignatureService {
 		if (sigStart < 0) {
 			throw new SignatureVerificationException("Invalid clear-signed message: no signature block");
 		}
-		return clearSigned.substring(blankLine + 2, sigStart);
+		return unescapeDashes(clearSigned.substring(blankLine + 2, sigStart));
+	}
+
+	/**
+	 * Reverses OpenPGP clear-sign dash-escaping (RFC 4880 §7.1): a producer prefixes any
+	 * text line beginning with {@code '-'} with {@code "- "} so it cannot be confused
+	 * with an armor delimiter. The signature is computed over the original (un-escaped)
+	 * text, so the escape must be removed before verifying — otherwise a provenance file
+	 * produced by {@code helm}/GnuPG whose signed body contains such a line (e.g. a
+	 * {@code "- name:"} YAML sequence entry, or a literal {@code "-----BEGIN"}) fails to
+	 * verify.
+	 * @param signedText the raw clear-signed body between the headers and the signature
+	 * @return the body with any leading {@code "- "} dash-escape removed from each line
+	 */
+	private static String unescapeDashes(String signedText) {
+		return signedText.replaceAll("(?m)^- ", "");
 	}
 
 	/**
