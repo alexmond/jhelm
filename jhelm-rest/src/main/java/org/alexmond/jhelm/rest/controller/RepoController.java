@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.rest.controller;
 
+import java.io.IOException;
 import jakarta.validation.Valid;
 
 import java.io.File;
@@ -65,11 +66,10 @@ public class RepoController {
 	 * {@code POST} - registers a new chart repository by name and URL.
 	 * @param request the repository name and URL
 	 * @return {@code 201} when the repository is added
-	 * @throws Exception if the repository cannot be added
 	 */
 	@PostMapping
 	@Operation(summary = "Add a repository")
-	public ResponseEntity<Void> addRepo(@Valid @RequestBody RepoAddRequest request) throws Exception {
+	public ResponseEntity<Void> addRepo(@Valid @RequestBody RepoAddRequest request) throws IOException {
 		this.repoManager.addRepo(request.getName(), request.getUrl());
 		return ResponseEntity.status(HttpStatus.CREATED).build();
 	}
@@ -77,11 +77,10 @@ public class RepoController {
 	/**
 	 * {@code GET} - lists all configured chart repositories.
 	 * @return the configured repositories, or an empty list when none are configured
-	 * @throws Exception if the repository configuration cannot be read
 	 */
 	@GetMapping
 	@Operation(summary = "List repositories")
-	public List<RepoDto> listRepos() throws Exception {
+	public List<RepoDto> listRepos() throws IOException {
 		RepositoryConfig config = this.repoManager.loadConfig();
 		if (config.getRepositories() == null) {
 			return Collections.emptyList();
@@ -93,12 +92,11 @@ public class RepoController {
 	 * {@code DELETE} - removes a configured chart repository.
 	 * @param name the repository name
 	 * @return {@code 204} when the repository is removed
-	 * @throws Exception if the repository cannot be removed
 	 */
 	@DeleteMapping("/{name}")
 	@Operation(summary = "Remove a repository")
 	public ResponseEntity<Void> removeRepo(@Parameter(description = "Repository name") @PathVariable String name)
-			throws Exception {
+			throws IOException {
 		this.repoManager.removeRepo(name);
 		return ResponseEntity.noContent().build();
 	}
@@ -107,12 +105,11 @@ public class RepoController {
 	 * {@code POST} - refreshes a single repository's cached index.
 	 * @param name the repository name
 	 * @return {@code 200} when the index is refreshed
-	 * @throws Exception if the index cannot be updated
 	 */
 	@PostMapping("/{name}/update")
 	@Operation(summary = "Update repository index")
 	public ResponseEntity<Void> updateRepo(@Parameter(description = "Repository name") @PathVariable String name)
-			throws Exception {
+			throws IOException {
 		this.repoManager.updateRepo(name);
 		return ResponseEntity.ok().build();
 	}
@@ -121,12 +118,11 @@ public class RepoController {
 	 * {@code GET} - lists all charts available in a repository.
 	 * @param name the repository name
 	 * @return the charts advertised by the repository index
-	 * @throws Exception if the repository index cannot be read
 	 */
 	@GetMapping("/{name}/charts")
 	@Operation(summary = "List charts", description = "List all charts available in a repository")
 	public List<ChartVersionDto> listCharts(@Parameter(description = "Repository name") @PathVariable String name)
-			throws Exception {
+			throws IOException {
 		return this.repoManager.listCharts(name).stream().map(ChartVersionDto::from).toList();
 	}
 
@@ -135,12 +131,11 @@ public class RepoController {
 	 * @param name the repository name
 	 * @param chart the chart name
 	 * @return the known versions of the chart
-	 * @throws Exception if the repository index cannot be read
 	 */
 	@GetMapping("/{name}/charts/{chart}/versions")
 	@Operation(summary = "List chart versions", description = "List available versions of a chart in a repository")
 	public List<ChartVersionDto> listVersions(@Parameter(description = "Repository name") @PathVariable String name,
-			@Parameter(description = "Chart name") @PathVariable String chart) throws Exception {
+			@Parameter(description = "Chart name") @PathVariable String chart) throws IOException {
 		return this.repoManager.getChartVersions(name, chart).stream().map(ChartVersionDto::from).toList();
 	}
 
@@ -149,12 +144,11 @@ public class RepoController {
 	 * {@code .tgz} archive download.
 	 * @param request the chart reference and optional version
 	 * @return {@code 200} with the {@code .tgz} archive as an attachment
-	 * @throws Exception if the chart cannot be pulled or archived
 	 */
 	@PostMapping("/pull")
 	@Operation(summary = "Pull a chart",
 			description = "Pull a chart from a repository or OCI registry and return it as a .tgz archive")
-	public ResponseEntity<byte[]> pull(@Valid @RequestBody PullRequest request) throws Exception {
+	public ResponseEntity<byte[]> pull(@Valid @RequestBody PullRequest request) throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-pull-")) {
 			this.repoManager.pull(request.getChart(), request.getVersion(), tempDir.path().toString());
 			String fileName = resolveFileName(request.getChart(), request.getVersion());
@@ -179,11 +173,10 @@ public class RepoController {
 	/**
 	 * {@code POST} - refreshes the cached index of every configured repository.
 	 * @return {@code 200} when all indexes are refreshed
-	 * @throws Exception if any index cannot be updated
 	 */
 	@PostMapping("/update-all")
 	@Operation(summary = "Update all repositories", description = "Update the index of all configured repositories")
-	public ResponseEntity<Void> updateAll() throws Exception {
+	public ResponseEntity<Void> updateAll() throws IOException {
 		this.repoManager.updateAll();
 		return ResponseEntity.ok().build();
 	}
@@ -194,12 +187,11 @@ public class RepoController {
 	 * @param chart the uploaded chart archive
 	 * @param remote the target OCI registry reference
 	 * @return {@code 200} when the chart is pushed
-	 * @throws Exception if the upload cannot be stored or pushed
 	 */
 	@PostMapping(path = "/push", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@Operation(summary = "Push a chart", description = "Push an uploaded .tgz chart archive to a remote registry")
 	public ResponseEntity<Void> push(@RequestParam("chart") MultipartFile chart, @RequestParam("remote") String remote)
-			throws Exception {
+			throws IOException {
 		if (remote == null || remote.isBlank()) {
 			throw new IllegalArgumentException("remote is required");
 		}

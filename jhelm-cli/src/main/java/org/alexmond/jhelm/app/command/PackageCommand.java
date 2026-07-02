@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app.command;
 
+import java.io.IOException;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -76,7 +77,7 @@ public class PackageCommand implements Runnable {
 		}
 	}
 
-	private char[] loadPassphrase() throws Exception {
+	private char[] loadPassphrase() throws IOException {
 		if (passphraseFile != null) {
 			return Files.readString(Path.of(passphraseFile)).trim().toCharArray();
 		}

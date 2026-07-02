@@ -123,7 +123,7 @@ public class Engine {
 		this.metrics = metrics;
 	}
 
-	private void parseWithCache(String name, String text) throws Exception {
+	private void parseWithCache(String name, String text) {
 		// The collect pass (collectNamedTemplates) parses every template into the factory
 		// under its helm-style key; the render pass then re-parses the same (name, text)
 		// before executing it — the single hottest render path. When the identical text

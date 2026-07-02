@@ -53,9 +53,9 @@ public final class ValuesOverrides {
 	 * @param files paths to YAML values files; {@code null} or empty means none
 	 * @param setArgs {@code key=value} strings; {@code null} or empty means none
 	 * @return merged override map
-	 * @throws Exception if any values file cannot be read
+	 * @throws IOException if any values file cannot be read
 	 */
-	public static Map<String, Object> parse(List<String> files, List<String> setArgs) throws Exception {
+	public static Map<String, Object> parse(List<String> files, List<String> setArgs) throws IOException {
 		return parse(files, setArgs, null, null, null);
 	}
 
@@ -76,10 +76,10 @@ public final class ValuesOverrides {
 	 * @param setJsonArgs {@code key=json} strings whose value is parsed as JSON;
 	 * {@code null} or empty means none
 	 * @return merged override map
-	 * @throws Exception if any values file cannot be read
+	 * @throws IOException if any values file cannot be read
 	 */
 	public static Map<String, Object> parse(List<String> files, List<String> setArgs, List<String> setStringArgs,
-			List<String> setFileArgs, List<String> setJsonArgs) throws Exception {
+			List<String> setFileArgs, List<String> setJsonArgs) throws IOException {
 		Map<String, Object> merged = new HashMap<>();
 		if (files != null) {
 			for (String path : files) {

@@ -167,10 +167,10 @@ public class DependencyCommand implements Runnable {
 			return isUnpacked ? "ok" : "missing";
 		}
 
-		private ChartMetadata loadChartMetadata(File chartDir) throws Exception {
+		private ChartMetadata loadChartMetadata(File chartDir) {
 			File chartFile = new File(chartDir, "Chart.yaml");
 			if (!chartFile.exists()) {
-				throw new Exception("Chart.yaml not found in " + chartDir.getAbsolutePath());
+				throw new IllegalStateException("Chart.yaml not found in " + chartDir.getAbsolutePath());
 			}
 
 			YAMLMapper yamlMapper = YAMLMapper.builder().build();
@@ -263,10 +263,10 @@ public class DependencyCommand implements Runnable {
 			}
 		}
 
-		private ChartMetadata loadChartMetadata(File chartDir) throws Exception {
+		private ChartMetadata loadChartMetadata(File chartDir) {
 			File chartFile = new File(chartDir, "Chart.yaml");
 			if (!chartFile.exists()) {
-				throw new Exception("Chart.yaml not found in " + chartDir.getAbsolutePath());
+				throw new IllegalStateException("Chart.yaml not found in " + chartDir.getAbsolutePath());
 			}
 
 			YAMLMapper yamlMapper = YAMLMapper.builder().build();

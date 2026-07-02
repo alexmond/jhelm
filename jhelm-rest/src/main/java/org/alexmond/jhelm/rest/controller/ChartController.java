@@ -79,12 +79,11 @@ public class ChartController {
 	 * and returns the combined manifest text.
 	 * @param request the chart reference, version, release name, namespace and values
 	 * @return {@code 200} with the rendered manifest
-	 * @throws Exception if the chart cannot be pulled or rendered
 	 */
 	@PostMapping("/template")
 	@Operation(summary = "Render templates",
 			description = "Render chart templates from a repository chart reference with optional value overrides")
-	public ResponseEntity<String> template(@Valid @RequestBody TemplateRequest request) throws Exception {
+	public ResponseEntity<String> template(@Valid @RequestBody TemplateRequest request) throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-template-")) {
 			String chartPath = pullChart(request.getChartRef(), request.getVersion(), tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
@@ -100,13 +99,12 @@ public class ChartController {
 	 * @param chart the uploaded chart archive
 	 * @param request the release name, namespace and value overrides
 	 * @return {@code 200} with the rendered manifest
-	 * @throws Exception if the upload cannot be extracted or rendered
 	 */
 	@PostMapping(path = "/template/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@Operation(summary = "Render templates from upload",
 			description = "Render chart templates from an uploaded .tgz chart archive")
 	public ResponseEntity<String> templateUpload(@RequestPart("chart") MultipartFile chart,
-			@RequestPart("request") TemplateUploadRequest request) throws Exception {
+			@RequestPart("request") TemplateUploadRequest request) throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-template-upload-")) {
 			File tgzFile = tempDir.path().resolve("upload.tgz").toFile();
 			chart.transferTo(tgzFile);
@@ -124,12 +122,11 @@ public class ChartController {
 	 * download.
 	 * @param request the name of the chart to scaffold
 	 * @return {@code 200} with the {@code .tgz} archive as an attachment
-	 * @throws Exception if the chart cannot be created or archived
 	 */
 	@PostMapping("/create")
 	@Operation(summary = "Create a chart",
 			description = "Scaffold a new chart and return it as a .tgz archive download")
-	public ResponseEntity<byte[]> create(@Valid @RequestBody CreateRequest request) throws Exception {
+	public ResponseEntity<byte[]> create(@Valid @RequestBody CreateRequest request) throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-create-")) {
 			Path chartPath = tempDir.sandboxedResolve(request.getName());
 			this.createAction.create(chartPath);
@@ -147,13 +144,13 @@ public class ChartController {
 	 * @param chartRef the chart reference (repo/chart or {@code oci://...})
 	 * @param version the optional chart version
 	 * @return {@code 200} with the combined chart information
-	 * @throws Exception if the chart cannot be pulled or read
 	 */
 	@GetMapping("/show")
 	@Operation(summary = "Show chart info", description = "Show all chart information: metadata, values, README, CRDs")
 	public ResponseEntity<String> showAll(
 			@Parameter(description = "Chart reference (repo/chart or oci://...)") @RequestParam String chartRef,
-			@Parameter(description = "Chart version") @RequestParam(required = false) String version) throws Exception {
+			@Parameter(description = "Chart version") @RequestParam(required = false) String version)
+			throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-show-")) {
 			String chartPath = pullChart(chartRef, version, tempDir);
 			return ResponseEntity.ok(this.showAction.showAll(chartPath));
@@ -165,13 +162,13 @@ public class ChartController {
 	 * @param chartRef the chart reference (repo/chart or {@code oci://...})
 	 * @param version the optional chart version
 	 * @return {@code 200} with the default values
-	 * @throws Exception if the chart cannot be pulled or read
 	 */
 	@GetMapping("/show/values")
 	@Operation(summary = "Show chart values", description = "Show the default values.yaml")
 	public ResponseEntity<String> showValues(
 			@Parameter(description = "Chart reference (repo/chart or oci://...)") @RequestParam String chartRef,
-			@Parameter(description = "Chart version") @RequestParam(required = false) String version) throws Exception {
+			@Parameter(description = "Chart version") @RequestParam(required = false) String version)
+			throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-show-")) {
 			String chartPath = pullChart(chartRef, version, tempDir);
 			return ResponseEntity.ok(this.showAction.showValues(chartPath));
@@ -183,13 +180,13 @@ public class ChartController {
 	 * @param chartRef the chart reference (repo/chart or {@code oci://...})
 	 * @param version the optional chart version
 	 * @return {@code 200} with the README content
-	 * @throws Exception if the chart cannot be pulled or read
 	 */
 	@GetMapping("/show/readme")
 	@Operation(summary = "Show chart README")
 	public ResponseEntity<String> showReadme(
 			@Parameter(description = "Chart reference (repo/chart or oci://...)") @RequestParam String chartRef,
-			@Parameter(description = "Chart version") @RequestParam(required = false) String version) throws Exception {
+			@Parameter(description = "Chart version") @RequestParam(required = false) String version)
+			throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-show-")) {
 			String chartPath = pullChart(chartRef, version, tempDir);
 			return ResponseEntity.ok(this.showAction.showReadme(chartPath));
@@ -201,13 +198,13 @@ public class ChartController {
 	 * @param chartRef the chart reference (repo/chart or {@code oci://...})
 	 * @param version the optional chart version
 	 * @return {@code 200} with the chart metadata
-	 * @throws Exception if the chart cannot be pulled or read
 	 */
 	@GetMapping("/show/chart")
 	@Operation(summary = "Show chart metadata", description = "Show the Chart.yaml metadata")
 	public ResponseEntity<String> showChart(
 			@Parameter(description = "Chart reference (repo/chart or oci://...)") @RequestParam String chartRef,
-			@Parameter(description = "Chart version") @RequestParam(required = false) String version) throws Exception {
+			@Parameter(description = "Chart version") @RequestParam(required = false) String version)
+			throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-show-")) {
 			String chartPath = pullChart(chartRef, version, tempDir);
 			return ResponseEntity.ok(this.showAction.showChart(chartPath));
@@ -220,13 +217,13 @@ public class ChartController {
 	 * @param chartRef the chart reference (repo/chart or {@code oci://...})
 	 * @param version the optional chart version
 	 * @return {@code 200} with the bundled CRDs
-	 * @throws Exception if the chart cannot be pulled or read
 	 */
 	@GetMapping("/show/crds")
 	@Operation(summary = "Show chart CRDs", description = "Show Custom Resource Definitions bundled with the chart")
 	public ResponseEntity<String> showCrds(
 			@Parameter(description = "Chart reference (repo/chart or oci://...)") @RequestParam String chartRef,
-			@Parameter(description = "Chart version") @RequestParam(required = false) String version) throws Exception {
+			@Parameter(description = "Chart version") @RequestParam(required = false) String version)
+			throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-show-")) {
 			String chartPath = pullChart(chartRef, version, tempDir);
 			return ResponseEntity.ok(this.showAction.showCrds(chartPath));

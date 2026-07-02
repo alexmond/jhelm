@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.kube.service.internal;
 
+import java.io.IOException;
 import io.kubernetes.client.common.KubernetesObject;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -688,7 +689,7 @@ public class HelmKubeService implements KubeService {
 		return b64.getBytes(StandardCharsets.UTF_8);
 	}
 
-	private byte[] gzip(byte[] data) throws Exception {
+	private byte[] gzip(byte[] data) throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		try (GZIPOutputStream gz = new GZIPOutputStream(bos)) {
 			gz.write(data);
@@ -696,7 +697,7 @@ public class HelmKubeService implements KubeService {
 		return bos.toByteArray();
 	}
 
-	private byte[] gunzip(byte[] data) throws Exception {
+	private byte[] gunzip(byte[] data) throws IOException {
 		try (ByteArrayInputStream bis = new ByteArrayInputStream(data); GZIPInputStream gz = new GZIPInputStream(bis)) {
 			return gz.readAllBytes();
 		}

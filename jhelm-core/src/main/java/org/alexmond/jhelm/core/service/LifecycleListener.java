@@ -17,6 +17,9 @@ public interface LifecycleListener {
 	 * @param metadata additional metadata about the event
 	 * @throws Exception if handling fails
 	 */
+	// S112: this is a user-facing lifecycle SPI; an implementation may fail in arbitrary
+	// ways, so the broad throws is intentional rather than a generic-exception smell.
+	@SuppressWarnings("java:S112")
 	void onEvent(LifecyclePhase phase, String releaseName, String namespace, Map<String, Object> metadata)
 			throws Exception;
 

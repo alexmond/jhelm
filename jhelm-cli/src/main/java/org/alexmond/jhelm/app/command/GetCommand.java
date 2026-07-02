@@ -36,8 +36,7 @@ public class GetCommand implements Runnable {
 		CommandLine.usage(this, System.out);
 	}
 
-	private static Optional<Release> resolveRelease(GetAction getAction, String name, String namespace, int revision)
-			throws Exception {
+	private static Optional<Release> resolveRelease(GetAction getAction, String name, String namespace, int revision) {
 		if (revision > 0) {
 			return getAction.getReleaseByRevision(name, namespace, revision);
 		}

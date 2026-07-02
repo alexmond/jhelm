@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.core.service;
 
+import java.io.IOException;
+
 /**
  * Callback interface for post-render manifest processing. Implementations can transform
  * the rendered YAML manifest before it is applied to the cluster.
@@ -11,8 +13,9 @@ public interface PostRenderProcessor {
 	 * Process a rendered manifest.
 	 * @param renderedManifest the rendered YAML manifest
 	 * @return the transformed manifest
-	 * @throws Exception if processing fails
+	 * @throws IOException if reading from or writing to the post-render process fails
+	 * @throws InterruptedException if the post-render process is interrupted
 	 */
-	String process(String renderedManifest) throws Exception;
+	String process(String renderedManifest) throws IOException, InterruptedException;
 
 }
