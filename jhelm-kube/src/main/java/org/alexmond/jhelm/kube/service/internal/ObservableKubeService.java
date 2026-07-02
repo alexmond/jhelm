@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -114,6 +115,12 @@ public class ObservableKubeService implements KubeService {
 	@Override
 	public void waitForReady(String namespace, String manifest, int timeoutSeconds) {
 		delegate.waitForReady(namespace, manifest, timeoutSeconds);
+	}
+
+	@Override
+	public Capabilities getCapabilities() {
+		// lightweight read-only introspection; forward without a metric
+		return delegate.getCapabilities();
 	}
 
 	private <T> T time(Timer timer, Supplier<T> supplier) {

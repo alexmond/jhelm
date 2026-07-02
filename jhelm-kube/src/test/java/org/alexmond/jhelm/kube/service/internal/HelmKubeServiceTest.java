@@ -4,6 +4,8 @@ import tools.jackson.databind.json.JsonMapper;
 import io.kubernetes.client.custom.V1Patch;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.VersionApi;
+import io.kubernetes.client.openapi.models.VersionInfo;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
@@ -28,6 +30,7 @@ import io.kubernetes.client.util.generic.options.PatchOptions;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.model.ResourceStatus;
@@ -214,6 +217,46 @@ class HelmKubeServiceTest {
 		});
 
 		assertThrows(ReleaseStorageException.class, () -> kubeService.storeRelease(release));
+	}
+
+	// --- getCapabilities ---
+
+	@Test
+	void testGetCapabilitiesReadsLiveServerVersion() {
+		VersionInfo info = new VersionInfo();
+		info.setGitVersion("v1.31.2");
+		try (MockedConstruction<VersionApi> versionApi = mockConstruction(VersionApi.class, (mock, ctx) -> {
+			VersionApi.APIgetCodeRequest req = mock(VersionApi.APIgetCodeRequest.class);
+			when(req.execute()).thenReturn(info);
+			when(mock.getCode()).thenReturn(req);
+		})) {
+			Capabilities caps = kubeService.getCapabilities();
+			assertEquals("v1.31.2", caps.kubeVersion());
+		}
+	}
+
+	@Test
+	void testGetCapabilitiesFallsBackToDefaultOnApiError() {
+		try (MockedConstruction<VersionApi> versionApi = mockConstruction(VersionApi.class, (mock, ctx) -> {
+			VersionApi.APIgetCodeRequest req = mock(VersionApi.APIgetCodeRequest.class);
+			when(req.execute()).thenThrow(new ApiException(500, "server error"));
+			when(mock.getCode()).thenReturn(req);
+		})) {
+			assertEquals(Capabilities.DEFAULT, kubeService.getCapabilities());
+		}
+	}
+
+	@Test
+	void testGetCapabilitiesFallsBackToDefaultOnBlankVersion() {
+		VersionInfo info = new VersionInfo();
+		info.setGitVersion("");
+		try (MockedConstruction<VersionApi> versionApi = mockConstruction(VersionApi.class, (mock, ctx) -> {
+			VersionApi.APIgetCodeRequest req = mock(VersionApi.APIgetCodeRequest.class);
+			when(req.execute()).thenReturn(info);
+			when(mock.getCode()).thenReturn(req);
+		})) {
+			assertEquals(Capabilities.DEFAULT, kubeService.getCapabilities());
+		}
 	}
 
 	// --- getRelease ---

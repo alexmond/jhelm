@@ -12,6 +12,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.DeploymentFailedException;
 import org.alexmond.jhelm.core.exception.JhelmException;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
@@ -108,7 +109,9 @@ public class InstallAction {
 			.revision(release.getVersion())
 			.build();
 
-		String manifest = runPostRenderProcessors(engine.render(chart, values, releaseContext));
+		Capabilities fromCluster = (kubeService != null) ? kubeService.getCapabilities() : null;
+		Capabilities capabilities = (fromCluster != null) ? fromCluster : Capabilities.DEFAULT;
+		String manifest = runPostRenderProcessors(engine.render(chart, values, releaseContext, capabilities));
 
 		release = release.toBuilder().manifest(manifest).build();
 

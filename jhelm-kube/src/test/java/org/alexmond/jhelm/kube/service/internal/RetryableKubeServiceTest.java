@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import io.kubernetes.client.openapi.ApiException;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.KubeService;
 import java.time.Duration;
@@ -82,6 +83,15 @@ class RetryableKubeServiceTest {
 	void testApplyDelegatesToWrapped() throws Exception {
 		retryableService.apply("default", "yaml-content");
 		verify(delegate).apply("default", "yaml-content");
+	}
+
+	@Test
+	void testGetCapabilitiesForwardsDelegateResult() {
+		Capabilities caps = new Capabilities("v1.31.2", List.of());
+		when(delegate.getCapabilities()).thenReturn(caps);
+
+		assertEquals(caps, retryableService.getCapabilities());
+		verify(delegate).getCapabilities();
 	}
 
 	@Test

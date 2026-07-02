@@ -36,8 +36,8 @@ class KubernetesFunctionsTest {
 		@SuppressWarnings("unchecked")
 		Map<String, Object> version = (Map<String, Object>) result;
 		assertEquals("1", version.get("Major"));
-		assertEquals("28", version.get("Minor"));
-		assertEquals("v1.28.0", version.get("GitVersion"));
+		assertEquals("35", version.get("Minor"));
+		assertEquals("v1.35.0", version.get("GitVersion"));
 	}
 
 	@Test

@@ -5,13 +5,17 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 
 import org.alexmond.jhelm.core.exception.TemplateRenderException;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Dependency;
+import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ReleaseContext;
+import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -503,6 +507,155 @@ class EngineTest {
 				List.of(tmpl("test.yaml", "kube: {{ .Capabilities.KubeVersion.Version }}")), Map.of());
 		String result = engine.render(chart, Map.of(), releaseInfo());
 		assertTrue(result.contains("kube: v1.35.0"));
+	}
+
+	@Test
+	void testCapabilitiesKubeVersionOverride() {
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml",
+						"ver: {{ .Capabilities.KubeVersion.Version }} major: {{ .Capabilities.KubeVersion.Major }}"
+								+ " minor: {{ .Capabilities.KubeVersion.Minor }}")),
+				Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo(), new Capabilities("v1.29.4", List.of()));
+		assertTrue(result.contains("ver: v1.29.4"), result);
+		assertTrue(result.contains("major: 1"), result);
+		assertTrue(result.contains("minor: 29"), result);
+	}
+
+	@Test
+	void testCapabilitiesKubeVersionOverrideAddsLeadingV() {
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "ver: {{ .Capabilities.KubeVersion.Version }}")), Map.of());
+		// a bare "1.30" is normalised to the helm vX.Y form
+		String result = engine.render(chart, Map.of(), releaseInfo(), new Capabilities("1.30", List.of()));
+		assertTrue(result.contains("ver: v1.30"), result);
+	}
+
+	@Test
+	void testCapabilitiesExtraApiVersionsAreAdditive() {
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "custom: {{ .Capabilities.APIVersions.Has \"custom.example.com/v1\" }}"
+						+ " builtin: {{ .Capabilities.APIVersions.Has \"policy/v1\" }}")),
+				Map.of());
+		String result = engine.render(chart, Map.of(), releaseInfo(),
+				new Capabilities(null, List.of("custom.example.com/v1")));
+		// the extra version is advertised AND the built-in default set is still present
+		assertTrue(result.contains("custom: true"), result);
+		assertTrue(result.contains("builtin: true"), result);
+	}
+
+	@Test
+	void testCapabilitiesNonNumericVersionYieldsZeroMajorMinor() {
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml",
+						"major: {{ .Capabilities.KubeVersion.Major }} minor: {{ .Capabilities.KubeVersion.Minor }}")),
+				Map.of());
+		// a version with no numeric segments falls back to 0/0 rather than throwing
+		String result = engine.render(chart, Map.of(), releaseInfo(), new Capabilities("vX", List.of()));
+		assertTrue(result.contains("major: 0"), result);
+		assertTrue(result.contains("minor: 0"), result);
+	}
+
+	@Test
+	void testCapabilitiesBlankKubeVersionUsesDefault() {
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "kube: {{ .Capabilities.KubeVersion.Version }}")), Map.of());
+		// a blank kube-version override is ignored in favour of the engine default
+		String result = engine.render(chart, Map.of(), releaseInfo(), new Capabilities("   ", List.of()));
+		assertTrue(result.contains("kube: v1.35.0"), result);
+	}
+
+	@Test
+	void testCapabilitiesExtraApiVersionsSkipsBlankAndDuplicate() {
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "custom: {{ .Capabilities.APIVersions.Has \"custom.io/v1\" }}"
+						+ " builtin: {{ .Capabilities.APIVersions.Has \"policy/v1\" }}")),
+				Map.of());
+		// a blank entry is skipped and a duplicate of a built-in is not re-added
+		String result = engine.render(chart, Map.of(), releaseInfo(),
+				new Capabilities(null, List.of("custom.io/v1", "  ", "policy/v1")));
+		assertTrue(result.contains("custom: true"), result);
+		assertTrue(result.contains("builtin: true"), result);
+	}
+
+	@Test
+	void testCapabilitiesRecordNullExtraApiVersionsBecomesEmpty() {
+		Capabilities caps = new Capabilities("v1.0.0", null);
+		assertTrue(caps.extraApiVersions().isEmpty());
+	}
+
+	@Test
+	void testKubeServiceDefaultCapabilitiesIsDefault() {
+		// the KubeService interface default method returns the engine defaults
+		KubeService bare = new KubeService() {
+			@Override
+			public void storeRelease(Release release) {
+			}
+
+			@Override
+			public Optional<Release> getRelease(String name, String namespace) {
+				return Optional.empty();
+			}
+
+			@Override
+			public List<Release> listReleases(String namespace) {
+				return List.of();
+			}
+
+			@Override
+			public List<Release> getReleaseHistory(String name, String namespace) {
+				return List.of();
+			}
+
+			@Override
+			public void deleteReleaseHistory(String name, String namespace) {
+			}
+
+			@Override
+			public void pruneReleaseHistory(String name, String namespace, int maxHistory) {
+			}
+
+			@Override
+			public void ensureNamespace(String namespace) {
+			}
+
+			@Override
+			public void apply(String namespace, String yamlContent) {
+			}
+
+			@Override
+			public void delete(String namespace, String yamlContent) {
+			}
+
+			@Override
+			public List<ResourceStatus> getResourceStatuses(String namespace, String manifest) {
+				return List.of();
+			}
+
+			@Override
+			public void waitForReady(String namespace, String manifest, int timeoutSeconds) {
+			}
+		};
+		assertEquals(Capabilities.DEFAULT, bare.getCapabilities());
+	}
+
+	@Test
+	void testCapabilitiesKubeVersionMinorWithSuffix() {
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "minor: {{ .Capabilities.KubeVersion.Minor }}")), Map.of());
+		// some managed clusters report a minor like "29+"; only the leading digits are
+		// kept
+		String result = engine.render(chart, Map.of(), releaseInfo(), new Capabilities("v1.29+", List.of()));
+		assertTrue(result.contains("minor: 29"), result);
+	}
+
+	@Test
+	void testCapabilitiesDefaultWhenOverrideNull() {
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "kube: {{ .Capabilities.KubeVersion.Version }}")), Map.of());
+		// a null Capabilities argument falls back to the engine default
+		String result = engine.render(chart, Map.of(), releaseInfo(), null);
+		assertTrue(result.contains("kube: v1.35.0"), result);
 	}
 
 	// --- Cross-template context mutations ---

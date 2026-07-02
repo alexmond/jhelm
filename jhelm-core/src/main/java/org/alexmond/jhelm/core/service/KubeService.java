@@ -5,6 +5,7 @@ import java.util.Optional;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 
@@ -139,5 +140,17 @@ public interface KubeService {
 	 * API cannot be reached
 	 */
 	void waitForReady(String namespace, String manifest, int timeoutSeconds);
+
+	/**
+	 * Returns the {@code .Capabilities} to expose to templates for this cluster — chiefly
+	 * the live server {@code KubeVersion}, so charts that gate on the Kubernetes version
+	 * render against the real target instead of an engine default. The default
+	 * implementation returns {@link Capabilities#DEFAULT} (engine built-ins), so an
+	 * implementation that cannot reach a cluster, or a test double, still works.
+	 * @return the capability override, never {@code null}
+	 */
+	default Capabilities getCapabilities() {
+		return Capabilities.DEFAULT;
+	}
 
 }

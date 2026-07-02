@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartFiles;
 import org.alexmond.jhelm.core.model.Dependency;
@@ -63,6 +64,12 @@ public class Engine {
 			"resource.k8s.io/v1", "resource.k8s.io/v1alpha3", "resource.k8s.io/v1beta1", "resource.k8s.io/v1beta2",
 			"scheduling.k8s.io/v1", "scheduling.k8s.io/v1alpha1", "scheduling.k8s.io/v1beta1", "storage.k8s.io/v1",
 			"storage.k8s.io/v1alpha1", "storage.k8s.io/v1beta1", "storagemigration.k8s.io/v1alpha1", "v1");
+
+	// Default .Capabilities.KubeVersion when no live cluster / override is supplied. Kept
+	// in sync with the helm --kube-version the parity harness (KpsComparisonTest) pins,
+	// so
+	// offline `template` output matches upstream helm.
+	private static final String DEFAULT_KUBE_VERSION = "v1.35.0";
 
 	private final Map<String, String> namedTemplates = new HashMap<>();
 
@@ -183,14 +190,29 @@ public class Engine {
 	 */
 	@SneakyThrows
 	public String render(Chart chart, Map<String, Object> values, ReleaseContext release) {
+		return render(chart, values, release, Capabilities.DEFAULT);
+	}
+
+	/**
+	 * Renders a chart with an explicit {@code .Capabilities} override.
+	 * @param chart the chart to render
+	 * @param values the merged values for this render
+	 * @param release the release context ({@code .Release})
+	 * @param capabilities the {@code .Capabilities} override (kube version + extra API
+	 * versions); use {@link Capabilities#DEFAULT} for the engine built-ins
+	 * @return the rendered manifest
+	 */
+	@SneakyThrows
+	public String render(Chart chart, Map<String, Object> values, ReleaseContext release, Capabilities capabilities) {
 		Map<String, Object> releaseInfo = release.toMap();
+		Capabilities caps = (capabilities != null) ? capabilities : Capabilities.DEFAULT;
 		long startNanos = System.nanoTime();
 		try {
 			AtomicReference<String> result = new AtomicReference<>();
 			AtomicReference<RuntimeException> error = new AtomicReference<>();
 			Thread renderThread = new Thread(null, () -> {
 				try {
-					result.set(doRender(chart, values, releaseInfo));
+					result.set(doRender(chart, values, releaseInfo, caps));
 				}
 				catch (RuntimeException ex) {
 					error.set(ex);
@@ -210,7 +232,8 @@ public class Engine {
 		}
 	}
 
-	private String doRender(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo) {
+	private String doRender(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo,
+			Capabilities capabilities) {
 		namedTemplates.clear();
 		templateVersions.clear();
 		parsedTextHash.clear();
@@ -231,7 +254,7 @@ public class Engine {
 			// Using a shared set for the whole rendering process to avoid redundant work
 			// and loops
 			Set<String> renderedCharts = new HashSet<>();
-			String rendered = renderWithSubcharts(chart, values, releaseInfo, renderedCharts, 0);
+			String rendered = renderWithSubcharts(chart, values, releaseInfo, renderedCharts, 0, capabilities);
 			return cleanManifest(rendered);
 		}
 		catch (StackOverflowError ex) {
@@ -244,6 +267,71 @@ public class Engine {
 			throw new TemplateRenderException("recursive template inclusion or too deep nesting while rendering chart '"
 					+ chartName + "'; check for circular {{ template }} calls", ex, chartName, null);
 		}
+	}
+
+	/**
+	 * Builds the {@code .Capabilities} object for the render context. Uses the supplied
+	 * kube-version override when present (else {@link #DEFAULT_KUBE_VERSION}) and
+	 * advertises the built-in {@link #DEFAULT_API_VERSIONS} plus any extra API versions
+	 * from the override.
+	 * @param capabilities the override (never {@code null}; use
+	 * {@link Capabilities#DEFAULT})
+	 * @return the {@code .Capabilities} map exposed to templates
+	 */
+	private Map<String, Object> buildCapabilities(Capabilities capabilities) {
+		String kubeVersion = (capabilities.kubeVersion() != null && !capabilities.kubeVersion().isBlank())
+				? normalizeKubeVersion(capabilities.kubeVersion()) : DEFAULT_KUBE_VERSION;
+		String[] majorMinor = parseMajorMinor(kubeVersion);
+		List<String> apiVersions = new ArrayList<>(DEFAULT_API_VERSIONS);
+		// extraApiVersions is guaranteed non-null with non-null elements by Capabilities
+		for (String extra : capabilities.extraApiVersions()) {
+			if (!extra.isBlank() && !apiVersions.contains(extra)) {
+				apiVersions.add(extra);
+			}
+		}
+		return Map.of("KubeVersion",
+				Map.of("Version", kubeVersion, "Major", majorMinor[0], "Minor", majorMinor[1], "GitVersion",
+						kubeVersion),
+				"HelmVersion", Map.of("Version", "v3.16.0", "GitCommit", "", "GitTreeState", "", "GoVersion", ""),
+				"APIVersions", new VersionSet(apiVersions));
+	}
+
+	/**
+	 * Normalises a user/cluster kube-version string to the Helm {@code vX.Y.Z} form,
+	 * adding a leading {@code v} when absent.
+	 * @param version the raw version (e.g. {@code 1.29}, {@code v1.29.0})
+	 * @return the normalised version string
+	 */
+	private static String normalizeKubeVersion(String version) {
+		String trimmed = version.trim();
+		return trimmed.startsWith("v") ? trimmed : "v" + trimmed;
+	}
+
+	/**
+	 * Extracts the {@code Major}/{@code Minor} fields from a kube-version string, keeping
+	 * only the leading digits of each segment (a cluster may report a minor like
+	 * {@code "35+"}).
+	 * @param version a normalised kube-version (e.g. {@code v1.35.0})
+	 * @return a two-element array {@code [major, minor]}
+	 */
+	private static String[] parseMajorMinor(String version) {
+		String stripped = version.startsWith("v") ? version.substring(1) : version;
+		String[] parts = stripped.split("\\.");
+		String major = (parts.length > 0) ? leadingDigits(parts[0]) : "0";
+		String minor = (parts.length > 1) ? leadingDigits(parts[1]) : "0";
+		return new String[] { major.isEmpty() ? "0" : major, minor.isEmpty() ? "0" : minor };
+	}
+
+	private static String leadingDigits(String value) {
+		StringBuilder digits = new StringBuilder();
+		for (int i = 0; i < value.length(); i++) {
+			char ch = value.charAt(i);
+			if (ch < '0' || ch > '9') {
+				break;
+			}
+			digits.append(ch);
+		}
+		return digits.toString();
 	}
 
 	/**
@@ -572,7 +660,7 @@ public class Engine {
 	}
 
 	private String renderWithSubcharts(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo,
-			Set<String> renderedCharts, int depth) {
+			Set<String> renderedCharts, int depth, Capabilities capabilities) {
 		String chartKey = chart.getMetadata().getName() + ":" + chart.getMetadata().getVersion();
 		if (renderedCharts.contains(chartKey)) {
 			if (log.isDebugEnabled()) {
@@ -645,10 +733,7 @@ public class Engine {
 		context.put("Release", releaseInfo);
 
 		// Add standard Helm objects
-		context.put("Capabilities", Map.of("KubeVersion",
-				Map.of("Version", "v1.35.0", "Major", "1", "Minor", "35", "GitVersion", "v1.35.0"), "HelmVersion",
-				Map.of("Version", "v3.16.0", "GitCommit", "", "GitTreeState", "", "GoVersion", ""), "APIVersions",
-				new VersionSet(DEFAULT_API_VERSIONS)));
+		context.put("Capabilities", buildCapabilities(capabilities));
 		String chartBasePath = chart.getMetadata().getName() + "/templates";
 		context.put("Template", Map.of("Name", "", "BasePath", chartBasePath));
 		context.put("Files", new ChartFiles(chart.getFiles()));
@@ -739,7 +824,8 @@ public class Engine {
 			if (log.isDebugEnabled()) {
 				log.debug("Rendering subchart: {}", subchartName);
 			}
-			sb.append(renderWithSubcharts(subchart, subchartOverrides, releaseInfo, renderedCharts, depth + 1));
+			sb.append(renderWithSubcharts(subchart, subchartOverrides, releaseInfo, renderedCharts, depth + 1,
+					capabilities));
 		}
 
 		// This chart's own templates render last (see the ordering note above).

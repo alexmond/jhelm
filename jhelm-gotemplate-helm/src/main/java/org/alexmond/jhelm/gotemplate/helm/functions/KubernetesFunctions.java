@@ -91,11 +91,14 @@ public final class KubernetesFunctions {
 	private static Function kubeVersion(KubernetesProvider provider) {
 		return (args) -> {
 			if (provider == null || !provider.isAvailable()) {
-				// Stub implementation - returns default version
+				// Stub implementation — returns the engine's default
+				// .Capabilities.KubeVersion
+				// so the kubeVersion function agrees with .Capabilities when no cluster
+				// is up.
 				Map<String, Object> version = new HashMap<>();
 				version.put("Major", "1");
-				version.put("Minor", "28");
-				version.put("GitVersion", "v1.28.0");
+				version.put("Minor", "35");
+				version.put("GitVersion", "v1.35.0");
 				return version;
 			}
 

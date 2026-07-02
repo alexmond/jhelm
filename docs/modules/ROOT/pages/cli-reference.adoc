@@ -38,7 +38,8 @@ Render chart templates locally (without deploying).
 
 [source,bash]
 ----
-jhelm template <name> <chartPath> [-n <namespace>] [-f <values>] [--set <key=value>]
+jhelm template <name> <chartPath> [-n <namespace>] [-f <values>] [--set <key=value>] \
+  [--kube-version <version>] [-a <apiVersion>]
 ----
 
 [cols="1,1,3"]
@@ -50,7 +51,15 @@ jhelm template <name> <chartPath> [-n <namespace>] [-f <values>] [--set <key=val
 | `-n, --namespace` | No | Namespace (default: `default`)
 | `-f, --values` | No | Values YAML file(s), repeatable
 | `--set` | No | Set values on the command line (`key=value`, dot notation), repeatable
+| `--kube-version` | No | Kubernetes version used for `.Capabilities.KubeVersion` (e.g. `v1.29.0`). Defaults to the engine's built-in version when omitted.
+| `-a, --api-versions` | No | API group/versions advertised for `.Capabilities.APIVersions.Has` (comma-separated or repeatable). Additive to the built-in default set.
 |===
+
+Since `template` renders offline (no cluster), `--kube-version` / `--api-versions` let you
+pin `.Capabilities` for charts that gate on the Kubernetes version or on an API being
+present — mirroring `helm template --kube-version --api-versions`. During `install` /
+`upgrade` against a live cluster, `.Capabilities.KubeVersion` is instead read from the
+target server automatically.
 
 === install
 
