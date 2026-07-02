@@ -113,7 +113,13 @@ public class InstallAction {
 		Capabilities capabilities = (fromCluster != null) ? fromCluster : Capabilities.DEFAULT;
 		String manifest = runPostRenderProcessors(engine.render(chart, values, releaseContext, capabilities));
 
-		release = release.toBuilder().manifest(manifest).build();
+		// A dry-run release is ephemeral and its manifest is only displayed, so strip
+		// test
+		// hooks to match `helm install --dry-run` output. A real install keeps them in
+		// the
+		// stored manifest so `helm test` can run them later (#634).
+		String storedManifest = options.isDryRun() ? HookParser.stripTestHooks(manifest) : manifest;
+		release = release.toBuilder().manifest(storedManifest).build();
 
 		if (kubeService != null && !options.isDryRun()) {
 			applyRelease(options, chart, release, manifest);

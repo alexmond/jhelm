@@ -243,4 +243,44 @@ class HookParserTest {
 		assertEquals("", HookParser.stripKeptResources(null));
 	}
 
+	@Test
+	void testStripTestHooksRemovesTestButKeepsLifecycleAndRegular() {
+		String regular = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: my-config";
+		String preInstall = "apiVersion: v1\nkind: Secret\nmetadata:\n  name: my-secret\n"
+				+ "  annotations:\n    helm.sh/hook: pre-install";
+		String test = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: my-test\n"
+				+ "  annotations:\n    helm.sh/hook: test";
+		String manifest = regular + "\n---\n" + preInstall + "\n---\n" + test + "\n";
+
+		String result = HookParser.stripTestHooks(manifest);
+
+		assertTrue(result.contains("my-config"), result);
+		assertTrue(result.contains("pre-install"), "lifecycle hooks must be retained: " + result);
+		assertFalse(result.contains("my-test"), "test hooks must be removed: " + result);
+	}
+
+	@Test
+	void testStripTestHooksAlsoRemovesTestSuccessAndFailure() {
+		String success = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: p1\n"
+				+ "  annotations:\n    helm.sh/hook: test-success";
+		String failure = "apiVersion: v1\nkind: Pod\nmetadata:\n  name: p2\n"
+				+ "  annotations:\n    helm.sh/hook: test-failure";
+		String result = HookParser.stripTestHooks(success + "\n---\n" + failure + "\n");
+		assertEquals("", result);
+	}
+
+	@Test
+	void testStripTestHooksIsByteIdenticalWhenNoTestHooks() {
+		String regular = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: a";
+		String preInstall = "apiVersion: v1\nkind: Job\nmetadata:\n  name: b\n"
+				+ "  annotations:\n    helm.sh/hook: pre-install";
+		String manifest = regular + "\n---\n" + preInstall + "\n";
+		assertEquals(manifest, HookParser.stripTestHooks(manifest));
+	}
+
+	@Test
+	void testStripTestHooksReturnsEmptyForNull() {
+		assertEquals("", HookParser.stripTestHooks(null));
+	}
+
 }

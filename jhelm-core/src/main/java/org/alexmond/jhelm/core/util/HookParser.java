@@ -121,6 +121,84 @@ public final class HookParser {
 	}
 
 	/**
+	 * Removes test-hook resources ({@code helm.sh/hook: test}, {@code test-success}, or
+	 * {@code test-failure}) from a rendered manifest, matching {@code helm template} /
+	 * {@code helm install --dry-run}, which omit test hooks (they run only under
+	 * {@code helm test}). Lifecycle hooks ({@code pre-install}, {@code post-install}, …)
+	 * are retained. The kept documents are re-joined with the same {@code \n---\n}
+	 * separator the engine emits, so a manifest with no test hooks is returned
+	 * byte-for-byte unchanged.
+	 * @param manifest the full rendered YAML manifest (may be null or blank)
+	 * @return the manifest with test-hook documents removed
+	 */
+	public static String stripTestHooks(String manifest) {
+		if (manifest == null) {
+			return "";
+		}
+		if (manifest.isBlank()) {
+			return manifest;
+		}
+
+		String[] docs = manifest.strip().split("\n---\n");
+		StringBuilder result = new StringBuilder();
+
+		for (String doc : docs) {
+			String trimmed = doc.strip();
+			if (trimmed.isEmpty() || isTestHook(trimmed)) {
+				continue;
+			}
+			if (result.length() > 0) {
+				result.append("\n---\n");
+			}
+			result.append(trimmed);
+		}
+
+		if (result.length() > 0) {
+			result.append('\n');
+		}
+		return result.toString();
+	}
+
+	/**
+	 * @return {@code true} if the document carries a {@code helm.sh/hook} annotation
+	 * whose value includes {@code test}, {@code test-success}, or {@code test-failure}
+	 */
+	@SuppressWarnings("unchecked")
+	private static boolean isTestHook(String doc) {
+		if (!doc.contains("helm.sh/hook")) {
+			return false;
+		}
+		try {
+			Map<String, Object> parsed = YAML_MAPPER.readValue(doc, Map.class);
+			if (parsed == null) {
+				return false;
+			}
+			Map<String, Object> metadata = (Map<String, Object>) parsed.get("metadata");
+			if (metadata == null) {
+				return false;
+			}
+			Map<String, Object> annotations = (Map<String, Object>) metadata.get("annotations");
+			if (annotations == null) {
+				return false;
+			}
+			Object hook = annotations.get("helm.sh/hook");
+			if (hook == null) {
+				return false;
+			}
+			for (String phase : hook.toString().split(",")) {
+				String value = phase.trim();
+				if ("test".equals(value) || "test-success".equals(value) || "test-failure".equals(value)) {
+					return true;
+				}
+			}
+		}
+		catch (Exception ignored) {
+			// A document that cannot be parsed is conservatively kept (never dropped).
+		}
+		return false;
+	}
+
+	/**
 	 * Strips resources annotated with {@code helm.sh/resource-policy: keep} from the
 	 * manifest. These resources should be preserved during uninstall.
 	 * @param manifest the YAML manifest (may be null or blank)

@@ -111,7 +111,11 @@ public class UpgradeAction {
 			}
 		}
 
-		newRelease = newRelease.toBuilder().manifest(manifest).build();
+		// A dry-run release is ephemeral and only displayed, so strip test hooks to match
+		// `helm upgrade --dry-run` output; a real upgrade keeps them for `helm test`
+		// (#634).
+		String storedManifest = options.isDryRun() ? HookParser.stripTestHooks(manifest) : manifest;
+		newRelease = newRelease.toBuilder().manifest(storedManifest).build();
 
 		if (kubeService != null && !options.isDryRun()) {
 			applyRelease(options, currentRelease, newRelease, manifest);

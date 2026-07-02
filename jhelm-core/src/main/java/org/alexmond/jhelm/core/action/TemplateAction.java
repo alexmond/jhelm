@@ -14,6 +14,7 @@ import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
+import org.alexmond.jhelm.core.util.HookParser;
 import org.alexmond.jhelm.core.util.ValuesLoader;
 
 @RequiredArgsConstructor
@@ -63,6 +64,10 @@ public class TemplateAction {
 			.build();
 
 		String manifest = engine.render(chart, values, releaseContext, new Capabilities(kubeVersion, apiVersions));
+		// helm template omits test hooks (they run only under `helm test`); lifecycle
+		// hooks
+		// are kept. See #634.
+		manifest = HookParser.stripTestHooks(manifest);
 
 		for (PostRenderProcessor processor : postRenderProcessors) {
 			try {
