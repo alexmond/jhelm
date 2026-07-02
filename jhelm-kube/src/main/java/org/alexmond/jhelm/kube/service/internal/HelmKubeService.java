@@ -682,7 +682,7 @@ public class HelmKubeService implements KubeService {
 		}
 	}
 
-	private byte[] encodeRelease(Release release) throws Exception {
+	private byte[] encodeRelease(Release release) throws IOException {
 		byte[] json = releaseCodec.toJson(release);
 		byte[] gzipped = gzip(json);
 		String b64 = Base64.getEncoder().encodeToString(gzipped);

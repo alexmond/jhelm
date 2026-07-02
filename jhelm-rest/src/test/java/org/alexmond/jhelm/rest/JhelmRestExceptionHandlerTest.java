@@ -118,8 +118,8 @@ class JhelmRestExceptionHandlerTest {
 		ProblemDetail template = this.handler
 			.handleUnprocessable(new TemplateRenderException("render failed", "mychart", "deployment.yaml"));
 
-		assertEquals(HttpStatus.UNPROCESSABLE_ENTITY.value(), schema.getStatus());
-		assertEquals(HttpStatus.UNPROCESSABLE_ENTITY.value(), template.getStatus());
+		assertEquals(HttpStatus.UNPROCESSABLE_CONTENT.value(), schema.getStatus());
+		assertEquals(HttpStatus.UNPROCESSABLE_CONTENT.value(), template.getStatus());
 	}
 
 	@Test

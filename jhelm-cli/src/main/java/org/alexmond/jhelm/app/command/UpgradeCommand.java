@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app.command;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -261,7 +262,7 @@ public class UpgradeCommand implements Runnable {
 			.build();
 	}
 
-	private Release applyCliPostRenderers(Release release) throws Exception {
+	private Release applyCliPostRenderers(Release release) throws IOException, InterruptedException {
 		if (postRenderers.isEmpty()) {
 			return release;
 		}
