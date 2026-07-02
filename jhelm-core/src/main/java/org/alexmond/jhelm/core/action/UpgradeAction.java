@@ -11,6 +11,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.DeploymentFailedException;
 import org.alexmond.jhelm.core.exception.JhelmException;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.Release;
@@ -97,7 +98,9 @@ public class UpgradeAction {
 			.revision(newRelease.getVersion())
 			.build();
 
-		String manifest = engine.render(newChart, renderValues, releaseContext);
+		Capabilities fromCluster = (kubeService != null) ? kubeService.getCapabilities() : null;
+		Capabilities capabilities = (fromCluster != null) ? fromCluster : Capabilities.DEFAULT;
+		String manifest = engine.render(newChart, renderValues, releaseContext, capabilities);
 
 		for (PostRenderProcessor processor : postRenderProcessors) {
 			try {

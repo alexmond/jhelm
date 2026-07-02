@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -58,6 +59,14 @@ class ObservableKubeServiceTest {
 		Timer timer = registry.find("jhelm.kube.operation").tag("operation", "apply").timer();
 		assertNotNull(timer);
 		assertEquals(1, timer.count());
+	}
+
+	@Test
+	void testGetCapabilitiesForwardsDelegateResult() {
+		Capabilities caps = new Capabilities("v1.31.2", List.of());
+		when(delegate.getCapabilities()).thenReturn(caps);
+		assertEquals(caps, service.getCapabilities());
+		verify(delegate).getCapabilities();
 	}
 
 	@Test

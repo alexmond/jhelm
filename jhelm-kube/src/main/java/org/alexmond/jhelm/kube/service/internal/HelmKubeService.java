@@ -7,6 +7,7 @@ import io.kubernetes.client.custom.V1Patch;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.BatchV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.apis.VersionApi;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1DaemonSet;
 import io.kubernetes.client.openapi.models.V1Deployment;
@@ -19,6 +20,7 @@ import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1Secret;
 import io.kubernetes.client.openapi.models.V1SecretList;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
+import io.kubernetes.client.openapi.models.VersionInfo;
 import io.kubernetes.client.util.Yaml;
 import io.kubernetes.client.util.generic.KubernetesApiResponse;
 import io.kubernetes.client.util.generic.dynamic.DynamicKubernetesApi;
@@ -29,6 +31,7 @@ import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.HelmReleaseCodec;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
@@ -75,6 +78,28 @@ public class HelmKubeService implements KubeService {
 	 */
 	public HelmKubeService(KubeClient kubeClient) {
 		this.apiClient = kubeClient.apiClient();
+	}
+
+	/**
+	 * Reads the live server version so {@code .Capabilities.KubeVersion} reflects the
+	 * real target cluster during install/upgrade. Falls back to
+	 * {@link Capabilities#DEFAULT} (engine default version) when the server cannot be
+	 * reached, so a dry-run/offline path still renders. API versions are left at the
+	 * engine default set.
+	 */
+	@Override
+	public Capabilities getCapabilities() {
+		try {
+			VersionInfo info = new VersionApi(apiClient).getCode().execute();
+			String gitVersion = (info != null) ? info.getGitVersion() : null;
+			if (gitVersion != null && !gitVersion.isBlank()) {
+				return new Capabilities(gitVersion, List.of());
+			}
+		}
+		catch (ApiException | RuntimeException ex) {
+			log.debug("Could not read server version for .Capabilities; using engine default", ex);
+		}
+		return Capabilities.DEFAULT;
 	}
 
 	/**

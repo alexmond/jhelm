@@ -51,6 +51,15 @@ public class TemplateCommand implements Runnable {
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
 
+	@Option(names = { "--kube-version" },
+			description = "Kubernetes version used for .Capabilities.KubeVersion (e.g. v1.29.0)")
+	private String kubeVersion;
+
+	@Option(names = { "-a", "--api-versions" }, split = ",",
+			description = "Kubernetes API versions advertised for .Capabilities.APIVersions.Has "
+					+ "(comma-separated or repeatable; additive to the built-in default set)")
+	private List<String> apiVersions = new ArrayList<>();
+
 	/**
 	 * Creates the command.
 	 * @param templateAction the action that renders chart templates
@@ -64,7 +73,7 @@ public class TemplateCommand implements Runnable {
 		try {
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
 					setFileValues, setJsonValues);
-			String manifest = templateAction.render(chartPath, name, namespace, overrides);
+			String manifest = templateAction.render(chartPath, name, namespace, overrides, kubeVersion, apiVersions);
 			for (String renderer : postRenderers) {
 				manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
 			}

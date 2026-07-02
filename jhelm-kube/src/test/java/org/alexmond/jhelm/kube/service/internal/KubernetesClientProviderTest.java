@@ -110,8 +110,8 @@ class KubernetesClientProviderTest {
 		Map<String, Object> version = provider.getVersion();
 
 		assertEquals("1", version.get("Major"));
-		assertEquals("28", version.get("Minor"));
-		assertEquals("v1.28.0", version.get("GitVersion"));
+		assertEquals("35", version.get("Minor"));
+		assertEquals("v1.35.0", version.get("GitVersion"));
 		assertEquals("unknown", version.get("GitCommit"));
 		assertEquals("linux/amd64", version.get("Platform"));
 	}
@@ -147,7 +147,7 @@ class KubernetesClientProviderTest {
 		when(versionApi.getCode()).thenReturn(versionReq);
 
 		Map<String, Object> version = provider.getVersion();
-		assertEquals("v1.28.0", version.get("GitVersion"));
+		assertEquals("v1.35.0", version.get("GitVersion"));
 	}
 
 	// --- lookup when unavailable ---

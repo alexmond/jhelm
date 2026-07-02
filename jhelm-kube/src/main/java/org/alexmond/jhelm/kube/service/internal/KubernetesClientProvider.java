@@ -301,13 +301,16 @@ public class KubernetesClientProvider implements KubernetesProvider {
 	}
 
 	/**
-	 * Return stub version when Kubernetes API is not available
+	 * Return stub version when Kubernetes API is not available. Kept aligned with the
+	 * engine's default {@code .Capabilities.KubeVersion} ({@code v1.35.0}) so the
+	 * {@code kubeVersion} template function and {@code .Capabilities.KubeVersion} agree
+	 * when no live cluster is reachable.
 	 */
 	private Map<String, Object> getStubVersion() {
 		Map<String, Object> version = new HashMap<>();
 		version.put("Major", "1");
-		version.put("Minor", "28");
-		version.put("GitVersion", "v1.28.0");
+		version.put("Minor", "35");
+		version.put("GitVersion", "v1.35.0");
 		version.put("GitCommit", "unknown");
 		version.put("Platform", "linux/amd64");
 		return version;

@@ -6,6 +6,7 @@ import java.util.Optional;
 import io.kubernetes.client.openapi.ApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -122,6 +123,12 @@ public class RetryableKubeService implements KubeService {
 	public void waitForReady(String namespace, String manifest, int timeoutSeconds) {
 		// waitForReady already polls internally; do not retry the entire operation
 		delegate.waitForReady(namespace, manifest, timeoutSeconds);
+	}
+
+	@Override
+	public Capabilities getCapabilities() {
+		// read-only introspection that already falls back to defaults on failure; forward
+		return delegate.getCapabilities();
 	}
 
 	private <T> T executeWithRetry(String operation, Retryable<T> callback) {

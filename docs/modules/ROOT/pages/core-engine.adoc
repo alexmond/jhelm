@@ -24,4 +24,5 @@ The engine handles:
 . *Recursion Protection*: Stack depth tracking prevents infinite template recursion.
 . *Named Templates*: `define` blocks are collected before rendering begins.
 . *Value Merging*: Chart values are merged with user-provided values and release info.
+. *Capabilities*: `.Capabilities.KubeVersion` and `.Capabilities.APIVersions` are supplied via a `Capabilities` override. During `install`/`upgrade` the engine reads the live server version from the `KubeService` so version-gated charts render against the real target; when the cluster is unreachable, or for the offline `template` command, it uses a built-in default (`v1.35.0`) that the `template` command can override with `--kube-version` / `--api-versions`.
 . *Error Handling*: Custom exceptions for parsing, execution, and not-found scenarios.
