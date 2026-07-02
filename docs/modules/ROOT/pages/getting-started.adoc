@@ -21,7 +21,7 @@ After building, run the CLI via the application JAR:
 
 [source,bash]
 ----
-java -jar jhelm-cli/target/jhelm-{jhelm-version}.jar --help
+java -jar jhelm-cli/target/jhelm-{page-component-version}.jar --help
 ----
 
 === Examples
@@ -64,7 +64,7 @@ Add `jhelm-core` to your Maven project for offline operations (template renderin
 <dependency>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-core</artifactId>
-    <version>{jhelm-version}</version>
+    <version>{page-component-version}</version>
 </dependency>
 ----
 
@@ -75,7 +75,7 @@ Add `jhelm-kube` when you also need Kubernetes operations (install, upgrade, rol
 <dependency>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-kube</artifactId>
-    <version>{jhelm-version}</version>
+    <version>{page-component-version}</version>
 </dependency>
 ----
 
@@ -117,7 +117,7 @@ Add `jhelm-rest-starter` to a Spring Boot web application to expose Helm operati
 <dependency>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-rest-starter</artifactId>
-    <version>{jhelm-version}</version>
+    <version>{page-component-version}</version>
 </dependency>
 ----
 
@@ -176,7 +176,7 @@ https://modelcontextprotocol.io[Model Context Protocol] tools for AI agents:
 <dependency>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-mcp-starter</artifactId>
-    <version>{jhelm-version}</version>
+    <version>{page-component-version}</version>
 </dependency>
 ----
 

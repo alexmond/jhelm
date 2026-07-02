@@ -17,7 +17,7 @@ Add `jhelm-rest-starter` to your Spring Boot web application:
 <dependency>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-rest-starter</artifactId>
-    <version>{jhelm-version}</version>
+    <version>{page-component-version}</version>
 </dependency>
 ----
 
@@ -614,7 +614,7 @@ Add `jhelm-mcp-starter` to a Spring Boot application for the auto-configured ser
 <dependency>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-mcp-starter</artifactId>
-    <version>{jhelm-version}</version>
+    <version>{page-component-version}</version>
 </dependency>
 ----
 

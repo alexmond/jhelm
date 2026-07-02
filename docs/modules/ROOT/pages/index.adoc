@@ -19,6 +19,12 @@ Java client. Parity is enforced in CI on every change, so behaviour tracks upstr
 closely rather than approximating it. Rendering is driven by the standalone
 https://github.com/alexmond/gotmpl4j[gotmpl4j] Go-template engine.
 
+Recognizable charts in the suite that render byte-for-byte include
+`ingress-nginx/ingress-nginx`, `jetstack/cert-manager`,
+`prometheus-community/kube-prometheus-stack`, `prometheus-community/prometheus`,
+`grafana/grafana`, `grafana/loki`, `argo/argo-cd`, `cilium/cilium`, `traefik/traefik`, and
+the Bitnami `redis`, `postgresql`, and `mysql` charts — alongside 500+ more.
+
 == MCP-native
 
 The same operations are exposed as https://modelcontextprotocol.io[Model Context Protocol]

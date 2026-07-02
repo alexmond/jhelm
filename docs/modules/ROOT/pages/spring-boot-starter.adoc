@@ -31,7 +31,7 @@ For template rendering and chart management only:
 <dependency>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-core</artifactId>
-    <version>{jhelm-version}</version>
+    <version>{page-component-version}</version>
 </dependency>
 ----
 
@@ -42,12 +42,12 @@ For full Kubernetes lifecycle management, add both:
 <dependency>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-core</artifactId>
-    <version>{jhelm-version}</version>
+    <version>{page-component-version}</version>
 </dependency>
 <dependency>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-kube</artifactId>
-    <version>{jhelm-version}</version>
+    <version>{page-component-version}</version>
 </dependency>
 ----
 

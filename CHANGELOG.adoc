@@ -20,10 +20,30 @@ The pre-1.0 *API freeze* release.
 * *Engine* -- now on `gotmpl4j 1.1.0`; recursive/too-deep renders fail with a
   `TemplateRenderException` instead of an inline `ERROR:` string.
 
-== Unreleased (targeting 1.0.0)
+== 1.0.0
 
-Toward the *1.0.0 release* (see the Roadmap in the docs): a broad byte-parity gate
-against `helm template` plus an extraction-ready template engine.
+The first stable release. 1.0 draws a supported public API surface, hardens security and
+provenance, verifies Helm interoperability against the real `helm` binary, and backs the
+byte-parity claim with a 540-chart gate against `helm template`. The full, categorized notes
+are in the docs changelog; the highlights:
+
+* *Security* — opt-in server-mode SSRF block of private/link-local/site-local targets
+  (`jhelm.security.block-private-networks`, default off); host-gated repository credentials,
+  a chart un-tar decompression-bomb cap, OCI URL validation, and owner-only permissions on the
+  written registry-credentials file.
+* *Provenance* — `verify` rejects revoked/expired signing keys and reverses OpenPGP
+  dash-escaping so a `helm`/GnuPG-produced `.prov` verifies correctly.
+* *Real cluster* — `.Capabilities.KubeVersion` / `.APIVersions` populated from the connected
+  cluster for install/upgrade; `template --kube-version` / `-a`/`--api-versions` pin them
+  offline.
+* *Helm interoperability* — release records are byte-schema-compatible with Helm 3's
+  `sh.helm.release.v1` Secret format (two-way `helm` ↔ `jhelm` verified in CI against a real
+  cluster); jhelm honors `HELM_*` env vars and Helm's `repositories.yaml` /
+  `registry/config.json`.
+* *Exception infrastructure* — the dedicated `JhelmException` hierarchy is applied
+  consistently (no generic `Exception`/`RuntimeException` throws); the REST layer maps each
+  subtype to a correct HTTP status.
+* *Dependency hygiene* — clean SonarQube quality gate (0 bugs, 0 vulnerabilities, A ratings).
 
 === Engine — Helm byte-parity
 
