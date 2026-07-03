@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
@@ -19,7 +20,7 @@ import picocli.CommandLine;
 		description = "Run the test hooks for a named release")
 @Slf4j
 @SuppressWarnings("PMD.TestClassWithoutTestCases")
-public class TestCommand implements Runnable {
+public class TestCommand implements Callable<Integer> {
 
 	private final TestAction testAction;
 
@@ -45,13 +46,13 @@ public class TestCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			List<TestResult> results = testAction.test(name, namespace, timeout);
 
 			if (results.isEmpty()) {
 				CliOutput.println(CliOutput.warn("No test hooks found for release '" + name + "'"));
-				return;
+				return CommandLine.ExitCode.OK;
 			}
 
 			boolean allPassed = true;
@@ -64,13 +65,16 @@ public class TestCommand implements Runnable {
 
 			if (allPassed) {
 				CliOutput.println(CliOutput.success("All tests passed for release '" + name + "'"));
+				return CommandLine.ExitCode.OK;
 			}
 			else {
 				CliOutput.errPrintln(CliOutput.error("Some tests failed for release '" + name + "'"));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error running tests: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

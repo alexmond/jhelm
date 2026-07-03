@@ -9,6 +9,7 @@ import picocli.CommandLine;
 import java.io.Console;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Callable;
 
 /**
  * Implements {@code jhelm registry}, managing authentication to OCI registries via the
@@ -19,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 		description = "Login to or logout from a registry",
 		subcommands = { RegistryCommand.LoginCommand.class, RegistryCommand.LogoutCommand.class })
 @Slf4j
-public class RegistryCommand implements Runnable {
+public class RegistryCommand implements Callable<Integer> {
 
 	/** Creates the command. */
 	@SuppressWarnings("PMD.UnnecessaryConstructor")
@@ -30,15 +31,16 @@ public class RegistryCommand implements Runnable {
 	 * Prints the usage help when {@code registry} is invoked without a subcommand.
 	 */
 	@Override
-	public void run() {
+	public Integer call() {
 		CommandLine.usage(this, System.out);
+		return CommandLine.ExitCode.OK;
 	}
 
 	/** Implements {@code registry login}: authenticates to an OCI registry. */
 	@Component
 	@CommandLine.Command(name = "login", mixinStandardHelpOptions = true, description = "Login to a registry")
 	@Slf4j
-	public static class LoginCommand implements Runnable {
+	public static class LoginCommand implements Callable<Integer> {
 
 		private final RegistryManager registryManager;
 
@@ -63,16 +65,19 @@ public class RegistryCommand implements Runnable {
 		}
 
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				registryManager.login(server, username, resolvePassword());
 				CliOutput.println(CliOutput.success("Login Succeeded"));
+				return CommandLine.ExitCode.OK;
 			}
 			catch (IllegalArgumentException ex) {
 				CliOutput.errPrintln(CliOutput.error(ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 			catch (IOException ex) {
 				CliOutput.errPrintln(CliOutput.error("Error logging in: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -116,7 +121,7 @@ public class RegistryCommand implements Runnable {
 	@Component
 	@CommandLine.Command(name = "logout", mixinStandardHelpOptions = true, description = "Logout from a registry")
 	@Slf4j
-	public static class LogoutCommand implements Runnable {
+	public static class LogoutCommand implements Callable<Integer> {
 
 		private final RegistryManager registryManager;
 
@@ -132,13 +137,15 @@ public class RegistryCommand implements Runnable {
 		}
 
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				registryManager.logout(server);
 				CliOutput.println(CliOutput.success("Logout Succeeded"));
+				return CommandLine.ExitCode.OK;
 			}
 			catch (IOException ex) {
 				CliOutput.errPrintln(CliOutput.error("Error logging out: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 

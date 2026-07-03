@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
+import java.util.concurrent.Callable;
+
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.VerifyAction;
@@ -14,7 +16,7 @@ import picocli.CommandLine;
 @CommandLine.Command(name = "verify", mixinStandardHelpOptions = true,
 		description = "Verify that a chart has a valid provenance file")
 @Slf4j
-public class VerifyCommand implements Runnable {
+public class VerifyCommand implements Callable<Integer> {
 
 	private final VerifyAction verifyAction;
 
@@ -33,14 +35,16 @@ public class VerifyCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			String resolvedKeyring = (keyring != null) ? keyring : defaultKeyringPath();
 			verifyAction.verify(chartPath, resolvedKeyring);
 			CliOutput.println(CliOutput.success("Verification succeeded"));
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

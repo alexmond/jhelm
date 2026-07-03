@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
+import java.util.concurrent.Callable;
+
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.RollbackAction;
@@ -17,7 +19,7 @@ import picocli.CommandLine;
 @CommandLine.Command(name = "rollback", mixinStandardHelpOptions = true,
 		description = "Roll back a release to a previous revision")
 @Slf4j
-public class RollbackCommand implements Runnable {
+public class RollbackCommand implements Callable<Integer> {
 
 	private final RollbackAction rollbackAction;
 
@@ -57,7 +59,7 @@ public class RollbackCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			Release release = rollbackAction.rollback(RollbackOptions.builder()
 				.releaseName(name)
@@ -70,9 +72,11 @@ public class RollbackCommand implements Runnable {
 			if (wait) {
 				kubeService.waitForReady(namespace, release.getManifest(), timeout);
 			}
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error during rollback: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 /**
  * Implements {@code jhelm list}, printing the releases in a namespace with their
@@ -25,7 +26,7 @@ import java.util.Map;
 @Component
 @CommandLine.Command(name = "list", mixinStandardHelpOptions = true, description = "List releases")
 @Slf4j
-public class ListCommand implements Runnable {
+public class ListCommand implements Callable<Integer> {
 
 	private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
@@ -63,7 +64,7 @@ public class ListCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			List<Release> releases = listAction.list(namespace);
 			switch (output.toLowerCase(Locale.ROOT)) {
@@ -71,9 +72,11 @@ public class ListCommand implements Runnable {
 				case "yaml" -> System.out.print(YAML_MAPPER.writeValueAsString(toRows(releases)));
 				default -> printTable(releases);
 			}
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error listing releases: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

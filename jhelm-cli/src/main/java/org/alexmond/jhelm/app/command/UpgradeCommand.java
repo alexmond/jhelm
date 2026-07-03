@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
@@ -34,7 +35,7 @@ import picocli.CommandLine.Option;
 @Component
 @CommandLine.Command(name = "upgrade", mixinStandardHelpOptions = true, description = "Upgrade a release")
 @Slf4j
-public class UpgradeCommand implements Runnable {
+public class UpgradeCommand implements Callable<Integer> {
 
 	private final KubeService kubeService;
 
@@ -153,7 +154,7 @@ public class UpgradeCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		int previousVersion = -1;
 		boolean wasInstall = false;
 		try {
@@ -181,8 +182,9 @@ public class UpgradeCommand implements Runnable {
 				}
 				else {
 					CliOutput.errPrintln(CliOutput.error("Error: release \"" + name + "\" does not exist"));
+					return CommandLine.ExitCode.SOFTWARE;
 				}
-				return;
+				return CommandLine.ExitCode.OK;
 			}
 
 			previousVersion = currentReleaseOpt.get().getVersion();
@@ -202,28 +204,11 @@ public class UpgradeCommand implements Runnable {
 					kubeService.waitForReady(namespace, upgradedRelease.getManifest(), timeout);
 				}
 			}
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			if (atomic) {
-				CliOutput.errPrintln(CliOutput.error("Upgrade failed, performing atomic rollback: " + ex.getMessage()));
-				try {
-					if (wasInstall || previousVersion < 0) {
-						uninstallAction
-							.uninstall(UninstallOptions.builder().releaseName(name).namespace(namespace).build());
-						CliOutput.println("Atomic uninstall of \"" + name + "\" complete.");
-					}
-					else {
-						rollbackAction.rollback(RollbackOptions.builder()
-							.releaseName(name)
-							.namespace(namespace)
-							.revision(previousVersion)
-							.build());
-						CliOutput.println("Atomic rollback of \"" + name + "\" complete.");
-					}
-				}
-				catch (Exception rollbackEx) {
-					CliOutput.errPrintln(CliOutput.error("Atomic rollback failed: " + rollbackEx.getMessage()));
-				}
+				performAtomicRollback(ex, wasInstall, previousVersion);
 			}
 			else {
 				CliOutput.errPrintln(CliOutput.error("Error upgrading release: " + ex.getMessage()));
@@ -231,6 +216,36 @@ public class UpgradeCommand implements Runnable {
 			if (log.isDebugEnabled()) {
 				log.debug("Upgrade error details", ex);
 			}
+			return CommandLine.ExitCode.SOFTWARE;
+		}
+	}
+
+	/**
+	 * Rolls the release back after an {@code --atomic} upgrade failure: uninstalls a
+	 * freshly-installed release, otherwise rolls back to the previous revision. Any
+	 * failure of the rollback itself is reported but does not mask the original error.
+	 * @param ex the upgrade failure that triggered the rollback
+	 * @param wasInstall {@code true} if the release was freshly installed in this run
+	 * @param previousVersion the revision to roll back to, or negative if none exists
+	 */
+	private void performAtomicRollback(Exception ex, boolean wasInstall, int previousVersion) {
+		CliOutput.errPrintln(CliOutput.error("Upgrade failed, performing atomic rollback: " + ex.getMessage()));
+		try {
+			if (wasInstall || previousVersion < 0) {
+				uninstallAction.uninstall(UninstallOptions.builder().releaseName(name).namespace(namespace).build());
+				CliOutput.println("Atomic uninstall of \"" + name + "\" complete.");
+			}
+			else {
+				rollbackAction.rollback(RollbackOptions.builder()
+					.releaseName(name)
+					.namespace(namespace)
+					.revision(previousVersion)
+					.build());
+				CliOutput.println("Atomic rollback of \"" + name + "\" complete.");
+			}
+		}
+		catch (Exception rollbackEx) {
+			CliOutput.errPrintln(CliOutput.error("Atomic rollback failed: " + rollbackEx.getMessage()));
 		}
 	}
 

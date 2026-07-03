@@ -9,6 +9,7 @@ import picocli.CommandLine;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * Implements {@code jhelm repo}, managing chart repositories via the {@code add},
@@ -19,7 +20,7 @@ import java.util.List;
 		subcommands = { RepoCommand.AddCommand.class, RepoCommand.ListCommand.class, RepoCommand.RemoveCommand.class,
 				RepoCommand.UpdateCommand.class, RepoCommand.SearchCommand.class })
 @Slf4j
-public class RepoCommand implements Runnable {
+public class RepoCommand implements Callable<Integer> {
 
 	/** Creates the command. */
 	@SuppressWarnings("PMD.UnnecessaryConstructor")
@@ -30,15 +31,16 @@ public class RepoCommand implements Runnable {
 	 * Prints the usage help when {@code repo} is invoked without a subcommand.
 	 */
 	@Override
-	public void run() {
+	public Integer call() {
 		CommandLine.usage(this, System.out);
+		return CommandLine.ExitCode.OK;
 	}
 
 	/** Implements {@code repo add}: registers a chart repository by name and URL. */
 	@Component
 	@CommandLine.Command(name = "add", mixinStandardHelpOptions = true, description = "Add a chart repository")
 	@Slf4j
-	public static class AddCommand implements Runnable {
+	public static class AddCommand implements Callable<Integer> {
 
 		private final RepoManager repoManager;
 
@@ -57,13 +59,15 @@ public class RepoCommand implements Runnable {
 		}
 
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				repoManager.addRepo(name, url);
 				CliOutput.println(CliOutput.success("\"" + name + "\" has been added to your repositories"));
+				return CommandLine.ExitCode.OK;
 			}
 			catch (IOException ex) {
 				CliOutput.errPrintln(CliOutput.error("Error adding repository: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -73,7 +77,7 @@ public class RepoCommand implements Runnable {
 	@Component
 	@CommandLine.Command(name = "list", mixinStandardHelpOptions = true, description = "List chart repositories")
 	@Slf4j
-	public static class ListCommand implements Runnable {
+	public static class ListCommand implements Callable<Integer> {
 
 		private final RepoManager repoManager;
 
@@ -87,16 +91,18 @@ public class RepoCommand implements Runnable {
 		}
 
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				RepositoryConfig config = repoManager.loadConfig();
 				CliOutput.printf("%-20s\t%-50s\n", CliOutput.bold("NAME"), CliOutput.bold("URL"));
 				for (RepositoryConfig.Repository repo : config.getRepositories()) {
 					CliOutput.printf("%-20s\t%-50s\n", repo.getName(), repo.getUrl());
 				}
+				return CommandLine.ExitCode.OK;
 			}
 			catch (IOException ex) {
 				CliOutput.errPrintln(CliOutput.error("Error listing repositories: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -107,7 +113,7 @@ public class RepoCommand implements Runnable {
 	@CommandLine.Command(name = "remove", mixinStandardHelpOptions = true,
 			description = "Remove one or more chart repositories")
 	@Slf4j
-	public static class RemoveCommand implements Runnable {
+	public static class RemoveCommand implements Callable<Integer> {
 
 		private final RepoManager repoManager;
 
@@ -123,13 +129,15 @@ public class RepoCommand implements Runnable {
 		}
 
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				repoManager.removeRepo(name);
 				CliOutput.println(CliOutput.success("\"" + name + "\" has been removed from your repositories"));
+				return CommandLine.ExitCode.OK;
 			}
 			catch (IOException ex) {
 				CliOutput.errPrintln(CliOutput.error("Error removing repository: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -144,7 +152,7 @@ public class RepoCommand implements Runnable {
 	@CommandLine.Command(name = "update", aliases = { "up" }, mixinStandardHelpOptions = true,
 			description = "Update the local cache of one or more chart repositories (default: all)")
 	@Slf4j
-	public static class UpdateCommand implements Runnable {
+	public static class UpdateCommand implements Callable<Integer> {
 
 		private final RepoManager repoManager;
 
@@ -160,7 +168,7 @@ public class RepoCommand implements Runnable {
 		}
 
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				CliOutput.println("Hang tight while we grab the latest from your chart repositories...");
 				if (names == null || names.isEmpty()) {
@@ -172,9 +180,11 @@ public class RepoCommand implements Runnable {
 					}
 				}
 				CliOutput.println(CliOutput.success("Update Complete. Happy Helming!"));
+				return CommandLine.ExitCode.OK;
 			}
 			catch (IOException ex) {
 				CliOutput.errPrintln(CliOutput.error("Error updating repositories: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -185,7 +195,7 @@ public class RepoCommand implements Runnable {
 	@CommandLine.Command(name = "search", mixinStandardHelpOptions = true,
 			description = "Search the added repositories for a chart")
 	@Slf4j
-	public static class SearchCommand implements Runnable {
+	public static class SearchCommand implements Callable<Integer> {
 
 		private final RepoManager repoManager;
 
@@ -204,11 +214,11 @@ public class RepoCommand implements Runnable {
 		}
 
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				if (query == null || !query.contains("/")) {
 					CliOutput.errPrintln(CliOutput.error("Please specify chart as repo/chart (e.g., bitnami/ghost)"));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 				String repo = query.substring(0, query.indexOf('/'));
 				String chart = query.substring(query.indexOf('/') + 1);
@@ -217,7 +227,7 @@ public class RepoCommand implements Runnable {
 				if (versions.isEmpty()) {
 					CliOutput.println(CliOutput.warn("No results found for " + query
 							+ ". Make sure the repo is added (jhelm repo add) and contains the chart."));
-					return;
+					return CommandLine.ExitCode.OK;
 				}
 
 				CliOutput.printf("%-40s %-15s %-15s %-s\n", CliOutput.bold("NAME"), CliOutput.bold("CHART VERSION"),
@@ -233,9 +243,11 @@ public class RepoCommand implements Runnable {
 					CliOutput.printf("%-40s %-15s %-15s %-s\n", v.getName(), nv(v.getChartVersion()),
 							nv(v.getAppVersion()), nv(v.getDescription()));
 				}
+				return CommandLine.ExitCode.OK;
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error searching repositories: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 

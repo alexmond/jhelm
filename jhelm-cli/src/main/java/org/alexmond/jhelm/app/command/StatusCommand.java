@@ -11,6 +11,7 @@ import picocli.CommandLine;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 /**
  * Implements {@code jhelm status RELEASE}, displaying the status of a named release and
@@ -20,7 +21,7 @@ import java.util.Optional;
 @CommandLine.Command(name = "status", mixinStandardHelpOptions = true,
 		description = "Display the status of the named release")
 @Slf4j
-public class StatusCommand implements Runnable {
+public class StatusCommand implements Callable<Integer> {
 
 	private final StatusAction statusAction;
 
@@ -54,12 +55,12 @@ public class StatusCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			Optional<Release> releaseOpt = statusAction.status(name, namespace);
 			if (releaseOpt.isEmpty()) {
 				CliOutput.errPrintln(CliOutput.error("Error: release not found: " + name));
-				return;
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 
 			Release r = releaseOpt.get();
@@ -85,9 +86,11 @@ public class StatusCommand implements Runnable {
 			}
 
 			CliOutput.println("\n" + CliOutput.bold("MANIFEST:") + "\n" + r.getManifest());
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error fetching status: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

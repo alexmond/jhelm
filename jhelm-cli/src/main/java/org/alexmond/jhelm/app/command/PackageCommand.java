@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
@@ -19,7 +20,7 @@ import picocli.CommandLine;
 @CommandLine.Command(name = "package", mixinStandardHelpOptions = true,
 		description = "Package a chart directory into a chart archive")
 @Slf4j
-public class PackageCommand implements Runnable {
+public class PackageCommand implements Callable<Integer> {
 
 	private final PackageAction packageAction;
 
@@ -52,7 +53,7 @@ public class PackageCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			packageAction.setDestination(new File(destination));
 			File archive;
@@ -60,7 +61,7 @@ public class PackageCommand implements Runnable {
 			if (sign) {
 				if (keyId == null) {
 					CliOutput.errPrintln(CliOutput.error("--key is required when --sign is specified"));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 				String resolvedKeyring = (keyring != null) ? keyring : defaultKeyringPath();
 				char[] passphrase = loadPassphrase();
@@ -71,9 +72,11 @@ public class PackageCommand implements Runnable {
 			}
 
 			CliOutput.println(CliOutput.success("Successfully packaged chart: " + archive.getName()));
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error packaging chart: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

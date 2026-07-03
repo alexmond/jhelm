@@ -9,8 +9,10 @@ import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
+import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 
 import java.util.HashMap;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -21,7 +23,9 @@ import picocli.CommandLine;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -72,7 +76,9 @@ class InstallCommandTest {
 		when(installAction.install(any(InstallOptions.class))).thenReturn(release);
 
 		CommandLine cmd = new CommandLine(installCommand);
-		cmd.execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
+		int exitCode = cmd.execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
+
+		assertEquals(CommandLine.ExitCode.OK, exitCode);
 	}
 
 	@Test
@@ -93,7 +99,26 @@ class InstallCommandTest {
 		when(installAction.install(any(InstallOptions.class))).thenThrow(new RuntimeException("Test error"));
 
 		CommandLine cmd = new CommandLine(installCommand);
-		cmd.execute("my-release", chartDir.getAbsolutePath());
+		int exitCode = cmd.execute("my-release", chartDir.getAbsolutePath());
+
+		assertNotEquals(CommandLine.ExitCode.OK, exitCode, "a failed install must exit non-zero");
+	}
+
+	@Test
+	void testInstallWaitTimeoutExitsNonZero() throws Exception {
+		// Regression for #647: a --wait readiness timeout printed an error but exited 0,
+		// so callers could not detect the failed rollout. It must now exit non-zero.
+		File chartDir = createMockChart();
+		Release release = createMockRelease("my-release", 1);
+		when(installAction.install(any(InstallOptions.class))).thenReturn(release);
+		Mockito.doThrow(new WaitTimeoutException("Timeout waiting for resources to be ready", List.of()))
+			.when(kubeService)
+			.waitForReady(anyString(), anyString(), anyInt());
+
+		int exitCode = new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath(), "--wait",
+				"--timeout", "5");
+
+		assertNotEquals(CommandLine.ExitCode.OK, exitCode, "a --wait timeout must exit non-zero");
 	}
 
 	@Test

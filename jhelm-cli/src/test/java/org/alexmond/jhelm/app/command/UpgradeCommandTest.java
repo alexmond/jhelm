@@ -12,6 +12,7 @@ import org.alexmond.jhelm.core.action.RollbackOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.UpgradeOptions;
+import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 
 import java.util.HashMap;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +25,9 @@ import picocli.CommandLine;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -32,6 +35,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -85,6 +89,23 @@ class UpgradeCommandTest {
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
+	}
+
+	@Test
+	void testUpgradeWaitTimeoutExitsNonZero() throws Exception {
+		// Regression for #647: an upgrade --wait readiness timeout must exit non-zero.
+		File chartDir = createMockChart();
+		Release existingRelease = createMockRelease("my-release", 1);
+		Release upgradedRelease = createMockRelease("my-release", 2);
+		when(kubeService.getRelease(anyString(), anyString())).thenReturn(Optional.of(existingRelease));
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(upgradedRelease);
+		doThrow(new WaitTimeoutException("Timeout waiting for resources to be ready", List.of())).when(kubeService)
+			.waitForReady(anyString(), anyString(), anyInt());
+
+		int exitCode = new CommandLine(upgradeCommand).execute("my-release", chartDir.getAbsolutePath(), "--wait",
+				"--timeout", "5");
+
+		assertNotEquals(CommandLine.ExitCode.OK, exitCode, "an upgrade --wait timeout must exit non-zero");
 	}
 
 	@Test

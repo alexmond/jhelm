@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
@@ -28,7 +29,7 @@ import picocli.CommandLine.Option;
 @Component
 @CommandLine.Command(name = "install", mixinStandardHelpOptions = true, description = "Install a chart")
 @Slf4j
-public class InstallCommand implements Runnable {
+public class InstallCommand implements Callable<Integer> {
 
 	private final InstallAction installAction;
 
@@ -114,7 +115,7 @@ public class InstallCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			boolean dryRunEnabled = resolveDryRun();
 			Chart chart = chartResolver.resolve(chartPath, verify, keyring);
@@ -148,6 +149,7 @@ public class InstallCommand implements Runnable {
 					kubeService.waitForReady(namespace, release.getManifest(), timeout);
 				}
 			}
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			if (atomic) {
@@ -168,6 +170,7 @@ public class InstallCommand implements Runnable {
 			if (log.isDebugEnabled()) {
 				log.debug("Install error details", ex);
 			}
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

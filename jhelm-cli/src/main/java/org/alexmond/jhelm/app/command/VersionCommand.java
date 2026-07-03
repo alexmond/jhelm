@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
+import java.util.concurrent.Callable;
+
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -12,7 +14,7 @@ import picocli.CommandLine;
 @Component
 @CommandLine.Command(name = "version", mixinStandardHelpOptions = true,
 		description = "Print the jhelm version information")
-public class VersionCommand implements Runnable {
+public class VersionCommand implements Callable<Integer> {
 
 	@CommandLine.Option(names = { "--short" }, description = "print the version number only")
 	private boolean shortOutput;
@@ -33,7 +35,7 @@ public class VersionCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		if (this.shortOutput) {
 			CliOutput.println(versionString());
 		}
@@ -41,6 +43,7 @@ public class VersionCommand implements Runnable {
 			CliOutput
 				.println("jhelm version " + versionString() + " (Java " + System.getProperty("java.version") + ")");
 		}
+		return CommandLine.ExitCode.OK;
 	}
 
 }
