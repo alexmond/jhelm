@@ -8,6 +8,7 @@ import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
+import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -151,16 +152,23 @@ public class JhelmCoreAutoConfiguration {
 
 	/**
 	 * Provides the template rendering engine wired with the cache, validator and metrics.
+	 * When a {@link KubernetesProvider} is on the context (jhelm-kube present), it is
+	 * wired in so the {@code lookup} template function queries the live cluster as Helm
+	 * does; otherwise {@code lookup} falls back to the empty-map stub.
 	 * @param templateCache optional template parse cache
 	 * @param schemaValidator the values schema validator
 	 * @param metrics optional metrics for instrumentation
+	 * @param kubernetesProvider optional cluster-backed provider for the {@code lookup}
+	 * function
 	 * @return the engine bean
 	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public Engine engine(ObjectProvider<TemplateCache> templateCache, SchemaValidator schemaValidator,
-			ObjectProvider<JhelmMetrics> metrics) {
-		return new Engine(templateCache.getIfAvailable(), schemaValidator, metrics.getIfAvailable());
+			ObjectProvider<JhelmMetrics> metrics, ObjectProvider<KubernetesProvider> kubernetesProvider) {
+		Engine engine = new Engine(templateCache.getIfAvailable(), schemaValidator, metrics.getIfAvailable());
+		engine.setKubernetesProvider(kubernetesProvider.getIfAvailable());
+		return engine;
 	}
 
 	/**

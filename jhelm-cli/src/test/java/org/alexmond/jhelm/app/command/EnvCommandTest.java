@@ -4,10 +4,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
+import org.alexmond.jhelm.app.VersionInfo;
 import org.alexmond.jhelm.core.service.RegistryManager;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.info.BuildProperties;
 import picocli.CommandLine;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,7 +27,9 @@ class EnvCommandTest {
 		PrintStream original = System.out;
 		System.setOut(new PrintStream(bos, true, StandardCharsets.UTF_8));
 		try {
-			new CommandLine(new EnvCommand(repoManager, registryManager, kubeProperties)).execute();
+			new CommandLine(new EnvCommand(repoManager, registryManager, kubeProperties,
+					new VersionInfo((BuildProperties) null)))
+				.execute();
 		}
 		finally {
 			System.setOut(original);
@@ -54,7 +58,9 @@ class EnvCommandTest {
 		PrintStream original = System.out;
 		System.setOut(new PrintStream(bos, true, StandardCharsets.UTF_8));
 		try {
-			new CommandLine(new EnvCommand(repoManager, registryManager, kubeProperties)).execute();
+			new CommandLine(new EnvCommand(repoManager, registryManager, kubeProperties,
+					new VersionInfo((BuildProperties) null)))
+				.execute();
 		}
 		finally {
 			System.setOut(original);

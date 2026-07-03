@@ -23,7 +23,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -31,7 +30,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.anyString;
-import java.time.OffsetDateTime;
 
 class KubernetesClientProviderTest {
 
@@ -249,18 +247,27 @@ class KubernetesClientProviderTest {
 	// --- lookup with actual resource returned ---
 
 	@Test
+	@SuppressWarnings("unchecked")
 	void testLookupWithResourceReturned() throws Exception {
 		setAvailable(true);
 
-		// Mock readNamespacedConfigMap to return a mock request builder
+		// #663: the request builder must be .execute()d so lookup returns the real
+		// resource
+		// (whole object, incl. .data), not the un-executed builder.
+		V1ConfigMap cm = new V1ConfigMap().metadata(new V1ObjectMeta().name("test-cm").namespace("default"))
+			.putDataItem("greeting", "hello");
 		var readReq = mock(CoreV1Api.APIreadNamespacedConfigMapRequest.class);
+		when(readReq.execute()).thenReturn(cm);
 		when(coreV1Api.readNamespacedConfigMap("test-cm", "default")).thenReturn(readReq);
 
 		Map<String, Object> result = provider.lookup("v1", "ConfigMap", "default", "test-cm");
-		// The result is the request builder processed through convertToMap
-		// It won't have metadata but will have something (from the catch branch in
-		// convertToMap)
+
 		assertNotNull(result);
+		Map<String, Object> data = (Map<String, Object>) result.get("data");
+		assertNotNull(data, "lookup must return the resource's .data, not the request builder (#663)");
+		assertEquals("hello", data.get("greeting"));
+		Map<String, Object> metadata = (Map<String, Object>) result.get("metadata");
+		assertEquals("test-cm", metadata.get("name"));
 	}
 
 	// --- convertToMap ---
@@ -320,68 +327,6 @@ class KubernetesClientProviderTest {
 		@SuppressWarnings("unchecked")
 		Map<String, Object> result = (Map<String, Object>) method.invoke(provider, "just a string");
 		assertNotNull(result.get("value"));
-	}
-
-	// --- createMetadataMap ---
-
-	@Test
-	void testCreateMetadataMapFull() throws Exception {
-		var method = KubernetesClientProvider.class.getDeclaredMethod("createMetadataMap", V1ObjectMeta.class);
-		method.setAccessible(true);
-
-		V1ObjectMeta metadata = new V1ObjectMeta().name("test-pod")
-			.namespace("default")
-			.putLabelsItem("app", "test")
-			.putAnnotationsItem("note", "value")
-			.uid("abc-123")
-			.resourceVersion("456");
-
-		@SuppressWarnings("unchecked")
-		Map<String, Object> result = (Map<String, Object>) method.invoke(provider, metadata);
-
-		assertEquals("test-pod", result.get("name"));
-		assertEquals("default", result.get("namespace"));
-		assertEquals("abc-123", result.get("uid"));
-		assertEquals("456", result.get("resourceVersion"));
-		assertNotNull(result.get("labels"));
-		assertNotNull(result.get("annotations"));
-	}
-
-	@Test
-	void testCreateMetadataMapMinimal() throws Exception {
-		var method = KubernetesClientProvider.class.getDeclaredMethod("createMetadataMap", V1ObjectMeta.class);
-		method.setAccessible(true);
-
-		V1ObjectMeta metadata = new V1ObjectMeta().name("minimal");
-
-		@SuppressWarnings("unchecked")
-		Map<String, Object> result = (Map<String, Object>) method.invoke(provider, metadata);
-
-		assertEquals("minimal", result.get("name"));
-		assertNull(result.get("namespace"));
-		// V1ObjectMeta may initialize labels/annotations as null or empty map
-		// The createMetadataMap method only adds them if non-null
-		if (result.containsKey("labels")) {
-			assertNotNull(result.get("labels"));
-		}
-		if (result.containsKey("annotations")) {
-			assertNotNull(result.get("annotations"));
-		}
-	}
-
-	@Test
-	void testCreateMetadataMapWithCreationTimestamp() throws Exception {
-		var method = KubernetesClientProvider.class.getDeclaredMethod("createMetadataMap", V1ObjectMeta.class);
-		method.setAccessible(true);
-
-		var now = OffsetDateTime.now();
-		V1ObjectMeta metadata = new V1ObjectMeta().name("timestamped").creationTimestamp(now);
-
-		@SuppressWarnings("unchecked")
-		Map<String, Object> result = (Map<String, Object>) method.invoke(provider, metadata);
-
-		assertEquals("timestamped", result.get("name"));
-		assertNotNull(result.get("creationTimestamp"));
 	}
 
 }

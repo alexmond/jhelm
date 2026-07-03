@@ -6,8 +6,11 @@ import org.alexmond.jhelm.core.cache.TemplateCache;
 import org.alexmond.jhelm.core.exception.SchemaValidationException;
 import org.alexmond.jhelm.core.exception.TemplateRenderException;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
+import org.alexmond.gotmpl4j.Function;
 import org.alexmond.gotmpl4j.GoTemplate;
 import org.alexmond.gotmpl4j.parse.Node;
+import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesFunctions;
+import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
 
 import java.io.StringWriter;
 import java.math.BigInteger;
@@ -83,6 +86,12 @@ public class Engine {
 
 	private GoTemplate factory;
 
+	// Optional cluster-backed provider for the `lookup` template function. Null when no
+	// Kubernetes access is wired (e.g. jhelm-core used standalone) — lookup then falls
+	// back
+	// to the ServiceLoader stub that returns an empty map. Set by the kube autoconfig.
+	private KubernetesProvider kubernetesProvider;
+
 	// Per-render record of the text hash last parsed under each template name, so the
 	// render pass can skip re-parsing a template the collect pass already parsed (see
 	// parseWithCache). Reset each render in doRender alongside the factory.
@@ -121,6 +130,19 @@ public class Engine {
 		this.templateCache = templateCache;
 		this.schemaValidator = (schemaValidator != null) ? schemaValidator : new SchemaValidator();
 		this.metrics = metrics;
+	}
+
+	/**
+	 * Wires the cluster-backed provider used by the {@code lookup} template function so
+	 * it queries the live Kubernetes API (as Helm does during install/upgrade) instead of
+	 * the ServiceLoader stub. Pass {@code null} to keep the stub (offline rendering). The
+	 * provider degrades gracefully on its own when the API is unreachable, so it is safe
+	 * to set even for offline {@code template} rendering.
+	 * @param kubernetesProvider the live Kubernetes provider, or {@code null} for the
+	 * stub
+	 */
+	public void setKubernetesProvider(KubernetesProvider kubernetesProvider) {
+		this.kubernetesProvider = kubernetesProvider;
 	}
 
 	private void parseWithCache(String name, String text) {
@@ -238,8 +260,21 @@ public class Engine {
 		templateVersions.clear();
 		parsedTextHash.clear();
 		// Create a new template for each render to avoid accumulation. Helm renders a
-		// nil/absent value as "" (missingkey=zero), not Go's "<no value>".
-		this.factory = new GoTemplate().option("missingkey=zero");
+		// nil/absent value as "" (missingkey=zero), not Go's "<no value>". When a live
+		// Kubernetes provider is wired, override the ServiceLoader stub's `lookup` with
+		// the
+		// cluster-backed one so `lookup` returns real resources (incl. Secret/ConfigMap
+		// data) during install/upgrade, as Helm does — the map passed to the constructor
+		// is
+		// applied on top of the discovered providers.
+		if (this.kubernetesProvider != null) {
+			Map<String, Function> overrides = new HashMap<>();
+			overrides.put("lookup", KubernetesFunctions.getFunctions(this.kubernetesProvider).get("lookup"));
+			this.factory = new GoTemplate(overrides).option("missingkey=zero");
+		}
+		else {
+			this.factory = new GoTemplate().option("missingkey=zero");
+		}
 
 		// Apply aliases from dependency metadata before collecting templates, so that
 		// subchart .Chart.Name and template registration keys use the alias consistently.

@@ -3,6 +3,7 @@ package org.alexmond.jhelm.app.command;
 import java.nio.file.Paths;
 import java.util.concurrent.Callable;
 
+import org.alexmond.jhelm.app.VersionInfo;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.service.RegistryManager;
 import org.alexmond.jhelm.core.service.RepoManager;
@@ -29,6 +30,8 @@ public class EnvCommand implements Callable<Integer> {
 
 	private final JhelmKubernetesProperties kubeProperties;
 
+	private final VersionInfo versionInfo;
+
 	/**
 	 * Creates the command.
 	 * @param repoManager supplies the effective repository config and cache paths
@@ -36,10 +39,11 @@ public class EnvCommand implements Callable<Integer> {
 	 * @param kubeProperties supplies the configured kubeconfig path override, if any
 	 */
 	public EnvCommand(RepoManager repoManager, RegistryManager registryManager,
-			JhelmKubernetesProperties kubeProperties) {
+			JhelmKubernetesProperties kubeProperties, VersionInfo versionInfo) {
 		this.repoManager = repoManager;
 		this.registryManager = registryManager;
 		this.kubeProperties = kubeProperties;
+		this.versionInfo = versionInfo;
 	}
 
 	private static String orDefault(String envVar, String fallback) {
@@ -63,7 +67,7 @@ public class EnvCommand implements Callable<Integer> {
 		CliOutput.println("HELM_REGISTRY_CONFIG=\"" + this.registryManager.getConfigPath() + "\"");
 		CliOutput.println("KUBECONFIG=\"" + resolveKubeconfig() + "\"");
 		CliOutput.println("HELM_PASSPHRASE_SET=\"" + (System.getenv("HELM_PASSPHRASE") != null) + "\"");
-		CliOutput.println("JHELM_VERSION=\"" + VersionCommand.versionString() + "\"");
+		CliOutput.println("JHELM_VERSION=\"" + this.versionInfo.version() + "\"");
 		CliOutput.println("JAVA_VERSION=\"" + System.getProperty("java.version") + "\"");
 		CliOutput.println("OS=\"" + System.getProperty("os.name") + "/" + System.getProperty("os.arch") + "\"");
 		return CommandLine.ExitCode.OK;

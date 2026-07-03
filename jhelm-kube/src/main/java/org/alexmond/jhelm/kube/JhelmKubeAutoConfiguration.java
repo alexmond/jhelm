@@ -11,8 +11,10 @@ import org.alexmond.jhelm.core.JhelmMetricsAutoConfiguration;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
+import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
 import org.alexmond.jhelm.kube.service.internal.AsyncHelmKubeService;
 import org.alexmond.jhelm.kube.service.internal.KubeClient;
+import org.alexmond.jhelm.kube.service.internal.KubernetesClientProvider;
 import org.alexmond.jhelm.kube.service.internal.KubernetesHealthIndicator;
 import org.alexmond.jhelm.kube.service.internal.ObservableKubeService;
 import org.alexmond.jhelm.kube.service.internal.RetryableKubeService;
@@ -69,6 +71,22 @@ public class JhelmKubeAutoConfiguration {
 		ApiClient override = apiClientOverride.getIfAvailable();
 		ApiClient client = (override != null) ? override : buildApiClient(props);
 		return new KubeClient(client);
+	}
+
+	/**
+	 * Registers the cluster-backed {@link KubernetesProvider} that powers the
+	 * {@code lookup} template function. The core {@code Engine} wires this in so
+	 * {@code lookup} queries the live Kubernetes API (returning full resource data, incl.
+	 * Secret/ConfigMap {@code data}) during install/upgrade, as Helm does. It degrades to
+	 * an empty result on its own when the API is unreachable (e.g. offline
+	 * {@code template} rendering).
+	 * @param kubeClient the shared Kubernetes client
+	 * @return the lookup provider bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean(KubernetesProvider.class)
+	public KubernetesProvider kubernetesClientProvider(KubeClient kubeClient) {
+		return new KubernetesClientProvider(kubeClient);
 	}
 
 	/**
