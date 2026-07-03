@@ -2,6 +2,9 @@ package org.alexmond.jhelm.app.command;
 
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.RollbackOptions;
+import org.alexmond.jhelm.core.config.JhelmAccessMode;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
+import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,8 +13,11 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RollbackCommandTest {
@@ -27,7 +33,7 @@ class RollbackCommandTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		rollbackCommand = new RollbackCommand(rollbackAction, kubeService);
+		rollbackCommand = new RollbackCommand(rollbackAction, kubeService, enabledPolicy());
 	}
 
 	@Test
@@ -54,6 +60,28 @@ class RollbackCommandTest {
 
 		CommandLine cmd = new CommandLine(rollbackCommand);
 		cmd.execute("my-release", "1");
+	}
+
+	@Test
+	void testRollbackBlockedInReadOnlyMode() throws Exception {
+		RollbackCommand readOnlyCommand = new RollbackCommand(rollbackAction, kubeService, readOnlyPolicy());
+
+		CommandLine cmd = new CommandLine(readOnlyCommand);
+		int exitCode = cmd.execute("my-release", "1", "-n", "default");
+
+		assertNotEquals(CommandLine.ExitCode.OK, exitCode, "rollback must be refused in READ_ONLY");
+		verify(rollbackAction, never()).rollback(any(RollbackOptions.class));
+	}
+
+	private static JhelmSecurityPolicy enabledPolicy() {
+		JhelmSecurityProperties props = new JhelmSecurityProperties();
+		props.setMode(JhelmAccessMode.FULL);
+		props.setApiKey("test-key");
+		return new JhelmSecurityPolicy(props);
+	}
+
+	private static JhelmSecurityPolicy readOnlyPolicy() {
+		return new JhelmSecurityPolicy(new JhelmSecurityProperties());
 	}
 
 }

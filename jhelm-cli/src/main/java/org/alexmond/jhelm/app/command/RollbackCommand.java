@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.RollbackOptions;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,8 @@ public class RollbackCommand implements Callable<Integer> {
 	private final RollbackAction rollbackAction;
 
 	private final KubeService kubeService;
+
+	private final JhelmSecurityPolicy securityPolicy;
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
@@ -52,14 +55,20 @@ public class RollbackCommand implements Callable<Integer> {
 	 * Creates the command.
 	 * @param rollbackAction the action that performs the rollback
 	 * @param kubeService the Kubernetes service used to wait for resource readiness
+	 * @param securityPolicy the unified access-mode policy; the operation is refused
+	 * unless mutating operations are enabled
 	 */
-	public RollbackCommand(RollbackAction rollbackAction, KubeService kubeService) {
+	public RollbackCommand(RollbackAction rollbackAction, KubeService kubeService, JhelmSecurityPolicy securityPolicy) {
 		this.rollbackAction = rollbackAction;
 		this.kubeService = kubeService;
+		this.securityPolicy = securityPolicy;
 	}
 
 	@Override
 	public Integer call() {
+		if (MutatingGuard.blocked(securityPolicy)) {
+			return CommandLine.ExitCode.SOFTWARE;
+		}
 		try {
 			Release release = rollbackAction.rollback(RollbackOptions.builder()
 				.releaseName(name)

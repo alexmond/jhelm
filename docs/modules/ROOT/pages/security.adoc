@@ -1,8 +1,11 @@
 = Security Model
 
 jhelm exposes Helm operations over two network surfaces -- the xref:rest-api.adoc[REST API]
-and the xref:mcp.adoc[MCP server] -- and both share a single, unified security model under
-`jhelm.security.*`.
+and the xref:mcp.adoc[MCP server] -- which share a single, unified security model under
+`jhelm.security.*`. The CLI honors the same access mode: in the default `READ_ONLY` posture
+its cluster-mutating commands (`install`, `upgrade`, `uninstall`, `rollback`, `test`) are
+refused, so it behaves consistently with the adapters (set `mode=FULL` + an `api-key` to
+enable them).
 
 The design in one line: *MCP runs local-first, the REST API is deny-by-default behind an API
 key, read-only is the default everywhere, and Spring Security is the bring-your-own upgrade

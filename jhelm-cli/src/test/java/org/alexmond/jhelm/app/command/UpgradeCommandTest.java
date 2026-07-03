@@ -12,6 +12,9 @@ import org.alexmond.jhelm.core.action.RollbackOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.UpgradeOptions;
+import org.alexmond.jhelm.core.config.JhelmAccessMode;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
+import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 
 import java.util.HashMap;
@@ -75,7 +78,18 @@ class UpgradeCommandTest {
 			.build();
 		when(chartResolver.resolve(anyString(), anyBoolean(), any())).thenReturn(defaultChart);
 		upgradeCommand = new UpgradeCommand(kubeService, installAction, uninstallAction, upgradeAction, rollbackAction,
-				chartResolver);
+				chartResolver, enabledPolicy());
+	}
+
+	private static JhelmSecurityPolicy enabledPolicy() {
+		JhelmSecurityProperties props = new JhelmSecurityProperties();
+		props.setMode(JhelmAccessMode.FULL);
+		props.setApiKey("test-key");
+		return new JhelmSecurityPolicy(props);
+	}
+
+	private static JhelmSecurityPolicy readOnlyPolicy() {
+		return new JhelmSecurityPolicy(new JhelmSecurityProperties());
 	}
 
 	@Test
@@ -89,6 +103,20 @@ class UpgradeCommandTest {
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
+	}
+
+	@Test
+	void testUpgradeBlockedInReadOnlyMode() throws Exception {
+		// #653: READ_ONLY (the default) must refuse a cluster-mutating upgrade and not
+		// run it.
+		File chartDir = createMockChart();
+		UpgradeCommand readOnly = new UpgradeCommand(kubeService, installAction, uninstallAction, upgradeAction,
+				rollbackAction, chartResolver, readOnlyPolicy());
+
+		int exitCode = new CommandLine(readOnly).execute("my-release", chartDir.getAbsolutePath());
+
+		assertNotEquals(CommandLine.ExitCode.OK, exitCode, "upgrade must be refused in READ_ONLY");
+		verify(upgradeAction, never()).upgrade(any(UpgradeOptions.class));
 	}
 
 	@Test

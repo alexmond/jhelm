@@ -12,6 +12,7 @@ import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
@@ -38,6 +39,8 @@ public class InstallCommand implements Callable<Integer> {
 	private final KubeService kubeService;
 
 	private final ChartResolver chartResolver;
+
+	private final JhelmSecurityPolicy securityPolicy;
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
@@ -105,17 +108,23 @@ public class InstallCommand implements Callable<Integer> {
 	 * @param kubeService the Kubernetes service used to wait for resource readiness
 	 * @param chartResolver resolves the chart source (directory or {@code .tgz}), with
 	 * optional provenance verification
+	 * @param securityPolicy the unified access-mode policy; install is refused unless
+	 * mutating operations are enabled
 	 */
 	public InstallCommand(InstallAction installAction, UninstallAction uninstallAction, KubeService kubeService,
-			ChartResolver chartResolver) {
+			ChartResolver chartResolver, JhelmSecurityPolicy securityPolicy) {
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
 		this.kubeService = kubeService;
 		this.chartResolver = chartResolver;
+		this.securityPolicy = securityPolicy;
 	}
 
 	@Override
 	public Integer call() {
+		if (MutatingGuard.blocked(securityPolicy)) {
+			return CommandLine.ExitCode.SOFTWARE;
+		}
 		try {
 			boolean dryRunEnabled = resolveDryRun();
 			Chart chart = chartResolver.resolve(chartPath, verify, keyring);

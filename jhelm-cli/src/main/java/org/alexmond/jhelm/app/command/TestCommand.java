@@ -8,6 +8,7 @@ import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.TestAction.TestResult;
 import org.alexmond.jhelm.core.action.TestAction.TestStatus;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -23,6 +24,8 @@ import picocli.CommandLine;
 public class TestCommand implements Callable<Integer> {
 
 	private final TestAction testAction;
+
+	private final JhelmSecurityPolicy securityPolicy;
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
@@ -40,13 +43,19 @@ public class TestCommand implements Callable<Integer> {
 	/**
 	 * Creates the command.
 	 * @param testAction the action that runs the release test hooks
+	 * @param securityPolicy the unified access-mode policy; the operation is refused
+	 * unless mutating operations are enabled
 	 */
-	public TestCommand(TestAction testAction) {
+	public TestCommand(TestAction testAction, JhelmSecurityPolicy securityPolicy) {
 		this.testAction = testAction;
+		this.securityPolicy = securityPolicy;
 	}
 
 	@Override
 	public Integer call() {
+		if (MutatingGuard.blocked(securityPolicy)) {
+			return CommandLine.ExitCode.SOFTWARE;
+		}
 		try {
 			List<TestResult> results = testAction.test(name, namespace, timeout);
 
