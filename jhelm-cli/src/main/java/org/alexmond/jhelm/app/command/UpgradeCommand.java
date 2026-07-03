@@ -18,6 +18,7 @@ import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
@@ -48,6 +49,8 @@ public class UpgradeCommand implements Callable<Integer> {
 	private final RollbackAction rollbackAction;
 
 	private final ChartResolver chartResolver;
+
+	private final JhelmSecurityPolicy securityPolicy;
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
@@ -142,19 +145,26 @@ public class UpgradeCommand implements Callable<Integer> {
 	 * atomic failure
 	 * @param chartResolver resolves the chart source (directory or {@code .tgz}), with
 	 * optional provenance verification
+	 * @param securityPolicy the unified access-mode policy; the operation is refused
+	 * unless mutating operations are enabled
 	 */
 	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UninstallAction uninstallAction,
-			UpgradeAction upgradeAction, RollbackAction rollbackAction, ChartResolver chartResolver) {
+			UpgradeAction upgradeAction, RollbackAction rollbackAction, ChartResolver chartResolver,
+			JhelmSecurityPolicy securityPolicy) {
 		this.kubeService = kubeService;
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
 		this.upgradeAction = upgradeAction;
 		this.rollbackAction = rollbackAction;
 		this.chartResolver = chartResolver;
+		this.securityPolicy = securityPolicy;
 	}
 
 	@Override
 	public Integer call() {
+		if (MutatingGuard.blocked(securityPolicy)) {
+			return CommandLine.ExitCode.SOFTWARE;
+		}
 		int previousVersion = -1;
 		boolean wasInstall = false;
 		try {

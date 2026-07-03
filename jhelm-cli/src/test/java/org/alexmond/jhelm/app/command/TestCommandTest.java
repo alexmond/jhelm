@@ -5,6 +5,9 @@ import java.util.List;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.TestAction.TestResult;
 import org.alexmond.jhelm.core.action.TestAction.TestStatus;
+import org.alexmond.jhelm.core.config.JhelmAccessMode;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
+import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
 import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.HelmHook;
 import org.alexmond.jhelm.core.model.ResourceStatus;
@@ -14,9 +17,12 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TestCommandTest {
@@ -29,7 +35,18 @@ class TestCommandTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		testCommand = new TestCommand(testAction);
+		testCommand = new TestCommand(testAction, enabledPolicy());
+	}
+
+	private static JhelmSecurityPolicy enabledPolicy() {
+		JhelmSecurityProperties props = new JhelmSecurityProperties();
+		props.setMode(JhelmAccessMode.FULL);
+		props.setApiKey("test-key");
+		return new JhelmSecurityPolicy(props);
+	}
+
+	private static JhelmSecurityPolicy readOnlyPolicy() {
+		return new JhelmSecurityPolicy(new JhelmSecurityProperties());
 	}
 
 	@Test
@@ -98,6 +115,18 @@ class TestCommandTest {
 
 		CommandLine cmd = new CommandLine(testCommand);
 		cmd.execute("my-release", "--timeout", "60");
+	}
+
+	@Test
+	void testTestBlockedInReadOnlyMode() throws Exception {
+		// #653: READ_ONLY (the default) must refuse the cluster-mutating test and not run
+		// it.
+		TestCommand readOnly = new TestCommand(testAction, readOnlyPolicy());
+
+		int exitCode = new CommandLine(readOnly).execute("my-release", "-n", "default");
+
+		assertNotEquals(CommandLine.ExitCode.OK, exitCode, "test must be refused in READ_ONLY");
+		verify(testAction, never()).test(anyString(), anyString(), anyInt());
 	}
 
 }

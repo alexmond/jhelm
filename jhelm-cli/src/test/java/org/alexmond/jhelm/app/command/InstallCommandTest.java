@@ -9,6 +9,9 @@ import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
+import org.alexmond.jhelm.core.config.JhelmAccessMode;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
+import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 
 import java.util.HashMap;
@@ -65,7 +68,19 @@ class InstallCommandTest {
 			.values(new HashMap<>())
 			.build();
 		when(chartResolver.resolve(anyString(), anyBoolean(), any())).thenReturn(defaultChart);
-		installCommand = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver);
+		installCommand = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver,
+				enabledPolicy());
+	}
+
+	private static JhelmSecurityPolicy enabledPolicy() {
+		JhelmSecurityProperties props = new JhelmSecurityProperties();
+		props.setMode(JhelmAccessMode.FULL);
+		props.setApiKey("test-key");
+		return new JhelmSecurityPolicy(props);
+	}
+
+	private static JhelmSecurityPolicy readOnlyPolicy() {
+		return new JhelmSecurityPolicy(new JhelmSecurityProperties());
 	}
 
 	@Test
@@ -102,6 +117,20 @@ class InstallCommandTest {
 		int exitCode = cmd.execute("my-release", chartDir.getAbsolutePath());
 
 		assertNotEquals(CommandLine.ExitCode.OK, exitCode, "a failed install must exit non-zero");
+	}
+
+	@Test
+	void testInstallBlockedInReadOnlyMode() throws Exception {
+		// #653: READ_ONLY (the default) must refuse a cluster-mutating install and not
+		// run it.
+		File chartDir = createMockChart();
+		InstallCommand readOnly = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver,
+				readOnlyPolicy());
+
+		int exitCode = new CommandLine(readOnly).execute("my-release", chartDir.getAbsolutePath());
+
+		assertNotEquals(CommandLine.ExitCode.OK, exitCode, "install must be refused in READ_ONLY");
+		verify(installAction, never()).install(any(InstallOptions.class));
 	}
 
 	@Test

@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -19,6 +20,8 @@ import picocli.CommandLine;
 public class UninstallCommand implements Callable<Integer> {
 
 	private final UninstallAction uninstallAction;
+
+	private final JhelmSecurityPolicy securityPolicy;
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
@@ -36,13 +39,19 @@ public class UninstallCommand implements Callable<Integer> {
 	/**
 	 * Creates the command.
 	 * @param uninstallAction the action that uninstalls the release
+	 * @param securityPolicy the unified access-mode policy; the operation is refused
+	 * unless mutating operations are enabled
 	 */
-	public UninstallCommand(UninstallAction uninstallAction) {
+	public UninstallCommand(UninstallAction uninstallAction, JhelmSecurityPolicy securityPolicy) {
 		this.uninstallAction = uninstallAction;
+		this.securityPolicy = securityPolicy;
 	}
 
 	@Override
 	public Integer call() {
+		if (MutatingGuard.blocked(securityPolicy)) {
+			return CommandLine.ExitCode.SOFTWARE;
+		}
 		try {
 			uninstallAction.uninstall(UninstallOptions.builder()
 				.releaseName(name)
