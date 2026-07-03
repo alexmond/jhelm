@@ -1,9 +1,15 @@
 package org.alexmond.jhelm.app;
 
+import lombok.extern.slf4j.Slf4j;
+
+import org.alexmond.jhelm.core.config.JhelmAccessMode;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.ExitCodeGenerator;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import picocli.CommandLine;
 import picocli.CommandLine.Help.Ansi;
 import picocli.CommandLine.IFactory;
@@ -15,6 +21,7 @@ import picocli.CommandLine.IFactory;
  * {@link JHelmCommand} for parsing and execution. The process exit code reported back to
  * the shell is the Picocli execution result.
  */
+@Slf4j
 @SpringBootApplication
 public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator {
 
@@ -62,6 +69,29 @@ public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator
 	@Override
 	public int getExitCode() {
 		return exitCode;
+	}
+
+	/**
+	 * Logs the CLI's security posture at startup, overriding the core banner (which is
+	 * written for the network adapters, where {@code FULL} without an API key means
+	 * disabled). For the standalone CLI, {@code FULL} alone enables mutations — the local
+	 * kubeconfig is the trust boundary, like {@code helm} — so this reports the posture
+	 * the CLI actually enforces.
+	 * @param policy the resolved security policy
+	 * @return an application runner that logs the posture once
+	 */
+	@Bean
+	public ApplicationRunner jhelmSecurityPostureLogger(JhelmSecurityPolicy policy) {
+		return (args) -> {
+			if (policy.mode() == JhelmAccessMode.FULL) {
+				log.info(
+						"jhelm security: FULL — mutating operations enabled (local kubeconfig is the trust boundary).");
+			}
+			else {
+				log.info("jhelm security: READ_ONLY — mutating operations are disabled "
+						+ "(set jhelm.security.mode=FULL to enable).");
+			}
+		};
 	}
 
 }

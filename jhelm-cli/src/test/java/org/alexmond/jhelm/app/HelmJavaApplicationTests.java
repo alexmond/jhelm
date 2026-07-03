@@ -1,11 +1,14 @@
 package org.alexmond.jhelm.app;
 
+import org.alexmond.jhelm.core.config.JhelmAccessMode;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -19,8 +22,20 @@ class HelmJavaApplicationTests {
 	@Autowired(required = false)
 	private HelmJavaApplication application;
 
+	@Autowired
+	private JhelmSecurityPolicy securityPolicy;
+
 	@Test
 	void contextLoads() {
+	}
+
+	@Test
+	void testCliDefaultsToFullMode() {
+		// #657/#654: the standalone CLI defaults to FULL (read-write) like helm, unlike
+		// the
+		// READ_ONLY default the network adapters use. Set from jhelm-cli
+		// application.properties.
+		assertEquals(JhelmAccessMode.FULL, securityPolicy.mode(), "CLI must default to FULL (read-write)");
 	}
 
 	@Test

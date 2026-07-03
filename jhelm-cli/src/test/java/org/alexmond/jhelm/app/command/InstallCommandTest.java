@@ -134,6 +134,24 @@ class InstallCommandTest {
 	}
 
 	@Test
+	void testInstallAllowedInFullModeWithoutApiKey() throws Exception {
+		// #657: the standalone CLI unlocks mutations with mode=FULL alone — no api-key
+		// (the kubeconfig is the trust boundary, like helm). REST/MCP still require a
+		// key.
+		JhelmSecurityProperties props = new JhelmSecurityProperties();
+		props.setMode(JhelmAccessMode.FULL);
+		File chartDir = createMockChart();
+		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("my-release", 1));
+		InstallCommand full = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver,
+				new JhelmSecurityPolicy(props));
+
+		int exitCode = new CommandLine(full).execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
+
+		assertEquals(CommandLine.ExitCode.OK, exitCode, "FULL mode must enable install without an api-key");
+		verify(installAction).install(any(InstallOptions.class));
+	}
+
+	@Test
 	void testInstallWaitTimeoutExitsNonZero() throws Exception {
 		// Regression for #647: a --wait readiness timeout printed an error but exited 0,
 		// so callers could not detect the failed rollout. It must now exit non-zero.

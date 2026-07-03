@@ -2,10 +2,16 @@
 
 jhelm exposes Helm operations over two network surfaces -- the xref:rest-api.adoc[REST API]
 and the xref:mcp.adoc[MCP server] -- which share a single, unified security model under
-`jhelm.security.*`. The CLI honors the same access mode: in the default `READ_ONLY` posture
-its cluster-mutating commands (`install`, `upgrade`, `uninstall`, `rollback`, `test`) are
-refused, so it behaves consistently with the adapters (set `mode=FULL` + an `api-key` to
-enable them).
+`jhelm.security.*`.
+
+The **standalone CLI** honors the same `jhelm.security.mode`, but with a helm-like default: it
+runs in `FULL` (read-write) mode out of the box, so `install` / `upgrade` / `uninstall` /
+`rollback` / `test` work immediately, gated only by your kubeconfig and the cluster's RBAC --
+exactly as `helm` behaves. Set `jhelm.security.mode=READ_ONLY` (via `-Djhelm.security.mode` or
+the `JHELM_SECURITY_MODE` env var) to lock a CLI down -- for a shared workstation or an
+AI-agent guardrail -- and those five commands are then refused with a non-zero exit. The CLI
+needs no `api-key`: that credential is validated against an HTTP header, which a local CLI never
+presents, so it applies only to the network-exposed REST/MCP adapters below.
 
 The design in one line: *MCP runs local-first, the REST API is deny-by-default behind an API
 key, read-only is the default everywhere, and Spring Security is the bring-your-own upgrade
