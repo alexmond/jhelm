@@ -34,11 +34,13 @@ import io.swagger.v3.oas.models.info.License;
 import jakarta.servlet.MultipartConfigElement;
 
 import java.util.Optional;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.servlet.MultipartConfigFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -76,20 +78,33 @@ public class JhelmRestAutoConfiguration {
 	/**
 	 * Supplies the OpenAPI document metadata (title, description, version, license, and
 	 * contact) that springdoc serves at {@code /v3/api-docs} and renders in Swagger UI.
-	 * The version is read from the {@code jhelm-rest} jar manifest so it tracks releases
-	 * without a hard-coded string. Defined with {@link ConditionalOnMissingBean} so an
+	 * The version comes from Spring Boot build-info ({@link BuildProperties} — the same
+	 * source Actuator's {@code /actuator/info} uses), falling back to the
+	 * {@code jhelm-rest} jar manifest and then {@code "dev"}, so it never fails when
+	 * build-info is absent. Defined with {@link ConditionalOnMissingBean} so an
 	 * application can replace it wholesale.
+	 * @param buildProperties the optional Spring Boot build-info
 	 * @return the OpenAPI metadata bean
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public OpenAPI jhelmOpenAPI() {
-		String version = Optional.ofNullable(getClass().getPackage().getImplementationVersion()).orElse("dev");
+	public OpenAPI jhelmOpenAPI(ObjectProvider<BuildProperties> buildProperties) {
+		String version = resolveApiVersion(buildProperties);
 		return new OpenAPI().info(new Info().title("jhelm REST API")
 			.description("REST API for Helm chart and release operations, backed by jhelm.")
 			.version(version)
 			.license(new License().name("Apache-2.0").url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
 			.contact(new Contact().name("jhelm").url("https://github.com/alexmond/jhelm")));
+	}
+
+	private static String resolveApiVersion(ObjectProvider<BuildProperties> buildProperties) {
+		BuildProperties build = buildProperties.getIfAvailable();
+		if (build != null && build.getVersion() != null && !build.getVersion().isBlank()) {
+			return build.getVersion();
+		}
+		return Optional.ofNullable(JhelmRestAutoConfiguration.class.getPackage().getImplementationVersion())
+			.filter((candidate) -> !candidate.isBlank())
+			.orElse("dev");
 	}
 
 	/**

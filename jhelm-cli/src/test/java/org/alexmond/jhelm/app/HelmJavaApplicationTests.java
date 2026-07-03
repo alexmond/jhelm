@@ -5,10 +5,12 @@ import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -25,8 +27,35 @@ class HelmJavaApplicationTests {
 	@Autowired
 	private JhelmSecurityPolicy securityPolicy;
 
+	@Autowired
+	private VersionInfo versionInfo;
+
+	// Optional: absent in an IntelliJ build that skips the Maven build-info goal.
+	@Autowired(required = false)
+	private BuildProperties buildProperties;
+
 	@Test
 	void contextLoads() {
+	}
+
+	@Test
+	void testVersionResolvesFromBuildInfo() {
+		// #662: never the old hardcoded placeholder, and never blank.
+		String version = versionInfo.version();
+		assertNotNull(version);
+		assertFalse(version.isBlank(), "version must not be blank");
+		assertNotEquals("0.0.1", version, "must not report the old hardcoded 0.0.1");
+		// A Maven build runs the build-info goal, so BuildProperties is present and IS
+		// the
+		// source (the same bean Actuator's /actuator/info uses). An IntelliJ build may
+		// skip
+		// that goal — then buildProperties is null and the manifest/development fallback
+		// is
+		// used, which must still not fail.
+		if (buildProperties != null) {
+			assertTrue(versionInfo.fromBuildInfo(), "build-info present → it must be the source");
+			assertEquals(buildProperties.getVersion(), versionInfo.version());
+		}
 	}
 
 	@Test

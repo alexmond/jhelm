@@ -1,7 +1,9 @@
 package org.alexmond.jhelm.app.command;
 
+import java.time.Instant;
 import java.util.concurrent.Callable;
 
+import org.alexmond.jhelm.app.VersionInfo;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -19,19 +21,23 @@ public class VersionCommand implements Callable<Integer> {
 	@CommandLine.Option(names = { "--short" }, description = "print the version number only")
 	private boolean shortOutput;
 
-	/** Creates the command. */
-	@SuppressWarnings("PMD.UnnecessaryConstructor")
-	public VersionCommand() {
+	private final VersionInfo versionInfo;
+
+	/**
+	 * Creates the command.
+	 * @param versionInfo the shared build-info-backed version source
+	 */
+	public VersionCommand(VersionInfo versionInfo) {
+		this.versionInfo = versionInfo;
 	}
 
 	/**
-	 * Resolves the jhelm version from the jar manifest's {@code Implementation-Version},
-	 * falling back to a dev placeholder when running from an exploded build.
+	 * Resolves the jhelm version from Spring Boot build-info (with a jar-manifest
+	 * fallback) via {@link VersionInfo}, so it agrees with {@code jhelm --version}.
 	 * @return the version string, prefixed with {@code v}
 	 */
-	static String versionString() {
-		String version = VersionCommand.class.getPackage().getImplementationVersion();
-		return ((version != null) && !version.isBlank()) ? "v" + version : "v0.0.0-dev";
+	String versionString() {
+		return "v" + this.versionInfo.version();
 	}
 
 	@Override
@@ -40,8 +46,12 @@ public class VersionCommand implements Callable<Integer> {
 			CliOutput.println(versionString());
 		}
 		else {
-			CliOutput
-				.println("jhelm version " + versionString() + " (Java " + System.getProperty("java.version") + ")");
+			StringBuilder details = new StringBuilder("Java ").append(System.getProperty("java.version"));
+			Instant built = this.versionInfo.buildTime();
+			if (built != null) {
+				details.append(", built ").append(built);
+			}
+			CliOutput.println("jhelm version " + versionString() + " (" + details + ")");
 		}
 		return CommandLine.ExitCode.OK;
 	}

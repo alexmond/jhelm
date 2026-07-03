@@ -41,7 +41,7 @@ import picocli.CommandLine;
  */
 @Slf4j
 @Component
-@CommandLine.Command(name = "jhelm", mixinStandardHelpOptions = true, version = "jhelm 0.0.1",
+@CommandLine.Command(name = "jhelm", mixinStandardHelpOptions = true, versionProvider = JhelmVersionProvider.class,
 		header = { "", "The Java Kubernetes package manager", "" },
 		description = { "%nCommon actions for jhelm:%n", "  - jhelm search:    search for charts in repositories",
 				"  - jhelm pull:      download a chart to your local directory",
