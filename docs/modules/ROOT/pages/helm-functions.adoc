@@ -115,15 +115,18 @@ Use `must*` variants when strict validation is required (e.g., CI pipelines).
 | Function | Description
 
 | `lookup`
-| Query Kubernetes API for resources. Syntax: `lookup "apiVersion" "kind" "namespace" "name"`. Returns empty map when no `KubernetesProvider` is available.
+| Query the Kubernetes API for resources, returning the *whole* object (metadata, `data`, `spec`, `status`, ...) as a nested map -- `Secret`/`ConfigMap` `data` values are base64 strings, so the reuse-existing-password idiom `index $existing.data "key" \| b64dec` works. Syntax: `lookup "apiVersion" "kind" "namespace" "name"` (empty `name` lists the kind). Returns an empty map when the resource is absent or no cluster is reachable.
 
 | `kubeVersion`
-| Returns Kubernetes cluster version info as a Map with keys `Major`, `Minor`, `GitVersion`. Returns stub `v1.28.0` when no provider is available.
+| Returns Kubernetes cluster version info as a Map with keys `Major`, `Minor`, `GitVersion`. Returns stub `v1.35.0` when no cluster is reachable.
 |===
 
-NOTE: Kubernetes functions require a `KubernetesProvider` implementation.
-When using `ServiceLoader` auto-discovery (default), stub implementations are used.
-Wire a real provider via `GoTemplate.Builder` or Spring auto-configuration in `jhelm-kube`.
+NOTE: In the CLI and any `jhelm-kube`-backed application these functions query the *live*
+cluster (as Helm does during install/upgrade) -- the Spring auto-configuration wires a
+cluster-backed `KubernetesProvider` into the engine automatically. Without a wired provider
+(for example the standalone `gotmpl4j` engine, or when the API server is unreachable),
+`lookup` returns an empty map and `kubeVersion` returns the stub -- so offline `template`
+rendering still works. A provider can also be supplied manually via `GoTemplate.Builder`.
 
 == Reference
 

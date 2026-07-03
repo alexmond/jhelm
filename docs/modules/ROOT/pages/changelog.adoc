@@ -1,5 +1,23 @@
 = Changelog
 
+== 1.0.2
+
+A maintenance release fixing two bugs found in triage. No public API changes.
+
+=== Fixes
+
+* *`lookup` returns the full resource and queries the live cluster* -- the `lookup` template
+  function now returns the whole object (including `Secret`/`ConfigMap` `data` as base64), and
+  is wired to the live Kubernetes API in the CLI and any `jhelm-kube`-backed app, as Helm does
+  during install/upgrade. Previously it silently returned the empty stub (and, even when
+  reached, only the resource's metadata), which regenerated the reuse-existing-password idiom
+  `index $existing.data "key" \| b64dec` on every upgrade and corrupted bundled-database
+  passwords (#663).
+* *CLI reports the real build version* -- `jhelm --version`, `-V`, `jhelm version` and
+  `jhelm env` now report the actual build version (sourced from Spring Boot build-info, the
+  same source Actuator's `/actuator/info` uses) instead of a hardcoded `0.0.1`. The REST
+  OpenAPI document reports the same (#662).
+
 == 1.0.1
 
 A maintenance release: bug fixes across the Kubernetes layer and the CLI, plus CLI startup
