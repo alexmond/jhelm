@@ -3,10 +3,36 @@ package org.alexmond.jhelm.kube.service.internal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ResourcePluralizerTest {
+
+	@ParameterizedTest
+	@ValueSource(strings = { "ClusterRole", "ClusterRoleBinding", "Namespace", "Node", "PersistentVolume",
+			"StorageClass", "CustomResourceDefinition", "PriorityClass", "IngressClass", "APIService",
+			"MutatingWebhookConfiguration", "ValidatingWebhookConfiguration", "CSIDriver", "VolumeAttachment" })
+	void testClusterScopedKindsAreNotNamespaced(String kind) {
+		// #650: cluster-scoped kinds must resolve as not-namespaced from static tables
+		// (no cluster).
+		assertFalse(new ResourcePluralizer(null).isNamespaced(kind), kind + " should be cluster-scoped");
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "ConfigMap", "Secret", "Service", "ServiceAccount", "Deployment", "StatefulSet", "Pod",
+			"Role", "RoleBinding", "Ingress", "Job", "CronJob", "PersistentVolumeClaim", "NetworkPolicy" })
+	void testNamespacedKindsAreNamespaced(String kind) {
+		assertTrue(new ResourcePluralizer(null).isNamespaced(kind), kind + " should be namespaced");
+	}
+
+	@Test
+	void testUnknownKindDefaultsToNamespaced() {
+		// An unknown CRD with no reachable cluster (null client) defaults to namespaced.
+		assertTrue(new ResourcePluralizer(null).isNamespaced("WidgetThing"));
+	}
 
 	@ParameterizedTest
 	@CsvSource({ "Pod,pods", "Service,services", "ConfigMap,configmaps", "Secret,secrets", "Namespace,namespaces",

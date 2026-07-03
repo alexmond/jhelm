@@ -370,10 +370,11 @@ public class HelmKubeService implements KubeService {
 		String kind = obj.getKind();
 		String name = obj.getMetadata().getName();
 		String plural = inferPlural(kind);
+		boolean namespaced = inferNamespaced(kind);
 
 		if (log.isInfoEnabled()) {
-			log.info("{} {} ({}/{}) {} in namespace {}", serverDryRun ? "Validating (server dry-run)" : "Applying",
-					kind, group, version, name, namespace);
+			log.info("{} {} ({}/{}) {}{}", serverDryRun ? "Validating (server dry-run)" : "Applying", kind, group,
+					version, name, namespaced ? " in namespace " + namespace : " (cluster-scoped)");
 		}
 
 		V1Patch patch = new V1Patch(Yaml.dump(obj));
@@ -386,9 +387,11 @@ public class HelmKubeService implements KubeService {
 		// DynamicKubernetesApi resolves the request path from the group, so core-group
 		// resources (empty group, e.g. Service/ConfigMap/Secret) hit /api/<version>
 		// while named groups hit /apis/<group>/<version>. CustomObjectsApi always emits
-		// /apis/<group>/... and 404s on the core group.
+		// /apis/<group>/... and 404s on the core group. Cluster-scoped kinds
+		// (ClusterRole/CRD/...) must skip the namespace segment or the API server rejects
+		// them, so the scope comes from the kind rather than the release namespace.
 		DynamicKubernetesApi api = new DynamicKubernetesApi(group, version, plural, apiClient);
-		KubernetesApiResponse<DynamicKubernetesObject> response = (namespace != null && !namespace.isEmpty())
+		KubernetesApiResponse<DynamicKubernetesObject> response = namespaced
 				? api.patch(namespace, name, V1Patch.PATCH_FORMAT_APPLY_YAML, patch, options)
 				: api.patch(name, V1Patch.PATCH_FORMAT_APPLY_YAML, patch, options);
 		response.throwsApiException();
@@ -421,18 +424,21 @@ public class HelmKubeService implements KubeService {
 		String kind = obj.getKind();
 		String name = obj.getMetadata().getName();
 		String plural = inferPlural(kind);
+		boolean namespaced = inferNamespaced(kind);
 
 		if (log.isInfoEnabled()) {
-			log.info("Deleting {} {} in namespace {}", kind, name, namespace);
+			log.info("Deleting {} {}{}", kind, name, namespaced ? " in namespace " + namespace : " (cluster-scoped)");
 		}
 
 		// As with apply, DynamicKubernetesApi targets /api/<version> for the core group;
 		// CustomObjectsApi 404s there, which previously made core-resource deletes
 		// silently
-		// no-op (the 404 was swallowed below as "already gone").
+		// no-op (the 404 was swallowed below as "already gone"). Cluster-scoped kinds
+		// skip
+		// the namespace segment based on the kind, not the release namespace.
 		DynamicKubernetesApi api = new DynamicKubernetesApi(group, version, plural, apiClient);
-		KubernetesApiResponse<DynamicKubernetesObject> response = (namespace != null && !namespace.isEmpty())
-				? api.delete(namespace, name) : api.delete(name);
+		KubernetesApiResponse<DynamicKubernetesObject> response = namespaced ? api.delete(namespace, name)
+				: api.delete(name);
 		if (!response.isSuccess() && response.getHttpStatusCode() != 404) {
 			response.throwsApiException();
 		}
@@ -708,6 +714,13 @@ public class HelmKubeService implements KubeService {
 			pluralizer = new ResourcePluralizer(apiClient);
 		}
 		return pluralizer.toPlural(kind);
+	}
+
+	private boolean inferNamespaced(String kind) {
+		if (pluralizer == null) {
+			pluralizer = new ResourcePluralizer(apiClient);
+		}
+		return pluralizer.isNamespaced(kind);
 	}
 
 	/**
