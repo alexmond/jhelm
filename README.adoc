@@ -70,7 +70,7 @@ the Go-based Helm binary.
 
 | `jhelm-core` | Chart model, loader, repository manager, rendering engine, and action API. The main entry point for library users.
 | `jhelm-gotemplate-helm` | Helm-specific template functions (`include`, `tpl`, `required`, `toYaml`, `lookup`, …) layered on top of gotmpl4j.
-| `jhelm-kube` | Kubernetes client integration -- apply/delete resources, ConfigMap-based release storage, async operations.
+| `jhelm-kube` | Kubernetes client integration -- apply/delete resources, Helm-compatible Secret-based release storage, async operations.
 | `jhelm-rest` | Spring MVC REST API over jhelm operations, with OpenAPI documentation (pure library -- bring your own auto-configuration).
 | `jhelm-rest-starter` | Spring Boot starter that auto-configures the `jhelm-rest` API, with a `READ_ONLY`/`FULL` access mode gating cluster-mutating endpoints.
 | `jhelm-mcp` | Model Context Protocol server exposing jhelm operations as AI-agent tools (built on Spring AI), mirroring the REST operation set.
