@@ -3,6 +3,7 @@ package org.alexmond.jhelm.kube.service.internal;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
@@ -95,11 +96,45 @@ class ResourcePluralizer {
 		// apiregistration.k8s.io/v1
 		Map.entry("APIService", "apiservices")
 	);
+
+	/**
+	 * Built-in Kubernetes kinds that live at the cluster scope (no namespace). Charts commonly
+	 * ship the RBAC and CRD subset of these; applying any of them through the namespaced API
+	 * path is rejected by the API server. Kinds not listed here (and not otherwise discovered)
+	 * are assumed namespaced — the safe default, and correct for the vast majority of CRDs.
+	 */
+	private static final Set<String> CLUSTER_SCOPED_KINDS = Set.of(
+		// core/v1
+		"ComponentStatus", "Namespace", "Node", "PersistentVolume",
+		// rbac.authorization.k8s.io/v1
+		"ClusterRole", "ClusterRoleBinding",
+		// storage.k8s.io/v1
+		"CSIDriver", "CSINode", "StorageClass", "VolumeAttachment",
+		// admissionregistration.k8s.io/v1
+		"MutatingWebhookConfiguration", "ValidatingWebhookConfiguration",
+		"ValidatingAdmissionPolicy", "ValidatingAdmissionPolicyBinding",
+		// apiextensions.k8s.io/v1
+		"CustomResourceDefinition",
+		// certificates.k8s.io/v1
+		"CertificateSigningRequest",
+		// scheduling.k8s.io/v1
+		"PriorityClass",
+		// node.k8s.io/v1
+		"RuntimeClass",
+		// networking.k8s.io/v1
+		"IngressClass",
+		// flowcontrol.apiserver.k8s.io/v1
+		"FlowSchema", "PriorityLevelConfiguration",
+		// apiregistration.k8s.io/v1
+		"APIService"
+	);
 	// @formatter:on
 
 	private final ApiClient apiClient;
 
 	private Map<String, String> discoveredPlurals;
+
+	private Map<String, Boolean> discoveredNamespaced;
 
 	ResourcePluralizer(ApiClient apiClient) {
 		this.apiClient = apiClient;
@@ -130,8 +165,36 @@ class ResourcePluralizer {
 		return heuristicPlural(kind);
 	}
 
+	/**
+	 * Reports whether a Kubernetes resource kind is namespaced (versus cluster-scoped).
+	 * Well-known cluster-scoped and namespaced built-ins are answered from static tables;
+	 * anything else is resolved from API-server discovery, defaulting to namespaced when
+	 * discovery is unavailable or the kind is unknown.
+	 * @param kind the resource kind (e.g., "ClusterRole", "ConfigMap")
+	 * @return {@code true} if the kind is namespaced, {@code false} if cluster-scoped
+	 */
+	boolean isNamespaced(String kind) {
+		// 1. Known cluster-scoped built-in
+		if (CLUSTER_SCOPED_KINDS.contains(kind)) {
+			return false;
+		}
+		// 2. Any other well-known built-in is namespaced (cluster-scoped ones are caught
+		// above)
+		if (WELL_KNOWN_PLURALS.containsKey(kind)) {
+			return true;
+		}
+		// 3. Discovery cache (lazy-loaded) — authoritative for CRDs
+		if (discoveredNamespaced == null) {
+			discoverResources();
+		}
+		Boolean namespaced = discoveredNamespaced.get(kind);
+		// 4. Default to namespaced for unknown kinds (the common case for CRDs)
+		return namespaced == null || namespaced;
+	}
+
 	private void discoverResources() {
 		discoveredPlurals = new HashMap<>();
+		discoveredNamespaced = new HashMap<>();
 		try {
 			addResourcesFrom(new CoreV1Api(apiClient).getAPIResources().execute());
 			addResourcesFrom(new AppsV1Api(apiClient).getAPIResources().execute());
@@ -160,6 +223,9 @@ class ResourcePluralizer {
 			// Skip subresources (e.g., "pods/status", "deployments/scale")
 			if (resource.getName() != null && !resource.getName().contains("/") && resource.getKind() != null) {
 				discoveredPlurals.putIfAbsent(resource.getKind(), resource.getName());
+				if (resource.getNamespaced() != null) {
+					discoveredNamespaced.putIfAbsent(resource.getKind(), resource.getNamespaced());
+				}
 			}
 		}
 	}

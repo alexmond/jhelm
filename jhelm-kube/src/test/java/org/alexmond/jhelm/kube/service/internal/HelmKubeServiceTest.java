@@ -531,6 +531,54 @@ class HelmKubeServiceTest {
 	}
 
 	@Test
+	void testApplyClusterScopedResourceUsesClusterPath() throws Exception {
+		// Regression for #650: a ClusterRole must be applied via the cluster-scoped path
+		// (no namespace segment), not scoped into the release namespace.
+		String yaml = """
+				apiVersion: rbac.authorization.k8s.io/v1
+				kind: ClusterRole
+				metadata:
+				  name: demo-discovery
+				rules:
+				  - apiGroups: [""]
+				    resources: ["services"]
+				    verbs: ["get", "list"]
+				""";
+
+		setupSsaMock();
+		kubeService.apply("demo", yaml);
+
+		assertEquals("rbac.authorization.k8s.io", lastDynamicApiCtorArgs.get(0));
+		assertEquals("v1", lastDynamicApiCtorArgs.get(1));
+		assertEquals("clusterroles", lastDynamicApiCtorArgs.get(2));
+
+		// cluster-scoped overload (name, format, patch, options) — no namespace
+		verify(mockDynamicApi).patch(eq("demo-discovery"), eq(V1Patch.PATCH_FORMAT_APPLY_YAML), any(V1Patch.class),
+				any(PatchOptions.class));
+		// the namespaced overload must NOT be used
+		verify(mockDynamicApi, never()).patch(anyString(), anyString(), anyString(), any(V1Patch.class),
+				any(PatchOptions.class));
+	}
+
+	@Test
+	void testDeleteClusterScopedResourceUsesClusterPath() throws Exception {
+		// #650: deleting a ClusterRoleBinding must also skip the namespace segment.
+		String yaml = """
+				apiVersion: rbac.authorization.k8s.io/v1
+				kind: ClusterRoleBinding
+				metadata:
+				  name: demo-discovery
+				roleRef: { apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: demo-discovery }
+				""";
+
+		setupSsaMock();
+		kubeService.delete("demo", yaml);
+
+		verify(mockDynamicApi).delete(eq("demo-discovery"));
+		verify(mockDynamicApi, never()).delete(anyString(), anyString());
+	}
+
+	@Test
 	void testApplyCoreV1ResourceUsesSSA() throws Exception {
 		String yaml = """
 				apiVersion: v1
