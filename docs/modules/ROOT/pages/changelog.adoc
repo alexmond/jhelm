@@ -1,5 +1,43 @@
 = Changelog
 
+== 1.0.1
+
+A maintenance release: bug fixes across the Kubernetes layer and the CLI, plus CLI startup
+and ergonomics improvements. No public API changes.
+
+=== Fixes
+
+* *Cluster-scoped resources* -- kinds such as `ClusterRole`, `ClusterRoleBinding`,
+  `CustomResourceDefinition`, `Namespace`, `StorageClass` and `PriorityClass` are now applied
+  and deleted at the cluster scope instead of being forced through the namespaced API path,
+  which the API server rejected (#650).
+* *CLI exit codes* -- commands exit non-zero on failure (for example a `--wait` readiness
+  timeout), so scripts and CI can detect a failed operation instead of seeing a spurious
+  success (#647).
+
+=== CLI security
+
+* The CLI now honors `jhelm.security.mode` and defaults to `FULL` (read-write), matching
+  `helm` -- the local kubeconfig and cluster RBAC are the trust boundary. Setting
+  `jhelm.security.mode=READ_ONLY` refuses the cluster-mutating commands (`install`, `upgrade`,
+  `uninstall`, `rollback`, `test`) with a non-zero exit. The API key stays a REST/MCP concern
+  and is not required to unlock the CLI (#653, #654, #657).
+
+=== CLI ergonomics
+
+* Faster startup through lazy bean initialization and trimming auto-configurations a one-shot
+  CLI never uses (#649, #651).
+* Quieted a benign picocli-spring `INFO` line ("Unable to get bean of class interface
+  java.util.List ...") that surfaced on multi-value options such as `--set` and read like a
+  stacktrace (#656).
+
+=== Docs and build
+
+* The release workflow passes the GPG passphrase via `MAVEN_GPG_PASSPHRASE` rather than the
+  deprecated `-Dgpg.passphrase` (#646).
+* Corrected the `jhelm-kube` description: releases are stored as Helm-compatible Secrets, not
+  ConfigMaps (#655); fixed cross-project documentation links.
+
 == 1.0.0
 
 The first stable release. 1.0 draws a supported public API surface, hardens security and
