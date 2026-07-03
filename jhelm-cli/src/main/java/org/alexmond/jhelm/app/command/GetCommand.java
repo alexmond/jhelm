@@ -9,6 +9,7 @@ import picocli.CommandLine;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 /**
  * Implements {@code jhelm get}, downloading extended information about a named release.
@@ -21,7 +22,7 @@ import java.util.Optional;
 		subcommands = { GetCommand.ValuesCommand.class, GetCommand.ManifestCommand.class, GetCommand.NotesCommand.class,
 				GetCommand.HooksCommand.class, GetCommand.MetadataCommand.class, GetCommand.AllCommand.class })
 @Slf4j
-public class GetCommand implements Runnable {
+public class GetCommand implements Callable<Integer> {
 
 	/** Creates the command. */
 	@SuppressWarnings("PMD.UnnecessaryConstructor")
@@ -32,8 +33,9 @@ public class GetCommand implements Runnable {
 	 * Prints the usage help when {@code get} is invoked without a subcommand.
 	 */
 	@Override
-	public void run() {
+	public Integer call() {
 		CommandLine.usage(this, System.out);
+		return CommandLine.ExitCode.OK;
 	}
 
 	private static Optional<Release> resolveRelease(GetAction getAction, String name, String namespace, int revision) {
@@ -51,7 +53,7 @@ public class GetCommand implements Runnable {
 	@CommandLine.Command(name = "values", mixinStandardHelpOptions = true,
 			description = "Download the values file for a named release")
 	@Slf4j
-	public static class ValuesCommand implements Runnable {
+	public static class ValuesCommand implements Callable<Integer> {
 
 		private final GetAction getAction;
 
@@ -84,12 +86,12 @@ public class GetCommand implements Runnable {
 		 * Prints the release values in the requested output format.
 		 */
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
 					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 				Release release = releaseOpt.get();
 				if ("json".equalsIgnoreCase(output)) {
@@ -105,9 +107,11 @@ public class GetCommand implements Runnable {
 				else {
 					System.out.println(getAction.getValues(release, allValues));
 				}
+				return CommandLine.ExitCode.OK;
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error getting values: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -121,7 +125,7 @@ public class GetCommand implements Runnable {
 	@CommandLine.Command(name = "manifest", mixinStandardHelpOptions = true,
 			description = "Download the manifest for a named release")
 	@Slf4j
-	public static class ManifestCommand implements Runnable {
+	public static class ManifestCommand implements Callable<Integer> {
 
 		private final GetAction getAction;
 
@@ -147,17 +151,19 @@ public class GetCommand implements Runnable {
 		 * Prints the release manifest.
 		 */
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
 					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 				System.out.println(getAction.getManifest(releaseOpt.get()));
+				return CommandLine.ExitCode.OK;
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error getting manifest: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -170,7 +176,7 @@ public class GetCommand implements Runnable {
 	@CommandLine.Command(name = "notes", mixinStandardHelpOptions = true,
 			description = "Download the notes for a named release")
 	@Slf4j
-	public static class NotesCommand implements Runnable {
+	public static class NotesCommand implements Callable<Integer> {
 
 		private final GetAction getAction;
 
@@ -196,12 +202,12 @@ public class GetCommand implements Runnable {
 		 * Prints the release notes, or a placeholder when none exist.
 		 */
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
 					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 				String notes = getAction.getNotes(releaseOpt.get());
 				if (notes.isEmpty()) {
@@ -210,9 +216,11 @@ public class GetCommand implements Runnable {
 				else {
 					System.out.println(notes);
 				}
+				return CommandLine.ExitCode.OK;
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error getting notes: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -223,7 +231,7 @@ public class GetCommand implements Runnable {
 	@CommandLine.Command(name = "hooks", mixinStandardHelpOptions = true,
 			description = "Download all hooks for a named release")
 	@Slf4j
-	public static class HooksCommand implements Runnable {
+	public static class HooksCommand implements Callable<Integer> {
 
 		private final GetAction getAction;
 
@@ -249,12 +257,12 @@ public class GetCommand implements Runnable {
 		 * Prints the release hooks, or a placeholder when none exist.
 		 */
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
 					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 				String hooks = getAction.getHooks(releaseOpt.get());
 				if (hooks.isEmpty()) {
@@ -263,9 +271,11 @@ public class GetCommand implements Runnable {
 				else {
 					System.out.println(hooks);
 				}
+				return CommandLine.ExitCode.OK;
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error getting hooks: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -279,7 +289,7 @@ public class GetCommand implements Runnable {
 	@CommandLine.Command(name = "metadata", mixinStandardHelpOptions = true,
 			description = "Download the metadata for a named release")
 	@Slf4j
-	public static class MetadataCommand implements Runnable {
+	public static class MetadataCommand implements Callable<Integer> {
 
 		private final GetAction getAction;
 
@@ -309,12 +319,12 @@ public class GetCommand implements Runnable {
 		 * Prints the release metadata in the requested output format.
 		 */
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
 					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 				Map<String, Object> metadata = getAction.getMetadata(releaseOpt.get());
 				if ("json".equalsIgnoreCase(output)) {
@@ -323,9 +333,11 @@ public class GetCommand implements Runnable {
 				else {
 					System.out.println(getAction.toYaml(metadata));
 				}
+				return CommandLine.ExitCode.OK;
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error getting metadata: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -339,7 +351,7 @@ public class GetCommand implements Runnable {
 	@CommandLine.Command(name = "all", mixinStandardHelpOptions = true,
 			description = "Download all information for a named release")
 	@Slf4j
-	public static class AllCommand implements Runnable {
+	public static class AllCommand implements Callable<Integer> {
 
 		private final GetAction getAction;
 
@@ -365,17 +377,19 @@ public class GetCommand implements Runnable {
 		 * Prints all available information for the release.
 		 */
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				Optional<Release> releaseOpt = resolveRelease(getAction, releaseName, namespace, revision);
 				if (releaseOpt.isEmpty()) {
 					CliOutput.errPrintln(CliOutput.error("Error: release not found: " + releaseName));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 				System.out.println(getAction.getAll(releaseOpt.get(), false));
+				return CommandLine.ExitCode.OK;
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error getting release info: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 

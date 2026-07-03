@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * Implements the {@code helm dependency} command and its subcommands.
@@ -38,7 +39,7 @@ import java.util.List;
 		subcommands = { DependencyCommand.ListCommand.class, DependencyCommand.UpdateCommand.class,
 				DependencyCommand.BuildCommand.class })
 @Slf4j
-public class DependencyCommand implements Runnable {
+public class DependencyCommand implements Callable<Integer> {
 
 	/** Creates the command. */
 	@SuppressWarnings("PMD.UnnecessaryConstructor")
@@ -49,8 +50,9 @@ public class DependencyCommand implements Runnable {
 	 * Prints the usage help when {@code dependency} is invoked without a subcommand.
 	 */
 	@Override
-	public void run() {
+	public Integer call() {
 		CommandLine.usage(this, System.out);
+		return CommandLine.ExitCode.OK;
 	}
 
 	/**
@@ -62,7 +64,7 @@ public class DependencyCommand implements Runnable {
 	@CommandLine.Command(name = "list", mixinStandardHelpOptions = true,
 			description = "List the dependencies for the given chart")
 	@Slf4j
-	public static class ListCommand implements Runnable {
+	public static class ListCommand implements Callable<Integer> {
 
 		@CommandLine.Parameters(index = "0", description = "chart directory", defaultValue = ".")
 		String chartPath;
@@ -76,19 +78,19 @@ public class DependencyCommand implements Runnable {
 		 * Lists the chart's dependencies and their resolution status.
 		 */
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				File chartDir = new File(chartPath);
 				if (!chartDir.exists() || !chartDir.isDirectory()) {
 					CliOutput.errPrintln(CliOutput.error("Error: Chart directory not found: " + chartPath));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 
 				// Load Chart.yaml
 				ChartMetadata metadata = loadChartMetadata(chartDir);
 				if (metadata.getDependencies() == null || metadata.getDependencies().isEmpty()) {
 					CliOutput.println("No dependencies found in Chart.yaml");
-					return;
+					return CommandLine.ExitCode.OK;
 				}
 
 				// Load Chart.lock if it exists
@@ -128,12 +130,14 @@ public class DependencyCommand implements Runnable {
 					CliOutput.printf("%-20s %-15s %-40s %s%n", name, version, (repository != null) ? repository : "",
 							colorizeDependencyStatus(status));
 				}
+				return CommandLine.ExitCode.OK;
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error listing dependencies: " + ex.getMessage()));
 				if (log.isDebugEnabled()) {
 					log.debug("Dependency list error details", ex);
 				}
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -189,7 +193,7 @@ public class DependencyCommand implements Runnable {
 	@CommandLine.Command(name = "update", mixinStandardHelpOptions = true,
 			description = "Update charts/ based on the contents of Chart.yaml")
 	@Slf4j
-	public static class UpdateCommand implements Runnable {
+	public static class UpdateCommand implements Callable<Integer> {
 
 		private final RepoManager repoManager;
 
@@ -216,12 +220,12 @@ public class DependencyCommand implements Runnable {
 		 * Resolves dependencies from Chart.yaml, downloads them, and writes Chart.lock.
 		 */
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				File chartDir = new File(chartPath);
 				if (!chartDir.exists() || !chartDir.isDirectory()) {
 					CliOutput.errPrintln(CliOutput.error("Error: Chart directory not found: " + chartPath));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 
 				// Refresh repositories unless --skip-refresh
@@ -235,7 +239,7 @@ public class DependencyCommand implements Runnable {
 				ChartMetadata metadata = loadChartMetadata(chartDir);
 				if (metadata.getDependencies() == null || metadata.getDependencies().isEmpty()) {
 					CliOutput.println("No dependencies found in Chart.yaml");
-					return;
+					return CommandLine.ExitCode.OK;
 				}
 
 				// Load values.yaml for condition evaluation
@@ -254,12 +258,14 @@ public class DependencyCommand implements Runnable {
 				chartLock.toFile(chartDir);
 				CliOutput.println("Saving " + chartLock.getDependencies().size() + " charts");
 				CliOutput.println(CliOutput.success("Dependency update complete."));
+				return CommandLine.ExitCode.OK;
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error updating dependencies: " + ex.getMessage()));
 				if (log.isDebugEnabled()) {
 					log.debug("Dependency update error details", ex);
 				}
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 
@@ -300,7 +306,7 @@ public class DependencyCommand implements Runnable {
 	@CommandLine.Command(name = "build", mixinStandardHelpOptions = true,
 			description = "Rebuild the charts/ directory based on Chart.lock")
 	@Slf4j
-	public static class BuildCommand implements Runnable {
+	public static class BuildCommand implements Callable<Integer> {
 
 		private final RepoManager repoManager;
 
@@ -323,12 +329,12 @@ public class DependencyCommand implements Runnable {
 		 * Rebuilds the charts/ directory from the pinned versions in Chart.lock.
 		 */
 		@Override
-		public void run() {
+		public Integer call() {
 			try {
 				File chartDir = new File(chartPath);
 				if (!chartDir.exists() || !chartDir.isDirectory()) {
 					CliOutput.errPrintln(CliOutput.error("Error: Chart directory not found: " + chartPath));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 
 				// Load Chart.lock
@@ -336,12 +342,12 @@ public class DependencyCommand implements Runnable {
 				if (chartLock == null) {
 					CliOutput
 						.errPrintln(CliOutput.error("Error: Chart.lock not found. Run 'dependency update' first."));
-					return;
+					return CommandLine.ExitCode.SOFTWARE;
 				}
 
 				if (chartLock.getDependencies() == null || chartLock.getDependencies().isEmpty()) {
 					CliOutput.println("No dependencies found in Chart.lock");
-					return;
+					return CommandLine.ExitCode.OK;
 				}
 
 				// Refresh repositories unless --skip-refresh
@@ -358,12 +364,14 @@ public class DependencyCommand implements Runnable {
 
 				CliOutput.println("Saving " + chartLock.getDependencies().size() + " charts");
 				CliOutput.println(CliOutput.success("Dependency build complete."));
+				return CommandLine.ExitCode.OK;
 			}
 			catch (Exception ex) {
 				CliOutput.errPrintln(CliOutput.error("Error building dependencies: " + ex.getMessage()));
 				if (log.isDebugEnabled()) {
 					log.debug("Dependency build error details", ex);
 				}
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 

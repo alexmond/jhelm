@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.app;
 
+import java.util.concurrent.Callable;
+
 import org.alexmond.jhelm.app.command.CreateCommand;
 import org.alexmond.jhelm.app.command.DependencyCommand;
 import org.alexmond.jhelm.app.command.GetCommand;
@@ -53,7 +55,7 @@ import picocli.CommandLine;
 				PullCommand.class, PushCommand.class, PackageCommand.class, VerifyCommand.class, LintCommand.class,
 				RepoCommand.class, RegistryCommand.class, PluginCommand.class, SearchCommand.class,
 				VersionCommand.class, EnvCommand.class })
-public class JHelmCommand implements Runnable {
+public class JHelmCommand implements Callable<Integer> {
 
 	private final Environment environment;
 
@@ -83,9 +85,10 @@ public class JHelmCommand implements Runnable {
 	 * usage help when {@code jhelm} is invoked without a subcommand.
 	 */
 	@Override
-	public void run() {
+	public Integer call() {
 		printBanner();
 		CommandLine.usage(this, System.out);
+		return CommandLine.ExitCode.OK;
 	}
 
 	/**

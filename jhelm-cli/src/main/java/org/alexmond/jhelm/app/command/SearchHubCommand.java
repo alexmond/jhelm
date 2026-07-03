@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.SearchHubAction;
@@ -13,7 +14,7 @@ import picocli.CommandLine;
  */
 @Component
 @CommandLine.Command(name = "hub", mixinStandardHelpOptions = true, description = "Search for charts in Artifact Hub")
-public class SearchHubCommand implements Runnable {
+public class SearchHubCommand implements Callable<Integer> {
 
 	private final SearchHubAction searchHubAction;
 
@@ -37,17 +38,19 @@ public class SearchHubCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			List<SearchHubAction.HubResult> results = searchHubAction.search(keyword, 25);
 			if (results.isEmpty()) {
 				CliOutput.println("No results found for \"" + keyword + "\"");
-				return;
+				return CommandLine.ExitCode.OK;
 			}
 			printTable(results);
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

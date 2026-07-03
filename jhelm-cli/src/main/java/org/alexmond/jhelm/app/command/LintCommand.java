@@ -3,6 +3,7 @@ package org.alexmond.jhelm.app.command;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.LintAction;
@@ -18,7 +19,7 @@ import picocli.CommandLine.Option;
 @Component
 @CommandLine.Command(name = "lint", mixinStandardHelpOptions = true,
 		description = "Examine a chart for possible issues")
-public class LintCommand implements Runnable {
+public class LintCommand implements Callable<Integer> {
 
 	private final LintAction lintAction;
 
@@ -52,7 +53,7 @@ public class LintCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
 					setFileValues, setJsonValues);
@@ -69,13 +70,16 @@ public class LintCommand implements Runnable {
 
 			if (result.isOk() && (!strict || result.getWarnings().isEmpty())) {
 				CliOutput.println("1 chart(s) linted, 0 chart(s) failed");
+				return CommandLine.ExitCode.OK;
 			}
 			else {
 				CliOutput.errPrintln(CliOutput.error("1 chart(s) linted, 1 chart(s) failed"));
+				return CommandLine.ExitCode.SOFTWARE;
 			}
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

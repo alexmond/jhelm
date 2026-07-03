@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
+import java.util.concurrent.Callable;
+
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.model.RepositoryConfig;
@@ -16,7 +18,7 @@ import picocli.CommandLine;
 @Component
 @CommandLine.Command(name = "pull", mixinStandardHelpOptions = true, description = "Download a chart from a repository")
 @Slf4j
-public class PullCommand implements Runnable {
+public class PullCommand implements Callable<Integer> {
 
 	private final RepoManager repoManager;
 
@@ -65,7 +67,7 @@ public class PullCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			if (this.repo != null && !this.repo.isBlank()) {
 				repoManager.pullFromRepoUrl(this.repo, this.chart, this.version, this.dest, buildRepoAuth());
@@ -74,9 +76,11 @@ public class PullCommand implements Runnable {
 				repoManager.pull(this.chart, this.version, this.dest);
 			}
 			CliOutput.println(CliOutput.success("Chart pulled to " + this.dest));
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error pulling chart: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

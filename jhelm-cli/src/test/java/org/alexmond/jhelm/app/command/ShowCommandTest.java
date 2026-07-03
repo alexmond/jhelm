@@ -130,7 +130,7 @@ class ShowCommandTest {
 		ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
 		command.chartPath = chartDir.toString();
 
-		command.run();
+		command.call();
 
 		String output = outputStream.toString();
 		assertTrue(output.contains("name: test-chart"), "Output: " + output);
@@ -146,7 +146,7 @@ class ShowCommandTest {
 		ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
 		command.chartPath = chartDir.toString();
 
-		command.run();
+		command.call();
 
 		String output = outputStream.toString();
 		assertTrue(output.contains("replicaCount: 1"), "Output: " + output);
@@ -160,7 +160,7 @@ class ShowCommandTest {
 		ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
 		command.chartPath = chartDir.toString();
 
-		command.run();
+		command.call();
 
 		String output = outputStream.toString();
 		assertTrue(output.contains("# Test Chart"));
@@ -174,7 +174,7 @@ class ShowCommandTest {
 		ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
 		command.chartPath = chartDir.toString();
 
-		command.run();
+		command.call();
 
 		String output = outputStream.toString();
 		assertTrue(output.contains("kind: CustomResourceDefinition"));
@@ -190,7 +190,7 @@ class ShowCommandTest {
 		ShowCommand.AllCommand command = new ShowCommand.AllCommand(showAction);
 		command.chartPath = chartDir.toString();
 
-		command.run();
+		command.call();
 
 		String output = outputStream.toString();
 
@@ -232,7 +232,7 @@ class ShowCommandTest {
 		ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
 		command.chartPath = noReadmeDir.toString();
 
-		command.run();
+		command.call();
 
 		String output = outputStream.toString();
 		assertTrue(output.contains("No README found in chart"));
@@ -256,7 +256,7 @@ class ShowCommandTest {
 		ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
 		command.chartPath = noCrdsDir.toString();
 
-		command.run();
+		command.call();
 
 		String output = outputStream.toString();
 		assertTrue(output.contains("No CRDs found in chart"));
@@ -280,7 +280,7 @@ class ShowCommandTest {
 		ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
 		command.chartPath = emptyValuesDir.toString();
 
-		command.run();
+		command.call();
 
 		String output = outputStream.toString();
 		assertTrue(output.contains("{}"));
@@ -292,7 +292,7 @@ class ShowCommandTest {
 		command.chartPath = "/nonexistent/path";
 
 		// Should not throw, but should log error
-		command.run();
+		command.call();
 
 		// Verify error was logged (output will be empty since we redirected System.out)
 		// In a real scenario, this would be verified with a logging framework test
@@ -313,7 +313,7 @@ class ShowCommandTest {
 	void testShowCommandRunShowsUsage() {
 		outputStream.reset();
 		ShowCommand showCommand = new ShowCommand();
-		showCommand.run();
+		showCommand.call();
 
 		String output = outputStream.toString();
 		assertTrue(output.contains("show") || output.contains("Usage"));
@@ -328,27 +328,27 @@ class ShowCommandTest {
 			case "chart" -> {
 				var cmd = new ShowCommand.ChartCommand(showAction);
 				cmd.chartPath = invalidDir.toString();
-				cmd.run();
+				cmd.call();
 			}
 			case "values" -> {
 				var cmd = new ShowCommand.ValuesCommand(showAction);
 				cmd.chartPath = invalidDir.toString();
-				cmd.run();
+				cmd.call();
 			}
 			case "all" -> {
 				var cmd = new ShowCommand.AllCommand(showAction);
 				cmd.chartPath = invalidDir.toString();
-				cmd.run();
+				cmd.call();
 			}
 			case "readme" -> {
 				var cmd = new ShowCommand.ReadmeCommand(showAction);
 				cmd.chartPath = invalidDir.toString();
-				cmd.run();
+				cmd.call();
 			}
 			case "crds" -> {
 				var cmd = new ShowCommand.CrdsCommand(showAction);
 				cmd.chartPath = invalidDir.toString();
-				cmd.run();
+				cmd.call();
 			}
 		}
 	}
@@ -363,7 +363,7 @@ class ShowCommandTest {
 		ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
 		command.chartPath = chartDir.toString();
 
-		command.run();
+		command.call();
 
 		String output = outputStream.toString();
 		assertTrue(output.contains("test-chart"));

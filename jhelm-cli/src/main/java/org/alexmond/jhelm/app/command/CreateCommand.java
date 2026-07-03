@@ -9,6 +9,7 @@ import picocli.CommandLine;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.Callable;
 
 /**
  * Implements {@code jhelm create NAME}, scaffolding a new chart directory with the given
@@ -18,7 +19,7 @@ import java.nio.file.Paths;
 @Component
 @CommandLine.Command(name = "create", mixinStandardHelpOptions = true,
 		description = "Create a new chart with the given name")
-public class CreateCommand implements Runnable {
+public class CreateCommand implements Callable<Integer> {
 
 	private final CreateAction createAction;
 
@@ -41,15 +42,16 @@ public class CreateCommand implements Runnable {
 	 * Scaffolds the new chart and reports the result.
 	 */
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			Path chartPath = Paths.get(name);
 			createAction.create(chartPath);
 			CliOutput.println(CliOutput.success("Creating " + name));
+			return CommandLine.ExitCode.OK;
 		}
 		catch (JhelmException ex) {
 			CliOutput.errPrintln(CliOutput.error("Error creating chart: " + ex.getMessage()));
-			System.exit(1);
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

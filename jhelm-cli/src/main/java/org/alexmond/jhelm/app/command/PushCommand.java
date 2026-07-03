@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
+import java.util.concurrent.Callable;
+
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.service.RepoManager;
@@ -14,7 +16,7 @@ import picocli.CommandLine;
 @CommandLine.Command(name = "push", mixinStandardHelpOptions = true,
 		description = "Push a chart to a remote OCI registry")
 @Slf4j
-public class PushCommand implements Runnable {
+public class PushCommand implements Callable<Integer> {
 
 	private final RepoManager repoManager;
 
@@ -33,13 +35,15 @@ public class PushCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			repoManager.pushOci(chart, remote);
 			CliOutput.println(CliOutput.success("Pushed: " + remote));
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error pushing chart: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

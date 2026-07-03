@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * Implements {@code jhelm history RELEASE}, printing the revision history of a release.
@@ -15,7 +16,7 @@ import java.util.List;
 @Component
 @CommandLine.Command(name = "history", mixinStandardHelpOptions = true, description = "Fetch release history")
 @Slf4j
-public class HistoryCommand implements Runnable {
+public class HistoryCommand implements Callable<Integer> {
 
 	private final HistoryAction historyAction;
 
@@ -37,7 +38,7 @@ public class HistoryCommand implements Runnable {
 	 * Prints the release revision history as a table.
 	 */
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			List<Release> history = historyAction.history(name, namespace);
 			CliOutput.printf("%-10s %-30s %-10s %-20s %-30s\n", CliOutput.bold("REVISION"), CliOutput.bold("UPDATED"),
@@ -47,9 +48,11 @@ public class HistoryCommand implements Runnable {
 				CliOutput.printf("%-10d %-30s %-10s %-20s %-30s\n", r.getVersion(), r.getInfo().getLastDeployed(),
 						r.getInfo().getStatus().getValue(), chartInfo, r.getInfo().getDescription());
 			}
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error fetching history: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
+import java.util.concurrent.Callable;
+
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -10,7 +12,7 @@ import picocli.CommandLine;
 @Component
 @CommandLine.Command(name = "search", mixinStandardHelpOptions = true, description = "Search for a keyword in charts",
 		subcommands = { SearchHubCommand.class })
-public class SearchCommand implements Runnable {
+public class SearchCommand implements Callable<Integer> {
 
 	/** Creates the command. */
 	@SuppressWarnings("PMD.UnnecessaryConstructor")
@@ -21,8 +23,9 @@ public class SearchCommand implements Runnable {
 	 * Prints the usage help when {@code search} is invoked without a subcommand.
 	 */
 	@Override
-	public void run() {
+	public Integer call() {
 		CommandLine.usage(this, System.out);
+		return CommandLine.ExitCode.OK;
 	}
 
 }

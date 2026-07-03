@@ -45,7 +45,7 @@ class GetCommandTest {
 	@Test
 	void testGetCommandShowsUsage() {
 		GetCommand getCommand = new GetCommand();
-		getCommand.run();
+		getCommand.call();
 
 		String output = outputStream.toString();
 		assertTrue(output.contains("get") || output.contains("Usage"));

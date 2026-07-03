@@ -3,6 +3,7 @@ package org.alexmond.jhelm.app.command;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
@@ -20,7 +21,7 @@ import picocli.CommandLine.Option;
 @Component
 @CommandLine.Command(name = "template", mixinStandardHelpOptions = true, description = "Locally render templates")
 @Slf4j
-public class TemplateCommand implements Runnable {
+public class TemplateCommand implements Callable<Integer> {
 
 	private final TemplateAction templateAction;
 
@@ -69,7 +70,7 @@ public class TemplateCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		try {
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
 					setFileValues, setJsonValues);
@@ -78,9 +79,11 @@ public class TemplateCommand implements Runnable {
 				manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
 			}
 			CliOutput.println(manifest);
+			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error rendering template: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
 		}
 	}
 

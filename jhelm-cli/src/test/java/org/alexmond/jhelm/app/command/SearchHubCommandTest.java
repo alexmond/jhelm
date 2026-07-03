@@ -110,7 +110,8 @@ class SearchHubCommandTest {
 
 		CommandLine cmd = new CommandLine(searchHubCommand);
 		int exitCode = cmd.execute("nginx");
-		assertEquals(0, exitCode);
+		// #647: a failed hub search must exit non-zero so callers can detect it.
+		assertEquals(CommandLine.ExitCode.SOFTWARE, exitCode);
 	}
 
 }

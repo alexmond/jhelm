@@ -52,7 +52,8 @@ class LintCommandTest {
 			.thenReturn(new LintAction.LintResult("./", List.of("chart name is required"), List.of()));
 		CommandLine cmd = new CommandLine(lintCommand);
 		int exitCode = cmd.execute(".");
-		assertEquals(0, exitCode);
+		// #647: a chart that fails lint must exit non-zero, like `helm lint`.
+		assertEquals(CommandLine.ExitCode.SOFTWARE, exitCode);
 	}
 
 }

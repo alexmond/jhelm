@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.app.command;
 
 import java.nio.file.Paths;
+import java.util.concurrent.Callable;
 
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.service.RegistryManager;
@@ -20,7 +21,7 @@ import picocli.CommandLine;
 @Component
 @CommandLine.Command(name = "env", mixinStandardHelpOptions = true,
 		description = "Print the jhelm client environment information")
-public class EnvCommand implements Runnable {
+public class EnvCommand implements Callable<Integer> {
 
 	private final RepoManager repoManager;
 
@@ -55,7 +56,7 @@ public class EnvCommand implements Runnable {
 	}
 
 	@Override
-	public void run() {
+	public Integer call() {
 		CliOutput.println("HELM_NAMESPACE=\"" + orDefault("HELM_NAMESPACE", "default") + "\"");
 		CliOutput.println("HELM_REPOSITORY_CONFIG=\"" + this.repoManager.getConfigPath() + "\"");
 		CliOutput.println("HELM_REPOSITORY_CACHE=\"" + this.repoManager.getRepositoryCachePath() + "\"");
@@ -65,6 +66,7 @@ public class EnvCommand implements Runnable {
 		CliOutput.println("JHELM_VERSION=\"" + VersionCommand.versionString() + "\"");
 		CliOutput.println("JAVA_VERSION=\"" + System.getProperty("java.version") + "\"");
 		CliOutput.println("OS=\"" + System.getProperty("os.name") + "/" + System.getProperty("os.arch") + "\"");
+		return CommandLine.ExitCode.OK;
 	}
 
 }
