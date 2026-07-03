@@ -34,8 +34,9 @@ at once: a *broad real-world conformance bar* and a *stable, extraction-ready en
   coalescing.
 
 | Real cluster
-| `.Capabilities` populated from the live cluster; `template --kube-version` /
-  `--api-versions` overrides for offline rendering.
+| `.Capabilities` populated from the live cluster and the `lookup` function querying it
+  (returning full resource data, as Helm does during install/upgrade); `template
+  --kube-version` / `--api-versions` overrides for offline rendering.
 
 | Provenance & security
 | Chart signing / verification (PGP), opt-in SSRF protection for server mode, and host-gated
