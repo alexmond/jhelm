@@ -1,9 +1,11 @@
-= jhelm -- Java Implementation of Helm
-:description: Native Java implementation of Helm — render charts, manage releases, and template without the Go binary. Embeddable library, Spring Boot starter, REST API, and CLI.
+= jhelm -- Helm on the JVM, and beyond
+:description: Helm on the JVM — byte-for-byte chart rendering across 540+ charts with no Go binary, plus value profiles, centralized config, and encrypted values that go beyond Helm.
 
 jhelm is a native Java implementation of the https://helm.sh[Helm] package manager for Kubernetes.
-It provides an embeddable library, a Spring Boot starter, a REST API, and a standalone CLI to
-work with Helm charts from the JVM -- without shelling out to the Go-based Helm binary.
+It provides an embeddable library, a Spring Boot starter, a REST API, an MCP server, and a
+standalone CLI to work with Helm charts from the JVM -- without shelling out to the Go-based Helm
+binary. It renders byte-for-byte like `helm template`, then goes *beyond Helm* with Spring-native
+value management -- profiles, centralized config, and encrypted secrets.
 
 == Helm-faithful rendering, in pure Java
 
@@ -25,6 +27,25 @@ Recognizable charts in the suite that render byte-for-byte include
 `grafana/grafana`, `grafana/loki`, `argo/argo-cd`, `cilium/cilium`, `traefik/traefik`, and
 the Bitnami `redis`, `postgresql`, and `mysql` charts — alongside 500+ more.
 
+== Beyond Helm
+
+Parity is the floor, not the ceiling. On top of a Helm-faithful renderer, jhelm adds
+Spring-native value management that Go Helm has no equivalent for. Each capability is
+*opt-in and inert by default*, so charts that don't use it still render byte-for-byte:
+
+* *Value profiles* -- Spring-Boot-style profiles select environment-specific values:
+  `jhelm template r ./chart -P prod,eu`, with document gating
+  (`spring.config.activate.on-profile`) and `values-<profile>.yaml` sidecars.
+* *Centralized configuration* -- fetch chart values from a git-backed
+  https://docs.spring.io/spring-cloud-config/reference/[Spring Cloud Config Server], so one
+  server holds the values for every release, behind auth and TLS.
+* *Encrypted values* -- commit `+{cipher}+` ciphertext to git and let jhelm decrypt it at
+  render time; `jhelm encrypt` / `decrypt` tokens are byte-compatible with Spring Cloud Config.
+
+Together these are the first steps toward the Spring Boot management platform on the
+xref:roadmap.adoc[roadmap] -- centralized config, a web UI, multi-tenancy, and audit/RBAC.
+See xref:value-profiles.adoc[Value Profiles] for the full model.
+
 == MCP-native
 
 The same operations are exposed as https://modelcontextprotocol.io[Model Context Protocol]
@@ -45,6 +66,8 @@ no shelling out, no glue code. See xref:mcp.adoc[MCP Server].
 * *MCP server* -- exposes jhelm operations as Model Context Protocol tools for AI agents (built on Spring AI)
 * *JSON Schema validation* -- validates chart values against `values.schema.json` (Draft-07)
 * *Async Kubernetes operations* -- Java 21 virtual threads via `AsyncKubeService`
+* *Value profiles* _(beyond Helm)_ -- Spring-Boot-style `-P` profiles with document gating and `values-<profile>.yaml` sidecars
+* *Centralized & encrypted values* _(beyond Helm)_ -- fetch values from a Spring Cloud Config Server and decrypt `+{cipher}+` secrets at render time
 
 == Technology Stack
 
@@ -61,6 +84,7 @@ no shelling out, no glue code. See xref:mcp.adoc[MCP Server].
 * xref:rest-api.adoc[REST API] -- HTTP endpoints and OpenAPI documentation
 * xref:mcp.adoc[MCP Server] -- jhelm operations as Model Context Protocol tools for AI agents
 * xref:cli-reference.adoc[CLI Reference] -- all commands, options, and examples
+* xref:value-profiles.adoc[Value Profiles] -- profiles, centralized config, and encrypted values beyond Helm
 * xref:configuration.adoc[Configuration] -- `jhelm.*` properties reference
 * xref:security.adoc[Security] -- the unified `jhelm.security.*` model for REST and MCP
 * xref:architecture.adoc[Architecture] -- module structure and design
