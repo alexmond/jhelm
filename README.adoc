@@ -1,5 +1,5 @@
 = jhelm
-:jhelm-version: 1.0.2
+:jhelm-version: 1.1.0
 :url-docs: https://www.alexmond.org/jhelm/current/
 :url-docs-mcp: https://www.alexmond.org/jhelm/current/mcp/
 :url-docs-rest: https://www.alexmond.org/jhelm/current/rest-api/
@@ -61,6 +61,10 @@ the Go-based Helm binary.
   Spring AI), mirroring the REST operation set with the same `READ_ONLY`/`FULL` access mode.
 * *JSON Schema validation* -- validates chart values against `values.schema.json` (Draft-07).
 * *Async Kubernetes operations* -- Java 21 virtual threads via `AsyncKubeService`.
+* *Value management beyond Helm* -- Spring-Boot-style value profiles (per-environment
+  overlays via `-P`/`--profile`), values sourced from a central Spring Cloud Config Server,
+  and `{cipher}`-encrypted secret values decrypted at render time (with `jhelm encrypt` /
+  `jhelm decrypt`). All opt-in; charts that don't use them render byte-for-byte as Go Helm.
 
 == Modules
 
@@ -76,7 +80,7 @@ the Go-based Helm binary.
 | `jhelm-mcp` | Model Context Protocol server exposing jhelm operations as AI-agent tools (built on Spring AI), mirroring the REST operation set.
 | `jhelm-mcp-starter` | Spring Boot starter that auto-configures the `jhelm-mcp` server, with a `READ_ONLY`/`FULL` access mode.
 | `jhelm-plugin` | Maven plugin for packaging charts as part of a build.
-| `jhelm-cli` | Standalone CLI (Spring Boot + Picocli) -- 22 Helm-compatible commands.
+| `jhelm-cli` | Standalone CLI (Spring Boot + Picocli) -- 22 Helm-compatible commands plus `encrypt`/`decrypt` for secret values.
 |===
 
 The Go template + Sprig engine lives in the separate
