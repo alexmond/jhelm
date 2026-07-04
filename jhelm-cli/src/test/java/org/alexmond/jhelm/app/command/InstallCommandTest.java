@@ -1,6 +1,8 @@
 package org.alexmond.jhelm.app.command;
 
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
+import org.alexmond.jhelm.core.config.ConfigServerProperties;
+import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -70,7 +72,7 @@ class InstallCommandTest {
 			.build();
 		when(chartResolver.resolve(anyString(), anyBoolean(), any())).thenReturn(defaultChart);
 		installCommand = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver, enabledPolicy(),
-				new JhelmCoreProperties());
+				new JhelmCoreProperties(), new ConfigServerValuesLoader(new ConfigServerProperties(), null));
 	}
 
 	private static JhelmSecurityPolicy enabledPolicy() {
@@ -126,7 +128,8 @@ class InstallCommandTest {
 		// run it.
 		File chartDir = createMockChart();
 		InstallCommand readOnly = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver,
-				readOnlyPolicy(), new JhelmCoreProperties());
+				readOnlyPolicy(), new JhelmCoreProperties(),
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null));
 
 		int exitCode = new CommandLine(readOnly).execute("my-release", chartDir.getAbsolutePath());
 
@@ -144,7 +147,8 @@ class InstallCommandTest {
 		File chartDir = createMockChart();
 		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("my-release", 1));
 		InstallCommand full = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver,
-				new JhelmSecurityPolicy(props), new JhelmCoreProperties());
+				new JhelmSecurityPolicy(props), new JhelmCoreProperties(),
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null));
 
 		int exitCode = new CommandLine(full).execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
 

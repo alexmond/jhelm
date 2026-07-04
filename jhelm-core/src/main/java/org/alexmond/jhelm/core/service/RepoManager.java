@@ -217,6 +217,18 @@ public class RepoManager {
 		ociClient = new OciRegistryClient(httpClient, blockPrivateNetworks);
 	}
 
+	/**
+	 * The SSRF-guarded HTTP client factory (validates fetch URLs, host-gates credentials,
+	 * applies TLS per the global {@code insecureSkipTlsVerify} /
+	 * {@code blockPrivateNetworks} policy). Shared with {@code ConfigServerClient} so a
+	 * config-server fetch rides the same audited path as repository index/chart
+	 * downloads.
+	 * @return the shared HTTP client factory
+	 */
+	RepoHttpClientFactory httpClientFactory() {
+		return httpClientFactory;
+	}
+
 	RepositoryConfig.Repository getRepository(String name) throws IOException {
 		RepositoryConfig config = loadConfig();
 		return config.getRepositories().stream().filter((r) -> r.getName().equals(name)).findFirst().orElse(null);

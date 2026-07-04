@@ -107,3 +107,60 @@ chart values.yaml (+ gated docs + sidecars)
   directory to resolve `values-<profile>.yaml` against).
 * With no active profile, loading is unchanged from earlier releases — the feature is
   inert until a profile is activated.
+
+== Fetching values from a Spring Cloud Config Server
+
+jhelm can also fetch values from a https://docs.spring.io/spring-cloud-config/reference/[Spring
+Cloud Config Server], so environment configuration can live centrally (git-backed) instead of
+in local files. It consumes the server's structured Environment endpoint
+(`GET {uri}/{application}/{profiles}[/{label}]`) and reuses the active profiles from above for
+the `{profiles}` path segment. Disabled by default.
+
+The server returns each document/file as a flat property source (dotted and `[i]`-indexed
+keys), highest precedence first. jhelm strips the `spring.config.activate.*` /
+`jhelm.config.activate.*` directives from each source (the server does not), un-flattens the
+keys into nested maps/lists, and merges the sources first-wins.
+
+=== Enabling and precedence
+
+Setting `--config-server-uri` (or `jhelm.config-server.enabled=true` + `uri`) turns it on. By
+default the config server sits between local files and `--set` — matching Spring Boot's
+config-data model, where command-line args outrank imported config-server values:
+
+[source,text]
+----
+chart values < -f / profile files < CONFIG SERVER < --set family
+----
+
+Two flags mirror Spring's knobs:
+
+* `jhelm.config-server.override-none=true` — config server drops to the *lowest* precedence
+  (every local file and `--set` wins). Mirrors `spring.cloud.config.override-none`.
+* `jhelm.config-server.override-system-properties=true` — config server moves *above* the
+  `--set` family. Mirrors `spring.cloud.config.override-system-properties`.
+
+=== CLI options (on `template`/`install`/`upgrade`)
+
+[cols="1,2",options="header"]
+|===
+| Option | Meaning
+| `--config-server-uri` | config-server base URI (enables the source)
+| `--config-name`       | application name (default: release name)
+| `--config-label`      | label / git branch (default: server default)
+| `--config-username` / `--config-password` | basic auth
+| `--config-token`      | bearer token (takes precedence over basic auth)
+| `--config-fail-fast`  | abort if the server is unreachable (default: warn and continue)
+|===
+
+The matching properties are `jhelm.config-server.{enabled,uri,name,label,username,password,token,fail-fast,override-none,override-system-properties}`;
+a CLI option overrides the corresponding property. Because these bind via Spring, the config
+server is available to the library, REST, and MCP surfaces too, not only the CLI.
+
+=== Security
+
+The config-server fetch uses jhelm's SSRF-guarded HTTP path (the same one used for chart
+repositories): the URL is validated, credentials are host-gated, and TLS follows
+`jhelm.insecure-skip-tls-verify`. In server mode (`jhelm.security.block-private-networks=true`)
+a private/site-local config-server host is refused, closing the SSRF vector for a
+user-supplied URI. `fail-fast=false` (the default) logs a warning and continues with local
+values when the server is unreachable.

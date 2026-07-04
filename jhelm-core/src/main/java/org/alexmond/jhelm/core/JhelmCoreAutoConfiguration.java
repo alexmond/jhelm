@@ -3,6 +3,7 @@ package org.alexmond.jhelm.core;
 import java.util.List;
 
 import org.alexmond.jhelm.core.cache.TemplateCache;
+import org.alexmond.jhelm.core.config.ConfigServerProperties;
 import org.alexmond.jhelm.core.config.JhelmAccessMode;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
@@ -35,6 +36,8 @@ import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.ConfigServerClient;
+import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.LifecycleListener;
@@ -52,7 +55,8 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
  */
 @Slf4j
 @AutoConfiguration(after = JhelmMetricsAutoConfiguration.class)
-@EnableConfigurationProperties({ JhelmCoreProperties.class, JhelmSecurityProperties.class })
+@EnableConfigurationProperties({ JhelmCoreProperties.class, JhelmSecurityProperties.class,
+		ConfigServerProperties.class })
 public class JhelmCoreAutoConfiguration {
 
 	/**
@@ -108,6 +112,33 @@ public class JhelmCoreAutoConfiguration {
 				: new RepoManager(registryManager, props.isInsecureSkipTlsVerify(), blockPrivate);
 		repoManager.setMetrics(metrics.getIfAvailable());
 		return repoManager;
+	}
+
+	/**
+	 * Client that fetches chart values from a Spring Cloud Config Server over the shared
+	 * SSRF-guarded HTTP path.
+	 * @param repoManager provides the SSRF-guarded HTTP client factory
+	 * @return the config-server client bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public ConfigServerClient configServerClient(RepoManager repoManager) {
+		return new ConfigServerClient(repoManager);
+	}
+
+	/**
+	 * Resolves and fetches config-server values (merging {@code jhelm.config-server.*}
+	 * with per-command overrides), honoring fail-fast and the precedence flags. Disabled
+	 * by default.
+	 * @param configServerProperties the config-server configuration
+	 * @param configServerClient the config-server client
+	 * @return the config-server values loader bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public ConfigServerValuesLoader configServerValuesLoader(ConfigServerProperties configServerProperties,
+			ConfigServerClient configServerClient) {
+		return new ConfigServerValuesLoader(configServerProperties, configServerClient);
 	}
 
 	/**

@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
+import org.alexmond.jhelm.core.config.ConfigServerProperties;
+import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.util.ValuesProfiles;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,7 +31,8 @@ class TemplateCommandTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		templateCommand = new TemplateCommand(templateAction, new JhelmCoreProperties());
+		templateCommand = new TemplateCommand(templateAction, new JhelmCoreProperties(),
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null));
 	}
 
 	@Test
@@ -72,7 +75,8 @@ class TemplateCommandTest {
 	}
 
 	private ValuesProfiles runAndCaptureProfiles(JhelmCoreProperties props, String... args) {
-		TemplateCommand command = new TemplateCommand(templateAction, props);
+		TemplateCommand command = new TemplateCommand(templateAction, props,
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null));
 		ArgumentCaptor<ValuesProfiles> captor = ArgumentCaptor.forClass(ValuesProfiles.class);
 		when(templateAction.render(anyString(), anyString(), anyString(), anyMap(), captor.capture(), any(), anyList()))
 			.thenReturn("---\n");

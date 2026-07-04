@@ -16,6 +16,7 @@ import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
@@ -45,6 +46,11 @@ public class InstallCommand implements Callable<Integer> {
 	private final JhelmSecurityPolicy securityPolicy;
 
 	private final JhelmCoreProperties coreProperties;
+
+	private final ConfigServerValuesLoader configServerValuesLoader;
+
+	@CommandLine.Mixin
+	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
@@ -121,13 +127,15 @@ public class InstallCommand implements Callable<Integer> {
 	 * mutating operations are enabled
 	 */
 	public InstallCommand(InstallAction installAction, UninstallAction uninstallAction, KubeService kubeService,
-			ChartResolver chartResolver, JhelmSecurityPolicy securityPolicy, JhelmCoreProperties coreProperties) {
+			ChartResolver chartResolver, JhelmSecurityPolicy securityPolicy, JhelmCoreProperties coreProperties,
+			ConfigServerValuesLoader configServerValuesLoader) {
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
 		this.kubeService = kubeService;
 		this.chartResolver = chartResolver;
 		this.securityPolicy = securityPolicy;
 		this.coreProperties = coreProperties;
+		this.configServerValuesLoader = configServerValuesLoader;
 	}
 
 	@Override
@@ -139,8 +147,11 @@ public class InstallCommand implements Callable<Integer> {
 			boolean dryRunEnabled = resolveDryRun();
 			ValuesProfiles profiles = ValuesProfiles
 				.of(profileNames.isEmpty() ? coreProperties.getProfiles().getActive() : profileNames);
+			ConfigServerValuesLoader.Result configServer = configServerValuesLoader.load(name, profiles.active(),
+					configServerOptions.toOptions());
 			Chart chart = chartResolver.resolve(chartPath, verify, keyring, profiles);
-			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, setValues, setStringValues,
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, configServer.values(),
+					configServer.overrideNone(), configServer.overrideSystemProperties(), setValues, setStringValues,
 					setFileValues, setJsonValues);
 
 			Release release = installAction.install(InstallOptions.builder()
