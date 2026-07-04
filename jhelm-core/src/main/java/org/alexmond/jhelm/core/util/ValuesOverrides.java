@@ -100,6 +100,64 @@ public final class ValuesOverrides {
 	 */
 	public static Map<String, Object> parse(List<String> files, ValuesProfiles profiles, List<String> setArgs,
 			List<String> setStringArgs, List<String> setFileArgs, List<String> setJsonArgs) throws IOException {
+		return parse(files, profiles, null, false, false, setArgs, setStringArgs, setFileArgs, setJsonArgs);
+	}
+
+	/**
+	 * Build a merged override map that also folds in values fetched from a config server,
+	 * honoring the config-server precedence flags. The default order (increasing
+	 * precedence) is: {@code -f} files &rarr; config server &rarr; {@code --set} family.
+	 * The flags mirror Spring Cloud Config:
+	 * <ul>
+	 * <li>{@code overrideNone} &mdash; config server drops to the <em>lowest</em>
+	 * precedence (files and {@code --set} win).</li>
+	 * <li>{@code overrideSystemProperties} &mdash; config server moves <em>above</em> the
+	 * {@code --set} family (remote wins over the command line).</li>
+	 * </ul>
+	 * These apply within the override map only; chart defaults (merged by the action)
+	 * always sit below.
+	 * @param files paths to YAML values files; {@code null} or empty means none
+	 * @param profiles the active value profiles applied to each file
+	 * @param configServerValues values fetched from a config server; {@code null}/empty
+	 * means none
+	 * @param overrideNone config server drops to lowest precedence
+	 * @param overrideSystemProperties config server outranks the {@code --set} family
+	 * @param setArgs {@code key=value} strings, coerced to typed scalars
+	 * @param setStringArgs {@code key=value} strings kept as raw strings
+	 * @param setFileArgs {@code key=path} strings whose value is the file contents
+	 * @param setJsonArgs {@code key=json} strings whose value is parsed as JSON
+	 * @return merged override map
+	 * @throws IOException if any values file cannot be read
+	 */
+	public static Map<String, Object> parse(List<String> files, ValuesProfiles profiles,
+			Map<String, Object> configServerValues, boolean overrideNone, boolean overrideSystemProperties,
+			List<String> setArgs, List<String> setStringArgs, List<String> setFileArgs, List<String> setJsonArgs)
+			throws IOException {
+		Map<String, Object> fileValues = loadFiles(files, profiles);
+		Map<String, Object> configValues = (configServerValues != null) ? configServerValues : Map.of();
+		Map<String, Object> merged = new HashMap<>();
+		if (overrideNone) {
+			// config server = defaults: lowest precedence.
+			ValuesLoader.deepMerge(merged, configValues);
+			ValuesLoader.deepMerge(merged, fileValues);
+			applySetFamily(merged, setArgs, setStringArgs, setFileArgs, setJsonArgs);
+		}
+		else if (overrideSystemProperties) {
+			// config server above the --set family.
+			ValuesLoader.deepMerge(merged, fileValues);
+			applySetFamily(merged, setArgs, setStringArgs, setFileArgs, setJsonArgs);
+			ValuesLoader.deepMerge(merged, configValues);
+		}
+		else {
+			// default: files < config server < --set.
+			ValuesLoader.deepMerge(merged, fileValues);
+			ValuesLoader.deepMerge(merged, configValues);
+			applySetFamily(merged, setArgs, setStringArgs, setFileArgs, setJsonArgs);
+		}
+		return merged;
+	}
+
+	private static Map<String, Object> loadFiles(List<String> files, ValuesProfiles profiles) throws IOException {
 		Map<String, Object> merged = new HashMap<>();
 		if (files != null) {
 			for (String path : files) {
@@ -113,6 +171,11 @@ public final class ValuesOverrides {
 				ValuesLoader.deepMerge(merged, fileValues);
 			}
 		}
+		return merged;
+	}
+
+	private static void applySetFamily(Map<String, Object> merged, List<String> setArgs, List<String> setStringArgs,
+			List<String> setFileArgs, List<String> setJsonArgs) {
 		if (setArgs != null) {
 			for (String arg : setArgs) {
 				applySet(merged, arg);
@@ -133,7 +196,6 @@ public final class ValuesOverrides {
 				applySetJson(merged, arg);
 			}
 		}
-		return merged;
 	}
 
 	/**

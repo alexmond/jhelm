@@ -24,6 +24,7 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
 import org.alexmond.jhelm.core.util.ValuesProfiles;
 import org.springframework.stereotype.Component;
@@ -55,6 +56,11 @@ public class UpgradeCommand implements Callable<Integer> {
 	private final JhelmSecurityPolicy securityPolicy;
 
 	private final JhelmCoreProperties coreProperties;
+
+	private final ConfigServerValuesLoader configServerValuesLoader;
+
+	@CommandLine.Mixin
+	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
@@ -159,7 +165,8 @@ public class UpgradeCommand implements Callable<Integer> {
 	 */
 	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UninstallAction uninstallAction,
 			UpgradeAction upgradeAction, RollbackAction rollbackAction, ChartResolver chartResolver,
-			JhelmSecurityPolicy securityPolicy, JhelmCoreProperties coreProperties) {
+			JhelmSecurityPolicy securityPolicy, JhelmCoreProperties coreProperties,
+			ConfigServerValuesLoader configServerValuesLoader) {
 		this.kubeService = kubeService;
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
@@ -168,6 +175,7 @@ public class UpgradeCommand implements Callable<Integer> {
 		this.chartResolver = chartResolver;
 		this.securityPolicy = securityPolicy;
 		this.coreProperties = coreProperties;
+		this.configServerValuesLoader = configServerValuesLoader;
 	}
 
 	@Override
@@ -182,8 +190,11 @@ public class UpgradeCommand implements Callable<Integer> {
 			Optional<Release> currentReleaseOpt = kubeService.getRelease(name, namespace);
 			ValuesProfiles profiles = ValuesProfiles
 				.of(profileNames.isEmpty() ? coreProperties.getProfiles().getActive() : profileNames);
+			ConfigServerValuesLoader.Result configServer = configServerValuesLoader.load(name, profiles.active(),
+					configServerOptions.toOptions());
 			Chart chart = chartResolver.resolve(chartPath, verify, keyring, profiles);
-			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, setValues, setStringValues,
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, configServer.values(),
+					configServer.overrideNone(), configServer.overrideSystemProperties(), setValues, setStringValues,
 					setFileValues, setJsonValues);
 
 			if (currentReleaseOpt.isEmpty()) {

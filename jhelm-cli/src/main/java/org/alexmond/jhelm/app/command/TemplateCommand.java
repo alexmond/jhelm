@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
+import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
 import org.alexmond.jhelm.core.util.ValuesProfiles;
@@ -28,6 +29,11 @@ public class TemplateCommand implements Callable<Integer> {
 	private final TemplateAction templateAction;
 
 	private final JhelmCoreProperties coreProperties;
+
+	private final ConfigServerValuesLoader configServerValuesLoader;
+
+	@CommandLine.Mixin
+	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
 
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
@@ -74,10 +80,14 @@ public class TemplateCommand implements Callable<Integer> {
 	 * Creates the command.
 	 * @param templateAction the action that renders chart templates
 	 * @param coreProperties core config, for the default active value profiles
+	 * @param configServerValuesLoader loads chart values from a config server (disabled
+	 * by default)
 	 */
-	public TemplateCommand(TemplateAction templateAction, JhelmCoreProperties coreProperties) {
+	public TemplateCommand(TemplateAction templateAction, JhelmCoreProperties coreProperties,
+			ConfigServerValuesLoader configServerValuesLoader) {
 		this.templateAction = templateAction;
 		this.coreProperties = coreProperties;
+		this.configServerValuesLoader = configServerValuesLoader;
 	}
 
 	@Override
@@ -85,7 +95,10 @@ public class TemplateCommand implements Callable<Integer> {
 		try {
 			ValuesProfiles profiles = ValuesProfiles
 				.of(profileNames.isEmpty() ? coreProperties.getProfiles().getActive() : profileNames);
-			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, setValues, setStringValues,
+			ConfigServerValuesLoader.Result configServer = configServerValuesLoader.load(name, profiles.active(),
+					configServerOptions.toOptions());
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, configServer.values(),
+					configServer.overrideNone(), configServer.overrideSystemProperties(), setValues, setStringValues,
 					setFileValues, setJsonValues);
 			String manifest = templateAction.render(chartPath, name, namespace, overrides, profiles, kubeVersion,
 					apiVersions);
