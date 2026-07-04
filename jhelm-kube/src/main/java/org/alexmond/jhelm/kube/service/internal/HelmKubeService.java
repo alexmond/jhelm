@@ -652,20 +652,39 @@ public class HelmKubeService implements KubeService {
 	private ResourceStatus checkPod(String namespace, String name) throws ApiException {
 		CoreV1Api api = new CoreV1Api(apiClient);
 		V1Pod pod = api.readNamespacedPod(name, namespace).execute();
-		boolean isReady = "Running".equals(pod.getStatus().getPhase()) && pod.getStatus().getConditions() != null
-				&& pod.getStatus()
-					.getConditions()
-					.stream()
-					.filter((c) -> "Ready".equals(c.getType()))
-					.anyMatch((c) -> "True".equals(c.getStatus()));
-		String message = isReady ? "ready" : pod.getStatus().getPhase();
+		String phase = pod.getStatus().getPhase();
+		// A completion-style pod (e.g. a `helm test` hook with restartPolicy: Never)
+		// terminates in Succeeded/Failed and never reaches Running, so treat the terminal
+		// phases as done: Succeeded = ready/passed, Failed = a terminal failure the
+		// waiter
+		// should fail fast on rather than poll to the timeout (#666 follow-up). A
+		// long-lived
+		// pod is ready only when Running with a True Ready condition.
+		boolean readyCondition = pod.getStatus().getConditions() != null && pod.getStatus()
+			.getConditions()
+			.stream()
+			.filter((c) -> "Ready".equals(c.getType()))
+			.anyMatch((c) -> "True".equals(c.getStatus()));
+		boolean isReady = isPodReady(phase, readyCondition);
+		boolean terminal = "Failed".equals(phase);
+		String message = isReady ? "ready" : phase;
 		return ResourceStatus.builder()
 			.kind("Pod")
 			.name(name)
 			.namespace(namespace)
 			.ready(isReady)
+			.terminal(terminal)
 			.message(message)
 			.build();
+	}
+
+	// A pod counts as ready/done when it has Succeeded (a completion pod, e.g. a `helm
+	// test`
+	// hook, exits 0) or is Running with a True Ready condition (a long-lived pod). Failed
+	// is
+	// handled separately as terminal. Package-private for testing.
+	static boolean isPodReady(String phase, boolean readyCondition) {
+		return "Succeeded".equals(phase) || ("Running".equals(phase) && readyCondition);
 	}
 
 	/**
@@ -681,6 +700,17 @@ public class HelmKubeService implements KubeService {
 			boolean allReady = statuses.stream().allMatch(ResourceStatus::isReady);
 			if (allReady) {
 				return;
+			}
+
+			// A resource in a terminal failure state (e.g. a Failed test/hook pod) will
+			// never
+			// become ready — fail fast instead of polling to the timeout.
+			List<ResourceStatus> failed = statuses.stream().filter((s) -> s.isTerminal() && !s.isReady()).toList();
+			if (!failed.isEmpty()) {
+				String msg = failed.stream()
+					.map((s) -> s.getKind() + "/" + s.getName() + ": " + s.getMessage())
+					.collect(Collectors.joining(", "));
+				throw new WaitTimeoutException("Resource(s) terminally failed: " + msg, failed);
 			}
 
 			long remaining = deadline - System.currentTimeMillis();

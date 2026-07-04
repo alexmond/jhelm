@@ -32,4 +32,11 @@ public class ResourceStatus {
 	 */
 	private String message;
 
+	/**
+	 * {@code true} if the resource has reached a terminal <em>failure</em> state it
+	 * cannot recover from (e.g. a Pod whose phase is {@code Failed}). A waiter should
+	 * stop and fail fast rather than poll to the timeout. Defaults to {@code false}.
+	 */
+	private boolean terminal;
+
 }
