@@ -1,0 +1,4 @@
+apiVersion: v2
+name: profiles-test
+version: 1.0.0
+description: Chart exercising spring.config.activate.on-profile gating and values-<profile>.yaml sidecars

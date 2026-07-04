@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: profiles-test
+data:
+  replicas: {{ .Values.replicas | quote }}
+  tag: {{ .Values.image.tag | quote }}
+  values: |
+{{ .Values | toYaml | indent 4 }}

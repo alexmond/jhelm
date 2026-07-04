@@ -1,0 +1,3 @@
+replicas: 2
+image:
+  tag: staging

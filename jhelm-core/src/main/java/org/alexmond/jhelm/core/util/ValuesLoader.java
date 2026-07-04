@@ -24,6 +24,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -114,19 +115,59 @@ public final class ValuesLoader {
 	 * @return merged values map (empty map if file has no non-null documents)
 	 * @throws IOException if the file cannot be read
 	 */
-	@SuppressWarnings("unchecked")
 	public static Map<String, Object> load(File valuesFile) throws IOException {
-		LoadSettings settings = LoadSettings.builder().setSchema(HELM_SCHEMA).build();
-		Load load = new Load(settings);
+		return load(valuesFile, ValuesProfiles.none());
+	}
+
+	/**
+	 * Loads a YAML values file with profile resolution: multi-document
+	 * {@code spring.config.activate.on-profile} gating, directive-key stripping, and
+	 * {@code <name>-<profile>.<ext>} sidecar files applied after the base file in profile
+	 * order (later profiles win). With {@link ValuesProfiles#none()} and a file that uses
+	 * no directive, the result is identical to a plain multi-document merge.
+	 * @param valuesFile the base YAML file to load
+	 * @param profiles the active profiles
+	 * @return merged values map (empty if the file has no applicable documents)
+	 * @throws IOException if the file cannot be read
+	 */
+	public static Map<String, Object> load(File valuesFile, ValuesProfiles profiles) throws IOException {
 		Map<String, Object> merged = new LinkedHashMap<>();
 		try (Reader reader = new FileReader(valuesFile, StandardCharsets.UTF_8)) {
-			for (Object doc : load.loadAllFromReader(reader)) {
-				if (doc instanceof Map) {
-					deepMerge(merged, (Map<String, Object>) stringifyKeys(doc));
+			mergeGatedDocuments(readDocuments(reader), profiles, merged);
+		}
+		for (String profile : profiles.active()) {
+			File sidecar = sidecarFile(valuesFile, profile);
+			if (sidecar.isFile()) {
+				try (Reader reader = new FileReader(sidecar, StandardCharsets.UTF_8)) {
+					mergeGatedDocuments(readDocuments(reader), profiles, merged);
 				}
 			}
 		}
 		return merged;
+	}
+
+	private static Iterable<Object> readDocuments(Reader reader) {
+		LoadSettings settings = LoadSettings.builder().setSchema(HELM_SCHEMA).build();
+		return new Load(settings).loadAllFromReader(reader);
+	}
+
+	/**
+	 * Merges each document, applying {@code spring.config.activate.on-profile} gating and
+	 * stripping the directive keys so they never reach {@code .Values}.
+	 */
+	@SuppressWarnings("unchecked")
+	private static void mergeGatedDocuments(Iterable<Object> documents, ValuesProfiles profiles,
+			Map<String, Object> merged) {
+		for (Object doc : documents) {
+			if (doc instanceof Map) {
+				Map<String, Object> map = (Map<String, Object>) stringifyKeys(doc);
+				String expression = onProfileExpression(map);
+				stripActivationKeys(map);
+				if (profiles.matches(expression)) {
+					deepMerge(merged, map);
+				}
+			}
+		}
 	}
 
 	/**
@@ -145,8 +186,20 @@ public final class ValuesLoader {
 	 * @return merged values map
 	 * @throws IOException if the URL cannot be fetched or parsed
 	 */
-	@SuppressWarnings("unchecked")
 	public static Map<String, Object> loadFromUrl(String url) throws IOException {
+		return loadFromUrl(url, ValuesProfiles.none());
+	}
+
+	/**
+	 * Downloads YAML content from a URL and parses it as profile-resolved values
+	 * (multi-document {@code on-profile} gating + directive stripping). Sidecar files are
+	 * not resolved for URLs.
+	 * @param url the HTTP/HTTPS URL to download
+	 * @param profiles the active profiles
+	 * @return merged values map
+	 * @throws IOException if the URL cannot be fetched or parsed
+	 */
+	public static Map<String, Object> loadFromUrl(String url, ValuesProfiles profiles) throws IOException {
 		String body;
 		try (HttpClient client = HttpClient.newBuilder()
 			.connectTimeout(Duration.ofSeconds(30))
@@ -169,15 +222,9 @@ public final class ValuesLoader {
 			throw new IOException("Interrupted while fetching values from URL: " + url, ex);
 		}
 
-		LoadSettings settings = LoadSettings.builder().setSchema(HELM_SCHEMA).build();
-		Load load = new Load(settings);
 		Map<String, Object> merged = new LinkedHashMap<>();
 		try (Reader reader = new StringReader(body)) {
-			for (Object doc : load.loadAllFromReader(reader)) {
-				if (doc instanceof Map) {
-					deepMerge(merged, (Map<String, Object>) stringifyKeys(doc));
-				}
-			}
+			mergeGatedDocuments(readDocuments(reader), profiles, merged);
 		}
 		return merged;
 	}
@@ -208,6 +255,79 @@ public final class ValuesLoader {
 			return out;
 		}
 		return value;
+	}
+
+	/**
+	 * Reads the {@code spring.config.activate.on-profile} expression from a document,
+	 * accepting either the flat dotted key or the nested map form. Returns {@code null}
+	 * when the directive is absent (document always applies).
+	 */
+	private static String onProfileExpression(Map<String, Object> doc) {
+		Object flat = doc.get(ValuesProfiles.ON_PROFILE_KEY);
+		if (flat != null) {
+			return String.valueOf(flat);
+		}
+		Object nested = nestedGet(doc, "spring", "config", "activate", "on-profile");
+		return (nested != null) ? String.valueOf(nested) : null;
+	}
+
+	private static Object nestedGet(Map<String, Object> map, String... path) {
+		Object current = map;
+		for (String key : path) {
+			if (!(current instanceof Map<?, ?> m)) {
+				return null;
+			}
+			current = m.get(key);
+		}
+		return current;
+	}
+
+	/**
+	 * Removes the {@code spring.config.activate.*} directive keys (both the flat dotted
+	 * form and the nested map form) so they never surface in {@code .Values}, pruning any
+	 * container map that becomes empty as a result.
+	 */
+	@SuppressWarnings("unchecked")
+	private static void stripActivationKeys(Map<String, Object> doc) {
+		doc.remove(ValuesProfiles.ON_PROFILE_KEY);
+		doc.remove(ValuesProfiles.ON_CLOUD_PLATFORM_KEY);
+		Object activate = nestedGet(doc, "spring", "config", "activate");
+		if (activate instanceof Map<?, ?> activateMap) {
+			Map<String, Object> map = (Map<String, Object>) activateMap;
+			map.remove("on-profile");
+			map.remove("on-cloud-platform");
+			pruneEmpty(doc, "spring", "config", "activate");
+		}
+	}
+
+	/** Removes empty container maps along {@code path}, deepest first. */
+	@SuppressWarnings("unchecked")
+	private static void pruneEmpty(Map<String, Object> root, String... path) {
+		for (int depth = path.length; depth >= 1; depth--) {
+			Object node = nestedGet(root, Arrays.copyOf(path, depth));
+			if (node instanceof Map<?, ?> m && m.isEmpty()) {
+				Map<String, Object> parent = (depth == 1) ? root
+						: (Map<String, Object>) nestedGet(root, Arrays.copyOf(path, depth - 1));
+				if (parent != null) {
+					parent.remove(path[depth - 1]);
+				}
+			}
+			else {
+				return;
+			}
+		}
+	}
+
+	/**
+	 * Resolves the {@code <name>-<profile>.<ext>} sidecar file next to {@code base} (e.g.
+	 * {@code values.yaml} &rarr; {@code values-prod.yaml}).
+	 */
+	private static File sidecarFile(File base, String profile) {
+		String name = base.getName();
+		int dot = name.lastIndexOf('.');
+		String stem = (dot >= 0) ? name.substring(0, dot) : name;
+		String ext = (dot >= 0) ? name.substring(dot) : "";
+		return new File(base.getParentFile(), stem + "-" + profile + ext);
 	}
 
 	@SuppressWarnings("unchecked")

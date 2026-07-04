@@ -18,12 +18,14 @@ import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
+import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
+import org.alexmond.jhelm.core.util.ValuesProfiles;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
@@ -52,6 +54,8 @@ public class UpgradeCommand implements Callable<Integer> {
 
 	private final JhelmSecurityPolicy securityPolicy;
 
+	private final JhelmCoreProperties coreProperties;
+
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
 
@@ -77,6 +81,11 @@ public class UpgradeCommand implements Callable<Integer> {
 	private boolean dryRunEnabled;
 
 	private boolean serverDryRun;
+
+	@Option(names = { "-P", "--profile" }, split = ",",
+			description = "active value profile(s): gate spring.config.activate.on-profile documents and select "
+					+ "values-<profile>.yaml sidecars (comma-separated or repeatable)")
+	private List<String> profileNames = new ArrayList<>();
 
 	@Option(names = { "-f", "--values" }, description = "specify values YAML files")
 	private List<String> valuesFiles = new ArrayList<>();
@@ -150,7 +159,7 @@ public class UpgradeCommand implements Callable<Integer> {
 	 */
 	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UninstallAction uninstallAction,
 			UpgradeAction upgradeAction, RollbackAction rollbackAction, ChartResolver chartResolver,
-			JhelmSecurityPolicy securityPolicy) {
+			JhelmSecurityPolicy securityPolicy, JhelmCoreProperties coreProperties) {
 		this.kubeService = kubeService;
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
@@ -158,6 +167,7 @@ public class UpgradeCommand implements Callable<Integer> {
 		this.rollbackAction = rollbackAction;
 		this.chartResolver = chartResolver;
 		this.securityPolicy = securityPolicy;
+		this.coreProperties = coreProperties;
 	}
 
 	@Override
@@ -170,8 +180,10 @@ public class UpgradeCommand implements Callable<Integer> {
 		try {
 			this.dryRunEnabled = resolveDryRun();
 			Optional<Release> currentReleaseOpt = kubeService.getRelease(name, namespace);
-			Chart chart = chartResolver.resolve(chartPath, verify, keyring);
-			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
+			ValuesProfiles profiles = ValuesProfiles
+				.of(profileNames.isEmpty() ? coreProperties.getProfiles().getActive() : profileNames);
+			Chart chart = chartResolver.resolve(chartPath, verify, keyring, profiles);
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, setValues, setStringValues,
 					setFileValues, setJsonValues);
 
 			if (currentReleaseOpt.isEmpty()) {
