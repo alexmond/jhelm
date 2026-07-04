@@ -1,5 +1,36 @@
 = Changelog
 
+== 1.1.0
+
+The first release to extend *beyond Helm parity*: a Spring-Boot-style value-management layer —
+profiles, a Spring Cloud Config Server source, and encrypted secret values — layered on top of
+the Helm-compatible core. Every addition is opt-in; charts that don't use these features render
+byte-for-byte as Go Helm.
+
+=== Features
+
+* *Value profiles* -- keep environment-specific values (dev, staging, prod, …) in one place and
+  activate them at render/install/upgrade time with `-P`/`--profile`, mirroring Spring Boot.
+  Profiles come from `---`-separated documents gated by `spring.config.activate.on-profile` or
+  from `values-<profile>.yaml` sidecars, and apply to a chart's own `values.yaml` and to `-f`
+  files (#670).
+* *Values from a Spring Cloud Config Server* -- fetch values from a central, git-backed
+  https://docs.spring.io/spring-cloud-config/reference/[Spring Cloud Config Server] over jhelm's
+  SSRF-guarded HTTP path, reusing the active profiles for the requested profile and slotting into
+  the override order the way Spring Boot's config-data model does. Disabled by default (#671).
+* *Encrypted values* -- `{cipher}<hex>` secret tokens in any values source are decrypted at
+  render time when `jhelm.encrypt.key` is set, byte-compatible with Spring Cloud Config's
+  encryption. Ships a `jhelm encrypt` / `jhelm decrypt` CLI tool and a runnable, secured
+  `jhelm-config-server-sample` module as a DevOps starting point and test fixture. Inert unless a
+  key is configured (#674).
+
+=== Fixes
+
+* *`jhelm test` no longer hangs on a completed pod* -- terminal pod phases (`Succeeded`/`Failed`)
+  are handled instead of being waited on indefinitely (#668).
+* *Manifests apply/delete as unstructured maps* -- resources are applied and deleted as
+  unstructured maps rather than typed models, fixing kinds the typed path mishandled (#666).
+
 == 1.0.2
 
 A maintenance release fixing two bugs found in triage. No public API changes.
