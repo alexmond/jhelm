@@ -21,6 +21,8 @@ import org.alexmond.jhelm.app.command.ShowCommand;
 import org.alexmond.jhelm.app.command.StatusCommand;
 import org.alexmond.jhelm.app.command.TemplateCommand;
 import org.alexmond.jhelm.app.command.TestCommand;
+import org.alexmond.jhelm.app.command.DecryptCommand;
+import org.alexmond.jhelm.app.command.EncryptCommand;
 import org.alexmond.jhelm.app.command.EnvCommand;
 import org.alexmond.jhelm.app.command.UninstallCommand;
 import org.alexmond.jhelm.app.command.VersionCommand;
@@ -54,7 +56,7 @@ import picocli.CommandLine;
 				RollbackCommand.class, ShowCommand.class, GetCommand.class, TestCommand.class, DependencyCommand.class,
 				PullCommand.class, PushCommand.class, PackageCommand.class, VerifyCommand.class, LintCommand.class,
 				RepoCommand.class, RegistryCommand.class, PluginCommand.class, SearchCommand.class,
-				VersionCommand.class, EnvCommand.class })
+				VersionCommand.class, EnvCommand.class, EncryptCommand.class, DecryptCommand.class })
 public class JHelmCommand implements Callable<Integer> {
 
 	private final Environment environment;

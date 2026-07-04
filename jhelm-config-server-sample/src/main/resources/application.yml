@@ -1,0 +1,36 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: jhelm-config-server-sample
+  # The config server's "native" backend serves configs from the classpath/filesystem
+  # instead of a Git repo — self-contained, ideal for a demo and for tests.
+  profiles:
+    active: native
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: classpath:/config/
+        encrypt:
+          # Serve {cipher} tokens verbatim so the CLIENT (jhelm) decrypts them. This
+          # showcases jhelm's client-side decryption and keeps the key off the wire.
+          # Set to true to have the server decrypt values before serving instead.
+          enabled: false
+  # HTTP basic auth. Demo credentials — change them for any real deployment.
+  security:
+    user:
+      name: configuser
+      password: configpass
+      roles: USER
+
+# Symmetric key used for {cipher} encrypt/decrypt. This MUST match the key jhelm uses
+# (jhelm.encrypt.key / --key) for client-side decryption to succeed. Demo value — replace
+# with a strong secret from your secret store in production.
+encrypt:
+  key: jhelm-demo-encrypt-key
+
+logging:
+  level:
+    org.springframework.cloud.config: INFO

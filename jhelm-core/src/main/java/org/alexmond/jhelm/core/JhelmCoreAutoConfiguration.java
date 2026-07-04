@@ -6,6 +6,7 @@ import org.alexmond.jhelm.core.cache.TemplateCache;
 import org.alexmond.jhelm.core.config.ConfigServerProperties;
 import org.alexmond.jhelm.core.config.JhelmAccessMode;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
+import org.alexmond.jhelm.core.config.JhelmEncryptProperties;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
@@ -39,6 +40,7 @@ import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.ConfigServerClient;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.service.Engine;
+import org.alexmond.jhelm.core.service.ValueEncryptor;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.LifecycleListener;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
@@ -55,8 +57,8 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
  */
 @Slf4j
 @AutoConfiguration(after = JhelmMetricsAutoConfiguration.class)
-@EnableConfigurationProperties({ JhelmCoreProperties.class, JhelmSecurityProperties.class,
-		ConfigServerProperties.class })
+@EnableConfigurationProperties({ JhelmCoreProperties.class, JhelmSecurityProperties.class, ConfigServerProperties.class,
+		JhelmEncryptProperties.class })
 public class JhelmCoreAutoConfiguration {
 
 	/**
@@ -139,6 +141,19 @@ public class JhelmCoreAutoConfiguration {
 	public ConfigServerValuesLoader configServerValuesLoader(ConfigServerProperties configServerProperties,
 			ConfigServerClient configServerClient) {
 		return new ConfigServerValuesLoader(configServerProperties, configServerClient);
+	}
+
+	/**
+	 * Decrypts {@code {cipher}} values in resolved chart values. A no-op unless
+	 * {@code jhelm.encrypt.key} is set.
+	 * @param encryptProperties the value-encryption configuration
+	 * @return the value encryptor bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public ValueEncryptor valueEncryptor(JhelmEncryptProperties encryptProperties) {
+		return new ValueEncryptor(encryptProperties.getKey(), encryptProperties.getSalt(),
+				encryptProperties.isFailOnError());
 	}
 
 	/**
@@ -231,12 +246,13 @@ public class JhelmCoreAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	public TemplateAction templateAction(Engine engine, ChartLoader chartLoader,
-			ObjectProvider<List<PostRenderProcessor>> postRenderProcessors) {
+			ObjectProvider<List<PostRenderProcessor>> postRenderProcessors, ValueEncryptor valueEncryptor) {
 		TemplateAction action = new TemplateAction(engine, chartLoader);
 		List<PostRenderProcessor> processors = postRenderProcessors.getIfAvailable();
 		if (processors != null) {
 			action.setPostRenderProcessors(processors);
 		}
+		action.setValueEncryptor(valueEncryptor);
 		return action;
 	}
 
@@ -279,7 +295,8 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnBean(KubeService.class)
 	public InstallAction installAction(Engine engine, KubeService kubeService,
 			ObjectProvider<List<PostRenderProcessor>> postRenderProcessors,
-			ObjectProvider<List<LifecycleListener>> lifecycleListeners, ObjectProvider<JhelmMetrics> metrics) {
+			ObjectProvider<List<LifecycleListener>> lifecycleListeners, ObjectProvider<JhelmMetrics> metrics,
+			ValueEncryptor valueEncryptor) {
 		InstallAction action = new InstallAction(engine, kubeService);
 		List<PostRenderProcessor> processors = postRenderProcessors.getIfAvailable();
 		if (processors != null) {
@@ -290,6 +307,7 @@ public class JhelmCoreAutoConfiguration {
 			action.setLifecycleListeners(listeners);
 		}
 		action.setMetrics(metrics.getIfAvailable());
+		action.setValueEncryptor(valueEncryptor);
 		return action;
 	}
 
@@ -307,7 +325,8 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnBean(KubeService.class)
 	public UpgradeAction upgradeAction(Engine engine, KubeService kubeService,
 			ObjectProvider<List<PostRenderProcessor>> postRenderProcessors,
-			ObjectProvider<List<LifecycleListener>> lifecycleListeners, ObjectProvider<JhelmMetrics> metrics) {
+			ObjectProvider<List<LifecycleListener>> lifecycleListeners, ObjectProvider<JhelmMetrics> metrics,
+			ValueEncryptor valueEncryptor) {
 		UpgradeAction action = new UpgradeAction(engine, kubeService);
 		List<PostRenderProcessor> processors = postRenderProcessors.getIfAvailable();
 		if (processors != null) {
@@ -318,6 +337,7 @@ public class JhelmCoreAutoConfiguration {
 			action.setLifecycleListeners(listeners);
 		}
 		action.setMetrics(metrics.getIfAvailable());
+		action.setValueEncryptor(valueEncryptor);
 		return action;
 	}
 

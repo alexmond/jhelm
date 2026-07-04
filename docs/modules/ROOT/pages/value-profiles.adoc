@@ -116,6 +116,22 @@ in local files. It consumes the server's structured Environment endpoint
 (`GET {uri}/{application}/{profiles}[/{label}]`) and reuses the active profiles from above for
 the `{profiles}` path segment. Disabled by default.
 
+[NOTE]
+====
+*Beyond Helm parity.* Everything else in jhelm renders byte-for-byte like Go Helm. The config
+server (and the <<encrypted-values,encrypted values>> below) is the first deliberate step
+*past* parity: one opt-in source that adds three things Helm has no story for —
+
+* *central storage* — one server holds the values for every release, versioned in git;
+* *security* — the server sits behind auth/TLS, and secrets travel as ciphertext;
+* *profiles* — the same `-P` profiles pick per-environment overlays server-side.
+
+It stays inert unless you enable it, so charts that don't use it are unaffected. We don't
+re-document Spring Cloud Config here — see its
+https://docs.spring.io/spring-cloud-config/reference/[reference docs]; the runnable, secured
+`jhelm-config-server-sample` module is a working starting point.
+====
+
 The server returns each document/file as a flat property source (dotted and `[i]`-indexed
 keys), highest precedence first. jhelm strips the `spring.config.activate.*` /
 `jhelm.config.activate.*` directives from each source (the server does not), un-flattens the
@@ -164,3 +180,83 @@ repositories): the URL is validated, credentials are host-gated, and TLS follows
 a private/site-local config-server host is refused, closing the SSRF vector for a
 user-supplied URI. `fail-fast=false` (the default) logs a warning and continues with local
 values when the server is unreachable.
+
+[#encrypted-values]
+== Encrypted values (`+{cipher}+`)
+
+Secrets in values don't have to be plaintext. Any string value of the form `+{cipher}<hex>+` is
+a Spring Cloud Config encrypted token; when a decryption key is configured, jhelm decrypts it
+*at render time*, after values are merged and before templates run. This works the same whether
+the token comes from a `-f` values file, a chart's own `values.yaml`, or a config-server
+response — so you can commit ciphertext to git and keep the plaintext off disk and off the
+wire.
+
+With no key configured, `+{cipher}+` strings are left untouched (rendered verbatim), so the
+feature is inert until you opt in.
+
+=== Enabling
+
+Set a symmetric key:
+
+[cols="1,2",options="header"]
+|===
+| Property | Meaning
+| `jhelm.encrypt.key`           | symmetric key; setting it enables decryption
+| `jhelm.encrypt.salt`          | hex salt (default `deadbeef`, matching Spring Cloud)
+| `jhelm.encrypt.fail-on-error` | `true` (default) aborts on an undecryptable token; `false` logs a warning and leaves the token in place
+|===
+
+The key binds via Spring, so it can come from an environment variable
+(`JHELM_ENCRYPT_KEY=…`), a mounted `application.yaml`, or your secret store — the usual Spring
+Boot externalized-config channels. It applies to `template`, `install`, and `upgrade` across the
+CLI, library, REST, and MCP surfaces.
+
+=== Encrypting and decrypting from the CLI
+
+[source,bash]
+----
+# encrypt a value into a {cipher} token (reads jhelm.encrypt.key, or pass --key)
+jhelm encrypt "s3cret-password"
+jhelm encrypt "s3cret-password" --key my-key      # explicit key
+echo -n "s3cret" | jhelm encrypt                  # value from stdin
+
+# decrypt a token back to plaintext (prefix optional)
+jhelm decrypt "{cipher}f0e1d2c3…"
+----
+
+Drop the token into a values file and render as usual:
+
+[source,yaml]
+----
+# secrets.yaml
+db:
+  password: '{cipher}f0e1d2c3…'   # quote it — YAML treats a bare { as a flow map
+----
+
+[source,bash]
+----
+JHELM_ENCRYPT_KEY=my-key jhelm template my-release ./chart -f secrets.yaml
+----
+
+=== Spring Cloud parity
+
+jhelm uses the same primitive as Spring Cloud Config's `EncryptorFactory` for a plain-text key
+(`Encryptors.text(key, salt)`, default salt `deadbeef`), so tokens are byte-compatible in both
+directions: a token minted by a config server's `POST /encrypt` decrypts with `jhelm decrypt`,
+and a `jhelm encrypt` token decrypts via the server's `POST /decrypt`. This is the symmetric
+(shared-key) scheme; keystore/RSA `+{cipher}+` tokens are not yet supported.
+
+By default a config server *decrypts* `+{cipher}+` values before serving them. To keep secrets
+encrypted on the wire and let jhelm decrypt them client-side, set
+`spring.cloud.config.server.encrypt.enabled=false` on the server — the approach the
+`jhelm-config-server-sample` module ships, so the plaintext never leaves the operator's machine.
+
+=== Security notes
+
+* The key is as sensitive as the secrets it protects — supply it from a secret store or
+  environment variable, never commit it. jhelm reads it only from configuration, never writes
+  or logs it.
+* Decryption failures are hard errors by default (`fail-on-error=true`) so a wrong key or a
+  corrupted token fails the render rather than silently shipping ciphertext into a manifest.
+* Rendered manifests contain the *plaintext* secret — treat `template` output and installed
+  release data with the same care as any other secret material.

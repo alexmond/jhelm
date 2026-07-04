@@ -20,6 +20,7 @@ import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.LifecycleListener;
+import org.alexmond.jhelm.core.service.ValueEncryptor;
 import org.alexmond.jhelm.core.service.LifecyclePhase;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.util.HookExecutor;
@@ -43,6 +44,9 @@ public class UpgradeAction {
 
 	@Setter
 	private JhelmMetrics metrics;
+
+	@Setter
+	private ValueEncryptor valueEncryptor = new ValueEncryptor(null, null, true);
 
 	/**
 	 * Upgrades a release, resolving values according to the configured
@@ -69,6 +73,7 @@ public class UpgradeAction {
 		ResolvedValues resolved = resolveValues(currentRelease, newChart, options.getValues(),
 				options.getValueStrategy());
 		Map<String, Object> renderValues = resolved.render();
+		this.valueEncryptor.decryptValues(renderValues);
 		Map<String, Object> configValues = resolved.config();
 
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
