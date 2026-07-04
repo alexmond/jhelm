@@ -20,6 +20,7 @@ import io.kubernetes.client.openapi.models.V1ReplicaSetSpec;
 import io.kubernetes.client.openapi.models.V1ReplicaSetStatus;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodStatus;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1Secret;
 import io.kubernetes.client.openapi.models.V1SecretList;
@@ -708,6 +709,56 @@ class HelmKubeServiceTest {
 		});
 
 		assertThrows(KubernetesOperationException.class, () -> kubeService.delete("default", yaml));
+	}
+
+	@Test
+	void testWaitForReadyReturnsForSucceededPod() throws Exception {
+		// A completion-style pod (e.g. a `helm test` hook, restartPolicy: Never)
+		// terminates
+		// in Succeeded and never reaches Running; waitForReady must treat it as done
+		// rather
+		// than poll to the timeout (the regression that made `jhelm test` hang).
+		String yaml = """
+				apiVersion: v1
+				kind: Pod
+				metadata:
+				  name: test-pod
+				  namespace: default
+				""";
+
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
+			mockCoreV1Api = mock;
+			var req = mock(CoreV1Api.APIreadNamespacedPodRequest.class);
+			when(req.execute()).thenReturn(new V1Pod().status(new V1PodStatus().phase("Succeeded")));
+			when(mock.readNamespacedPod("test-pod", "default")).thenReturn(req);
+		});
+
+		assertDoesNotThrow(() -> kubeService.waitForReady("default", yaml, 5));
+	}
+
+	@Test
+	void testWaitForReadyFailsFastForFailedPod() throws Exception {
+		// A Failed pod is terminal — waitForReady must throw immediately, not after the
+		// full
+		// 30s timeout. The large timeout is the assertion: a poll-to-timeout would hang.
+		String yaml = """
+				apiVersion: v1
+				kind: Pod
+				metadata:
+				  name: test-pod
+				  namespace: default
+				""";
+
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
+			mockCoreV1Api = mock;
+			var req = mock(CoreV1Api.APIreadNamespacedPodRequest.class);
+			when(req.execute()).thenReturn(new V1Pod().status(new V1PodStatus().phase("Failed")));
+			when(mock.readNamespacedPod("test-pod", "default")).thenReturn(req);
+		});
+
+		WaitTimeoutException ex = assertThrows(WaitTimeoutException.class,
+				() -> kubeService.waitForReady("default", yaml, 30));
+		assertTrue(ex.getMessage().contains("terminally failed"));
 	}
 
 	@Test
