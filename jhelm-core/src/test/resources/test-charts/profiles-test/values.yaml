@@ -1,0 +1,8 @@
+replicas: 1
+image:
+  tag: base
+---
+spring.config.activate.on-profile: prod
+replicas: 3
+image:
+  tag: prod

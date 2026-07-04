@@ -1,5 +1,8 @@
 package org.alexmond.jhelm.core.config;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -11,6 +14,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Setter
 @ConfigurationProperties(prefix = "jhelm")
 public class JhelmCoreProperties {
+
+	/** Value-profile settings (Spring-Boot-style value profiles). */
+	private final Profiles profiles = new Profiles();
 
 	/**
 	 * Path to the Helm repository configuration file. Defaults to
@@ -39,5 +45,23 @@ public class JhelmCoreProperties {
 	 * Maximum number of parsed templates in the LRU cache. Defaults to 256.
 	 */
 	private int templateCacheMaxSize = 256;
+
+	/**
+	 * Value-profile settings. Profiles gate {@code spring.config.activate.on-profile}
+	 * documents and select {@code values-<profile>.yaml} sidecar files.
+	 */
+	@Getter
+	@Setter
+	public static class Profiles {
+
+		/**
+		 * Active value profiles, applied to chart {@code values.yaml}, {@code -f} files
+		 * and their {@code -<profile>} sidecars. Also settable via the
+		 * {@code JHELM_PROFILES_ACTIVE} environment variable, or per-command with
+		 * {@code --profile} (which takes precedence).
+		 */
+		private List<String> active = new ArrayList<>();
+
+	}
 
 }

@@ -20,6 +20,7 @@ import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Dependency;
 import org.alexmond.jhelm.core.util.ValuesLoader;
+import org.alexmond.jhelm.core.util.ValuesProfiles;
 
 /**
  * Loads a Helm chart from a directory on disk into an in-memory {@link Chart}, reading
@@ -54,6 +55,21 @@ public class ChartLoader {
 	 * or a chart file cannot be read
 	 */
 	public Chart load(File chartDir) {
+		return load(chartDir, ValuesProfiles.none());
+	}
+
+	/**
+	 * Loads the chart, applying value profiles to its {@code values.yaml} (multi-document
+	 * {@code spring.config.activate.on-profile} gating) and its
+	 * {@code values-<profile>.yaml} sidecar files. Subcharts are loaded without profile
+	 * resolution.
+	 * @param chartDir the chart's root directory (the one containing {@code Chart.yaml})
+	 * @param profiles the active value profiles
+	 * @return the fully populated chart
+	 * @throws ChartLoadException if the directory is missing, has no {@code Chart.yaml},
+	 * or a chart file cannot be read
+	 */
+	public Chart load(File chartDir, ValuesProfiles profiles) {
 		if (!chartDir.exists() || !chartDir.isDirectory()) {
 			throw new ChartLoadException("Chart directory does not exist", chartDir.getPath(),
 					"Verify the path is correct and points to a valid Helm chart directory");
@@ -67,7 +83,7 @@ public class ChartLoader {
 		}
 
 		try {
-			return loadFromDir(chartDir, metadataFile);
+			return loadFromDir(chartDir, metadataFile, profiles);
 		}
 		catch (IOException ex) {
 			throw new ChartLoadException("Failed to load chart", ex, chartDir.getPath(),
@@ -75,7 +91,7 @@ public class ChartLoader {
 		}
 	}
 
-	private Chart loadFromDir(File chartDir, File metadataFile) throws IOException {
+	private Chart loadFromDir(File chartDir, File metadataFile, ValuesProfiles profiles) throws IOException {
 		ChartMetadata metadata = yamlMapper.readValue(metadataFile, ChartMetadata.class);
 
 		// For apiVersion v1 charts, dependencies live in requirements.yaml rather than
@@ -95,7 +111,7 @@ public class ChartLoader {
 		File valuesFile = new File(chartDir, "values.yaml");
 		Map<String, Object> values = new LinkedHashMap<>();
 		if (valuesFile.exists()) {
-			values = ValuesLoader.load(valuesFile);
+			values = ValuesLoader.load(valuesFile, profiles);
 		}
 
 		// Load templates
@@ -229,6 +245,15 @@ public class ChartLoader {
 	private static final Set<String> EXCLUDED_FILES = Set.of("Chart.yaml", "Chart.lock", "values.yaml",
 			"values.schema.json", "README.md", ".helmignore");
 
+	/**
+	 * {@code values-<profile>.yaml} sidecar files are consumed as profile overlays of
+	 * {@code values.yaml}, so they are excluded from {@code .Files} just like
+	 * {@code values.yaml} itself.
+	 */
+	private static boolean isValuesProfileSidecar(String name) {
+		return name.startsWith("values-") && (name.endsWith(".yaml") || name.endsWith(".yml"));
+	}
+
 	private void loadChartFiles(File chartDir, Map<String, String> chartFiles) throws IOException {
 		File[] entries = chartDir.listFiles();
 		if (entries == null) {
@@ -238,7 +263,8 @@ public class ChartLoader {
 			if (entry.isDirectory() && !EXCLUDED_DIRS.contains(entry.getName())) {
 				loadFilesRecursive(entry, entry.getName(), chartFiles);
 			}
-			else if (entry.isFile() && !EXCLUDED_FILES.contains(entry.getName())) {
+			else if (entry.isFile() && !EXCLUDED_FILES.contains(entry.getName())
+					&& !isValuesProfileSidecar(entry.getName())) {
 				readTextFile(entry, entry.getName(), chartFiles);
 			}
 		}

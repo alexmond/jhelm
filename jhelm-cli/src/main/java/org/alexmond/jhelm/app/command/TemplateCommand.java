@@ -8,8 +8,10 @@ import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.TemplateAction;
+import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
+import org.alexmond.jhelm.core.util.ValuesProfiles;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
@@ -25,6 +27,8 @@ public class TemplateCommand implements Callable<Integer> {
 
 	private final TemplateAction templateAction;
 
+	private final JhelmCoreProperties coreProperties;
+
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
 
@@ -33,6 +37,11 @@ public class TemplateCommand implements Callable<Integer> {
 
 	@Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
+
+	@Option(names = { "-P", "--profile" }, split = ",",
+			description = "active value profile(s): gate spring.config.activate.on-profile documents and select "
+					+ "values-<profile>.yaml sidecars (comma-separated or repeatable)")
+	private List<String> profileNames = new ArrayList<>();
 
 	@Option(names = { "-f", "--values" }, description = "specify values YAML files")
 	private List<String> valuesFiles = new ArrayList<>();
@@ -64,17 +73,22 @@ public class TemplateCommand implements Callable<Integer> {
 	/**
 	 * Creates the command.
 	 * @param templateAction the action that renders chart templates
+	 * @param coreProperties core config, for the default active value profiles
 	 */
-	public TemplateCommand(TemplateAction templateAction) {
+	public TemplateCommand(TemplateAction templateAction, JhelmCoreProperties coreProperties) {
 		this.templateAction = templateAction;
+		this.coreProperties = coreProperties;
 	}
 
 	@Override
 	public Integer call() {
 		try {
-			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
+			ValuesProfiles profiles = ValuesProfiles
+				.of(profileNames.isEmpty() ? coreProperties.getProfiles().getActive() : profileNames);
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, setValues, setStringValues,
 					setFileValues, setJsonValues);
-			String manifest = templateAction.render(chartPath, name, namespace, overrides, kubeVersion, apiVersions);
+			String manifest = templateAction.render(chartPath, name, namespace, overrides, profiles, kubeVersion,
+					apiVersions);
 			for (String renderer : postRenderers) {
 				manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
 			}

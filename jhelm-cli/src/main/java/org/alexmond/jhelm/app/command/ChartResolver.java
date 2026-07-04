@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.util.ValuesProfiles;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.springframework.stereotype.Component;
 
@@ -61,6 +62,23 @@ public class ChartResolver {
 	// directory is used safely here.
 	@SuppressWarnings("java:S5443")
 	public Chart resolve(String chartPath, boolean verify, String keyring) throws IOException {
+		return resolve(chartPath, verify, keyring, ValuesProfiles.none());
+	}
+
+	/**
+	 * Resolves {@code chartPath} to a loaded chart, applying the given value profiles to
+	 * its {@code values.yaml} and {@code values-<profile>.yaml} sidecars.
+	 * @param chartPath a chart directory or a packaged {@code .tgz} archive
+	 * @param verify whether to verify the archive's provenance before loading
+	 * @param keyring path to the PGP public keyring, or {@code null} for the default
+	 * @param profiles the active value profiles
+	 * @return the loaded chart
+	 * @throws IOException if the archive cannot be extracted
+	 * @throws IllegalArgumentException if the path is missing, or {@code verify} is set
+	 * for a directory
+	 */
+	@SuppressWarnings("java:S5443")
+	public Chart resolve(String chartPath, boolean verify, String keyring, ValuesProfiles profiles) throws IOException {
 		File source = new File(chartPath);
 		if (!source.exists()) {
 			throw new IllegalArgumentException("Chart path not found: " + chartPath);
@@ -70,7 +88,7 @@ public class ChartResolver {
 				throw new IllegalArgumentException(
 						"--verify requires a packaged .tgz chart; a chart directory has no provenance file");
 			}
-			return chartLoader.load(source);
+			return chartLoader.load(source, profiles);
 		}
 		if (verify) {
 			// Aborts with a SignatureException before extraction if verification fails.
@@ -82,7 +100,7 @@ public class ChartResolver {
 			Path chartDir = ChartLoader.findChartDir(workDir);
 			// load() reads the whole chart into memory, so the temp dir can be removed
 			// after.
-			return chartLoader.load(chartDir.toFile());
+			return chartLoader.load(chartDir.toFile(), profiles);
 		}
 		finally {
 			deleteRecursively(workDir);

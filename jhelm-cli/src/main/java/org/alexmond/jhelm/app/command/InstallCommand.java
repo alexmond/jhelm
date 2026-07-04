@@ -12,12 +12,14 @@ import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
+import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
+import org.alexmond.jhelm.core.util.ValuesProfiles;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
@@ -42,6 +44,8 @@ public class InstallCommand implements Callable<Integer> {
 
 	private final JhelmSecurityPolicy securityPolicy;
 
+	private final JhelmCoreProperties coreProperties;
+
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
 
@@ -62,6 +66,11 @@ public class InstallCommand implements Callable<Integer> {
 	private String dryRun;
 
 	private boolean serverDryRun;
+
+	@Option(names = { "-P", "--profile" }, split = ",",
+			description = "active value profile(s): gate spring.config.activate.on-profile documents and select "
+					+ "values-<profile>.yaml sidecars (comma-separated or repeatable)")
+	private List<String> profileNames = new ArrayList<>();
 
 	@Option(names = { "-f", "--values" }, description = "specify values YAML files")
 	private List<String> valuesFiles = new ArrayList<>();
@@ -112,12 +121,13 @@ public class InstallCommand implements Callable<Integer> {
 	 * mutating operations are enabled
 	 */
 	public InstallCommand(InstallAction installAction, UninstallAction uninstallAction, KubeService kubeService,
-			ChartResolver chartResolver, JhelmSecurityPolicy securityPolicy) {
+			ChartResolver chartResolver, JhelmSecurityPolicy securityPolicy, JhelmCoreProperties coreProperties) {
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
 		this.kubeService = kubeService;
 		this.chartResolver = chartResolver;
 		this.securityPolicy = securityPolicy;
+		this.coreProperties = coreProperties;
 	}
 
 	@Override
@@ -127,8 +137,10 @@ public class InstallCommand implements Callable<Integer> {
 		}
 		try {
 			boolean dryRunEnabled = resolveDryRun();
-			Chart chart = chartResolver.resolve(chartPath, verify, keyring);
-			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
+			ValuesProfiles profiles = ValuesProfiles
+				.of(profileNames.isEmpty() ? coreProperties.getProfiles().getActive() : profileNames);
+			Chart chart = chartResolver.resolve(chartPath, verify, keyring, profiles);
+			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, setValues, setStringValues,
 					setFileValues, setJsonValues);
 
 			Release release = installAction.install(InstallOptions.builder()

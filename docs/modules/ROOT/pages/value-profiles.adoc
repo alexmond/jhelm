@@ -1,0 +1,109 @@
+= Value Profiles
+
+jhelm supports *value profiles* — a Spring-Boot-style way to keep environment-specific
+values (dev, staging, prod, …) in one place and activate them at render/install time. This is
+a jhelm extension; it has no equivalent in Go Helm, and charts that don't use it render
+byte-for-byte as before.
+
+A profile can supply values two ways, both mirroring Spring Boot:
+
+* *Document gating* — inside a values file, a `---`-separated document guarded by
+  `spring.config.activate.on-profile` is merged only when its expression matches an active
+  profile.
+* *Sidecar files* — a `values-<profile>.yaml` file next to a base `values.yaml` (or next to a
+  `-f` file) is merged only when `<profile>` is active.
+
+Both apply to a chart's own `values.yaml` and to files passed with `-f`/`--values`.
+
+== Activating profiles
+
+Profiles come from one of three sources, in order of precedence (first wins):
+
+[cols="1,3",options="header"]
+|===
+| Source | Example
+| `-P` / `--profile` (per command) | `jhelm template r ./chart -P prod,eu`
+| `JHELM_PROFILES_ACTIVE` (env)     | `JHELM_PROFILES_ACTIVE=prod jhelm template r ./chart`
+| `jhelm.profiles.active` (config)  | `jhelm: {profiles: {active: [prod]}}` in `application.yaml`
+|===
+
+`-P`/`--profile` accepts a comma-separated list or is repeatable
+(`-P prod -P eu` == `-P prod,eu`). The flag, when present, fully replaces the configured
+default rather than adding to it. Profiles are applied left to right, so a later profile's
+values win over an earlier one's. The `-P`/`--profile` flag is available on `template`,
+`install`, and `upgrade`.
+
+== Document gating
+
+[source,yaml]
+----
+# values.yaml
+replicas: 1
+image:
+  tag: latest
+---
+spring.config.activate.on-profile: prod
+replicas: 3
+image:
+  tag: stable
+----
+
+With no active profile the second document is skipped (`replicas: 1`, `tag: latest`). Under
+`-P prod` it is deep-merged over the first (`replicas: 3`, `tag: stable`).
+
+The `spring.config.activate.on-profile` key is a jhelm directive — it is stripped before the
+document reaches templates, so it never appears in `.Values`. The nested form
+(`spring: {config: {activate: {on-profile: prod}}}`) is accepted and stripped identically.
+
+=== Profile expressions
+
+The `on-profile` value is a Spring-style profile expression:
+
+[cols="1,2",options="header"]
+|===
+| Operator | Meaning
+| `prod`          | active when `prod` is active
+| `!prod`         | active when `prod` is *not* active
+| `a & b`         | both active
+| `a \| b`         | either active
+| `a, b`          | comma list — same as `a \| b` (OR)
+| `(a \| b) & !c`  | grouping with parentheses
+|===
+
+== Sidecar files
+
+[source,text]
+----
+mychart/
+  Chart.yaml
+  values.yaml            # base
+  values-prod.yaml       # merged when 'prod' active
+  values-eu.yaml         # merged when 'eu' active
+----
+
+Sidecars follow the base file's name and extension: `values.yaml` → `values-prod.yaml`, and a
+`-f team.yaml` file pairs with `team-prod.yaml` in the same directory. A missing sidecar for
+an active profile is simply skipped. `values-<profile>.yaml` files are treated as profile
+overlays, so — like `values.yaml` — they are excluded from the chart's `.Files`.
+
+== Precedence
+
+Profiles resolve *within* each values source; they do not change the overall override order:
+
+[source,text]
+----
+chart values.yaml (+ gated docs + sidecars)
+  < -f / --values files (+ their gated docs + sidecars)
+  < --set / --set-string / --set-file / --set-json
+----
+
+== Notes and limitations
+
+* `spring.config.activate.on-cloud-platform` is *not* evaluated for gating (jhelm has no
+  cloud-platform detection), but it is stripped so it never leaks into `.Values`.
+* Profiles are applied to the top-level chart only; subchart `values.yaml` files are loaded
+  without profile resolution.
+* Remote `-f <url>` files support document gating but not sidecars (there is no sibling
+  directory to resolve `values-<profile>.yaml` against).
+* With no active profile, loading is unchanged from earlier releases — the feature is
+  inert until a profile is activated.

@@ -15,6 +15,7 @@ import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.util.ValuesLoader;
+import org.alexmond.jhelm.core.util.ValuesProfiles;
 
 @RequiredArgsConstructor
 public class TemplateAction {
@@ -49,7 +50,28 @@ public class TemplateAction {
 	 */
 	public String render(String chartPath, String releaseName, String namespace, Map<String, Object> overrides,
 			String kubeVersion, List<String> apiVersions) {
-		Chart chart = this.chartLoader.load(new File(chartPath));
+		return render(chartPath, releaseName, namespace, overrides, ValuesProfiles.none(), kubeVersion, apiVersions);
+	}
+
+	/**
+	 * Renders a chart with active value profiles applied to its {@code values.yaml}
+	 * (multi-document {@code spring.config.activate.on-profile} gating) and its
+	 * {@code values-<profile>.yaml} sidecar files, plus an explicit {@code .Capabilities}
+	 * override.
+	 * @param chartPath path to the chart directory or archive
+	 * @param releaseName the release name ({@code .Release.Name})
+	 * @param namespace the release namespace
+	 * @param overrides value overrides merged over the chart defaults
+	 * @param profiles the active value profiles
+	 * @param kubeVersion the {@code .Capabilities.KubeVersion} override, or {@code null}
+	 * for the engine default
+	 * @param apiVersions extra API group/versions for
+	 * {@code .Capabilities.APIVersions.Has}
+	 * @return the rendered manifest
+	 */
+	public String render(String chartPath, String releaseName, String namespace, Map<String, Object> overrides,
+			ValuesProfiles profiles, String kubeVersion, List<String> apiVersions) {
+		Chart chart = this.chartLoader.load(new File(chartPath), profiles);
 
 		Map<String, Object> values = new HashMap<>(chart.getValues());
 		ValuesLoader.deepMerge(values, overrides);

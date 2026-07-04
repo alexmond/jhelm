@@ -80,15 +80,35 @@ public final class ValuesOverrides {
 	 */
 	public static Map<String, Object> parse(List<String> files, List<String> setArgs, List<String> setStringArgs,
 			List<String> setFileArgs, List<String> setJsonArgs) throws IOException {
+		return parse(files, ValuesProfiles.none(), setArgs, setStringArgs, setFileArgs, setJsonArgs);
+	}
+
+	/**
+	 * Build a merged override map with value profiles applied to each {@code -f} file
+	 * (multi-document {@code spring.config.activate.on-profile} gating and
+	 * {@code <name>-<profile>.<ext>} sidecars). Precedence is unchanged: files &rarr;
+	 * {@code --set} &rarr; {@code --set-string} &rarr; {@code --set-file} &rarr;
+	 * {@code --set-json}.
+	 * @param files paths to YAML values files; {@code null} or empty means none
+	 * @param profiles the active value profiles
+	 * @param setArgs {@code key=value} strings, coerced to typed scalars
+	 * @param setStringArgs {@code key=value} strings kept as raw strings
+	 * @param setFileArgs {@code key=path} strings whose value is the file contents
+	 * @param setJsonArgs {@code key=json} strings whose value is parsed as JSON
+	 * @return merged override map
+	 * @throws IOException if any values file cannot be read
+	 */
+	public static Map<String, Object> parse(List<String> files, ValuesProfiles profiles, List<String> setArgs,
+			List<String> setStringArgs, List<String> setFileArgs, List<String> setJsonArgs) throws IOException {
 		Map<String, Object> merged = new HashMap<>();
 		if (files != null) {
 			for (String path : files) {
 				Map<String, Object> fileValues;
 				if (ValuesLoader.isUrl(path)) {
-					fileValues = ValuesLoader.loadFromUrl(path);
+					fileValues = ValuesLoader.loadFromUrl(path, profiles);
 				}
 				else {
-					fileValues = ValuesLoader.load(new File(path));
+					fileValues = ValuesLoader.load(new File(path), profiles);
 				}
 				ValuesLoader.deepMerge(merged, fileValues);
 			}
