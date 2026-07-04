@@ -1,7 +1,6 @@
 package org.alexmond.jhelm.kube.service.internal;
 
 import java.io.IOException;
-import io.kubernetes.client.common.KubernetesObject;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.custom.V1Patch;
@@ -28,6 +27,9 @@ import io.kubernetes.client.util.generic.dynamic.DynamicKubernetesApi;
 import io.kubernetes.client.util.generic.dynamic.DynamicKubernetesObject;
 import io.kubernetes.client.util.generic.options.PatchOptions;
 import lombok.extern.slf4j.Slf4j;
+import org.yaml.snakeyaml.DumperOptions;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
@@ -348,10 +350,11 @@ public class HelmKubeService implements KubeService {
 
 	private void applyManifest(String namespace, String yamlContent, boolean serverDryRun) {
 		try {
-			Iterable<Object> objects = Yaml.loadAll(yamlContent);
-			for (Object obj : objects) {
-				if (obj instanceof KubernetesObject k8sObj) {
-					applyResource(namespace, k8sObj, serverDryRun);
+			for (Object doc : loadUnstructured(yamlContent)) {
+				if (doc instanceof Map<?, ?> map) {
+					@SuppressWarnings("unchecked")
+					Map<String, Object> resource = (Map<String, Object>) map;
+					applyResource(namespace, resource, serverDryRun);
 				}
 			}
 		}
@@ -363,12 +366,14 @@ public class HelmKubeService implements KubeService {
 		}
 	}
 
-	private void applyResource(String namespace, KubernetesObject obj, boolean serverDryRun) throws ApiException {
-		String apiVersion = obj.getApiVersion();
+	private void applyResource(String namespace, Map<String, Object> resource, boolean serverDryRun)
+			throws ApiException {
+		String[] id = identify(resource);
+		String apiVersion = id[0];
+		String kind = id[1];
+		String name = id[2];
 		String group = apiVersion.contains("/") ? apiVersion.split("/")[0] : "";
 		String version = apiVersion.contains("/") ? apiVersion.split("/")[1] : apiVersion;
-		String kind = obj.getKind();
-		String name = obj.getMetadata().getName();
 		String plural = inferPlural(kind);
 		boolean namespaced = inferNamespaced(kind);
 
@@ -377,24 +382,56 @@ public class HelmKubeService implements KubeService {
 					version, name, namespaced ? " in namespace " + namespace : " (cluster-scoped)");
 		}
 
-		V1Patch patch = new V1Patch(Yaml.dump(obj));
+		V1Patch patch = new V1Patch(dumpUnstructured(resource));
 		PatchOptions options = new PatchOptions();
 		options.setFieldManager("helm");
 		options.setForce(true);
 		if (serverDryRun) {
 			options.setDryRun("All");
 		}
-		// DynamicKubernetesApi resolves the request path from the group, so core-group
-		// resources (empty group, e.g. Service/ConfigMap/Secret) hit /api/<version>
-		// while named groups hit /apis/<group>/<version>. CustomObjectsApi always emits
-		// /apis/<group>/... and 404s on the core group. Cluster-scoped kinds
-		// (ClusterRole/CRD/...) must skip the namespace segment or the API server rejects
-		// them, so the scope comes from the kind rather than the release namespace.
+		// DynamicKubernetesApi routes the core group (empty group) to /api/<version> and
+		// named groups to /apis/<group>/<version> (CustomObjectsApi would 404 the core
+		// group);
+		// cluster-scoped kinds skip the namespace segment based on the kind, not the
+		// release ns.
 		DynamicKubernetesApi api = new DynamicKubernetesApi(group, version, plural, apiClient);
 		KubernetesApiResponse<DynamicKubernetesObject> response = namespaced
 				? api.patch(namespace, name, V1Patch.PATCH_FORMAT_APPLY_YAML, patch, options)
 				: api.patch(name, V1Patch.PATCH_FORMAT_APPLY_YAML, patch, options);
 		response.throwsApiException();
+	}
+
+	// Parse manifests as UNSTRUCTURED maps, not typed io.kubernetes.client models: the
+	// typed
+	// round-trip materializes optional fields the manifest omits (e.g. V1PodSpec.overhead
+	// ->
+	// `overhead: {}`, which PodOverhead admission rejects, #666) and drops CRDs/unknown
+	// kinds
+	// (they deserialize as Map). SafeConstructor blocks arbitrary type instantiation via
+	// tags.
+	static Iterable<Object> loadUnstructured(String yamlContent) {
+		return new org.yaml.snakeyaml.Yaml(new SafeConstructor(new LoaderOptions())).loadAll(yamlContent);
+	}
+
+	static String dumpUnstructured(Map<String, Object> resource) {
+		DumperOptions options = new DumperOptions();
+		options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+		return new org.yaml.snakeyaml.Yaml(options).dump(resource);
+	}
+
+	// [apiVersion, kind, name] from an unstructured doc; shared by apply/delete/status so
+	// all
+	// three handle the same kinds (incl. CRDs). Throws if any field is absent.
+	@SuppressWarnings("unchecked")
+	private static String[] identify(Map<String, Object> resource) {
+		String apiVersion = (String) resource.get("apiVersion");
+		String kind = (String) resource.get("kind");
+		Object metadata = resource.get("metadata");
+		String name = (metadata instanceof Map<?, ?>) ? (String) ((Map<String, Object>) metadata).get("name") : null;
+		if (apiVersion == null || kind == null || name == null) {
+			throw new KubernetesOperationException("Manifest document missing apiVersion/kind/metadata.name");
+		}
+		return new String[] { apiVersion, kind, name };
 	}
 
 	/**
@@ -403,10 +440,11 @@ public class HelmKubeService implements KubeService {
 	@Override
 	public void delete(String namespace, String yamlContent) {
 		try {
-			Iterable<Object> objects = Yaml.loadAll(yamlContent);
-			for (Object obj : objects) {
-				if (obj instanceof KubernetesObject k8sObj) {
-					deleteResource(namespace, k8sObj);
+			for (Object doc : loadUnstructured(yamlContent)) {
+				if (doc instanceof Map<?, ?> map) {
+					@SuppressWarnings("unchecked")
+					Map<String, Object> resource = (Map<String, Object>) map;
+					deleteResource(namespace, resource);
 				}
 			}
 		}
@@ -418,11 +456,13 @@ public class HelmKubeService implements KubeService {
 		}
 	}
 
-	private void deleteResource(String namespace, KubernetesObject obj) throws ApiException {
-		String group = obj.getApiVersion().contains("/") ? obj.getApiVersion().split("/")[0] : "";
-		String version = obj.getApiVersion().contains("/") ? obj.getApiVersion().split("/")[1] : obj.getApiVersion();
-		String kind = obj.getKind();
-		String name = obj.getMetadata().getName();
+	private void deleteResource(String namespace, Map<String, Object> resource) throws ApiException {
+		String[] id = identify(resource);
+		String apiVersion = id[0];
+		String kind = id[1];
+		String name = id[2];
+		String group = apiVersion.contains("/") ? apiVersion.split("/")[0] : "";
+		String version = apiVersion.contains("/") ? apiVersion.split("/")[1] : apiVersion;
 		String plural = inferPlural(kind);
 		boolean namespaced = inferNamespaced(kind);
 
@@ -430,12 +470,7 @@ public class HelmKubeService implements KubeService {
 			log.info("Deleting {} {}{}", kind, name, namespaced ? " in namespace " + namespace : " (cluster-scoped)");
 		}
 
-		// As with apply, DynamicKubernetesApi targets /api/<version> for the core group;
-		// CustomObjectsApi 404s there, which previously made core-resource deletes
-		// silently
-		// no-op (the 404 was swallowed below as "already gone"). Cluster-scoped kinds
-		// skip
-		// the namespace segment based on the kind, not the release namespace.
+		// Same core-group vs named-group routing and kind-based scoping as applyResource.
 		DynamicKubernetesApi api = new DynamicKubernetesApi(group, version, plural, apiClient);
 		KubernetesApiResponse<DynamicKubernetesObject> response = namespaced ? api.delete(namespace, name)
 				: api.delete(name);
@@ -452,22 +487,25 @@ public class HelmKubeService implements KubeService {
 		List<ResourceStatus> statuses = new ArrayList<>();
 		Iterable<Object> objects;
 		try {
-			objects = Yaml.loadAll(manifest);
+			objects = loadUnstructured(manifest);
 		}
 		catch (Exception ex) {
 			throw new KubernetesOperationException("Failed to parse manifest", ex);
 		}
 		for (Object obj : objects) {
-			if (obj instanceof KubernetesObject k8sObj) {
-				statuses.add(checkResourceStatus(namespace, k8sObj));
+			if (obj instanceof Map<?, ?> map) {
+				@SuppressWarnings("unchecked")
+				Map<String, Object> resource = (Map<String, Object>) map;
+				statuses.add(checkResourceStatus(namespace, resource));
 			}
 		}
 		return statuses;
 	}
 
-	private ResourceStatus checkResourceStatus(String namespace, KubernetesObject obj) {
-		String kind = obj.getKind();
-		String name = obj.getMetadata().getName();
+	private ResourceStatus checkResourceStatus(String namespace, Map<String, Object> resource) {
+		String[] id = identify(resource);
+		String kind = id[1];
+		String name = id[2];
 		try {
 			return switch (kind) {
 				case "Deployment" -> checkDeployment(namespace, name);
