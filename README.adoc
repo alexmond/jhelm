@@ -141,7 +141,7 @@ String manifest = templateAction.render(
         Map.of("replicaCount", 3, "image", Map.of("tag", "1.2.3")));
 ----
 
-See the https://www.alexmond.org/jhelm/current/spring-boot-starter.html[Spring Boot Starter]
+See the {url-docs}spring-boot-starter/[Spring Boot Starter]
 guide for the full action API and configuration properties.
 
 === As a CLI
