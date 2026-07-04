@@ -49,6 +49,10 @@
     <suppress checks="MethodLength" files="HelmChartTemplates\.java"/>
     <suppress checks="FileLength" files="HelmChartTemplates\.java"/>
 
+    <!-- HelmKubeService is the central cluster-operations service (store/get/list/apply/delete/
+         status/wait), just over the line limit; splitting it would fragment one cohesive surface -->
+    <suppress checks="FileLength" files="HelmKubeService\.java"/>
+
     <!-- ConversionFunctions is one cohesive registry of YAML/JSON/TOML conversion functions
          plus the Go-faithful serialization post-processing — long by nature -->
     <suppress checks="FileLength" files="ConversionFunctions\.java"/>
