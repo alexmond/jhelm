@@ -14,6 +14,7 @@ import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
+import org.alexmond.jhelm.core.service.ValueEncryptor;
 import org.alexmond.jhelm.core.util.ValuesLoader;
 import org.alexmond.jhelm.core.util.ValuesProfiles;
 
@@ -26,6 +27,9 @@ public class TemplateAction {
 
 	@Setter
 	private List<PostRenderProcessor> postRenderProcessors = List.of();
+
+	@Setter
+	private ValueEncryptor valueEncryptor = new ValueEncryptor(null, null, true);
 
 	public String render(String chartPath, String releaseName, String namespace) {
 		return render(chartPath, releaseName, namespace, new HashMap<>());
@@ -75,6 +79,7 @@ public class TemplateAction {
 
 		Map<String, Object> values = new HashMap<>(chart.getValues());
 		ValuesLoader.deepMerge(values, overrides);
+		this.valueEncryptor.decryptValues(values);
 
 		ReleaseContext releaseContext = ReleaseContext.builder()
 			.name(releaseName)

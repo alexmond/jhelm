@@ -51,6 +51,8 @@
         <picocli.version>4.7.7</picocli.version>
         <semver4j.version>6.0.0</semver4j.version>
         <bouncycastle.version>1.84</bouncycastle.version>
+        <!-- Only the config-server sample uses Spring Cloud; 2025.1.x (Oakwood) targets Boot 4.0. -->
+        <spring-cloud.version>2025.1.2</spring-cloud.version>
         <commons-compress.version>1.28.0</commons-compress.version>
         <chicory.version>1.7.5</chicory.version>
         <swagger-annotations.version>2.2.52</swagger-annotations.version>
@@ -89,6 +91,7 @@
         <module>jhelm-sample</module>
         <module>jhelm-rest-sample</module>
         <module>jhelm-mcp-sample</module>
+        <module>jhelm-config-server-sample</module>
     </modules>
 
     <dependencyManagement>
@@ -318,6 +321,7 @@
                             <excludeArtifact>jhelm-sample</excludeArtifact>
                             <excludeArtifact>jhelm-rest-sample</excludeArtifact>
                             <excludeArtifact>jhelm-mcp-sample</excludeArtifact>
+                            <excludeArtifact>jhelm-config-server-sample</excludeArtifact>
                         </excludeArtifacts>
                     </configuration>
                 </plugin>

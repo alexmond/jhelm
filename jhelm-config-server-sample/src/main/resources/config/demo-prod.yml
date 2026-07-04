@@ -1,0 +1,9 @@
+# The `-prod` profile SIDECAR for the application "demo".
+#
+# Spring Cloud Config supports two ways to express profile-specific config: an
+# on-profile document inside demo.yml (see there) and a separate demo-<profile>.yml
+# file like this one. Both are returned for the "prod" profile; this sidecar layers
+# on top and is handy for values that only exist in prod.
+demo:
+  region: eu-west-1
+  monitoring: true

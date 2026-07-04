@@ -1,0 +1,24 @@
+# Example jhelm values served by the config server for the application "demo".
+#
+# This is the BASE document. It is returned for every profile; profile-specific
+# documents (below, and the demo-prod.yml sidecar) are layered on top with higher
+# precedence. jhelm merges the config-server response into the chart's values the
+# same way as a -f values file.
+#
+# The `password` is a {cipher} token. Because this server runs with
+# `spring.cloud.config.server.encrypt.enabled: false`, it serves the token AS-IS
+# and jhelm decrypts it at render time (client-side) when jhelm.encrypt.key is set.
+# Flip that flag to true to have the server decrypt before serving instead.
+demo:
+  replicas: 1
+  tier: base
+  image: nginx:1.27
+  password: '{cipher}60fcae5de58b2612f3277d44b2afc2a7c449ea0180bce3b0ba8ab1e6301c0b507af00180ae5766d1bda46b4e86aee2d1'
+---
+# The `prod` profile overlay, gated with Spring's on-profile activation. Returned
+# only when the client requests the "prod" profile (jhelm --config-profile prod).
+spring.config.activate.on-profile: prod
+demo:
+  replicas: 3
+  tier: prod
+  password: '{cipher}53b8d44afea102ed1d05eda29a6bef5aad55097cd2bd0a78f2c00d2ef2d628e9039d0601a7fb6d41df8b0bd69f454ea9'

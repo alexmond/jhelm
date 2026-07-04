@@ -21,6 +21,7 @@ import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.LifecycleListener;
+import org.alexmond.jhelm.core.service.ValueEncryptor;
 import org.alexmond.jhelm.core.service.LifecyclePhase;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.util.HookExecutor;
@@ -49,6 +50,9 @@ public class InstallAction {
 
 	@Setter
 	private JhelmMetrics metrics;
+
+	@Setter
+	private ValueEncryptor valueEncryptor = new ValueEncryptor(null, null, true);
 
 	/**
 	 * Installs a chart as a new release. Chart default values are merged with the
@@ -81,6 +85,7 @@ public class InstallAction {
 		if (overrideValues != null) {
 			ValuesLoader.deepMerge(values, overrideValues);
 		}
+		this.valueEncryptor.decryptValues(values);
 
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now())
