@@ -27,4 +27,10 @@ public class InstallUploadRequest {
 	@Schema(description = "Simulate an install without applying", defaultValue = "false")
 	private boolean dryRun;
 
+	@Schema(description = "Custom release description (stored on the release)")
+	private String description;
+
+	@Schema(description = "Custom labels to store on the release Secret")
+	private Map<String, String> labels;
+
 }

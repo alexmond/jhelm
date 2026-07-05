@@ -182,6 +182,8 @@ public class ReleaseController {
 				.values(values)
 				.revision(1)
 				.dryRun(request.isDryRun())
+				.description(request.getDescription())
+				.labels((request.getLabels() != null) ? request.getLabels() : Map.of())
 				.build());
 			return ResponseEntity.status(HttpStatus.CREATED).body(OutputFormat.release(release));
 		}
@@ -210,6 +212,8 @@ public class ReleaseController {
 				.values(values)
 				.revision(1)
 				.dryRun(request.isDryRun())
+				.description(request.getDescription())
+				.labels((request.getLabels() != null) ? request.getLabels() : Map.of())
 				.build());
 			return ResponseEntity.status(HttpStatus.CREATED).body(OutputFormat.release(release));
 		}

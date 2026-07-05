@@ -156,6 +156,27 @@ class ReleaseControllerTest {
 	}
 
 	@Test
+	void installPassesDescriptionAndLabels() throws Exception {
+		stubPull();
+		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("1.0.0").build()).build();
+		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
+		when(this.installAction.install(any(InstallOptions.class))).thenReturn(sampleRelease());
+
+		this.mockMvc
+			.perform(post("/api/v1/releases").contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.content("""
+						{"chartRef": "bitnami/nginx", "releaseName": "my-release",
+						 "description": "rollout A", "labels": {"team": "payments"}}
+						"""))
+			.andExpect(status().isCreated());
+
+		verify(this.installAction)
+			.install(argThat((InstallOptions options) -> "rollout A".equals(options.getDescription())
+					&& "payments".equals(options.getLabels().get("team"))));
+	}
+
+	@Test
 	void installRejectsMissingChartRef() throws Exception {
 		this.mockMvc
 			.perform(post("/api/v1/releases").contentType(MediaType.APPLICATION_JSON)
