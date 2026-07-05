@@ -8,6 +8,7 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.RollbackAction;
@@ -71,6 +72,9 @@ class UpgradeCommandTest {
 	@Mock
 	private ChartResolver chartResolver;
 
+	@Mock
+	private DependencyUpdateAction dependencyUpdateAction;
+
 	private UpgradeCommand upgradeCommand;
 
 	@TempDir
@@ -86,7 +90,7 @@ class UpgradeCommandTest {
 		when(chartResolver.resolve(anyString(), anyBoolean(), any())).thenReturn(defaultChart);
 		upgradeCommand = new UpgradeCommand(kubeService, installAction, uninstallAction, upgradeAction, rollbackAction,
 				chartResolver, enabledPolicy(), new JhelmCoreProperties(),
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null));
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
 	}
 
 	private static JhelmSecurityPolicy enabledPolicy() {
@@ -143,7 +147,7 @@ class UpgradeCommandTest {
 		File chartDir = createMockChart();
 		UpgradeCommand readOnly = new UpgradeCommand(kubeService, installAction, uninstallAction, upgradeAction,
 				rollbackAction, chartResolver, readOnlyPolicy(), new JhelmCoreProperties(),
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null));
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
 
 		int exitCode = new CommandLine(readOnly).execute("my-release", chartDir.getAbsolutePath());
 
@@ -208,6 +212,18 @@ class UpgradeCommandTest {
 
 		verify(upgradeAction).upgrade(opts.capture());
 		assertTrue(opts.getValue().isForce());
+	}
+
+	@Test
+	void testDependencyUpdateTriggersUpdateOnLocalChartDir() throws Exception {
+		File chartDir = createMockChart();
+		when(kubeService.getRelease(anyString(), anyString()))
+			.thenReturn(Optional.of(createMockRelease("my-release", 1)));
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(createMockRelease("my-release", 2));
+
+		new CommandLine(upgradeCommand).execute("my-release", chartDir.getAbsolutePath(), "--dependency-update");
+
+		verify(dependencyUpdateAction).update(any(File.class), any(), eq(false));
 	}
 
 	@Test

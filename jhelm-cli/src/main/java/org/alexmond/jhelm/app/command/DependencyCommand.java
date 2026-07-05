@@ -6,9 +6,9 @@ import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.ChartLock;
 import org.alexmond.jhelm.core.model.Dependency;
+import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.service.DependencyResolver;
 import org.alexmond.jhelm.core.service.RepoManager;
-import org.alexmond.jhelm.core.util.ValuesLoader;
 import org.alexmond.jhelm.core.model.ChartLock.LockDependency;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -228,34 +228,17 @@ public class DependencyCommand implements Callable<Integer> {
 					return CommandLine.ExitCode.SOFTWARE;
 				}
 
-				// Refresh repositories unless --skip-refresh
 				if (!skipRefresh) {
 					CliOutput.println("Hang tight while we grab the latest from your chart repositories...");
-					repoManager.updateAll();
-					CliOutput.println(CliOutput.success("...Successfully got an update from the chart repositories"));
 				}
+				CliOutput.println("Updating dependencies from Chart.yaml...");
+				ChartLock chartLock = new DependencyUpdateAction(repoManager).update(chartDir,
+						withTags.isEmpty() ? null : withTags, skipRefresh);
 
-				// Load Chart.yaml
-				ChartMetadata metadata = loadChartMetadata(chartDir);
-				if (metadata.getDependencies() == null || metadata.getDependencies().isEmpty()) {
+				if (chartLock.getDependencies().isEmpty()) {
 					CliOutput.println("No dependencies found in Chart.yaml");
 					return CommandLine.ExitCode.OK;
 				}
-
-				// Load values.yaml for condition evaluation
-				Map<String, Object> values = loadValues(chartDir);
-
-				// Resolve dependencies
-				DependencyResolver resolver = new DependencyResolver(repoManager);
-				ChartLock chartLock = resolver.resolveDependencies(metadata, values,
-						withTags.isEmpty() ? null : withTags);
-
-				// Download dependencies
-				CliOutput.println("Updating dependencies from Chart.yaml...");
-				resolver.downloadDependencies(chartDir, chartLock.getDependencies());
-
-				// Save Chart.lock
-				chartLock.toFile(chartDir);
 				CliOutput.println("Saving " + chartLock.getDependencies().size() + " charts");
 				CliOutput.println(CliOutput.success("Dependency update complete."));
 				return CommandLine.ExitCode.OK;
@@ -266,32 +249,6 @@ public class DependencyCommand implements Callable<Integer> {
 					log.debug("Dependency update error details", ex);
 				}
 				return CommandLine.ExitCode.SOFTWARE;
-			}
-		}
-
-		private ChartMetadata loadChartMetadata(File chartDir) {
-			File chartFile = new File(chartDir, "Chart.yaml");
-			if (!chartFile.exists()) {
-				throw new IllegalStateException("Chart.yaml not found in " + chartDir.getAbsolutePath());
-			}
-
-			YAMLMapper yamlMapper = YAMLMapper.builder().build();
-			return yamlMapper.readValue(chartFile, ChartMetadata.class);
-		}
-
-		private Map<String, Object> loadValues(File chartDir) {
-			try {
-				File valuesFile = new File(chartDir, "values.yaml");
-				if (!valuesFile.exists()) {
-					return new HashMap<>();
-				}
-				return ValuesLoader.load(valuesFile);
-			}
-			catch (Exception ex) {
-				if (log.isWarnEnabled()) {
-					log.warn("Failed to load values.yaml: {}", ex.getMessage());
-				}
-				return new HashMap<>();
 			}
 		}
 

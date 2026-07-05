@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app.command;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -11,6 +12,7 @@ import java.util.concurrent.Callable;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
+import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
@@ -36,6 +38,8 @@ public class TemplateCommand implements Callable<Integer> {
 	private final JhelmCoreProperties coreProperties;
 
 	private final ConfigServerValuesLoader configServerValuesLoader;
+
+	private final DependencyUpdateAction dependencyUpdateAction;
 
 	@CommandLine.Mixin
 	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
@@ -72,6 +76,10 @@ public class TemplateCommand implements Callable<Integer> {
 	@Option(names = { "--set-literal" },
 			description = "set a literal STRING value on the command line (key=value, no coercion or escaping)")
 	private List<String> setLiteralValues = new ArrayList<>();
+
+	@Option(names = { "--dependency-update" },
+			description = "update dependencies from Chart.yaml to charts/ before rendering (local chart dir only)")
+	private boolean dependencyUpdate;
 
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
@@ -111,10 +119,11 @@ public class TemplateCommand implements Callable<Integer> {
 	 * by default)
 	 */
 	public TemplateCommand(TemplateAction templateAction, JhelmCoreProperties coreProperties,
-			ConfigServerValuesLoader configServerValuesLoader) {
+			ConfigServerValuesLoader configServerValuesLoader, DependencyUpdateAction dependencyUpdateAction) {
 		this.templateAction = templateAction;
 		this.coreProperties = coreProperties;
 		this.configServerValuesLoader = configServerValuesLoader;
+		this.dependencyUpdateAction = dependencyUpdateAction;
 	}
 
 	@Override
@@ -127,6 +136,12 @@ public class TemplateCommand implements Callable<Integer> {
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, configServer.values(),
 					configServer.overrideNone(), configServer.overrideSystemProperties(), setValues, setStringValues,
 					setFileValues, setJsonValues, setLiteralValues);
+			if (dependencyUpdate) {
+				File localChart = new File(chartPath);
+				if (localChart.isDirectory()) {
+					dependencyUpdateAction.update(localChart, List.of(), false);
+				}
+			}
 			String manifest = templateAction.render(chartPath, name, namespace, overrides, profiles, kubeVersion,
 					apiVersions, isUpgrade, includeCrds);
 			for (String renderer : postRenderers) {
