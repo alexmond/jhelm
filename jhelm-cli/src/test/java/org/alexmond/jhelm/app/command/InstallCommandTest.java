@@ -12,6 +12,7 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
+import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
@@ -62,6 +63,9 @@ class InstallCommandTest {
 	@Mock
 	private ChartResolver chartResolver;
 
+	@Mock
+	private DependencyUpdateAction dependencyUpdateAction;
+
 	private InstallCommand installCommand;
 
 	@TempDir
@@ -76,7 +80,8 @@ class InstallCommandTest {
 			.build();
 		when(chartResolver.resolve(anyString(), anyBoolean(), any())).thenReturn(defaultChart);
 		installCommand = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver, enabledPolicy(),
-				new JhelmCoreProperties(), new ConfigServerValuesLoader(new ConfigServerProperties(), null));
+				new JhelmCoreProperties(), new ConfigServerValuesLoader(new ConfigServerProperties(), null),
+				dependencyUpdateAction);
 	}
 
 	private static JhelmSecurityPolicy enabledPolicy() {
@@ -157,6 +162,28 @@ class InstallCommandTest {
 	}
 
 	@Test
+	void testDependencyUpdateTriggersUpdateOnLocalChartDir() throws Exception {
+		File chartDir = createMockChart();
+		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("my-release", 1));
+
+		int exit = new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath(),
+				"--dependency-update");
+
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		verify(dependencyUpdateAction).update(any(File.class), any(), eq(false));
+	}
+
+	@Test
+	void testNoDependencyUpdateWhenFlagAbsent() throws Exception {
+		File chartDir = createMockChart();
+		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("my-release", 1));
+
+		new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath());
+
+		verify(dependencyUpdateAction, never()).update(any(File.class), any(), anyBoolean());
+	}
+
+	@Test
 	void testSetLiteralReachesInstallOptionsVerbatim() throws Exception {
 		File chartDir = createMockChart();
 		ArgumentCaptor<InstallOptions> captor = ArgumentCaptor.forClass(InstallOptions.class);
@@ -215,7 +242,7 @@ class InstallCommandTest {
 		File chartDir = createMockChart();
 		InstallCommand readOnly = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver,
 				readOnlyPolicy(), new JhelmCoreProperties(),
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null));
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
 
 		int exitCode = new CommandLine(readOnly).execute("my-release", chartDir.getAbsolutePath());
 
@@ -234,7 +261,7 @@ class InstallCommandTest {
 		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("my-release", 1));
 		InstallCommand full = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver,
 				new JhelmSecurityPolicy(props), new JhelmCoreProperties(),
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null));
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
 
 		int exitCode = new CommandLine(full).execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
 

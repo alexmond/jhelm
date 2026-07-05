@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
+import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.LintAction;
 import org.alexmond.jhelm.core.action.ListAction;
@@ -254,6 +255,19 @@ public class JhelmCoreAutoConfiguration {
 		}
 		action.setValueEncryptor(valueEncryptor);
 		return action;
+	}
+
+	/**
+	 * Provides the {@code helm dependency update} action, also used by the
+	 * {@code --dependency-update} flag on
+	 * {@code install}/{@code upgrade}/{@code template}.
+	 * @param repoManager the repository manager used to refresh and download dependencies
+	 * @return the dependency-update action bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public DependencyUpdateAction dependencyUpdateAction(RepoManager repoManager) {
+		return new DependencyUpdateAction(repoManager);
 	}
 
 	/**

@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app.command;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -10,6 +11,7 @@ import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.output.OutputFormat;
+import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
@@ -51,6 +53,8 @@ public class InstallCommand implements Callable<Integer> {
 	private final JhelmCoreProperties coreProperties;
 
 	private final ConfigServerValuesLoader configServerValuesLoader;
+
+	private final DependencyUpdateAction dependencyUpdateAction;
 
 	@CommandLine.Mixin
 	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
@@ -143,6 +147,10 @@ public class InstallCommand implements Callable<Integer> {
 			description = "output format: table (default human summary), json, or yaml")
 	private String output;
 
+	@Option(names = { "--dependency-update" },
+			description = "update dependencies from Chart.yaml to charts/ before installing (local chart dir only)")
+	private boolean dependencyUpdate;
+
 	/**
 	 * Creates the command.
 	 * @param installAction the action that performs the install
@@ -152,10 +160,14 @@ public class InstallCommand implements Callable<Integer> {
 	 * optional provenance verification
 	 * @param securityPolicy the unified access-mode policy; install is refused unless
 	 * mutating operations are enabled
+	 * @param coreProperties the core properties supplying default active profiles
+	 * @param configServerValuesLoader loads values from a Spring Cloud Config Server
+	 * @param dependencyUpdateAction updates chart dependencies when
+	 * {@code --dependency-update} is set
 	 */
 	public InstallCommand(InstallAction installAction, UninstallAction uninstallAction, KubeService kubeService,
 			ChartResolver chartResolver, JhelmSecurityPolicy securityPolicy, JhelmCoreProperties coreProperties,
-			ConfigServerValuesLoader configServerValuesLoader) {
+			ConfigServerValuesLoader configServerValuesLoader, DependencyUpdateAction dependencyUpdateAction) {
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
 		this.kubeService = kubeService;
@@ -163,6 +175,7 @@ public class InstallCommand implements Callable<Integer> {
 		this.securityPolicy = securityPolicy;
 		this.coreProperties = coreProperties;
 		this.configServerValuesLoader = configServerValuesLoader;
+		this.dependencyUpdateAction = dependencyUpdateAction;
 	}
 
 	@Override
@@ -177,6 +190,12 @@ public class InstallCommand implements Callable<Integer> {
 			boolean dryRunEnabled = resolveDryRun();
 			ValuesProfiles profiles = ValuesProfiles
 				.of(profileNames.isEmpty() ? coreProperties.getProfiles().getActive() : profileNames);
+			if (dependencyUpdate) {
+				File localChart = new File(chartPath);
+				if (localChart.isDirectory()) {
+					dependencyUpdateAction.update(localChart, List.of(), false);
+				}
+			}
 			Chart chart = chartResolver.resolve(chartPath, verify, keyring, profiles);
 			if (name == null) {
 				name = ReleaseNames.generateName(chart.getMetadata().getName());

@@ -1,12 +1,14 @@
 package org.alexmond.jhelm.app.command;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.ConfigServerProperties;
@@ -27,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,13 +39,16 @@ class TemplateCommandTest {
 	@Mock
 	private TemplateAction templateAction;
 
+	@Mock
+	private DependencyUpdateAction dependencyUpdateAction;
+
 	private TemplateCommand templateCommand;
 
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
 		templateCommand = new TemplateCommand(templateAction, new JhelmCoreProperties(),
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null));
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
 	}
 
 	@Test
@@ -133,6 +139,15 @@ class TemplateCommandTest {
 	}
 
 	@Test
+	void testDependencyUpdateTriggersUpdateOnLocalChartDir(@TempDir Path chartDir) throws Exception {
+		stubRender(MULTI_DOC);
+
+		new CommandLine(templateCommand).execute("r", chartDir.toString(), "--dependency-update");
+
+		verify(dependencyUpdateAction).update(any(File.class), any(), eq(false));
+	}
+
+	@Test
 	void testShowOnlyFiltersRenderedOutput() {
 		stubRender(MULTI_DOC);
 		String out = captureStdout(() -> new CommandLine(templateCommand).execute("r", "/chart", "--show-only",
@@ -176,7 +191,7 @@ class TemplateCommandTest {
 
 	private ValuesProfiles runAndCaptureProfiles(JhelmCoreProperties props, String... args) {
 		TemplateCommand command = new TemplateCommand(templateAction, props,
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null));
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
 		ArgumentCaptor<ValuesProfiles> captor = ArgumentCaptor.forClass(ValuesProfiles.class);
 		when(templateAction.render(anyString(), anyString(), anyString(), anyMap(), captor.capture(), any(), anyList(),
 				anyBoolean(), anyBoolean()))

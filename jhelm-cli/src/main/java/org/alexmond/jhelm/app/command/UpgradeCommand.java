@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app.command;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.output.OutputFormat;
+import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.RollbackAction;
@@ -59,6 +61,8 @@ public class UpgradeCommand implements Callable<Integer> {
 	private final JhelmCoreProperties coreProperties;
 
 	private final ConfigServerValuesLoader configServerValuesLoader;
+
+	private final DependencyUpdateAction dependencyUpdateAction;
 
 	@CommandLine.Mixin
 	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
@@ -157,6 +161,10 @@ public class UpgradeCommand implements Callable<Integer> {
 			description = "limit the maximum number of revisions saved per release (0 = no limit)")
 	private int historyMax;
 
+	@Option(names = { "--dependency-update" },
+			description = "update dependencies from Chart.yaml to charts/ before upgrading (local chart dir only)")
+	private boolean dependencyUpdate;
+
 	@Option(names = { "--description" }, description = "add a custom description to the new revision")
 	private String description;
 
@@ -182,7 +190,7 @@ public class UpgradeCommand implements Callable<Integer> {
 	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UninstallAction uninstallAction,
 			UpgradeAction upgradeAction, RollbackAction rollbackAction, ChartResolver chartResolver,
 			JhelmSecurityPolicy securityPolicy, JhelmCoreProperties coreProperties,
-			ConfigServerValuesLoader configServerValuesLoader) {
+			ConfigServerValuesLoader configServerValuesLoader, DependencyUpdateAction dependencyUpdateAction) {
 		this.kubeService = kubeService;
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
@@ -192,6 +200,7 @@ public class UpgradeCommand implements Callable<Integer> {
 		this.securityPolicy = securityPolicy;
 		this.coreProperties = coreProperties;
 		this.configServerValuesLoader = configServerValuesLoader;
+		this.dependencyUpdateAction = dependencyUpdateAction;
 	}
 
 	@Override
@@ -208,6 +217,7 @@ public class UpgradeCommand implements Callable<Integer> {
 				.of(profileNames.isEmpty() ? coreProperties.getProfiles().getActive() : profileNames);
 			ConfigServerValuesLoader.Result configServer = configServerValuesLoader.load(name, profiles.active(),
 					configServerOptions.toOptions());
+			updateDependenciesIfRequested();
 			Chart chart = chartResolver.resolve(chartPath, verify, keyring, profiles);
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, configServer.values(),
 					configServer.overrideNone(), configServer.overrideSystemProperties(), setValues, setStringValues,
@@ -313,6 +323,17 @@ public class UpgradeCommand implements Callable<Integer> {
 			.serverDryRun(serverDryRun)
 			.noHooks(noHooks)
 			.build();
+	}
+
+	// Runs `dependency update` on a local chart directory before the upgrade when
+	// --dependency-update is set; a no-op for repo refs and .tgz archives.
+	private void updateDependenciesIfRequested() throws IOException {
+		if (dependencyUpdate) {
+			File localChart = new File(chartPath);
+			if (localChart.isDirectory()) {
+				dependencyUpdateAction.update(localChart, List.of(), false);
+			}
+		}
 	}
 
 	private UpgradeOptions buildUpgradeOptions(Release current, Chart chart, Map<String, Object> overrides,
