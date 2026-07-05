@@ -907,6 +907,11 @@ public class Engine {
 				factory.execute(helmStyleName, context, writer);
 				String rendered = writer.toString();
 				if (rendered != null && !rendered.isBlank()) {
+					// Emit a Helm-style source marker so the manifest records which
+					// template
+					// produced each document (enables `--show-only` / `--output-dir` and
+					// matches `helm template` output).
+					sb.append("# Source: ").append(helmStyleName).append('\n');
 					if (!rendered.trim().endsWith("---")) {
 						sb.append(rendered);
 						if (!rendered.endsWith("\n")) {
