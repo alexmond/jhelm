@@ -81,11 +81,19 @@ array when `--show-resources` is set); `history -o json|yaml` emits the Helm his
 
 == template
 
-`jhelm template` renders to stdout like `helm template`, and now emits a Helm-style
+`jhelm template` renders to stdout like `helm template`, and emits a Helm-style
 `# Source: <chart>/templates/<file>` marker before each document, so the output records which
-template produced each manifest (and downstream tooling can split by source). The
-render-control flags (`-s`/`--show-only`, `--output-dir`, `--include-crds`, `--skip-tests`,
-`--is-upgrade`) are still being wired — see "Other known gaps".
+template produced each manifest.
+
+[cols="2,1,3"]
+|===
+| Helm flag | jhelm | Notes
+
+| `-s`, `--show-only` | ✅ | Repeatable; keeps only documents rendered from the named template(s) (e.g. `templates/deployment.yaml`), matched by trailing path segment. Errors if a requested template matches nothing, like Helm.
+| `--output-dir` | ✅ | Writes each document to `<dir>/<chart>/templates/<file>` (grouped by source) instead of stdout, printing one `wrote <path>` line per file.
+| `--skip-tests` | ✅ | Drops documents carrying a `helm.sh/hook: test` annotation.
+| `--include-crds`, `--is-upgrade` | ✗ | Still being wired — see "Other known gaps".
+|===
 
 == repo / registry / pull
 
@@ -124,8 +132,8 @@ Most scripts work unchanged. Watch for these deliberate differences:
 Beyond the per-command tables above, these commonly-used Helm options are not yet wired
 (tracked for follow-up):
 
-* *`template`* — `-s`/`--show-only`, `--output-dir`, `--include-crds`, `--skip-tests`,
-  `--is-upgrade`.
+* *`template`* — `--include-crds`, `--is-upgrade` (`-s`/`--show-only`, `--output-dir`,
+  `--skip-tests` are now supported — see the `template` section).
 * *`list`* — `-A`/`--all-namespaces`, `-l`/`--selector`, `-a`/`--all`, the status filters,
   `--max`/`--offset`/`--filter`.
 * *`install`/`upgrade`* — install-from-repo (`--version`/`--repo`/`--username`/`--password`),

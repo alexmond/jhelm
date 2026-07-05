@@ -1,5 +1,9 @@
 package org.alexmond.jhelm.app.command;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +15,7 @@ import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
+import org.alexmond.jhelm.core.util.RenderedManifest;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
 import org.alexmond.jhelm.core.util.ValuesProfiles;
 import org.springframework.stereotype.Component;
@@ -76,6 +81,17 @@ public class TemplateCommand implements Callable<Integer> {
 					+ "(comma-separated or repeatable; additive to the built-in default set)")
 	private List<String> apiVersions = new ArrayList<>();
 
+	@Option(names = { "-s", "--show-only" }, description = "only show manifests rendered from the given template(s) "
+			+ "(e.g. templates/deployment.yaml; repeatable)")
+	private List<String> showOnly = new ArrayList<>();
+
+	@Option(names = { "--output-dir" },
+			description = "write the rendered templates into files under this directory instead of stdout")
+	private String outputDir;
+
+	@Option(names = { "--skip-tests" }, description = "skip tests from the rendered output (chart test hooks)")
+	private boolean skipTests;
+
 	/**
 	 * Creates the command.
 	 * @param templateAction the action that renders chart templates
@@ -105,12 +121,38 @@ public class TemplateCommand implements Callable<Integer> {
 			for (String renderer : postRenderers) {
 				manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
 			}
-			CliOutput.println(manifest);
+			if (skipTests) {
+				manifest = RenderedManifest.skipTests(manifest);
+			}
+			if (!showOnly.isEmpty()) {
+				manifest = RenderedManifest.showOnly(manifest, showOnly);
+			}
+			if (outputDir != null) {
+				writeToDir(manifest);
+			}
+			else {
+				CliOutput.println(manifest);
+			}
 			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
 			CliOutput.errPrintln(CliOutput.error("Error rendering template: " + ex.getMessage()));
 			return CommandLine.ExitCode.SOFTWARE;
+		}
+	}
+
+	// Writes each rendered document into <outputDir>/<chart>/templates/<file>, grouping
+	// documents by their source template (as `helm template --output-dir` does), and
+	// prints one
+	// `wrote <path>` line per file.
+	private void writeToDir(String manifest) throws IOException {
+		Path base = Path.of(outputDir);
+		for (Map.Entry<String, String> entry : RenderedManifest.groupBySource(manifest).entrySet()) {
+			String source = entry.getKey();
+			Path target = source.isEmpty() ? base.resolve("manifest.yaml") : base.resolve(source);
+			Files.createDirectories(target.getParent());
+			Files.writeString(target, entry.getValue(), StandardCharsets.UTF_8);
+			CliOutput.println("wrote " + target);
 		}
 	}
 
