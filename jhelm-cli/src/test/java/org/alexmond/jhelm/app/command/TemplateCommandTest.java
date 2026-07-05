@@ -1,5 +1,10 @@
 package org.alexmond.jhelm.app.command;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.alexmond.jhelm.core.action.TemplateAction;
@@ -9,12 +14,15 @@ import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.util.ValuesProfiles;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -72,6 +80,67 @@ class TemplateCommandTest {
 		props.getProfiles().setActive(List.of("dev"));
 		ValuesProfiles captured = runAndCaptureProfiles(props, "-P", "prod", "r", "/chart");
 		assertEquals(List.of("prod"), captured.active(), "--profile takes precedence over the property");
+	}
+
+	private static final String MULTI_DOC = """
+			# Source: mychart/templates/configmap.yaml
+			kind: ConfigMap
+			---
+			# Source: mychart/templates/deployment.yaml
+			kind: Deployment
+			---
+			# Source: mychart/templates/tests/test-connection.yaml
+			kind: Pod
+			metadata:
+			  annotations:
+			    "helm.sh/hook": test
+			""";
+
+	private void stubRender(String manifest) {
+		when(templateAction.render(anyString(), anyString(), anyString(), anyMap(), any(), any(), anyList()))
+			.thenReturn(manifest);
+	}
+
+	@Test
+	void testShowOnlyFiltersRenderedOutput() {
+		stubRender(MULTI_DOC);
+		String out = captureStdout(() -> new CommandLine(templateCommand).execute("r", "/chart", "--show-only",
+				"templates/deployment.yaml"));
+		assertTrue(out.contains("kind: Deployment"), out);
+		assertFalse(out.contains("kind: ConfigMap"), out);
+	}
+
+	@Test
+	void testSkipTestsDropsTestHookDocument() {
+		stubRender(MULTI_DOC);
+		String out = captureStdout(() -> new CommandLine(templateCommand).execute("r", "/chart", "--skip-tests"));
+		assertFalse(out.contains("kind: Pod"), out);
+		assertTrue(out.contains("kind: ConfigMap"), out);
+		assertTrue(out.contains("kind: Deployment"), out);
+	}
+
+	@Test
+	void testOutputDirWritesPerSourceFiles(@TempDir Path dir) throws Exception {
+		stubRender(MULTI_DOC);
+		String out = captureStdout(
+				() -> new CommandLine(templateCommand).execute("r", "/chart", "--output-dir", dir.toString()));
+		Path deployment = dir.resolve("mychart/templates/deployment.yaml");
+		assertTrue(Files.exists(deployment), "expected " + deployment + "; stdout:\n" + out);
+		assertTrue(Files.readString(deployment).contains("kind: Deployment"));
+		assertTrue(out.contains("wrote "), out);
+	}
+
+	private static String captureStdout(Runnable action) {
+		PrintStream original = System.out;
+		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+		System.setOut(new PrintStream(buffer, true, StandardCharsets.UTF_8));
+		try {
+			action.run();
+		}
+		finally {
+			System.setOut(original);
+		}
+		return buffer.toString(StandardCharsets.UTF_8);
 	}
 
 	private ValuesProfiles runAndCaptureProfiles(JhelmCoreProperties props, String... args) {
