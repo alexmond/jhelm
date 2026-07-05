@@ -36,8 +36,15 @@ public class ChartTools {
 	public String template(
 			@McpToolParam(description = "Path to the chart directory or packaged .tgz archive") String chartPath,
 			@McpToolParam(description = "Release name to use while rendering") String releaseName,
-			@McpToolParam(description = "Target Kubernetes namespace") String namespace) {
-		return this.templateAction.render(chartPath, releaseName, namespace);
+			@McpToolParam(description = "Target Kubernetes namespace") String namespace,
+			@McpToolParam(required = false,
+					description = "Keep only documents from these template paths (e.g. templates/deployment.yaml)") List<String> showOnly,
+			@McpToolParam(required = false, description = "Drop chart test hooks from the output") boolean skipTests,
+			@McpToolParam(required = false, description = "Include the chart's crds/ manifests") boolean includeCrds,
+			@McpToolParam(required = false,
+					description = "Render with .Release.IsUpgrade instead of .Release.IsInstall") boolean isUpgrade) {
+		return this.templateAction.renderWithControls(chartPath, releaseName, namespace, Map.of(), isUpgrade,
+				includeCrds, skipTests, showOnly);
 	}
 
 	/**
