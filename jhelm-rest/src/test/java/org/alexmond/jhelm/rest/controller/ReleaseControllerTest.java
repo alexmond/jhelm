@@ -211,12 +211,16 @@ class ReleaseControllerTest {
 		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-1.0.0.tgz", "application/gzip",
 				new byte[] { 1, 2, 3 });
 		MockMultipartFile requestPart = new MockMultipartFile("request", "", "application/json", """
-				{"releaseName": "my-release"}
+				{"releaseName": "my-release", "description": "upload A", "labels": {"team": "payments"}}
 				""".getBytes());
 
 		this.mockMvc.perform(multipart("/api/v1/releases/upload").file(chartFile).file(requestPart))
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.name").value("my-release"));
+
+		verify(this.installAction)
+			.install(argThat((InstallOptions options) -> "upload A".equals(options.getDescription())
+					&& "payments".equals(options.getLabels().get("team"))));
 	}
 
 	@Test
