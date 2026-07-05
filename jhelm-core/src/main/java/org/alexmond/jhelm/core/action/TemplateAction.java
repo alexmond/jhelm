@@ -75,6 +75,32 @@ public class TemplateAction {
 	 */
 	public String render(String chartPath, String releaseName, String namespace, Map<String, Object> overrides,
 			ValuesProfiles profiles, String kubeVersion, List<String> apiVersions) {
+		return render(chartPath, releaseName, namespace, overrides, profiles, kubeVersion, apiVersions, false, false);
+	}
+
+	/**
+	 * Renders a chart with the full set of {@code helm template} controls: active value
+	 * profiles, an explicit {@code .Capabilities} override, the install/upgrade posture
+	 * ({@code .Release.IsInstall}/{@code .Release.IsUpgrade}), and optional inclusion of
+	 * the chart's un-templated {@code crds/} manifests.
+	 * @param chartPath path to the chart directory or archive
+	 * @param releaseName the release name ({@code .Release.Name})
+	 * @param namespace the release namespace
+	 * @param overrides value overrides merged over the chart defaults
+	 * @param profiles the active value profiles
+	 * @param kubeVersion the {@code .Capabilities.KubeVersion} override, or {@code null}
+	 * for the engine default
+	 * @param apiVersions extra API group/versions for
+	 * {@code .Capabilities.APIVersions.Has}
+	 * @param isUpgrade render as an upgrade ({@code .Release.IsUpgrade=true},
+	 * {@code IsInstall=false}) instead of the default install posture
+	 * @param includeCrds prepend the chart's {@code crds/} manifests to the output (Helm
+	 * excludes them from {@code template} by default)
+	 * @return the rendered manifest
+	 */
+	public String render(String chartPath, String releaseName, String namespace, Map<String, Object> overrides,
+			ValuesProfiles profiles, String kubeVersion, List<String> apiVersions, boolean isUpgrade,
+			boolean includeCrds) {
 		Chart chart = this.chartLoader.load(new File(chartPath), profiles);
 
 		Map<String, Object> values = new HashMap<>(chart.getValues());
@@ -84,12 +110,15 @@ public class TemplateAction {
 		ReleaseContext releaseContext = ReleaseContext.builder()
 			.name(releaseName)
 			.namespace(namespace)
-			.install(true)
-			.upgrade(false)
+			.install(!isUpgrade)
+			.upgrade(isUpgrade)
 			.revision(1)
 			.build();
 
 		String manifest = engine.render(chart, values, releaseContext, new Capabilities(kubeVersion, apiVersions));
+		if (includeCrds) {
+			manifest = renderCrds(chart) + manifest;
+		}
 
 		for (PostRenderProcessor processor : postRenderProcessors) {
 			try {
@@ -101,6 +130,24 @@ public class TemplateAction {
 		}
 
 		return manifest;
+	}
+
+	// Emits the chart's crds/ manifests as un-templated documents, each with a Helm-style
+	// `# Source: <chart>/crds/<file>` marker, matching `helm template --include-crds`.
+	// CRDs are
+	// raw YAML in Helm — they are not run through the template engine.
+	private String renderCrds(Chart chart) {
+		StringBuilder sb = new StringBuilder();
+		String chartName = chart.getMetadata().getName();
+		for (Chart.Crd crd : chart.getCrds()) {
+			String data = crd.getData().strip();
+			if (data.isEmpty()) {
+				continue;
+			}
+			sb.append("# Source: ").append(chartName).append("/crds/").append(crd.getName()).append('\n');
+			sb.append(data).append("\n---\n");
+		}
+		return sb.toString();
 	}
 
 }

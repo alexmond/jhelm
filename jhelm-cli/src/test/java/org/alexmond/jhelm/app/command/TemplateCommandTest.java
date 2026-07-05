@@ -24,9 +24,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TemplateCommandTest {
@@ -97,8 +99,37 @@ class TemplateCommandTest {
 			""";
 
 	private void stubRender(String manifest) {
-		when(templateAction.render(anyString(), anyString(), anyString(), anyMap(), any(), any(), anyList()))
+		when(templateAction.render(anyString(), anyString(), anyString(), anyMap(), any(), any(), anyList(),
+				anyBoolean(), anyBoolean()))
 			.thenReturn(manifest);
+	}
+
+	@Test
+	void testIncludeCrdsAndIsUpgradeReachTheAction() {
+		stubRender(MULTI_DOC);
+		ArgumentCaptor<Boolean> isUpgrade = ArgumentCaptor.forClass(Boolean.class);
+		ArgumentCaptor<Boolean> includeCrds = ArgumentCaptor.forClass(Boolean.class);
+
+		new CommandLine(templateCommand).execute("r", "/chart", "--is-upgrade", "--include-crds");
+
+		verify(templateAction).render(anyString(), anyString(), anyString(), anyMap(), any(), any(), anyList(),
+				isUpgrade.capture(), includeCrds.capture());
+		assertEquals(true, isUpgrade.getValue());
+		assertEquals(true, includeCrds.getValue());
+	}
+
+	@Test
+	void testRenderControlFlagsDefaultFalse() {
+		stubRender(MULTI_DOC);
+		ArgumentCaptor<Boolean> isUpgrade = ArgumentCaptor.forClass(Boolean.class);
+		ArgumentCaptor<Boolean> includeCrds = ArgumentCaptor.forClass(Boolean.class);
+
+		new CommandLine(templateCommand).execute("r", "/chart");
+
+		verify(templateAction).render(anyString(), anyString(), anyString(), anyMap(), any(), any(), anyList(),
+				isUpgrade.capture(), includeCrds.capture());
+		assertEquals(false, isUpgrade.getValue());
+		assertEquals(false, includeCrds.getValue());
 	}
 
 	@Test
@@ -147,7 +178,8 @@ class TemplateCommandTest {
 		TemplateCommand command = new TemplateCommand(templateAction, props,
 				new ConfigServerValuesLoader(new ConfigServerProperties(), null));
 		ArgumentCaptor<ValuesProfiles> captor = ArgumentCaptor.forClass(ValuesProfiles.class);
-		when(templateAction.render(anyString(), anyString(), anyString(), anyMap(), captor.capture(), any(), anyList()))
+		when(templateAction.render(anyString(), anyString(), anyString(), anyMap(), captor.capture(), any(), anyList(),
+				anyBoolean(), anyBoolean()))
 			.thenReturn("---\n");
 		new CommandLine(command).execute(args);
 		return captor.getValue();
