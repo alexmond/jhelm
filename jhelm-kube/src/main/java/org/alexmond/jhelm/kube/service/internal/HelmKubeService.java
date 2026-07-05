@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Objects;
 import java.util.Comparator;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.nio.charset.StandardCharsets;
 
@@ -66,6 +67,10 @@ import java.nio.charset.StandardCharsets;
  */
 @Slf4j
 public class HelmKubeService implements KubeService {
+
+	// Storage labels Helm's own tooling queries on; custom --labels must not override
+	// these.
+	private static final Set<String> RESERVED_RELEASE_LABELS = Set.of("owner", "name", "status", "version");
 
 	/** Configured Kubernetes API client used for all cluster operations. */
 	private final ApiClient apiClient;
@@ -116,14 +121,23 @@ public class HelmKubeService implements KubeService {
 		try {
 			byte[] encoded = encodeRelease(release);
 
-			V1Secret secret = new V1Secret()
-				.metadata(new V1ObjectMeta().name(name)
-					.namespace(release.getNamespace())
-					.putLabelsItem("owner", "helm")
-					.putLabelsItem("name", release.getName())
-					.putLabelsItem("status",
-							(release.getInfo().getStatus() != null) ? release.getInfo().getStatus().getValue() : null)
-					.putLabelsItem("version", String.valueOf(release.getVersion())))
+			V1ObjectMeta metadata = new V1ObjectMeta().name(name)
+				.namespace(release.getNamespace())
+				.putLabelsItem("owner", "helm")
+				.putLabelsItem("name", release.getName())
+				.putLabelsItem("status",
+						(release.getInfo().getStatus() != null) ? release.getInfo().getStatus().getValue() : null)
+				.putLabelsItem("version", String.valueOf(release.getVersion()));
+			// Custom labels (Helm's --labels) are added on top, but never override the
+			// reserved storage labels Helm's own tooling queries on.
+			if (release.getLabels() != null) {
+				release.getLabels().forEach((key, value) -> {
+					if (!RESERVED_RELEASE_LABELS.contains(key)) {
+						metadata.putLabelsItem(key, value);
+					}
+				});
+			}
+			V1Secret secret = new V1Secret().metadata(metadata)
 				.type("helm.sh/release.v1")
 				.putDataItem("release", encoded);
 

@@ -52,6 +52,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.zip.GZIPOutputStream;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -185,6 +186,28 @@ class HelmKubeServiceTest {
 
 		kubeService.storeRelease(release);
 		verify(mockCoreV1Api).createNamespacedSecret(eq("default"), any(V1Secret.class));
+	}
+
+	@Test
+	void testStoreReleaseAddsCustomLabelsWithoutOverridingReserved() throws Exception {
+		Release release = createTestRelease("myapp", "default", 1, "deployed").toBuilder()
+			.labels(Map.of("team", "payments", "owner", "not-me"))
+			.build();
+
+		ArgumentCaptor<V1Secret> captor = ArgumentCaptor.forClass(V1Secret.class);
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
+			mockCoreV1Api = mock;
+			var req = mock(CoreV1Api.APIcreateNamespacedSecretRequest.class);
+			when(req.execute()).thenReturn(new V1Secret());
+			when(mock.createNamespacedSecret(eq("default"), any(V1Secret.class))).thenReturn(req);
+		});
+
+		kubeService.storeRelease(release);
+
+		verify(mockCoreV1Api).createNamespacedSecret(eq("default"), captor.capture());
+		Map<String, String> secretLabels = captor.getValue().getMetadata().getLabels();
+		assertEquals("payments", secretLabels.get("team"), "custom label is stored");
+		assertEquals("helm", secretLabels.get("owner"), "reserved 'owner' label is not overridden by --labels");
 	}
 
 	@Test
