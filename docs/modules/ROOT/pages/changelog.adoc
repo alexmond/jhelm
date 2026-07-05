@@ -24,6 +24,9 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
   CLI (#686). *Breaking:* clients reading the old fields must migrate (e.g. `status` moves from
   `$.status` to `$.info.status`; list `chartName` becomes `chart`; history `version` becomes
   `revision`).
+* *MCP tools return structured JSON* -- `helm_list`, `helm_status`, and `helm_history` now
+  return Helm-shaped JSON (array of rows / nested `info` object) instead of prose text, so agents
+  can parse them directly (#686).
 
 == 1.1.0
 

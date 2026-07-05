@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.mcp.tools;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.action.StatusAction;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.output.OutputFormat;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
 
@@ -35,19 +37,12 @@ public class ReleaseReadTools {
 	 * @return a human-readable, newline-separated summary of releases
 	 */
 	@McpTool(name = "helm_list",
-			description = "List the Helm releases deployed in a Kubernetes namespace (like 'helm list'), returning "
-					+ "each release's name, namespace, revision and status. Read-only; does not modify the cluster.")
-	public String list(@McpToolParam(description = "Kubernetes namespace to list releases in") String namespace) {
-		List<Release> releases = this.listAction.list(namespace);
-		if (releases.isEmpty()) {
-			return "No releases found in namespace: " + namespace;
-		}
-		StringBuilder sb = new StringBuilder();
-		sb.append("NAME\tNAMESPACE\tREVISION\tSTATUS\n");
-		for (Release release : releases) {
-			appendReleaseLine(sb, release);
-		}
-		return sb.toString();
+			description = "List the Helm releases deployed in a Kubernetes namespace (like 'helm list -o json'), "
+					+ "returning a JSON array of releases (name, namespace, revision, updated, status, chart, "
+					+ "app_version). Empty array when none. Read-only; does not modify the cluster.")
+	public List<Map<String, Object>> list(
+			@McpToolParam(description = "Kubernetes namespace to list releases in") String namespace) {
+		return this.listAction.list(namespace).stream().map(OutputFormat::listRow).toList();
 	}
 
 	/**
@@ -57,15 +52,15 @@ public class ReleaseReadTools {
 	 * @return a human-readable status summary, or a not-found message
 	 */
 	@McpTool(name = "helm_status",
-			description = "Get the status of a single Helm release (like 'helm status'), including its revision, "
-					+ "deployment status and chart. Read-only; does not modify the cluster.")
-	public String status(@McpToolParam(description = "Release name") String name,
+			description = "Get the status of a single Helm release (like 'helm status -o json') as a JSON object "
+					+ "with nested 'info' (status, description, timestamps), version, namespace and manifest. Returns "
+					+ "an object with an 'error' field when the release is not found. Read-only; does not modify the "
+					+ "cluster.")
+	public Map<String, Object> status(@McpToolParam(description = "Release name") String name,
 			@McpToolParam(description = "Kubernetes namespace") String namespace) {
-		Optional<Release> release = this.statusAction.status(name, namespace);
-		if (release.isEmpty()) {
-			return notFound(name, namespace);
-		}
-		return renderReleaseDetail(release.get());
+		return this.statusAction.status(name, namespace)
+			.map(OutputFormat::release)
+			.orElseGet(() -> Map.of("error", notFound(name, namespace)));
 	}
 
 	/**
@@ -75,20 +70,12 @@ public class ReleaseReadTools {
 	 * @return a human-readable, newline-separated summary of revisions
 	 */
 	@McpTool(name = "helm_history",
-			description = "List the revision history of a Helm release (like 'helm history'), one line per "
-					+ "revision. Read-only; does not modify the cluster.")
-	public String history(@McpToolParam(description = "Release name") String name,
+			description = "List the revision history of a Helm release (like 'helm history -o json') as a JSON array, "
+					+ "one object per revision (revision, updated, status, chart, app_version, description). Empty "
+					+ "array when the release is not found. Read-only; does not modify the cluster.")
+	public List<Map<String, Object>> history(@McpToolParam(description = "Release name") String name,
 			@McpToolParam(description = "Kubernetes namespace") String namespace) {
-		List<Release> revisions = this.historyAction.history(name, namespace);
-		if (revisions.isEmpty()) {
-			return notFound(name, namespace);
-		}
-		StringBuilder sb = new StringBuilder();
-		sb.append("NAME\tNAMESPACE\tREVISION\tSTATUS\n");
-		for (Release revision : revisions) {
-			appendReleaseLine(sb, revision);
-		}
-		return sb.toString();
+		return this.historyAction.history(name, namespace).stream().map(OutputFormat::historyRow).toList();
 	}
 
 	/**
@@ -129,43 +116,6 @@ public class ReleaseReadTools {
 			return notFound(name, namespace);
 		}
 		return this.getAction.getManifest(release.get());
-	}
-
-	private static void appendReleaseLine(StringBuilder sb, Release release) {
-		sb.append(release.getName()).append('\t').append(release.getNamespace()).append('\t');
-		sb.append(release.getVersion()).append('\t').append(statusOf(release)).append('\n');
-	}
-
-	private static String renderReleaseDetail(Release release) {
-		StringBuilder sb = new StringBuilder();
-		sb.append("Name: ").append(release.getName());
-		sb.append("\nNamespace: ").append(release.getNamespace());
-		sb.append("\nRevision: ").append(release.getVersion());
-		sb.append("\nStatus: ").append(statusOf(release));
-		Release.ReleaseInfo info = release.getInfo();
-		if (info != null) {
-			if (info.getDescription() != null) {
-				sb.append("\nDescription: ").append(info.getDescription());
-			}
-			if (info.getLastDeployed() != null) {
-				sb.append("\nLast deployed: ").append(info.getLastDeployed());
-			}
-		}
-		if (release.getChart() != null && release.getChart().getMetadata() != null) {
-			sb.append("\nChart: ")
-				.append(release.getChart().getMetadata().getName())
-				.append('-')
-				.append(release.getChart().getMetadata().getVersion());
-		}
-		sb.append('\n');
-		return sb.toString();
-	}
-
-	private static String statusOf(Release release) {
-		if (release.getInfo() != null && release.getInfo().getStatus() != null) {
-			return release.getInfo().getStatus().getValue();
-		}
-		return "unknown";
 	}
 
 	private static String notFound(String name, String namespace) {
