@@ -79,6 +79,14 @@ array when `--show-resources` is set); `history -o json|yaml` emits the Helm his
 `-n/--namespace` and `--revision`; `get values` and `get metadata` take `-o/--output`
 (yaml/json), and `get values` takes `-a/--all`. This mirrors Helm's `get` subcommands.
 
+== template
+
+`jhelm template` renders to stdout like `helm template`, and now emits a Helm-style
+`# Source: <chart>/templates/<file>` marker before each document, so the output records which
+template produced each manifest (and downstream tooling can split by source). The
+render-control flags (`-s`/`--show-only`, `--output-dir`, `--include-crds`, `--skip-tests`,
+`--is-upgrade`) are still being wired — see "Other known gaps".
+
 == repo / registry / pull
 
 [cols="2,1,3"]
