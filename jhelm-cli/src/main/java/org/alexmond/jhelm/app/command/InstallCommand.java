@@ -2,6 +2,7 @@ package org.alexmond.jhelm.app.command;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -127,6 +128,13 @@ public class InstallCommand implements Callable<Integer> {
 	@CommandLine.Option(names = { "--create-namespace" }, description = "create the release namespace if not present")
 	private boolean createNamespace;
 
+	@Option(names = { "--description" }, description = "custom release description (stored on the release)")
+	private String description;
+
+	@Option(names = { "--labels" }, split = ",",
+			description = "labels to add to the release Secret (key=value, comma-separated or repeatable)")
+	private Map<String, String> labels = new LinkedHashMap<>();
+
 	@CommandLine.Option(names = { "-o", "--output" }, defaultValue = "table",
 			description = "output format: table (default human summary), json, or yaml")
 	private String output;
@@ -185,6 +193,8 @@ public class InstallCommand implements Callable<Integer> {
 				.serverDryRun(serverDryRun)
 				.noHooks(noHooks)
 				.createNamespace(createNamespace)
+				.description(description)
+				.labels(labels)
 				.build());
 			release = applyCliPostRenderers(release);
 

@@ -47,6 +47,12 @@ public class Release {
 
 	private String manifest;
 
+	/**
+	 * Custom labels on the release, stored on the {@code sh.helm.release.v1.*} Secret
+	 * (Helm's {@code --labels}). Omitted from the wire format when {@code null}.
+	 */
+	private Map<String, String> labels;
+
 	@JsonPOJOBuilder(withPrefix = "")
 	public static class ReleaseBuilder {
 

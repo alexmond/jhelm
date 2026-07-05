@@ -87,19 +87,24 @@ public class InstallAction {
 		}
 		this.valueEncryptor.decryptValues(values);
 
+		String defaultDescription = options.isDryRun() ? "Dry run complete" : "Install complete";
+		String description = (options.getDescription() != null && !options.getDescription().isBlank())
+				? options.getDescription() : defaultDescription;
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(OffsetDateTime.now())
 			.lastDeployed(OffsetDateTime.now())
 			.status((options.isDryRun()) ? ReleaseStatus.PENDING_INSTALL : ReleaseStatus.DEPLOYED)
-			.description(options.isDryRun() ? "Dry run complete" : "Install complete")
+			.description(description)
 			.build();
 
+		Map<String, String> labels = options.getLabels();
 		Release release = Release.builder()
 			.name(options.getReleaseName())
 			.namespace(options.getNamespace())
 			.version(options.getRevision())
 			.chart(chart)
 			.info(info)
+			.labels((labels != null && !labels.isEmpty()) ? new HashMap<>(labels) : null)
 			// Persist the user-supplied values (Helm's release "config").
 			.config(Release.MapConfig.builder()
 				.values((overrideValues != null) ? new HashMap<>(overrideValues) : new HashMap<>())

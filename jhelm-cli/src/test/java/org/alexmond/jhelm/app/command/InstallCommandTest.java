@@ -142,6 +142,21 @@ class InstallCommandTest {
 	}
 
 	@Test
+	void testDescriptionAndLabelsReachInstallOptions() throws Exception {
+		File chartDir = createMockChart();
+		ArgumentCaptor<InstallOptions> captor = ArgumentCaptor.forClass(InstallOptions.class);
+		when(installAction.install(captor.capture())).thenReturn(createMockRelease("my-release", 1));
+
+		int exit = new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath(), "--description",
+				"my rollout", "--labels", "team=payments,env=prod");
+
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		assertEquals("my rollout", captor.getValue().getDescription());
+		assertEquals("payments", captor.getValue().getLabels().get("team"));
+		assertEquals("prod", captor.getValue().getLabels().get("env"));
+	}
+
+	@Test
 	void testMissingNameWithoutGenerateNameIsUsageError() throws Exception {
 		File chartDir = createMockChart();
 		int exit = new CommandLine(installCommand).execute(chartDir.getAbsolutePath());

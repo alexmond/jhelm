@@ -1,5 +1,24 @@
 = Changelog
 
+== 1.2.0
+
+Closing CLI flag-parity gaps with Helm across the `template`, `install`, and query commands, so
+more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI Flag Parity].
+
+=== Helm parity
+
+* *Machine-readable output on more commands* -- `-o table\|json\|yaml` now covers `status`,
+  `history`, `install`, `upgrade`, `repo list`, and `search hub`, emitting Helm-shaped output
+  (nested `info`, snake_case keys) for scripts and agents (#678).
+* *`template` source markers* -- rendered manifests carry a Helm-style
+  `# Source: <chart>/templates/<file>` marker before each document (#679).
+* *`template` render-control flags* -- `-s`/`--show-only`, `--output-dir`, `--skip-tests`,
+  `--include-crds`, and `--is-upgrade` (#679).
+* *`install --generate-name`* -- omit the release name and pass `-g`/`--generate-name` to
+  auto-generate `<chart>-<timestamp>`, as Helm does (#680).
+* *`install --description` / `--labels`* -- store a custom release description and custom labels
+  on the release Secret (#680).
+
 == 1.1.0
 
 The first release to extend *beyond Helm parity*: a Spring-Boot-style value-management layer —

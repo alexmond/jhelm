@@ -11,6 +11,7 @@ import org.mockito.MockitoAnnotations;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -122,6 +123,46 @@ class InstallActionTest {
 		assertNotNull(release.getConfig());
 		assertEquals(3, release.getConfig().getValues().get("replicaCount"));
 		assertEquals(Map.of("tag", "v2"), release.getConfig().getValues().get("image"));
+	}
+
+	@Test
+	void testInstallAppliesCustomDescriptionAndLabels() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+			.thenReturn("---\n");
+
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.dryRun(true)
+			.description("initial rollout")
+			.labels(Map.of("team", "payments"))
+			.build());
+
+		assertEquals("initial rollout", release.getInfo().getDescription());
+		assertEquals("payments", release.getLabels().get("team"));
+	}
+
+	@Test
+	void testInstallUsesDefaultDescriptionWhenNoneGiven() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+			.thenReturn("---\n");
+
+		Release release = installAction.install(InstallOptions.builder()
+			.chart(chart)
+			.releaseName("my-release")
+			.namespace("default")
+			.revision(1)
+			.dryRun(true)
+			.build());
+
+		assertEquals("Dry run complete", release.getInfo().getDescription());
+		assertNull(release.getLabels());
 	}
 
 	@Test

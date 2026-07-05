@@ -62,4 +62,17 @@ public final class InstallOptions {
 	 */
 	private final boolean createNamespace;
 
+	/**
+	 * Custom release description (Helm's {@code --description}). When {@code null} or
+	 * blank, the standard {@code "Install complete"} description is used.
+	 */
+	private final String description;
+
+	/**
+	 * Custom labels to store on the release Secret (Helm's {@code --labels}). Defaults to
+	 * an empty map.
+	 */
+	@Builder.Default
+	private final Map<String, String> labels = Map.of();
+
 }
