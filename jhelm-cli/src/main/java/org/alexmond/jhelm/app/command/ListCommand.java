@@ -5,6 +5,7 @@ import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.output.OutputFormat;
+import org.alexmond.jhelm.core.util.ReleaseFilters;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -32,6 +33,22 @@ public class ListCommand implements Callable<Integer> {
 			description = "output format: table, json, or yaml")
 	private String output;
 
+	@CommandLine.Option(names = { "-l", "--selector" },
+			description = "filter by a label selector (key=value or key!=value, comma-separated, all ANDed)")
+	private String selector;
+
+	@CommandLine.Option(names = { "--filter" },
+			description = "filter releases by a regular expression matched against the name")
+	private String filter;
+
+	@CommandLine.Option(names = { "--offset" }, defaultValue = "0",
+			description = "next release index in the list to start from")
+	private int offset;
+
+	@CommandLine.Option(names = { "-m", "--max" }, defaultValue = "256",
+			description = "maximum number of releases to fetch (0 = no limit)")
+	private int max;
+
 	/**
 	 * Creates the command.
 	 * @param listAction the action that lists releases
@@ -55,7 +72,7 @@ public class ListCommand implements Callable<Integer> {
 	@Override
 	public Integer call() {
 		try {
-			List<Release> releases = listAction.list(namespace);
+			List<Release> releases = ReleaseFilters.apply(listAction.list(namespace), selector, filter, offset, max);
 			switch (output.toLowerCase(Locale.ROOT)) {
 				case "json" -> System.out.println(OutputFormat.json(toRows(releases)));
 				case "yaml" -> System.out.print(OutputFormat.yaml(toRows(releases)));

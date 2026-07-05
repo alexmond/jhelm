@@ -17,6 +17,8 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -86,6 +88,43 @@ class ListCommandTest {
 		assertTrue(out.contains("\"status\":\"deployed\""), out);
 		assertTrue(out.contains("\"chart\":\"test-chart-1.0.0\""), out);
 		assertTrue(out.contains("\"app_version\""), out);
+	}
+
+	@Test
+	void testListFilterByNameRegex() throws Exception {
+		when(listAction.list(anyString()))
+			.thenReturn(Arrays.asList(createMockRelease("web", 1), createMockRelease("db", 1)));
+
+		new CommandLine(listCommand).execute("-o", "json", "--filter", "^web$");
+
+		String out = captured();
+		assertTrue(out.contains("\"name\":\"web\""), out);
+		assertFalse(out.contains("\"name\":\"db\""), out);
+	}
+
+	@Test
+	void testListSelectorByLabel() throws Exception {
+		Release payments = createMockRelease("web", 1).toBuilder().labels(Map.of("team", "payments")).build();
+		Release search = createMockRelease("db", 1).toBuilder().labels(Map.of("team", "search")).build();
+		when(listAction.list(anyString())).thenReturn(Arrays.asList(payments, search));
+
+		new CommandLine(listCommand).execute("-o", "json", "-l", "team=payments");
+
+		String out = captured();
+		assertTrue(out.contains("\"name\":\"web\""), out);
+		assertFalse(out.contains("\"name\":\"db\""), out);
+	}
+
+	@Test
+	void testListMaxLimitsCount() throws Exception {
+		when(listAction.list(anyString()))
+			.thenReturn(Arrays.asList(createMockRelease("a", 1), createMockRelease("b", 1), createMockRelease("c", 1)));
+
+		new CommandLine(listCommand).execute("-o", "json", "--max", "1");
+
+		String out = captured();
+		assertTrue(out.contains("\"name\":\"a\""), out);
+		assertFalse(out.contains("\"name\":\"b\""), out);
 	}
 
 	@Test

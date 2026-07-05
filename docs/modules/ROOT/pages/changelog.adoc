@@ -27,6 +27,9 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
   `charts/` from its `Chart.yaml` dependencies (like `helm dependency update`) before the
   operation. The update flow is now a reusable `DependencyUpdateAction` shared with the
   `dependency update` command (#680).
+* *`list` filtering & pagination* -- `list` gains `-l`/`--selector` (label selector, `key=value`
+  / `key!=value`, comma-ANDed), `--filter` (regex on the release name), and `--offset`/`-m`/`--max`
+  (paginate; default max 256). Results are sorted by name (#681).
 * *REST releases API now returns Helm-shaped JSON* -- the `/releases` list/status/history and
   install/upgrade responses now use Helm's `-o json` schema (snake_case, nested `info`) instead
   of jhelm's internal DTO, so REST consumers see the same shape as `helm ... -o json` and the
