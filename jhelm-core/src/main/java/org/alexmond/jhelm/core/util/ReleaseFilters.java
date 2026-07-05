@@ -4,9 +4,11 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 
 /**
  * Client-side filtering and pagination for {@code helm list}, mirroring Helm's
@@ -46,6 +48,23 @@ public final class ReleaseFilters {
 			return List.copyOf(result.subList(0, max));
 		}
 		return result;
+	}
+
+	/**
+	 * Keeps only releases whose status is in {@code included}, mirroring Helm's
+	 * {@code list} status filters ({@code --deployed}, {@code --failed}, …). A
+	 * {@code null} set means no status filtering (Helm's {@code --all}).
+	 * @param releases the releases to filter (not modified)
+	 * @param included the statuses to keep, or {@code null} to keep every status
+	 * @return a new list with the surviving releases
+	 */
+	public static List<Release> retainStatuses(List<Release> releases, Set<ReleaseStatus> included) {
+		if (included == null) {
+			return List.copyOf(releases);
+		}
+		return releases.stream()
+			.filter((r) -> r.getInfo() != null && included.contains(r.getInfo().getStatus()))
+			.toList();
 	}
 
 	private static Map<String, Matcher> parseSelector(String selector) {
