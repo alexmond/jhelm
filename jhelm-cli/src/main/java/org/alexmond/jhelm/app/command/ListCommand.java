@@ -4,15 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.output.OutputFormat;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
-import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.dataformat.yaml.YAMLFactory;
-import tools.jackson.dataformat.yaml.YAMLMapper;
-import tools.jackson.dataformat.yaml.YAMLWriteFeature;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -27,12 +22,6 @@ import java.util.concurrent.Callable;
 @CommandLine.Command(name = "list", mixinStandardHelpOptions = true, description = "List releases")
 @Slf4j
 public class ListCommand implements Callable<Integer> {
-
-	private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
-
-	private static final YAMLMapper YAML_MAPPER = YAMLMapper
-		.builder(YAMLFactory.builder().disable(YAMLWriteFeature.WRITE_DOC_START_MARKER).build())
-		.build();
 
 	private final ListAction listAction;
 
@@ -68,8 +57,8 @@ public class ListCommand implements Callable<Integer> {
 		try {
 			List<Release> releases = listAction.list(namespace);
 			switch (output.toLowerCase(Locale.ROOT)) {
-				case "json" -> System.out.println(JSON_MAPPER.writeValueAsString(toRows(releases)));
-				case "yaml" -> System.out.print(YAML_MAPPER.writeValueAsString(toRows(releases)));
+				case "json" -> System.out.println(OutputFormat.json(toRows(releases)));
+				case "yaml" -> System.out.print(OutputFormat.yaml(toRows(releases)));
 				default -> printTable(releases);
 			}
 			return CommandLine.ExitCode.OK;
@@ -92,22 +81,7 @@ public class ListCommand implements Callable<Integer> {
 
 	// Mirrors the fields Helm emits for `helm list -o json/yaml` (snake_case keys).
 	private List<Map<String, Object>> toRows(List<Release> releases) {
-		List<Map<String, Object>> rows = new ArrayList<>();
-		for (Release r : releases) {
-			Map<String, Object> row = new LinkedHashMap<>();
-			row.put("name", r.getName());
-			row.put("namespace", r.getNamespace());
-			row.put("revision", r.getVersion());
-			row.put("updated", (r.getInfo() != null && r.getInfo().getLastDeployed() != null)
-					? r.getInfo().getLastDeployed().toString() : "");
-			row.put("status",
-					(r.getInfo() != null && r.getInfo().getStatus() != null) ? r.getInfo().getStatus().getValue() : "");
-			row.put("chart", r.getChart().getMetadata().getName() + "-" + r.getChart().getMetadata().getVersion());
-			String appVersion = r.getChart().getMetadata().getAppVersion();
-			row.put("app_version", (appVersion != null) ? appVersion : "");
-			rows.add(row);
-		}
-		return rows;
+		return releases.stream().map(OutputFormat::listRow).toList();
 	}
 
 }

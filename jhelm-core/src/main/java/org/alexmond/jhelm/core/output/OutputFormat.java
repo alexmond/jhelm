@@ -87,6 +87,26 @@ public final class OutputFormat {
 	}
 
 	/**
+	 * Builds a Helm-shaped list-row map ({@code helm list -o json} form).
+	 * @param release the release
+	 * @return an ordered, snake_case map mirroring Helm's list JSON entries
+	 */
+	public static Map<String, Object> listRow(Release release) {
+		Map<String, Object> row = new LinkedHashMap<>();
+		row.put("name", release.getName());
+		row.put("namespace", release.getNamespace());
+		row.put("revision", release.getVersion());
+		Release.ReleaseInfo info = release.getInfo();
+		row.put("updated", (info != null && info.getLastDeployed() != null) ? info.getLastDeployed().toString() : "");
+		row.put("status", (info != null && info.getStatus() != null) ? info.getStatus().getValue() : "");
+		row.put("chart",
+				release.getChart().getMetadata().getName() + "-" + release.getChart().getMetadata().getVersion());
+		String appVersion = release.getChart().getMetadata().getAppVersion();
+		row.put("app_version", (appVersion != null) ? appVersion : "");
+		return row;
+	}
+
+	/**
 	 * Builds a Helm-shaped history-row map ({@code helm history -o json} form).
 	 * @param release the release revision
 	 * @return an ordered, snake_case map mirroring Helm's history JSON entries
