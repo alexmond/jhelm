@@ -118,7 +118,8 @@ class ReleaseControllerTest {
 		this.mockMvc.perform(get("/api/v1/releases").accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[0].name").value("my-release"))
-			.andExpect(jsonPath("$[0].chartName").value("nginx"));
+			.andExpect(jsonPath("$[0].chart").value("nginx-1.0.0"))
+			.andExpect(jsonPath("$[0].app_version").value("1.25"));
 	}
 
 	@Test
@@ -127,7 +128,7 @@ class ReleaseControllerTest {
 		this.mockMvc.perform(get("/api/v1/releases/my-release").accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.name").value("my-release"))
-			.andExpect(jsonPath("$.status").value("deployed"));
+			.andExpect(jsonPath("$.info.status").value("deployed"));
 	}
 
 	@Test
@@ -307,7 +308,8 @@ class ReleaseControllerTest {
 		when(this.historyAction.history("my-release", "default")).thenReturn(List.of(sampleRelease()));
 		this.mockMvc.perform(get("/api/v1/releases/my-release/history").accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[0].version").value(1));
+			.andExpect(jsonPath("$[0].revision").value(1))
+			.andExpect(jsonPath("$[0].app_version").value("1.25"));
 	}
 
 	@Test

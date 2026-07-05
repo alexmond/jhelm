@@ -18,6 +18,12 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
   auto-generate `<chart>-<timestamp>`, as Helm does (#680).
 * *`install --description` / `--labels`* -- store a custom release description and custom labels
   on the release Secret (#680).
+* *REST releases API now returns Helm-shaped JSON* -- the `/releases` list/status/history and
+  install/upgrade responses now use Helm's `-o json` schema (snake_case, nested `info`) instead
+  of jhelm's internal DTO, so REST consumers see the same shape as `helm ... -o json` and the
+  CLI (#686). *Breaking:* clients reading the old fields must migrate (e.g. `status` moves from
+  `$.status` to `$.info.status`; list `chartName` becomes `chart`; history `version` becomes
+  `revision`).
 
 == 1.1.0
 

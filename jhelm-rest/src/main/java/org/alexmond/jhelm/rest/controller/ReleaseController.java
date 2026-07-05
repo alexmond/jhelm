@@ -28,6 +28,7 @@ import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.output.OutputFormat;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.core.util.HookParser;
@@ -37,7 +38,6 @@ import org.alexmond.jhelm.rest.security.MutatingOperation;
 import org.alexmond.jhelm.rest.dto.HelmHookDto;
 import org.alexmond.jhelm.rest.dto.InstallRequest;
 import org.alexmond.jhelm.rest.dto.InstallUploadRequest;
-import org.alexmond.jhelm.rest.dto.ReleaseDto;
 import org.alexmond.jhelm.rest.dto.ResourceStatusDto;
 import org.alexmond.jhelm.rest.dto.RollbackRequest;
 import org.alexmond.jhelm.rest.dto.TestResultDto;
@@ -133,10 +133,11 @@ public class ReleaseController {
 	 * @return the releases found in the namespace
 	 */
 	@GetMapping
-	@Operation(summary = "List releases", description = "List all Helm releases in a namespace")
-	public List<ReleaseDto> list(
+	@Operation(summary = "List releases",
+			description = "List all Helm releases in a namespace, in Helm's list -o json shape")
+	public List<Map<String, Object>> list(
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
-		return this.listAction.list(namespace).stream().map(ReleaseDto::from).toList();
+		return this.listAction.list(namespace).stream().map(OutputFormat::listRow).toList();
 	}
 
 	/**
@@ -146,13 +147,14 @@ public class ReleaseController {
 	 * @return {@code 200} with the release, or {@code 404} if it does not exist
 	 */
 	@GetMapping("/{name}")
-	@Operation(summary = "Get release status",
+	@Operation(summary = "Get release status", description = "Release in Helm's status -o json shape",
 			responses = { @ApiResponse(responseCode = "200", description = "Release found"),
 					@ApiResponse(responseCode = "404", description = "Release not found") })
-	public ResponseEntity<ReleaseDto> status(@Parameter(description = "Release name") @PathVariable String name,
+	public ResponseEntity<Map<String, Object>> status(
+			@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
 		return this.statusAction.status(name, namespace)
-			.map(ReleaseDto::from)
+			.map(OutputFormat::release)
 			.map(ResponseEntity::ok)
 			.orElse(ResponseEntity.notFound().build());
 	}
@@ -168,7 +170,7 @@ public class ReleaseController {
 	@MutatingOperation
 	@Operation(summary = "Install a release",
 			description = "Install a new Helm release from a repository chart reference")
-	public ResponseEntity<ReleaseDto> install(@Valid @RequestBody InstallRequest request) throws IOException {
+	public ResponseEntity<Map<String, Object>> install(@Valid @RequestBody InstallRequest request) throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-install-")) {
 			Chart chart = ChartSourceResolver.fromChartRef(request.getChartRef(), request.getVersion(),
 					this.repoManager, this.chartLoader, tempDir);
@@ -181,7 +183,7 @@ public class ReleaseController {
 				.revision(1)
 				.dryRun(request.isDryRun())
 				.build());
-			return ResponseEntity.status(HttpStatus.CREATED).body(ReleaseDto.from(release));
+			return ResponseEntity.status(HttpStatus.CREATED).body(OutputFormat.release(release));
 		}
 	}
 
@@ -196,7 +198,7 @@ public class ReleaseController {
 	@MutatingOperation
 	@Operation(summary = "Install a release from upload",
 			description = "Install a new Helm release from an uploaded .tgz chart archive")
-	public ResponseEntity<ReleaseDto> installUpload(@RequestPart("chart") MultipartFile chart,
+	public ResponseEntity<Map<String, Object>> installUpload(@RequestPart("chart") MultipartFile chart,
 			@Valid @RequestPart("request") InstallUploadRequest request) throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-install-upload-")) {
 			Chart loaded = ChartSourceResolver.fromUpload(chart, this.repoManager, this.chartLoader, tempDir);
@@ -209,7 +211,7 @@ public class ReleaseController {
 				.revision(1)
 				.dryRun(request.isDryRun())
 				.build());
-			return ResponseEntity.status(HttpStatus.CREATED).body(ReleaseDto.from(release));
+			return ResponseEntity.status(HttpStatus.CREATED).body(OutputFormat.release(release));
 		}
 	}
 
@@ -225,7 +227,7 @@ public class ReleaseController {
 	@MutatingOperation
 	@Operation(summary = "Upgrade a release",
 			description = "Upgrade an existing release from a repository chart reference")
-	public ReleaseDto upgrade(@Parameter(description = "Release name") @PathVariable String name,
+	public Map<String, Object> upgrade(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
 			@Valid @RequestBody UpgradeRequest request) throws IOException {
 		Release current = this.getAction.getRelease(name, namespace)
@@ -241,7 +243,7 @@ public class ReleaseController {
 				.valueStrategy(resolveStrategy(request.getValueStrategy()))
 				.dryRun(request.isDryRun())
 				.build());
-			return ReleaseDto.from(upgraded);
+			return OutputFormat.release(upgraded);
 		}
 	}
 
@@ -259,7 +261,7 @@ public class ReleaseController {
 	@MutatingOperation
 	@Operation(summary = "Upgrade a release from upload",
 			description = "Upgrade an existing release from an uploaded .tgz chart archive")
-	public ReleaseDto upgradeUpload(@Parameter(description = "Release name") @PathVariable String name,
+	public Map<String, Object> upgradeUpload(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
 			@RequestPart("chart") MultipartFile chart, @RequestPart("request") UpgradeUploadRequest request)
 			throws IOException {
@@ -275,7 +277,7 @@ public class ReleaseController {
 				.valueStrategy(resolveStrategy(request.getValueStrategy()))
 				.dryRun(request.isDryRun())
 				.build());
-			return ReleaseDto.from(upgraded);
+			return OutputFormat.release(upgraded);
 		}
 	}
 
@@ -311,10 +313,11 @@ public class ReleaseController {
 	 * @return the release revisions, newest first
 	 */
 	@GetMapping("/{name}/history")
-	@Operation(summary = "Get release history", description = "List all revisions of a release")
-	public List<ReleaseDto> history(@Parameter(description = "Release name") @PathVariable String name,
+	@Operation(summary = "Get release history",
+			description = "List all revisions of a release, in Helm's history -o json shape")
+	public List<Map<String, Object>> history(@Parameter(description = "Release name") @PathVariable String name,
 			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
-		return this.historyAction.history(name, namespace).stream().map(ReleaseDto::from).toList();
+		return this.historyAction.history(name, namespace).stream().map(OutputFormat::historyRow).toList();
 	}
 
 	/**
