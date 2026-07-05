@@ -11,9 +11,14 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -53,6 +58,28 @@ class HistoryCommandTest {
 
 		CommandLine cmd = new CommandLine(historyCommand);
 		cmd.execute("my-release");
+	}
+
+	@Test
+	void testHistoryOutputJsonIsArrayOfHelmRows() throws Exception {
+		when(historyAction.history(anyString(), anyString())).thenReturn(Arrays.asList(
+				createMockRelease("my-release", 1, "Initial install"), createMockRelease("my-release", 2, "Upgrade")));
+
+		PrintStream originalOut = System.out;
+		ByteArrayOutputStream captured = new ByteArrayOutputStream();
+		System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+		int exit;
+		try {
+			exit = new CommandLine(historyCommand).execute("my-release", "-o", "json");
+		}
+		finally {
+			System.setOut(originalOut);
+		}
+		String out = captured.toString(StandardCharsets.UTF_8).strip();
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		assertTrue(out.startsWith("[") && out.endsWith("]"), out);
+		assertTrue(out.contains("\"revision\":2"), out);
+		assertTrue(out.contains("\"app_version\":"), out);
 	}
 
 	private Release createMockRelease(String name, int version, String description) {

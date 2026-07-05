@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -90,6 +91,23 @@ class RepoCommandTest {
 		assertTrue(output.contains("URL"));
 		assertTrue(output.contains("bitnami"));
 		assertTrue(output.contains("stable"));
+	}
+
+	@Test
+	void testListCommandOutputJson() throws IOException {
+		RepositoryConfig config = new RepositoryConfig();
+		RepositoryConfig.Repository repo1 = new RepositoryConfig.Repository();
+		repo1.setName("bitnami");
+		repo1.setUrl("https://charts.bitnami.com/bitnami");
+		config.setRepositories(Arrays.asList(repo1));
+		when(repoManager.loadConfig()).thenReturn(config);
+
+		int exit = new CommandLine(listCommand).execute("-o", "json");
+		String output = outputStream.toString().strip();
+		assertEquals(0, exit);
+		assertTrue(output.startsWith("[") && output.endsWith("]"), output);
+		assertTrue(output.contains("\"name\":\"bitnami\""), output);
+		assertTrue(output.contains("\"url\":\"https://charts.bitnami.com/bitnami\""), output);
 	}
 
 	@Test

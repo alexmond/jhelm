@@ -105,6 +105,24 @@ class SearchHubCommandTest {
 	}
 
 	@Test
+	void testSearchHubOutputJson() throws Exception {
+		when(searchHubAction.search(anyString(), anyInt())).thenReturn(List.of(sampleResult()));
+
+		String out = captureStdout(() -> new CommandLine(searchHubCommand).execute("nginx", "-o", "json")).strip();
+		assertTrue(out.startsWith("[") && out.endsWith("]"), out);
+		assertTrue(out.contains("\"app_version\":\"1.25.0\""), out);
+		assertTrue(out.contains("\"repository\":"), out);
+	}
+
+	@Test
+	void testSearchHubOutputYamlEmptyList() throws Exception {
+		when(searchHubAction.search(anyString(), anyInt())).thenReturn(List.of());
+
+		String out = captureStdout(() -> new CommandLine(searchHubCommand).execute("nope", "-o", "yaml")).strip();
+		assertEquals("[]", out);
+	}
+
+	@Test
 	void testSearchHubError() throws Exception {
 		when(searchHubAction.search(anyString(), anyInt())).thenThrow(new JhelmException("connection failed"));
 

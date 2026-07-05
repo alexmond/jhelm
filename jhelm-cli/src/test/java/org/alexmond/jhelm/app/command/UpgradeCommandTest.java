@@ -28,11 +28,15 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -107,6 +111,29 @@ class UpgradeCommandTest {
 
 		CommandLine cmd = new CommandLine(upgradeCommand);
 		cmd.execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
+	}
+
+	@Test
+	void testUpgradeCommandOutputJson() throws Exception {
+		File chartDir = createMockChart();
+		when(kubeService.getRelease(anyString(), anyString()))
+			.thenReturn(Optional.of(createMockRelease("my-release", 1)));
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(createMockRelease("my-release", 2));
+
+		PrintStream originalOut = System.out;
+		ByteArrayOutputStream captured = new ByteArrayOutputStream();
+		System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+		int exitCode;
+		try {
+			exitCode = new CommandLine(upgradeCommand).execute("my-release", chartDir.getAbsolutePath(), "-o", "json");
+		}
+		finally {
+			System.setOut(originalOut);
+		}
+		String out = captured.toString(StandardCharsets.UTF_8);
+		assertEquals(CommandLine.ExitCode.OK, exitCode);
+		assertTrue(out.contains("\"version\":2"), out);
+		assertTrue(out.contains("\"info\":{"), out);
 	}
 
 	@Test
