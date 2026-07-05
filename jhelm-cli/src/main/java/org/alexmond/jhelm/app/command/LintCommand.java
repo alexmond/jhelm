@@ -41,6 +41,10 @@ public class LintCommand implements Callable<Integer> {
 	@Option(names = { "--set-json" }, description = "set JSON values on the command line (key=json)")
 	private List<String> setJsonValues = new ArrayList<>();
 
+	@Option(names = { "--set-literal" },
+			description = "set a literal STRING value on the command line (key=value, no coercion or escaping)")
+	private List<String> setLiteralValues = new ArrayList<>();
+
 	@Option(names = { "--strict" }, defaultValue = "false", description = "fail on lint warnings")
 	private boolean strict;
 
@@ -56,7 +60,7 @@ public class LintCommand implements Callable<Integer> {
 	public Integer call() {
 		try {
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
-					setFileValues, setJsonValues);
+					setFileValues, setJsonValues, setLiteralValues);
 			LintAction.LintResult result = lintAction.lint(chartPath, overrides, strict);
 
 			CliOutput.println("==> Linting " + result.getChartPath());

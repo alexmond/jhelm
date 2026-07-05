@@ -105,6 +105,10 @@ public class InstallCommand implements Callable<Integer> {
 	@Option(names = { "--set-json" }, description = "set JSON values on the command line (key=json)")
 	private List<String> setJsonValues = new ArrayList<>();
 
+	@Option(names = { "--set-literal" },
+			description = "set a literal STRING value on the command line (key=value, no coercion or escaping)")
+	private List<String> setLiteralValues = new ArrayList<>();
+
 	@Option(names = { "--wait" }, description = "wait until all resources are ready")
 	private boolean wait;
 
@@ -181,7 +185,7 @@ public class InstallCommand implements Callable<Integer> {
 					configServerOptions.toOptions());
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, configServer.values(),
 					configServer.overrideNone(), configServer.overrideSystemProperties(), setValues, setStringValues,
-					setFileValues, setJsonValues);
+					setFileValues, setJsonValues, setLiteralValues);
 
 			Release release = installAction.install(InstallOptions.builder()
 				.chart(chart)

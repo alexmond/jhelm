@@ -35,7 +35,8 @@ Status legend: ✅ same flag · ✎ supported but differs (see note) · ✗ not 
 | `--labels` (install) | ✅ | `key=value` labels (comma-separated or repeatable) added to the release Secret; the reserved `owner`/`name`/`status`/`version` labels are never overridden.
 | `--description` (upgrade) | ✅ | Custom description for the new revision (falls back to `Upgrade complete`).
 | `--labels` (upgrade) | ✅ | `key=value` labels for the new revision; without it, the previous release's labels are carried forward (like Helm).
-| `--set-literal`, `--dependency-update` | ✗ | Not yet wired.
+| `--set-literal` | ✅ | Sets a fully literal string value (no coercion/comma/escape handling), applied last; also on `template` and `lint`.
+| `--dependency-update` | ✗ | Not yet wired.
 |===
 
 == uninstall
@@ -141,8 +142,8 @@ Beyond the per-command tables above, these commonly-used Helm options are not ye
 * *`list`* — `-A`/`--all-namespaces`, `-l`/`--selector`, `-a`/`--all`, the status filters,
   `--max`/`--offset`/`--filter`.
 * *`install`/`upgrade`* — install-from-repo (`--version`/`--repo`/`--username`/`--password`),
-  `--set-literal`, `--dependency-update`; `upgrade --cleanup-on-fail`.
-  (`-g`/`--generate-name` is supported on `install`; `--description`/`--labels` on both.)
+  `--dependency-update`; `upgrade --cleanup-on-fail`.
+  (`-g`/`--generate-name` is supported on `install`; `--description`/`--labels`/`--set-literal` on both.)
 * *`uninstall`/`rollback`* — `--wait`/`--timeout`/`--cascade` (uninstall);
   `--force`/`--cleanup-on-fail`/`--recreate-pods`/`--wait-for-jobs` (rollback).
 * *`pull`* — `--untar`/`--untardir`, `--verify`/`--prov`/`--keyring`, `--devel`.

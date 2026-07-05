@@ -69,6 +69,10 @@ public class TemplateCommand implements Callable<Integer> {
 	@Option(names = { "--set-json" }, description = "set JSON values on the command line (key=json)")
 	private List<String> setJsonValues = new ArrayList<>();
 
+	@Option(names = { "--set-literal" },
+			description = "set a literal STRING value on the command line (key=value, no coercion or escaping)")
+	private List<String> setLiteralValues = new ArrayList<>();
+
 	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
 
@@ -122,7 +126,7 @@ public class TemplateCommand implements Callable<Integer> {
 					configServerOptions.toOptions());
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, configServer.values(),
 					configServer.overrideNone(), configServer.overrideSystemProperties(), setValues, setStringValues,
-					setFileValues, setJsonValues);
+					setFileValues, setJsonValues, setLiteralValues);
 			String manifest = templateAction.render(chartPath, name, namespace, overrides, profiles, kubeVersion,
 					apiVersions, isUpgrade, includeCrds);
 			for (String renderer : postRenderers) {
