@@ -2,7 +2,7 @@ package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
-import org.alexmond.jhelm.app.output.OutputFormat;
+import org.alexmond.jhelm.core.output.OutputFormat;
 import org.alexmond.jhelm.core.action.HistoryAction;
 import org.alexmond.jhelm.core.model.Release;
 import org.springframework.stereotype.Component;

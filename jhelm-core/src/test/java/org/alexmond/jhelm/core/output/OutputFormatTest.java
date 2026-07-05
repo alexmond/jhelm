@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.app.output;
+package org.alexmond.jhelm.core.output;
 
 import java.time.OffsetDateTime;
 import java.util.List;
