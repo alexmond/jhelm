@@ -72,7 +72,10 @@ public class ReleaseMutatingTools {
 	public String install(@McpToolParam(description = "Path to the chart directory to install") String chartPath,
 			@McpToolParam(description = "Release name to create") String name,
 			@McpToolParam(description = "Target Kubernetes namespace") String namespace,
-			@McpToolParam(description = "Render only without applying to the cluster when true") boolean dryRun) {
+			@McpToolParam(description = "Render only without applying to the cluster when true") boolean dryRun,
+			@McpToolParam(required = false, description = "Custom release description") String description,
+			@McpToolParam(required = false,
+					description = "Custom labels to store on the release (key=value)") Map<String, String> labels) {
 		Chart chart = this.chartLoader.load(new File(chartPath));
 		Release release = this.installAction.install(InstallOptions.builder()
 			.chart(chart)
@@ -81,6 +84,8 @@ public class ReleaseMutatingTools {
 			.values(Map.of())
 			.revision(1)
 			.dryRun(dryRun)
+			.description(description)
+			.labels((labels != null) ? labels : Map.of())
 			.build());
 		return renderReleaseSummary("Installed", release, dryRun);
 	}

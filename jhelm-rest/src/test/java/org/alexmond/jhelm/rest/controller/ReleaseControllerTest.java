@@ -156,6 +156,27 @@ class ReleaseControllerTest {
 	}
 
 	@Test
+	void installPassesDescriptionAndLabels() throws Exception {
+		stubPull();
+		Chart chart = Chart.builder().metadata(ChartMetadata.builder().name("nginx").version("1.0.0").build()).build();
+		when(this.chartLoader.load(any(File.class))).thenReturn(chart);
+		when(this.installAction.install(any(InstallOptions.class))).thenReturn(sampleRelease());
+
+		this.mockMvc
+			.perform(post("/api/v1/releases").contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.content("""
+						{"chartRef": "bitnami/nginx", "releaseName": "my-release",
+						 "description": "rollout A", "labels": {"team": "payments"}}
+						"""))
+			.andExpect(status().isCreated());
+
+		verify(this.installAction)
+			.install(argThat((InstallOptions options) -> "rollout A".equals(options.getDescription())
+					&& "payments".equals(options.getLabels().get("team"))));
+	}
+
+	@Test
 	void installRejectsMissingChartRef() throws Exception {
 		this.mockMvc
 			.perform(post("/api/v1/releases").contentType(MediaType.APPLICATION_JSON)
@@ -190,12 +211,16 @@ class ReleaseControllerTest {
 		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-1.0.0.tgz", "application/gzip",
 				new byte[] { 1, 2, 3 });
 		MockMultipartFile requestPart = new MockMultipartFile("request", "", "application/json", """
-				{"releaseName": "my-release"}
+				{"releaseName": "my-release", "description": "upload A", "labels": {"team": "payments"}}
 				""".getBytes());
 
 		this.mockMvc.perform(multipart("/api/v1/releases/upload").file(chartFile).file(requestPart))
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.name").value("my-release"));
+
+		verify(this.installAction)
+			.install(argThat((InstallOptions options) -> "upload A".equals(options.getDescription())
+					&& "payments".equals(options.getLabels().get("team"))));
 	}
 
 	@Test

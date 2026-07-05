@@ -27,6 +27,8 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
 * *MCP tools return structured JSON* -- `helm_list`, `helm_status`, and `helm_history` now
   return Helm-shaped JSON (array of rows / nested `info` object) instead of prose text, so agents
   can parse them directly (#686).
+* *Install options on the API* -- the REST install endpoints and the MCP `helm_install` tool
+  accept `description` and `labels`, mirroring the CLI's `--description`/`--labels` (#686).
 
 == 1.1.0
 
