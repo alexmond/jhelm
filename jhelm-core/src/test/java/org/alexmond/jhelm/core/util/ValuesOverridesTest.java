@@ -158,6 +158,39 @@ class ValuesOverridesTest {
 		assertEquals("true", target.get("foo"));
 	}
 
+	// --- applySetLiteral (fully literal) ---
+
+	@Test
+	void testApplySetLiteralKeepsCommasVerbatim() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySetLiteral(target, "foo=a,b,c");
+		assertEquals("a,b,c", target.get("foo"));
+		assertInstanceOf(String.class, target.get("foo"));
+	}
+
+	@Test
+	void testApplySetLiteralIntegerStaysString() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySetLiteral(target, "foo=3");
+		assertEquals("3", target.get("foo"));
+		assertInstanceOf(String.class, target.get("foo"));
+	}
+
+	@Test
+	void testApplySetLiteralNestsOnDottedKey() {
+		Map<String, Object> target = new HashMap<>();
+		ValuesOverrides.applySetLiteral(target, "outer.inner=1.2.3");
+		Map<?, ?> outer = (Map<?, ?>) target.get("outer");
+		assertEquals("1.2.3", outer.get("inner"));
+	}
+
+	@Test
+	void testSetLiteralWinsOverSetJson() throws Exception {
+		Map<String, Object> result = ValuesOverrides.parse(null, null, null, null, List.of("replicas=3"),
+				List.of("replicas=literal"));
+		assertEquals("literal", result.get("replicas"));
+	}
+
 	// --- applySetFile ---
 
 	@Test
@@ -195,7 +228,7 @@ class ValuesOverridesTest {
 				tag: filetag
 				""");
 		Map<String, Object> result = ValuesOverrides.parse(List.of(f.toString()), List.of("replicas=2", "tag=settag"),
-				null, null, List.of("replicas=3"));
+				null, null, List.of("replicas=3"), null);
 		// set-json wins over set wins over file
 		assertEquals(3, result.get("replicas"));
 		// set wins over file

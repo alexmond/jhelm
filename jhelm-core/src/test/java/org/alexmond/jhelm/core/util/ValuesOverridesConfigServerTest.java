@@ -38,7 +38,7 @@ class ValuesOverridesConfigServerTest {
 
 	private Map<String, Object> parse(boolean overrideNone, boolean overrideSystemProperties) throws IOException {
 		return ValuesOverrides.parse(file, ValuesProfiles.none(), configServer, overrideNone, overrideSystemProperties,
-				set, null, null, null);
+				set, null, null, null, null);
 	}
 
 	@Test

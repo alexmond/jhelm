@@ -29,6 +29,9 @@ import tools.jackson.databind.json.JsonMapper;
  * <li>{@code --set-string} — the value is always the raw string (no coercion).</li>
  * <li>{@code --set-file} — the value is the contents of the file at the given path.</li>
  * <li>{@code --set-json} — the value is parsed as JSON into a map, list or scalar.</li>
+ * <li>{@code --set-literal} — the value is always the raw string, taken fully literally
+ * (no coercion, no comma or escape interpretation), and applied last (highest
+ * precedence).</li>
  * </ul>
  */
 public final class ValuesOverrides {
@@ -56,7 +59,7 @@ public final class ValuesOverrides {
 	 * @throws IOException if any values file cannot be read
 	 */
 	public static Map<String, Object> parse(List<String> files, List<String> setArgs) throws IOException {
-		return parse(files, setArgs, null, null, null);
+		return parse(files, setArgs, null, null, null, null);
 	}
 
 	/**
@@ -75,12 +78,14 @@ public final class ValuesOverrides {
 	 * {@code null} or empty means none
 	 * @param setJsonArgs {@code key=json} strings whose value is parsed as JSON;
 	 * {@code null} or empty means none
+	 * @param setLiteralArgs {@code key=value} strings kept as fully literal raw strings,
+	 * applied last; {@code null} or empty means none
 	 * @return merged override map
 	 * @throws IOException if any values file cannot be read
 	 */
 	public static Map<String, Object> parse(List<String> files, List<String> setArgs, List<String> setStringArgs,
-			List<String> setFileArgs, List<String> setJsonArgs) throws IOException {
-		return parse(files, ValuesProfiles.none(), setArgs, setStringArgs, setFileArgs, setJsonArgs);
+			List<String> setFileArgs, List<String> setJsonArgs, List<String> setLiteralArgs) throws IOException {
+		return parse(files, ValuesProfiles.none(), setArgs, setStringArgs, setFileArgs, setJsonArgs, setLiteralArgs);
 	}
 
 	/**
@@ -95,12 +100,15 @@ public final class ValuesOverrides {
 	 * @param setStringArgs {@code key=value} strings kept as raw strings
 	 * @param setFileArgs {@code key=path} strings whose value is the file contents
 	 * @param setJsonArgs {@code key=json} strings whose value is parsed as JSON
+	 * @param setLiteralArgs {@code key=value} strings kept as fully literal raw strings
 	 * @return merged override map
 	 * @throws IOException if any values file cannot be read
 	 */
 	public static Map<String, Object> parse(List<String> files, ValuesProfiles profiles, List<String> setArgs,
-			List<String> setStringArgs, List<String> setFileArgs, List<String> setJsonArgs) throws IOException {
-		return parse(files, profiles, null, false, false, setArgs, setStringArgs, setFileArgs, setJsonArgs);
+			List<String> setStringArgs, List<String> setFileArgs, List<String> setJsonArgs, List<String> setLiteralArgs)
+			throws IOException {
+		return parse(files, profiles, null, false, false, setArgs, setStringArgs, setFileArgs, setJsonArgs,
+				setLiteralArgs);
 	}
 
 	/**
@@ -126,13 +134,14 @@ public final class ValuesOverrides {
 	 * @param setStringArgs {@code key=value} strings kept as raw strings
 	 * @param setFileArgs {@code key=path} strings whose value is the file contents
 	 * @param setJsonArgs {@code key=json} strings whose value is parsed as JSON
+	 * @param setLiteralArgs {@code key=value} strings kept as fully literal raw strings
 	 * @return merged override map
 	 * @throws IOException if any values file cannot be read
 	 */
 	public static Map<String, Object> parse(List<String> files, ValuesProfiles profiles,
 			Map<String, Object> configServerValues, boolean overrideNone, boolean overrideSystemProperties,
-			List<String> setArgs, List<String> setStringArgs, List<String> setFileArgs, List<String> setJsonArgs)
-			throws IOException {
+			List<String> setArgs, List<String> setStringArgs, List<String> setFileArgs, List<String> setJsonArgs,
+			List<String> setLiteralArgs) throws IOException {
 		Map<String, Object> fileValues = loadFiles(files, profiles);
 		Map<String, Object> configValues = (configServerValues != null) ? configServerValues : Map.of();
 		Map<String, Object> merged = new HashMap<>();
@@ -140,19 +149,19 @@ public final class ValuesOverrides {
 			// config server = defaults: lowest precedence.
 			ValuesLoader.deepMerge(merged, configValues);
 			ValuesLoader.deepMerge(merged, fileValues);
-			applySetFamily(merged, setArgs, setStringArgs, setFileArgs, setJsonArgs);
+			applySetFamily(merged, setArgs, setStringArgs, setFileArgs, setJsonArgs, setLiteralArgs);
 		}
 		else if (overrideSystemProperties) {
 			// config server above the --set family.
 			ValuesLoader.deepMerge(merged, fileValues);
-			applySetFamily(merged, setArgs, setStringArgs, setFileArgs, setJsonArgs);
+			applySetFamily(merged, setArgs, setStringArgs, setFileArgs, setJsonArgs, setLiteralArgs);
 			ValuesLoader.deepMerge(merged, configValues);
 		}
 		else {
 			// default: files < config server < --set.
 			ValuesLoader.deepMerge(merged, fileValues);
 			ValuesLoader.deepMerge(merged, configValues);
-			applySetFamily(merged, setArgs, setStringArgs, setFileArgs, setJsonArgs);
+			applySetFamily(merged, setArgs, setStringArgs, setFileArgs, setJsonArgs, setLiteralArgs);
 		}
 		return merged;
 	}
@@ -175,7 +184,7 @@ public final class ValuesOverrides {
 	}
 
 	private static void applySetFamily(Map<String, Object> merged, List<String> setArgs, List<String> setStringArgs,
-			List<String> setFileArgs, List<String> setJsonArgs) {
+			List<String> setFileArgs, List<String> setJsonArgs, List<String> setLiteralArgs) {
 		if (setArgs != null) {
 			for (String arg : setArgs) {
 				applySet(merged, arg);
@@ -194,6 +203,11 @@ public final class ValuesOverrides {
 		if (setJsonArgs != null) {
 			for (String arg : setJsonArgs) {
 				applySetJson(merged, arg);
+			}
+		}
+		if (setLiteralArgs != null) {
+			for (String arg : setLiteralArgs) {
+				applySetLiteral(merged, arg);
 			}
 		}
 	}
@@ -220,6 +234,18 @@ public final class ValuesOverrides {
 	 * @param arg the {@code key=value} string
 	 */
 	static void applySetString(Map<String, Object> target, String arg) {
+		applyTyped(target, arg, Function.identity());
+	}
+
+	/**
+	 * Parse a single {@code key=value} set argument and apply it to {@code target},
+	 * keeping the value as a fully literal raw string (Helm {@code --set-literal}). Only
+	 * the first {@code =} splits key from value, so commas, dots and backslashes in the
+	 * value are kept verbatim rather than interpreted.
+	 * @param target the map to merge into
+	 * @param arg the {@code key=value} string
+	 */
+	static void applySetLiteral(Map<String, Object> target, String arg) {
 		applyTyped(target, arg, Function.identity());
 	}
 

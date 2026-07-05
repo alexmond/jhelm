@@ -20,6 +20,9 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
   on the release Secret (#680).
 * *`upgrade --description` / `--labels`* -- set the new revision's description and labels;
   without `--labels`, the previous release's labels are carried forward, matching Helm (#680).
+* *`--set-literal`* -- on `install`, `upgrade`, `template`, and `lint`: set a value taken fully
+  literally (no type coercion, no comma or escape interpretation), applied at the highest
+  precedence in the `--set` family (#680).
 * *REST releases API now returns Helm-shaped JSON* -- the `/releases` list/status/history and
   install/upgrade responses now use Helm's `-o json` schema (snake_case, nested `info`) instead
   of jhelm's internal DTO, so REST consumers see the same shape as `helm ... -o json` and the

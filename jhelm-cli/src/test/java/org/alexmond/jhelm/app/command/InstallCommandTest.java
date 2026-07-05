@@ -157,6 +157,21 @@ class InstallCommandTest {
 	}
 
 	@Test
+	void testSetLiteralReachesInstallOptionsVerbatim() throws Exception {
+		File chartDir = createMockChart();
+		ArgumentCaptor<InstallOptions> captor = ArgumentCaptor.forClass(InstallOptions.class);
+		when(installAction.install(captor.capture())).thenReturn(createMockRelease("my-release", 1));
+
+		// The value keeps its commas and stays a string (no coercion), unlike --set.
+		int exit = new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath(), "--set-literal",
+				"note=a,b,c", "--set-literal", "port=8080");
+
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		assertEquals("a,b,c", captor.getValue().getValues().get("note"));
+		assertEquals("8080", captor.getValue().getValues().get("port"));
+	}
+
+	@Test
 	void testMissingNameWithoutGenerateNameIsUsageError() throws Exception {
 		File chartDir = createMockChart();
 		int exit = new CommandLine(installCommand).execute(chartDir.getAbsolutePath());
