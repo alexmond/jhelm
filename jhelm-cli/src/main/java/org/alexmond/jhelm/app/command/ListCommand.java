@@ -4,14 +4,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.ListAction;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.output.OutputFormat;
 import org.alexmond.jhelm.core.util.ReleaseFilters;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
@@ -49,6 +52,29 @@ public class ListCommand implements Callable<Integer> {
 			description = "maximum number of releases to fetch (0 = no limit)")
 	private int max;
 
+	@CommandLine.Option(names = { "-a", "--all" },
+			description = "show all releases regardless of status, including uninstalled and superseded")
+	private boolean all;
+
+	@CommandLine.Option(names = { "--deployed" }, description = "show deployed releases")
+	private boolean deployed;
+
+	@CommandLine.Option(names = { "--failed" }, description = "show failed releases")
+	private boolean failed;
+
+	@CommandLine.Option(names = { "--pending" }, description = "show pending releases")
+	private boolean pending;
+
+	@CommandLine.Option(names = { "--uninstalled" }, description = "show uninstalled releases")
+	private boolean uninstalled;
+
+	@CommandLine.Option(names = { "--uninstalling" },
+			description = "show releases that are currently being uninstalled")
+	private boolean uninstalling;
+
+	@CommandLine.Option(names = { "--superseded" }, description = "show superseded releases")
+	private boolean superseded;
+
 	/**
 	 * Creates the command.
 	 * @param listAction the action that lists releases
@@ -72,7 +98,8 @@ public class ListCommand implements Callable<Integer> {
 	@Override
 	public Integer call() {
 		try {
-			List<Release> releases = ReleaseFilters.apply(listAction.list(namespace), selector, filter, offset, max);
+			List<Release> byStatus = ReleaseFilters.retainStatuses(listAction.list(namespace), resolveStatuses());
+			List<Release> releases = ReleaseFilters.apply(byStatus, selector, filter, offset, max);
 			switch (output.toLowerCase(Locale.ROOT)) {
 				case "json" -> System.out.println(OutputFormat.json(toRows(releases)));
 				case "yaml" -> System.out.print(OutputFormat.yaml(toRows(releases)));
@@ -84,6 +111,43 @@ public class ListCommand implements Callable<Integer> {
 			CliOutput.errPrintln(CliOutput.error("Error listing releases: " + ex.getMessage()));
 			return CommandLine.ExitCode.SOFTWARE;
 		}
+	}
+
+	// Resolves the statuses to include: null = every status (--all); otherwise the
+	// flagged
+	// statuses, or a default mask (all except uninstalled/superseded) when no status flag
+	// is set.
+	private Set<ReleaseStatus> resolveStatuses() {
+		if (all) {
+			return null;
+		}
+		EnumSet<ReleaseStatus> set = EnumSet.noneOf(ReleaseStatus.class);
+		if (deployed) {
+			set.add(ReleaseStatus.DEPLOYED);
+		}
+		if (failed) {
+			set.add(ReleaseStatus.FAILED);
+		}
+		if (pending) {
+			set.add(ReleaseStatus.PENDING_INSTALL);
+			set.add(ReleaseStatus.PENDING_UPGRADE);
+			set.add(ReleaseStatus.PENDING_ROLLBACK);
+		}
+		if (uninstalled) {
+			set.add(ReleaseStatus.UNINSTALLED);
+		}
+		if (uninstalling) {
+			set.add(ReleaseStatus.UNINSTALLING);
+		}
+		if (superseded) {
+			set.add(ReleaseStatus.SUPERSEDED);
+		}
+		if (set.isEmpty()) {
+			set = EnumSet.allOf(ReleaseStatus.class);
+			set.remove(ReleaseStatus.UNINSTALLED);
+			set.remove(ReleaseStatus.SUPERSEDED);
+		}
+		return set;
 	}
 
 	private void printTable(List<Release> releases) {

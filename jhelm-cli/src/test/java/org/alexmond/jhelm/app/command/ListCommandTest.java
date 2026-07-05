@@ -128,6 +128,71 @@ class ListCommandTest {
 	}
 
 	@Test
+	void testListDefaultHidesUninstalled() throws Exception {
+		Release deployed = createMockRelease("web", 1);
+		Release gone = createMockRelease("old", 1).toBuilder()
+			.info(Release.ReleaseInfo.builder().status(ReleaseStatus.UNINSTALLED).build())
+			.build();
+		when(listAction.list(anyString())).thenReturn(Arrays.asList(deployed, gone));
+
+		new CommandLine(listCommand).execute("-o", "json");
+
+		String out = captured();
+		assertTrue(out.contains("\"name\":\"web\""), out);
+		assertFalse(out.contains("\"name\":\"old\""), out);
+	}
+
+	@Test
+	void testListUninstalledFlagShowsUninstalled() throws Exception {
+		Release deployed = createMockRelease("web", 1);
+		Release gone = createMockRelease("old", 1).toBuilder()
+			.info(Release.ReleaseInfo.builder().status(ReleaseStatus.UNINSTALLED).build())
+			.build();
+		when(listAction.list(anyString())).thenReturn(Arrays.asList(deployed, gone));
+
+		new CommandLine(listCommand).execute("-o", "json", "--uninstalled");
+
+		String out = captured();
+		assertTrue(out.contains("\"name\":\"old\""), out);
+		assertFalse(out.contains("\"name\":\"web\""), out);
+	}
+
+	@Test
+	void testExplicitStatusFlagsCombine() throws Exception {
+		Release d = statusRelease("d", ReleaseStatus.DEPLOYED);
+		Release f = statusRelease("f", ReleaseStatus.FAILED);
+		Release p = statusRelease("p", ReleaseStatus.PENDING_UPGRADE);
+		Release u = statusRelease("u", ReleaseStatus.UNINSTALLING);
+		Release s = statusRelease("s", ReleaseStatus.SUPERSEDED);
+		Release gone = statusRelease("gone", ReleaseStatus.UNINSTALLED);
+		when(listAction.list(anyString())).thenReturn(Arrays.asList(d, f, p, u, s, gone));
+
+		new CommandLine(listCommand).execute("-o", "json", "--deployed", "--failed", "--pending", "--uninstalling",
+				"--superseded");
+
+		String out = captured();
+		for (String name : new String[] { "d", "f", "p", "u", "s" }) {
+			assertTrue(out.contains("\"name\":\"" + name + "\""), name + " missing: " + out);
+		}
+		assertFalse(out.contains("\"name\":\"gone\""), out);
+	}
+
+	@Test
+	void testListAllShowsEveryStatus() throws Exception {
+		Release deployed = createMockRelease("web", 1);
+		Release gone = createMockRelease("old", 1).toBuilder()
+			.info(Release.ReleaseInfo.builder().status(ReleaseStatus.UNINSTALLED).build())
+			.build();
+		when(listAction.list(anyString())).thenReturn(Arrays.asList(deployed, gone));
+
+		new CommandLine(listCommand).execute("-o", "json", "-a");
+
+		String out = captured();
+		assertTrue(out.contains("\"name\":\"web\""), out);
+		assertTrue(out.contains("\"name\":\"old\""), out);
+	}
+
+	@Test
 	void testListCommandYamlOutput() throws Exception {
 		when(listAction.list(anyString())).thenReturn(Arrays.asList(createMockRelease("release1", 1)));
 
@@ -136,6 +201,12 @@ class ListCommandTest {
 		String out = captured();
 		assertTrue(out.contains("name: \"release1\""), out);
 		assertTrue(out.contains("status: \"deployed\""), out);
+	}
+
+	private Release statusRelease(String name, ReleaseStatus status) {
+		return createMockRelease(name, 1).toBuilder()
+			.info(Release.ReleaseInfo.builder().status(status).build())
+			.build();
 	}
 
 	private Release createMockRelease(String name, int version) {

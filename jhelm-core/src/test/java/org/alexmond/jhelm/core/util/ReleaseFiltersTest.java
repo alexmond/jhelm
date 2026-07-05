@@ -1,9 +1,11 @@
 package org.alexmond.jhelm.core.util;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -86,6 +88,29 @@ class ReleaseFiltersTest {
 	@Test
 	void invalidSelectorTermThrows() {
 		assertThrows(IllegalArgumentException.class, () -> ReleaseFilters.apply(sample(), "bogusterm", null, 0, 0));
+	}
+
+	private static Release statusRelease(String name, ReleaseStatus status) {
+		return Release.builder().name(name).info(Release.ReleaseInfo.builder().status(status).build()).build();
+	}
+
+	@Test
+	void retainStatusesKeepsOnlyMatching() {
+		List<Release> releases = List.of(statusRelease("a", ReleaseStatus.DEPLOYED),
+				statusRelease("b", ReleaseStatus.FAILED), statusRelease("c", ReleaseStatus.UNINSTALLED));
+
+		List<Release> result = ReleaseFilters.retainStatuses(releases,
+				EnumSet.of(ReleaseStatus.DEPLOYED, ReleaseStatus.FAILED));
+
+		assertEquals(List.of("a", "b"), result.stream().map(Release::getName).toList());
+	}
+
+	@Test
+	void retainStatusesNullKeepsAll() {
+		List<Release> releases = List.of(statusRelease("a", ReleaseStatus.DEPLOYED),
+				statusRelease("c", ReleaseStatus.UNINSTALLED));
+
+		assertEquals(2, ReleaseFilters.retainStatuses(releases, null).size());
 	}
 
 }
