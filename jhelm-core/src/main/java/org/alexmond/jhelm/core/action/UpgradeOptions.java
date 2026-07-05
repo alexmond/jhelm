@@ -74,4 +74,18 @@ public final class UpgradeOptions {
 	 */
 	private final boolean force;
 
+	/**
+	 * Custom description for the new revision (Helm {@code --description}). When blank,
+	 * the default {@code "Upgrade complete"} (or {@code "Dry run complete"}) is used.
+	 */
+	private final String description;
+
+	/**
+	 * Custom labels to store on the new revision (Helm {@code --labels}). When empty, the
+	 * labels from the current release are carried forward, matching Helm. Defaults to an
+	 * empty map.
+	 */
+	@Builder.Default
+	private final Map<String, String> labels = Map.of();
+
 }

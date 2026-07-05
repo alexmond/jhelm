@@ -33,6 +33,8 @@ Status legend: ✅ same flag · ✎ supported but differs (see note) · ✗ not 
 | `-g`, `--generate-name` (install) | ✅ | Omit the NAME positional and pass `-g` to auto-generate `<chart>-<timestamp>` (like Helm). Errors if both a name and `-g` are given, or if neither is.
 | `--description` (install) | ✅ | Custom release description stored on the release (falls back to `Install complete`).
 | `--labels` (install) | ✅ | `key=value` labels (comma-separated or repeatable) added to the release Secret; the reserved `owner`/`name`/`status`/`version` labels are never overridden.
+| `--description` (upgrade) | ✅ | Custom description for the new revision (falls back to `Upgrade complete`).
+| `--labels` (upgrade) | ✅ | `key=value` labels for the new revision; without it, the previous release's labels are carried forward (like Helm).
 | `--set-literal`, `--dependency-update` | ✗ | Not yet wired.
 |===
 
@@ -139,8 +141,8 @@ Beyond the per-command tables above, these commonly-used Helm options are not ye
 * *`list`* — `-A`/`--all-namespaces`, `-l`/`--selector`, `-a`/`--all`, the status filters,
   `--max`/`--offset`/`--filter`.
 * *`install`/`upgrade`* — install-from-repo (`--version`/`--repo`/`--username`/`--password`),
-  `--set-literal`, `--dependency-update`; `upgrade --cleanup-on-fail`; `--description`/`--labels`
-  on `upgrade` (supported on `install`). (`-g`/`--generate-name` is supported on `install`.)
+  `--set-literal`, `--dependency-update`; `upgrade --cleanup-on-fail`.
+  (`-g`/`--generate-name` is supported on `install`; `--description`/`--labels` on both.)
 * *`uninstall`/`rollback`* — `--wait`/`--timeout`/`--cascade` (uninstall);
   `--force`/`--cleanup-on-fail`/`--recreate-pods`/`--wait-for-jobs` (rollback).
 * *`pull`* — `--untar`/`--untardir`, `--verify`/`--prov`/`--keyring`, `--devel`.

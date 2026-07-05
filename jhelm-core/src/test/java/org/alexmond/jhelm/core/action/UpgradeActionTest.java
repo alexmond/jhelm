@@ -124,6 +124,79 @@ class UpgradeActionTest {
 	}
 
 	@Test
+	void testUpgradeAppliesCustomDescriptionAndLabels() throws Exception {
+		Chart oldChart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(oldChart)
+			.labels(Map.of("team", "old"))
+			.info(Release.ReleaseInfo.builder()
+				.firstDeployed(OffsetDateTime.now().minusDays(1))
+				.status(ReleaseStatus.DEPLOYED)
+				.build())
+			.build();
+		Chart newChart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("2.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+			.thenReturn("---\napiVersion: v1\nkind: Service");
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(newChart)
+			.description("rollout B")
+			.labels(Map.of("team", "payments"))
+			.build());
+
+		ArgumentCaptor<Release> stored = ArgumentCaptor.forClass(Release.class);
+		verify(kubeService).storeRelease(stored.capture());
+		assertEquals("rollout B", stored.getValue().getInfo().getDescription());
+		assertEquals("payments", stored.getValue().getLabels().get("team"));
+	}
+
+	@Test
+	void testUpgradeCarriesForwardLabelsWhenNoneSupplied() throws Exception {
+		Chart oldChart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(oldChart)
+			.labels(Map.of("team", "kept"))
+			.info(Release.ReleaseInfo.builder()
+				.firstDeployed(OffsetDateTime.now().minusDays(1))
+				.status(ReleaseStatus.DEPLOYED)
+				.build())
+			.build();
+		Chart newChart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("2.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+			.thenReturn("---\napiVersion: v1\nkind: Service");
+		doNothing().when(kubeService).apply(anyString(), anyString());
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		upgradeAction.upgrade(UpgradeOptions.builder().currentRelease(currentRelease).newChart(newChart).build());
+
+		ArgumentCaptor<Release> stored = ArgumentCaptor.forClass(Release.class);
+		verify(kubeService).storeRelease(stored.capture());
+		assertEquals("kept", stored.getValue().getLabels().get("team"));
+		assertEquals("Upgrade complete", stored.getValue().getInfo().getDescription());
+	}
+
+	@Test
 	void testUpgradeForceDeletesBeforeApply() throws Exception {
 		Chart oldChart = Chart.builder()
 			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").build())

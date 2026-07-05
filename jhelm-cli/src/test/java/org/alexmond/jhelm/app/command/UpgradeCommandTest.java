@@ -211,6 +211,23 @@ class UpgradeCommandTest {
 	}
 
 	@Test
+	void testUpgradeDescriptionAndLabelsAreWiredIntoOptions() throws Exception {
+		File chartDir = createMockChart();
+		when(kubeService.getRelease(anyString(), anyString()))
+			.thenReturn(Optional.of(createMockRelease("my-release", 1)));
+		when(upgradeAction.upgrade(any(UpgradeOptions.class))).thenReturn(createMockRelease("my-release", 2));
+		ArgumentCaptor<UpgradeOptions> opts = ArgumentCaptor.forClass(UpgradeOptions.class);
+
+		new CommandLine(upgradeCommand).execute("my-release", chartDir.getAbsolutePath(), "--description", "rollout B",
+				"--labels", "team=payments,tier=web");
+
+		verify(upgradeAction).upgrade(opts.capture());
+		assertEquals("rollout B", opts.getValue().getDescription());
+		assertEquals("payments", opts.getValue().getLabels().get("team"));
+		assertEquals("web", opts.getValue().getLabels().get("tier"));
+	}
+
+	@Test
 	void testUpgradeInvalidDryRunModeIsHandled() throws Exception {
 		File chartDir = createMockChart();
 
