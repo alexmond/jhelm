@@ -29,6 +29,9 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
   can parse them directly (#686).
 * *Install options on the API* -- the REST install endpoints and the MCP `helm_install` tool
   accept `description` and `labels`, mirroring the CLI's `--description`/`--labels` (#686).
+* *Template render controls on the API* -- the REST template endpoints and the MCP
+  `helm_template` tool accept `showOnly`, `skipTests`, `includeCrds`, and `isUpgrade`, mirroring
+  the CLI's `--show-only`/`--skip-tests`/`--include-crds`/`--is-upgrade` (#686).
 
 == 1.1.0
 

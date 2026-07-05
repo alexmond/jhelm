@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.rest.controller;
 
 import java.io.File;
+import java.util.List;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -22,6 +23,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -58,7 +60,8 @@ class ChartControllerTest {
 	@Test
 	void templateRendersManifest() throws Exception {
 		stubPull();
-		when(this.templateAction.render(anyString(), eq("my-release"), eq("default"), anyMap()))
+		when(this.templateAction.renderWithControls(anyString(), eq("my-release"), eq("default"), anyMap(),
+				anyBoolean(), anyBoolean(), anyBoolean(), any()))
 			.thenReturn("apiVersion: v1\nkind: ConfigMap");
 
 		this.mockMvc
@@ -69,6 +72,24 @@ class ChartControllerTest {
 						"""))
 			.andExpect(status().isOk())
 			.andExpect(content().string("apiVersion: v1\nkind: ConfigMap"));
+	}
+
+	@Test
+	void templatePassesRenderControls() throws Exception {
+		stubPull();
+		when(this.templateAction.renderWithControls(anyString(), eq("my-release"), eq("default"), anyMap(), eq(true),
+				eq(true), eq(true), eq(List.of("templates/deployment.yaml"))))
+			.thenReturn("apiVersion: apps/v1\nkind: Deployment");
+
+		this.mockMvc
+			.perform(post("/api/v1/charts/template").contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.content("""
+						{"chartRef": "bitnami/nginx", "releaseName": "my-release", "isUpgrade": true,
+						 "includeCrds": true, "skipTests": true, "showOnly": ["templates/deployment.yaml"]}
+						"""))
+			.andExpect(status().isOk())
+			.andExpect(content().string("apiVersion: apps/v1\nkind: Deployment"));
 	}
 
 	@Test
@@ -86,7 +107,8 @@ class ChartControllerTest {
 	@Test
 	void templateUploadRendersManifest() throws Exception {
 		stubUntar();
-		when(this.templateAction.render(anyString(), eq("RELEASE-NAME"), eq("default"), anyMap()))
+		when(this.templateAction.renderWithControls(anyString(), eq("RELEASE-NAME"), eq("default"), anyMap(),
+				anyBoolean(), anyBoolean(), anyBoolean(), any()))
 			.thenReturn("apiVersion: v1\nkind: Service");
 
 		MockMultipartFile chartFile = new MockMultipartFile("chart", "nginx-1.0.0.tgz", "application/gzip",

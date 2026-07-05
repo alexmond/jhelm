@@ -42,6 +42,21 @@ class TemplateActionRenderControlTest {
 				data:
 				  upgrade: "{{ .Release.IsUpgrade }}"
 				""");
+		Files.writeString(templates.resolve("svc.yaml"), """
+				apiVersion: v1
+				kind: Service
+				metadata:
+				  name: svc
+				""");
+		Path tests = Files.createDirectories(templates.resolve("tests"));
+		Files.writeString(tests.resolve("test-connection.yaml"), """
+				apiVersion: v1
+				kind: Pod
+				metadata:
+				  name: test
+				  annotations:
+				    "helm.sh/hook": test
+				""");
 		Path crds = Files.createDirectories(chartDir.resolve("crds"));
 		Files.writeString(crds.resolve("widget.yaml"), """
 				apiVersion: apiextensions.k8s.io/v1
@@ -79,6 +94,30 @@ class TemplateActionRenderControlTest {
 	@Test
 	void testIsUpgradeFlipsReleaseFlag() {
 		assertTrue(render(true, false).contains("upgrade: \"true\""), "--is-upgrade sets .Release.IsUpgrade");
+	}
+
+	@Test
+	void testRenderWithControlsSkipTestsDropsTestHook() {
+		String manifest = templateAction.renderWithControls(chartDir.toString(), "r", "default", new HashMap<>(), false,
+				false, true, List.of());
+		assertFalse(manifest.contains("kind: Pod"), manifest);
+		assertTrue(manifest.contains("kind: ConfigMap"), manifest);
+	}
+
+	@Test
+	void testRenderWithControlsShowOnlySelectsTemplate() {
+		String manifest = templateAction.renderWithControls(chartDir.toString(), "r", "default", new HashMap<>(), false,
+				false, false, List.of("templates/svc.yaml"));
+		assertTrue(manifest.contains("kind: Service"), manifest);
+		assertFalse(manifest.contains("kind: ConfigMap"), manifest);
+	}
+
+	@Test
+	void testRenderWithControlsIncludeCrdsAndSkipTests() {
+		String manifest = templateAction.renderWithControls(chartDir.toString(), "r", "default", new HashMap<>(), false,
+				true, true, List.of());
+		assertTrue(manifest.contains("kind: CustomResourceDefinition"), manifest);
+		assertFalse(manifest.contains("kind: Pod"), manifest);
 	}
 
 }

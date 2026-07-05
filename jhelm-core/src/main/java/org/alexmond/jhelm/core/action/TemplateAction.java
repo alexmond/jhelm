@@ -15,6 +15,7 @@ import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.service.ValueEncryptor;
+import org.alexmond.jhelm.core.util.RenderedManifest;
 import org.alexmond.jhelm.core.util.ValuesLoader;
 import org.alexmond.jhelm.core.util.ValuesProfiles;
 
@@ -129,6 +130,37 @@ public class TemplateAction {
 			}
 		}
 
+		return manifest;
+	}
+
+	/**
+	 * Renders a chart and applies the {@code helm template} manifest-level controls in
+	 * one call, so REST and MCP callers get the same behaviour as the CLI without
+	 * repeating the post-processing: the install/upgrade posture, CRD inclusion, dropping
+	 * test hooks, and selecting specific templates.
+	 * @param chartPath path to the chart directory or archive
+	 * @param releaseName the release name ({@code .Release.Name})
+	 * @param namespace the release namespace
+	 * @param overrides value overrides merged over the chart defaults
+	 * @param isUpgrade render with {@code .Release.IsUpgrade=true} instead of install
+	 * posture
+	 * @param includeCrds prepend the chart's {@code crds/} manifests
+	 * @param skipTests drop documents carrying a {@code helm.sh/hook: test} annotation
+	 * @param showOnly keep only documents from these template paths (empty/{@code null} =
+	 * all); errors if a requested template matches nothing
+	 * @return the rendered, filtered manifest
+	 */
+	public String renderWithControls(String chartPath, String releaseName, String namespace,
+			Map<String, Object> overrides, boolean isUpgrade, boolean includeCrds, boolean skipTests,
+			List<String> showOnly) {
+		String manifest = render(chartPath, releaseName, namespace, overrides, ValuesProfiles.none(), null, List.of(),
+				isUpgrade, includeCrds);
+		if (skipTests) {
+			manifest = RenderedManifest.skipTests(manifest);
+		}
+		if (showOnly != null && !showOnly.isEmpty()) {
+			manifest = RenderedManifest.showOnly(manifest, showOnly);
+		}
 		return manifest;
 	}
 

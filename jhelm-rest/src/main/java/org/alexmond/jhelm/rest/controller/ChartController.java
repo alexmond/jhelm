@@ -87,8 +87,9 @@ public class ChartController {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-template-")) {
 			String chartPath = pullChart(request.getChartRef(), request.getVersion(), tempDir);
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
-			String manifest = this.templateAction.render(chartPath, request.getReleaseName(), request.getNamespace(),
-					values);
+			String manifest = this.templateAction.renderWithControls(chartPath, request.getReleaseName(),
+					request.getNamespace(), values, request.isUpgrade(), request.isIncludeCrds(), request.isSkipTests(),
+					request.getShowOnly());
 			return ResponseEntity.ok(manifest);
 		}
 	}
@@ -111,8 +112,9 @@ public class ChartController {
 			this.repoManager.untar(tgzFile, tempDir.path().toFile());
 			String chartPath = ChartLoader.findChartDir(tempDir.path()).toString();
 			Map<String, Object> values = ValuesOverrides.safeValues(request.getValues());
-			String manifest = this.templateAction.render(chartPath, request.getReleaseName(), request.getNamespace(),
-					values);
+			String manifest = this.templateAction.renderWithControls(chartPath, request.getReleaseName(),
+					request.getNamespace(), values, request.isUpgrade(), request.isIncludeCrds(), request.isSkipTests(),
+					request.getShowOnly());
 			return ResponseEntity.ok(manifest);
 		}
 	}

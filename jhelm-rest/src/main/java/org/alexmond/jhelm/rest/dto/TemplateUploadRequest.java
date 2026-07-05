@@ -1,7 +1,9 @@
 package org.alexmond.jhelm.rest.dto;
 
+import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -20,5 +22,18 @@ public class TemplateUploadRequest {
 
 	@Schema(description = "Override values for the chart")
 	private Map<String, Object> values;
+
+	@Schema(description = "Keep only documents rendered from these template paths (e.g. templates/deployment.yaml)")
+	private List<String> showOnly;
+
+	@Schema(description = "Drop chart test hooks from the output", defaultValue = "false")
+	private boolean skipTests;
+
+	@Schema(description = "Include the chart's crds/ manifests in the output", defaultValue = "false")
+	private boolean includeCrds;
+
+	@Schema(description = "Render with .Release.IsUpgrade instead of .Release.IsInstall", defaultValue = "false")
+	@JsonProperty("isUpgrade")
+	private boolean isUpgrade;
 
 }
