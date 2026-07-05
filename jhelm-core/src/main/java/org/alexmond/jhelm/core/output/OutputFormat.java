@@ -1,4 +1,4 @@
-package org.alexmond.jhelm.app.output;
+package org.alexmond.jhelm.core.output;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 
 import org.alexmond.jhelm.app.output.CliOutput;
-import org.alexmond.jhelm.app.output.OutputFormat;
+import org.alexmond.jhelm.core.output.OutputFormat;
 import org.alexmond.jhelm.core.action.SearchHubAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
