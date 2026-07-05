@@ -1,5 +1,9 @@
 package org.alexmond.jhelm.app.command;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.ConfigServerProperties;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
@@ -97,6 +101,27 @@ class InstallCommandTest {
 		int exitCode = cmd.execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
 
 		assertEquals(CommandLine.ExitCode.OK, exitCode);
+	}
+
+	@Test
+	void testInstallCommandOutputJson() throws Exception {
+		File chartDir = createMockChart();
+		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("my-release", 1));
+
+		PrintStream originalOut = System.out;
+		ByteArrayOutputStream captured = new ByteArrayOutputStream();
+		System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+		int exitCode;
+		try {
+			exitCode = new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath(), "-o", "json");
+		}
+		finally {
+			System.setOut(originalOut);
+		}
+		String out = captured.toString(StandardCharsets.UTF_8);
+		assertEquals(CommandLine.ExitCode.OK, exitCode);
+		assertTrue(out.contains("\"name\":\"my-release\""), out);
+		assertTrue(out.contains("\"info\":{"), out);
 	}
 
 	@Test

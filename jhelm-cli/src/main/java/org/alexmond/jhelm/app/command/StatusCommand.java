@@ -2,14 +2,18 @@ package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
+import org.alexmond.jhelm.app.output.OutputFormat;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.action.StatusAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
@@ -34,12 +38,29 @@ public class StatusCommand implements Callable<Integer> {
 	@CommandLine.Option(names = { "--show-resources" }, description = "show resource readiness status")
 	private boolean showResources;
 
+	@CommandLine.Option(names = { "-o", "--output" }, defaultValue = "table",
+			description = "output format: table, json, or yaml")
+	private String output;
+
 	/**
 	 * Creates the command.
 	 * @param statusAction the action that retrieves release status
 	 */
 	public StatusCommand(StatusAction statusAction) {
 		this.statusAction = statusAction;
+	}
+
+	private static List<Map<String, Object>> resourceRows(List<ResourceStatus> statuses) {
+		List<Map<String, Object>> rows = new ArrayList<>();
+		for (ResourceStatus rs : statuses) {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("kind", rs.getKind());
+			row.put("name", rs.getName());
+			row.put("ready", rs.isReady());
+			row.put("message", rs.getMessage());
+			rows.add(row);
+		}
+		return rows;
 	}
 
 	private static String colorizeStatus(String status) {
@@ -64,6 +85,20 @@ public class StatusCommand implements Callable<Integer> {
 			}
 
 			Release r = releaseOpt.get();
+			if (OutputFormat.isJson(output) || OutputFormat.isYaml(output)) {
+				Map<String, Object> map = OutputFormat.release(r);
+				if (showResources) {
+					map.put("resources", resourceRows(statusAction.getResourceStatuses(r)));
+				}
+				if (OutputFormat.isJson(output)) {
+					System.out.println(OutputFormat.json(map));
+				}
+				else {
+					System.out.print(OutputFormat.yaml(map));
+				}
+				return CommandLine.ExitCode.OK;
+			}
+
 			CliOutput.println(CliOutput.bold("NAME:") + " " + r.getName());
 			CliOutput.println(CliOutput.bold("LAST DEPLOYED:") + " " + r.getInfo().getLastDeployed());
 			CliOutput.println(CliOutput.bold("NAMESPACE:") + " " + r.getNamespace());

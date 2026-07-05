@@ -12,9 +12,14 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -91,6 +96,27 @@ class StatusCommandTest {
 
 		CommandLine cmd = new CommandLine(statusCommand);
 		cmd.execute("my-release", "--show-resources");
+	}
+
+	@Test
+	void testStatusOutputJsonNestsInfoObject() throws Exception {
+		Release release = createMockRelease();
+		when(statusAction.status(anyString(), anyString())).thenReturn(Optional.of(release));
+
+		PrintStream originalOut = System.out;
+		ByteArrayOutputStream captured = new ByteArrayOutputStream();
+		System.setOut(new PrintStream(captured, true, StandardCharsets.UTF_8));
+		int exit;
+		try {
+			exit = new CommandLine(statusCommand).execute("my-release", "-o", "json");
+		}
+		finally {
+			System.setOut(originalOut);
+		}
+		String out = captured.toString(StandardCharsets.UTF_8);
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		assertTrue(out.contains("\"info\":{"), "info is a nested JSON object: " + out);
+		assertTrue(out.contains("\"status\":\"deployed\""), out);
 	}
 
 	private Release createMockRelease() {
