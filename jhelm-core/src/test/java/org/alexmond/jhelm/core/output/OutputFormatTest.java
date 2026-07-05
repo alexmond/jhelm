@@ -92,6 +92,18 @@ class OutputFormatTest {
 	}
 
 	@Test
+	void testListRowHelmShape() {
+		Map<String, Object> row = OutputFormat.listRow(sampleRelease());
+		assertEquals("myrel", row.get("name"));
+		assertEquals("default", row.get("namespace"));
+		assertEquals(1, row.get("revision"));
+		assertEquals("deployed", row.get("status"));
+		assertEquals("demo-1.0.0", row.get("chart"));
+		assertEquals("2.1", row.get("app_version"));
+		assertTrue(row.containsKey("updated"), "list row carries an updated timestamp");
+	}
+
+	@Test
 	void testJsonIsAnArrayForRowLists() {
 		String json = OutputFormat.json(List.of(OutputFormat.historyRow(sampleRelease())));
 		assertTrue(json.startsWith("[") && json.endsWith("]"), json);
