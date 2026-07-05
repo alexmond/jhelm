@@ -1,5 +1,7 @@
 package org.alexmond.jhelm.core.util;
 
+import java.time.Instant;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
@@ -32,6 +34,30 @@ public final class ReleaseNames {
 	private static final Pattern NAMESPACE = Pattern.compile("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$");
 
 	private ReleaseNames() {
+	}
+
+	/**
+	 * Generates a release name for {@code --generate-name}, matching Helm's
+	 * {@code <chart-name>-<unix-timestamp>} scheme. The chart name is lowercased and
+	 * sanitized to RFC-1123, and truncated if needed so the result stays within the
+	 * 53-character limit.
+	 * @param chartName the chart's name, or {@code null}/blank to fall back to
+	 * {@code release}
+	 * @return a valid, unique-ish release name
+	 */
+	public static String generateName(String chartName) {
+		String base = (chartName != null && !chartName.isBlank()) ? chartName.toLowerCase(Locale.ROOT) : "release";
+		base = base.replaceAll("[^a-z0-9.-]", "-");
+		String suffix = "-" + Instant.now().getEpochSecond();
+		int maxBase = MAX_RELEASE_NAME - suffix.length();
+		if (base.length() > maxBase) {
+			base = base.substring(0, maxBase);
+		}
+		base = base.replaceAll("[.-]+$", "");
+		if (base.isEmpty()) {
+			base = "release";
+		}
+		return base + suffix;
 	}
 
 	/**

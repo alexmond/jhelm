@@ -6,8 +6,28 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReleaseNamesTest {
+
+	@Test
+	void generateNameUsesChartNameAndTimestamp() {
+		String name = ReleaseNames.generateName("mychart");
+		assertTrue(name.matches("mychart-\\d+"), name);
+		assertDoesNotThrow(() -> ReleaseNames.validateReleaseName(name));
+	}
+
+	@Test
+	void generateNameSanitizesAndBoundsLength() {
+		String name = ReleaseNames.generateName("My_Very-LONG.Chart_Name_" + "x".repeat(80));
+		assertTrue(name.length() <= 53, name);
+		assertDoesNotThrow(() -> ReleaseNames.validateReleaseName(name));
+	}
+
+	@Test
+	void generateNameFallsBackWhenChartNameBlank() {
+		assertTrue(ReleaseNames.generateName("  ").matches("release-\\d+"));
+	}
 
 	@ParameterizedTest
 	@ValueSource(strings = { "myrelease", "release-grafana-grafana", "a", "r1.2.3", "prom-1" })

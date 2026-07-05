@@ -20,6 +20,7 @@ import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.util.ReleaseNames;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
 import org.alexmond.jhelm.core.util.ValuesProfiles;
 import org.springframework.stereotype.Component;
@@ -53,11 +54,20 @@ public class InstallCommand implements Callable<Integer> {
 	@CommandLine.Mixin
 	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
 
-	@CommandLine.Parameters(index = "0", description = "release name")
+	@CommandLine.Parameters(arity = "1..2", paramLabel = "[NAME] CHART",
+			description = "release name (optional with -g/--generate-name) followed by the chart path")
+	private List<String> nameAndChart = new ArrayList<>();
+
+	// Resolved from nameAndChart at the start of call(): the release name (or a generated
+	// one)
+	// and the chart path.
 	private String name;
 
-	@CommandLine.Parameters(index = "1", description = "chart path")
 	private String chartPath;
+
+	@Option(names = { "-g", "--generate-name" },
+			description = "generate the release name (as <chart>-<timestamp>); the NAME positional is then omitted")
+	private boolean generateName;
 
 	@Option(names = { "--verify" }, description = "verify the packaged chart's provenance before installing")
 	private boolean verify;
@@ -148,13 +158,19 @@ public class InstallCommand implements Callable<Integer> {
 		if (MutatingGuard.blocked(securityPolicy)) {
 			return CommandLine.ExitCode.SOFTWARE;
 		}
+		if (!resolvePositionals()) {
+			return CommandLine.ExitCode.USAGE;
+		}
 		try {
 			boolean dryRunEnabled = resolveDryRun();
 			ValuesProfiles profiles = ValuesProfiles
 				.of(profileNames.isEmpty() ? coreProperties.getProfiles().getActive() : profileNames);
+			Chart chart = chartResolver.resolve(chartPath, verify, keyring, profiles);
+			if (name == null) {
+				name = ReleaseNames.generateName(chart.getMetadata().getName());
+			}
 			ConfigServerValuesLoader.Result configServer = configServerValuesLoader.load(name, profiles.active(),
 					configServerOptions.toOptions());
-			Chart chart = chartResolver.resolve(chartPath, verify, keyring, profiles);
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, configServer.values(),
 					configServer.overrideNone(), configServer.overrideSystemProperties(), setValues, setStringValues,
 					setFileValues, setJsonValues);
@@ -176,28 +192,7 @@ public class InstallCommand implements Callable<Integer> {
 				kubeService.waitForReady(namespace, release.getManifest(), timeout);
 			}
 
-			if (OutputFormat.isJson(output) || OutputFormat.isYaml(output)) {
-				Map<String, Object> map = OutputFormat.release(release);
-				if (OutputFormat.isJson(output)) {
-					System.out.println(OutputFormat.json(map));
-				}
-				else {
-					System.out.print(OutputFormat.yaml(map));
-				}
-				return CommandLine.ExitCode.OK;
-			}
-
-			if (dryRunEnabled) {
-				CliOutput.println(CliOutput.bold("NAME:") + " " + release.getName());
-				CliOutput.println(CliOutput.bold("LAST DEPLOYED:") + " " + release.getInfo().getLastDeployed());
-				CliOutput.println(CliOutput.bold("NAMESPACE:") + " " + release.getNamespace());
-				CliOutput.println(CliOutput.bold("STATUS:") + " " + release.getInfo().getStatus().getValue());
-				CliOutput.println(CliOutput.bold("REVISION:") + " " + release.getVersion());
-				CliOutput.println("\n" + CliOutput.bold("MANIFEST:") + "\n" + release.getManifest());
-			}
-			else {
-				CliOutput.println(CliOutput.success("Release \"" + name + "\" has been installed."));
-			}
+			emitResult(release, dryRunEnabled);
 			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
@@ -221,6 +216,57 @@ public class InstallCommand implements Callable<Integer> {
 			}
 			return CommandLine.ExitCode.SOFTWARE;
 		}
+	}
+
+	// Emits the install result: the Helm-shaped release object for -o json|yaml, else the
+	// human dry-run summary or the success line.
+	private void emitResult(Release release, boolean dryRunEnabled) {
+		if (OutputFormat.isJson(output) || OutputFormat.isYaml(output)) {
+			Map<String, Object> map = OutputFormat.release(release);
+			if (OutputFormat.isJson(output)) {
+				System.out.println(OutputFormat.json(map));
+			}
+			else {
+				System.out.print(OutputFormat.yaml(map));
+			}
+			return;
+		}
+		if (dryRunEnabled) {
+			CliOutput.println(CliOutput.bold("NAME:") + " " + release.getName());
+			CliOutput.println(CliOutput.bold("LAST DEPLOYED:") + " " + release.getInfo().getLastDeployed());
+			CliOutput.println(CliOutput.bold("NAMESPACE:") + " " + release.getNamespace());
+			CliOutput.println(CliOutput.bold("STATUS:") + " " + release.getInfo().getStatus().getValue());
+			CliOutput.println(CliOutput.bold("REVISION:") + " " + release.getVersion());
+			CliOutput.println("\n" + CliOutput.bold("MANIFEST:") + "\n" + release.getManifest());
+		}
+		else {
+			CliOutput.println(CliOutput.success("Release \"" + name + "\" has been installed."));
+		}
+	}
+
+	// Resolves the [NAME] CHART positionals into name/chartPath, honouring
+	// --generate-name.
+	// With --generate-name the NAME is omitted (single positional = chart) and the name
+	// is
+	// generated after the chart is resolved; otherwise both NAME and CHART are required.
+	private boolean resolvePositionals() {
+		if (nameAndChart.size() == 2) {
+			if (generateName) {
+				CliOutput.errPrintln(CliOutput.error("cannot set --generate-name and also specify a release name"));
+				return false;
+			}
+			this.name = nameAndChart.get(0);
+			this.chartPath = nameAndChart.get(1);
+		}
+		else {
+			this.chartPath = nameAndChart.get(0);
+			if (!generateName) {
+				CliOutput.errPrintln(CliOutput.error("must either provide a release name or specify --generate-name"));
+				return false;
+			}
+			this.name = null;
+		}
+		return true;
 	}
 
 	private Release applyCliPostRenderers(Release release) throws IOException {

@@ -125,6 +125,37 @@ class InstallCommandTest {
 	}
 
 	@Test
+	void testGenerateNameProducesNameFromChart() throws Exception {
+		File chartDir = createMockChart();
+		Chart chart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").build())
+			.values(new HashMap<>())
+			.build();
+		when(chartResolver.resolve(anyString(), anyBoolean(), any(), any())).thenReturn(chart);
+		ArgumentCaptor<InstallOptions> captor = ArgumentCaptor.forClass(InstallOptions.class);
+		when(installAction.install(captor.capture())).thenReturn(createMockRelease("mychart-1", 1));
+
+		int exit = new CommandLine(installCommand).execute(chartDir.getAbsolutePath(), "--generate-name");
+
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		assertTrue(captor.getValue().getReleaseName().matches("mychart-\\d+"), captor.getValue().getReleaseName());
+	}
+
+	@Test
+	void testMissingNameWithoutGenerateNameIsUsageError() throws Exception {
+		File chartDir = createMockChart();
+		int exit = new CommandLine(installCommand).execute(chartDir.getAbsolutePath());
+		assertEquals(CommandLine.ExitCode.USAGE, exit);
+	}
+
+	@Test
+	void testGenerateNameConflictsWithExplicitName() throws Exception {
+		File chartDir = createMockChart();
+		int exit = new CommandLine(installCommand).execute("my-release", chartDir.getAbsolutePath(), "--generate-name");
+		assertEquals(CommandLine.ExitCode.USAGE, exit);
+	}
+
+	@Test
 	void testInstallCommandWithDryRun() throws Exception {
 		File chartDir = createMockChart();
 		Release release = createMockRelease("my-release", 1);
