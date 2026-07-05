@@ -153,6 +153,13 @@ public class UpgradeCommand implements Callable<Integer> {
 			description = "limit the maximum number of revisions saved per release (0 = no limit)")
 	private int historyMax;
 
+	@Option(names = { "--description" }, description = "add a custom description to the new revision")
+	private String description;
+
+	@Option(names = { "--labels" }, split = ",",
+			description = "labels to apply to the release Secret (key=value, comma-separated)")
+	private Map<String, String> labels;
+
 	/**
 	 * Creates the command.
 	 * @param kubeService the Kubernetes service used to look up releases and wait for
@@ -316,6 +323,8 @@ public class UpgradeCommand implements Callable<Integer> {
 			.noHooks(noHooks)
 			.maxHistory(historyMax)
 			.force(force)
+			.description(description)
+			.labels((labels != null) ? labels : Map.of())
 			.build();
 	}
 

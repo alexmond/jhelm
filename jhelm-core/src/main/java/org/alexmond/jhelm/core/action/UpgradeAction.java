@@ -76,12 +76,20 @@ public class UpgradeAction {
 		this.valueEncryptor.decryptValues(renderValues);
 		Map<String, Object> configValues = resolved.config();
 
+		String defaultDescription = options.isDryRun() ? "Dry run complete" : "Upgrade complete";
+		String description = (options.getDescription() != null && !options.getDescription().isBlank())
+				? options.getDescription() : defaultDescription;
 		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
 			.firstDeployed(currentRelease.getInfo().getFirstDeployed())
 			.lastDeployed(OffsetDateTime.now())
 			.status((options.isDryRun()) ? ReleaseStatus.PENDING_UPGRADE : ReleaseStatus.DEPLOYED)
-			.description(options.isDryRun() ? "Dry run complete" : "Upgrade complete")
+			.description(description)
 			.build();
+
+		// Helm --labels replaces the revision's labels; with none supplied, the current
+		// release's labels are carried forward.
+		Map<String, String> labels = (options.getLabels() != null && !options.getLabels().isEmpty())
+				? options.getLabels() : currentRelease.getLabels();
 
 		Release newRelease = Release.builder()
 			.name(currentRelease.getName())
@@ -89,6 +97,7 @@ public class UpgradeAction {
 			.version(currentRelease.getVersion() + 1)
 			.chart(newChart)
 			.info(info)
+			.labels(labels)
 			// Persist the resolved user-supplied values (Helm's release "config"), so
 			// that
 			// `get values` reports them and a later upgrade can reuse them.
