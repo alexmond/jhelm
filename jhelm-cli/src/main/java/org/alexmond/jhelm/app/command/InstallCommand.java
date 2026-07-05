@@ -8,6 +8,7 @@ import java.util.concurrent.Callable;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
+import org.alexmond.jhelm.app.output.OutputFormat;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.UninstallAction;
@@ -116,6 +117,10 @@ public class InstallCommand implements Callable<Integer> {
 	@CommandLine.Option(names = { "--create-namespace" }, description = "create the release namespace if not present")
 	private boolean createNamespace;
 
+	@CommandLine.Option(names = { "-o", "--output" }, defaultValue = "table",
+			description = "output format: table (default human summary), json, or yaml")
+	private String output;
+
 	/**
 	 * Creates the command.
 	 * @param installAction the action that performs the install
@@ -167,6 +172,21 @@ public class InstallCommand implements Callable<Integer> {
 				.build());
 			release = applyCliPostRenderers(release);
 
+			if (!dryRunEnabled && (wait || atomic || waitForJobs)) {
+				kubeService.waitForReady(namespace, release.getManifest(), timeout);
+			}
+
+			if (OutputFormat.isJson(output) || OutputFormat.isYaml(output)) {
+				Map<String, Object> map = OutputFormat.release(release);
+				if (OutputFormat.isJson(output)) {
+					System.out.println(OutputFormat.json(map));
+				}
+				else {
+					System.out.print(OutputFormat.yaml(map));
+				}
+				return CommandLine.ExitCode.OK;
+			}
+
 			if (dryRunEnabled) {
 				CliOutput.println(CliOutput.bold("NAME:") + " " + release.getName());
 				CliOutput.println(CliOutput.bold("LAST DEPLOYED:") + " " + release.getInfo().getLastDeployed());
@@ -177,9 +197,6 @@ public class InstallCommand implements Callable<Integer> {
 			}
 			else {
 				CliOutput.println(CliOutput.success("Release \"" + name + "\" has been installed."));
-				if (wait || atomic || waitForJobs) {
-					kubeService.waitForReady(namespace, release.getManifest(), timeout);
-				}
 			}
 			return CommandLine.ExitCode.OK;
 		}

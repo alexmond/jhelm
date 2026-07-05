@@ -2,13 +2,18 @@ package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
+import org.alexmond.jhelm.app.output.OutputFormat;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.core.model.RepositoryConfig;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 /**
@@ -81,6 +86,10 @@ public class RepoCommand implements Callable<Integer> {
 
 		private final RepoManager repoManager;
 
+		@CommandLine.Option(names = { "-o", "--output" }, defaultValue = "table",
+				description = "output format: table, json, or yaml")
+		private String output;
+
 		/**
 		 * Creates the command.
 		 * @param repoManager the repository manager that supplies the configured
@@ -94,9 +103,10 @@ public class RepoCommand implements Callable<Integer> {
 		public Integer call() {
 			try {
 				RepositoryConfig config = repoManager.loadConfig();
-				CliOutput.printf("%-20s\t%-50s\n", CliOutput.bold("NAME"), CliOutput.bold("URL"));
-				for (RepositoryConfig.Repository repo : config.getRepositories()) {
-					CliOutput.printf("%-20s\t%-50s\n", repo.getName(), repo.getUrl());
+				switch (output.toLowerCase(Locale.ROOT)) {
+					case "json" -> System.out.println(OutputFormat.json(toRows(config)));
+					case "yaml" -> System.out.print(OutputFormat.yaml(toRows(config)));
+					default -> printTable(config);
 				}
 				return CommandLine.ExitCode.OK;
 			}
@@ -104,6 +114,24 @@ public class RepoCommand implements Callable<Integer> {
 				CliOutput.errPrintln(CliOutput.error("Error listing repositories: " + ex.getMessage()));
 				return CommandLine.ExitCode.SOFTWARE;
 			}
+		}
+
+		private void printTable(RepositoryConfig config) {
+			CliOutput.printf("%-20s\t%-50s\n", CliOutput.bold("NAME"), CliOutput.bold("URL"));
+			for (RepositoryConfig.Repository repo : config.getRepositories()) {
+				CliOutput.printf("%-20s\t%-50s\n", repo.getName(), repo.getUrl());
+			}
+		}
+
+		private static List<Map<String, Object>> toRows(RepositoryConfig config) {
+			List<Map<String, Object>> rows = new ArrayList<>();
+			for (RepositoryConfig.Repository repo : config.getRepositories()) {
+				Map<String, Object> row = new LinkedHashMap<>();
+				row.put("name", repo.getName());
+				row.put("url", repo.getUrl());
+				rows.add(row);
+			}
+			return rows;
 		}
 
 	}

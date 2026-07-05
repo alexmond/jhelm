@@ -9,6 +9,7 @@ import java.util.concurrent.Callable;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
+import org.alexmond.jhelm.app.output.OutputFormat;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.RollbackAction;
@@ -144,6 +145,10 @@ public class UpgradeCommand implements Callable<Integer> {
 	@Option(names = { "--no-hooks" }, description = "prevent hooks from running during this operation")
 	private boolean noHooks;
 
+	@CommandLine.Option(names = { "-o", "--output" }, defaultValue = "table",
+			description = "output format: table (default human summary), json, or yaml")
+	private String output;
+
 	@CommandLine.Option(names = { "--history-max" }, defaultValue = "10",
 			description = "limit the maximum number of revisions saved per release (0 = no limit)")
 	private int historyMax;
@@ -202,14 +207,16 @@ public class UpgradeCommand implements Callable<Integer> {
 					wasInstall = true;
 					Release release = installAction.install(buildInstallOptions(chart, overrides));
 					release = applyCliPostRenderers(release);
-					if (dryRunEnabled) {
-						printRelease(release);
+					if (!dryRunEnabled && (wait || atomic || waitForJobs)) {
+						kubeService.waitForReady(namespace, release.getManifest(), timeout);
 					}
-					else {
-						CliOutput
-							.println(CliOutput.success("Release \"" + name + "\" does not exist. Installing it now."));
-						if (wait || atomic || waitForJobs) {
-							kubeService.waitForReady(namespace, release.getManifest(), timeout);
+					if (!emitMachineOutput(release)) {
+						if (dryRunEnabled) {
+							printRelease(release);
+						}
+						else {
+							CliOutput.println(
+									CliOutput.success("Release \"" + name + "\" does not exist. Installing it now."));
 						}
 					}
 				}
@@ -228,13 +235,15 @@ public class UpgradeCommand implements Callable<Integer> {
 				.upgrade(buildUpgradeOptions(currentReleaseOpt.get(), chart, overrides, strategy));
 			upgradedRelease = applyCliPostRenderers(upgradedRelease);
 
-			if (dryRunEnabled) {
-				printRelease(upgradedRelease);
+			if (!dryRunEnabled && (wait || atomic || waitForJobs)) {
+				kubeService.waitForReady(namespace, upgradedRelease.getManifest(), timeout);
 			}
-			else {
-				CliOutput.println(CliOutput.success("Release \"" + name + "\" has been upgraded. Happy Helming!"));
-				if (wait || atomic || waitForJobs) {
-					kubeService.waitForReady(namespace, upgradedRelease.getManifest(), timeout);
+			if (!emitMachineOutput(upgradedRelease)) {
+				if (dryRunEnabled) {
+					printRelease(upgradedRelease);
+				}
+				else {
+					CliOutput.println(CliOutput.success("Release \"" + name + "\" has been upgraded. Happy Helming!"));
 				}
 			}
 			return CommandLine.ExitCode.OK;
@@ -328,6 +337,21 @@ public class UpgradeCommand implements Callable<Integer> {
 		CliOutput.println(CliOutput.bold("STATUS:") + " " + release.getInfo().getStatus().getValue());
 		CliOutput.println(CliOutput.bold("REVISION:") + " " + release.getVersion());
 		CliOutput.println("\n" + CliOutput.bold("MANIFEST:") + "\n" + release.getManifest());
+	}
+
+	// Emits the release as json/yaml when -o requests it; returns true if it did.
+	private boolean emitMachineOutput(Release release) {
+		if (!OutputFormat.isJson(output) && !OutputFormat.isYaml(output)) {
+			return false;
+		}
+		Map<String, Object> map = OutputFormat.release(release);
+		if (OutputFormat.isJson(output)) {
+			System.out.println(OutputFormat.json(map));
+		}
+		else {
+			System.out.print(OutputFormat.yaml(map));
+		}
+		return true;
 	}
 
 	/**

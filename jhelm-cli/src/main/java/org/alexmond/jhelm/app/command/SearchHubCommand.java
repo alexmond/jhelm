@@ -1,9 +1,14 @@
 package org.alexmond.jhelm.app.command;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 import org.alexmond.jhelm.app.output.CliOutput;
+import org.alexmond.jhelm.app.output.OutputFormat;
 import org.alexmond.jhelm.core.action.SearchHubAction;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
@@ -29,6 +34,10 @@ public class SearchHubCommand implements Callable<Integer> {
 			description = "print charts repository URL")
 	private boolean listRepoUrl;
 
+	@CommandLine.Option(names = { "-o", "--output" }, defaultValue = "table",
+			description = "output format: table, json, or yaml")
+	private String output;
+
 	/**
 	 * Creates the command.
 	 * @param searchHubAction the action that queries Artifact Hub
@@ -41,11 +50,18 @@ public class SearchHubCommand implements Callable<Integer> {
 	public Integer call() {
 		try {
 			List<SearchHubAction.HubResult> results = searchHubAction.search(keyword, 25);
-			if (results.isEmpty()) {
-				CliOutput.println("No results found for \"" + keyword + "\"");
-				return CommandLine.ExitCode.OK;
+			switch (output.toLowerCase(Locale.ROOT)) {
+				case "json" -> System.out.println(OutputFormat.json(toRows(results)));
+				case "yaml" -> System.out.print(OutputFormat.yaml(toRows(results)));
+				default -> {
+					if (results.isEmpty()) {
+						CliOutput.println("No results found for \"" + keyword + "\"");
+					}
+					else {
+						printTable(results);
+					}
+				}
 			}
-			printTable(results);
 			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {
@@ -64,6 +80,21 @@ public class SearchHubCommand implements Callable<Integer> {
 			CliOutput
 				.println(String.format("%-40s\t%-8s\t%-12s\t%s", url, r.getVersion(), r.getAppVersion(), description));
 		}
+	}
+
+	// Mirrors the fields Helm emits for `helm search hub -o json/yaml`.
+	private static List<Map<String, Object>> toRows(List<SearchHubAction.HubResult> results) {
+		List<Map<String, Object>> rows = new ArrayList<>();
+		for (SearchHubAction.HubResult r : results) {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("url", r.getUrl());
+			row.put("version", r.getVersion());
+			row.put("app_version", r.getAppVersion());
+			row.put("description", r.getDescription());
+			row.put("repository", r.getRepoUrl());
+			rows.add(row);
+		}
+		return rows;
 	}
 
 	private String truncate(String value, int maxWidth) {
