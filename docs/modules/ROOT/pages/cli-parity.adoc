@@ -92,7 +92,8 @@ template produced each manifest.
 | `-s`, `--show-only` | ✅ | Repeatable; keeps only documents rendered from the named template(s) (e.g. `templates/deployment.yaml`), matched by trailing path segment. Errors if a requested template matches nothing, like Helm.
 | `--output-dir` | ✅ | Writes each document to `<dir>/<chart>/templates/<file>` (grouped by source) instead of stdout, printing one `wrote <path>` line per file.
 | `--skip-tests` | ✅ | Drops documents carrying a `helm.sh/hook: test` annotation.
-| `--include-crds`, `--is-upgrade` | ✗ | Still being wired — see "Other known gaps".
+| `--include-crds` | ✅ | Prepends the chart's top-level `crds/` manifests (un-templated, as Helm renders them), each with its own `# Source:` marker. Helm excludes CRDs from `template` by default.
+| `--is-upgrade` | ✅ | Renders with `.Release.IsUpgrade=true` / `.Release.IsInstall=false` (the default posture is install).
 |===
 
 == repo / registry / pull
@@ -132,8 +133,6 @@ Most scripts work unchanged. Watch for these deliberate differences:
 Beyond the per-command tables above, these commonly-used Helm options are not yet wired
 (tracked for follow-up):
 
-* *`template`* — `--include-crds`, `--is-upgrade` (`-s`/`--show-only`, `--output-dir`,
-  `--skip-tests` are now supported — see the `template` section).
 * *`list`* — `-A`/`--all-namespaces`, `-l`/`--selector`, `-a`/`--all`, the status filters,
   `--max`/`--offset`/`--filter`.
 * *`install`/`upgrade`* — install-from-repo (`--version`/`--repo`/`--username`/`--password`),

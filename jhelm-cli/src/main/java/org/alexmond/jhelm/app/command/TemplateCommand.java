@@ -92,6 +92,13 @@ public class TemplateCommand implements Callable<Integer> {
 	@Option(names = { "--skip-tests" }, description = "skip tests from the rendered output (chart test hooks)")
 	private boolean skipTests;
 
+	@Option(names = { "--include-crds" }, description = "include CRDs (the chart's crds/ manifests) in the output")
+	private boolean includeCrds;
+
+	@Option(names = { "--is-upgrade" },
+			description = "set .Release.IsUpgrade instead of .Release.IsInstall when rendering")
+	private boolean isUpgrade;
+
 	/**
 	 * Creates the command.
 	 * @param templateAction the action that renders chart templates
@@ -117,7 +124,7 @@ public class TemplateCommand implements Callable<Integer> {
 					configServer.overrideNone(), configServer.overrideSystemProperties(), setValues, setStringValues,
 					setFileValues, setJsonValues);
 			String manifest = templateAction.render(chartPath, name, namespace, overrides, profiles, kubeVersion,
-					apiVersions);
+					apiVersions, isUpgrade, includeCrds);
 			for (String renderer : postRenderers) {
 				manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
 			}
