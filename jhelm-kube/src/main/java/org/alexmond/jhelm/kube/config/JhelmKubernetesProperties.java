@@ -26,6 +26,21 @@ public class JhelmKubernetesProperties {
 	private String kubeconfigPath;
 
 	/**
+	 * Name of the kubeconfig context to use (Helm's {@code --kube-context}). When set,
+	 * the kubeconfig is loaded (from {@link #kubeconfigPath}, {@code $KUBECONFIG}, or
+	 * {@code ~/.kube/config}) and this context is selected. When not set, the
+	 * kubeconfig's current context is used.
+	 */
+	private String context;
+
+	/**
+	 * Address of the Kubernetes API server to talk to (Helm's {@code --kube-apiserver}).
+	 * When set, it overrides the server resolved from the kubeconfig. When not set, the
+	 * kubeconfig's server is used.
+	 */
+	private String apiServer;
+
+	/**
 	 * Retry configuration for transient Kubernetes API failures.
 	 */
 	private Retry retry = new Retry();

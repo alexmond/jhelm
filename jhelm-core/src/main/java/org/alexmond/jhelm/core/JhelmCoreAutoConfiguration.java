@@ -114,6 +114,7 @@ public class JhelmCoreAutoConfiguration {
 				? new RepoManager(props.getConfigPath(), registryManager, props.isInsecureSkipTlsVerify(), blockPrivate)
 				: new RepoManager(registryManager, props.isInsecureSkipTlsVerify(), blockPrivate);
 		repoManager.setMetrics(metrics.getIfAvailable());
+		repoManager.setRepositoryCacheOverride(props.getRepositoryCachePath());
 		return repoManager;
 	}
 

@@ -1,7 +1,9 @@
 package org.alexmond.jhelm.kube;
 
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
@@ -99,10 +101,39 @@ public class JhelmKubeAutoConfiguration {
 	 * @throws IOException if the configured kubeconfig file cannot be read
 	 */
 	private ApiClient buildApiClient(JhelmKubernetesProperties props) throws IOException {
-		if (props.getKubeconfigPath() != null) {
-			return Config.fromConfig(KubeConfig.loadKubeConfig(new FileReader(props.getKubeconfigPath())));
+		ApiClient client;
+		String kubeconfigPath = props.getKubeconfigPath();
+		String context = props.getContext();
+		if (kubeconfigPath != null || (context != null && !context.isBlank())) {
+			// A configured kubeconfig path, or an explicit --kube-context, means load the
+			// kubeconfig ourselves so the requested context can be selected.
+			String path = (kubeconfigPath != null) ? kubeconfigPath : defaultKubeconfigPath();
+			try (FileReader reader = new FileReader(path, StandardCharsets.UTF_8)) {
+				KubeConfig kubeConfig = KubeConfig.loadKubeConfig(reader);
+				if (context != null && !context.isBlank() && !kubeConfig.setContext(context)) {
+					throw new IOException("kube context not found in kubeconfig: " + context);
+				}
+				client = Config.fromConfig(kubeConfig);
+			}
 		}
-		return Config.defaultClient();
+		else {
+			client = Config.defaultClient();
+		}
+		if (props.getApiServer() != null && !props.getApiServer().isBlank()) {
+			client.setBasePath(props.getApiServer());
+		}
+		return client;
+	}
+
+	// The kubeconfig the Kubernetes client would auto-detect: the first entry of
+	// $KUBECONFIG, else ~/.kube/config. Used only when a context is requested without an
+	// explicit --kubeconfig.
+	private static String defaultKubeconfigPath() {
+		String env = System.getenv("KUBECONFIG");
+		if (env != null && !env.isBlank()) {
+			return env.split(File.pathSeparator, 2)[0];
+		}
+		return System.getProperty("user.home") + "/.kube/config";
 	}
 
 	/**

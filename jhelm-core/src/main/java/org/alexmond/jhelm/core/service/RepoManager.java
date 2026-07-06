@@ -66,6 +66,11 @@ public class RepoManager {
 	// Null in library/direct-construction use (no instrumentation, no overhead).
 	private JhelmMetrics metrics;
 
+	// Optional repository-cache directory override (Helm's --repository-cache), set by
+	// the
+	// auto-configuration from jhelm.repository-cache-path. Null -> standard resolution.
+	private String repositoryCacheOverride;
+
 	// Parsed repo indexes (the full entries map of an index.yaml) keyed by repo name.
 	// A repo's index can be tens of MB (e.g. bitnami), so this is bounded by an LRU:
 	// resolving many charts across many repos (the parity suite, or a long-running
@@ -318,21 +323,37 @@ public class RepoManager {
 	}
 
 	/**
-	 * Returns the effective repository index cache directory
-	 * ({@code $HELM_REPOSITORY_CACHE} or the per-OS default), without creating it.
+	 * Overrides the repository index cache directory, taking precedence over
+	 * {@code $HELM_REPOSITORY_CACHE} and the per-OS default. Wired from
+	 * {@code jhelm.repository-cache-path} (Helm's {@code --repository-cache}); leave
+	 * unset to use the standard resolution.
+	 * @param path the cache directory path, or {@code null}/blank to clear the override
+	 */
+	public void setRepositoryCacheOverride(String path) {
+		this.repositoryCacheOverride = path;
+	}
+
+	/**
+	 * Returns the effective repository index cache directory (the configured override,
+	 * else {@code $HELM_REPOSITORY_CACHE} or the per-OS default), without creating it.
 	 * @return the repository cache directory path
 	 */
 	public String getRepositoryCachePath() {
-		return resolveCacheDir(System.getenv("HELM_REPOSITORY_CACHE"), System.getProperty("user.home"),
-				System.getProperty("os.name"))
-			.getPath();
+		return resolveCacheBaseDir().getPath();
 	}
 
 	private File getCacheDir() {
-		File base = resolveCacheDir(System.getenv("HELM_REPOSITORY_CACHE"), System.getProperty("user.home"),
-				System.getProperty("os.name"));
+		File base = resolveCacheBaseDir();
 		base.mkdirs();
 		return base;
+	}
+
+	private File resolveCacheBaseDir() {
+		if (repositoryCacheOverride != null && !repositoryCacheOverride.isBlank()) {
+			return Paths.get(repositoryCacheOverride).toFile();
+		}
+		return resolveCacheDir(System.getenv("HELM_REPOSITORY_CACHE"), System.getProperty("user.home"),
+				System.getProperty("os.name"));
 	}
 
 	/**

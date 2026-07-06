@@ -31,6 +31,12 @@ public class JhelmCoreProperties {
 	private String registryConfigPath;
 
 	/**
+	 * Path to the repository index cache directory. Defaults to
+	 * {@code $HELM_REPOSITORY_CACHE} or the per-OS Helm cache location when not set.
+	 */
+	private String repositoryCachePath;
+
+	/**
 	 * Whether to skip TLS certificate verification for HTTP chart downloads. Defaults to
 	 * {@code false}.
 	 */
