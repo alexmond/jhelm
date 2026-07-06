@@ -124,7 +124,9 @@ template produced each manifest.
 | `registry login` (`-u`, `-p`, `--password-stdin`) / `logout` | ✅ |
 | `pull` (`--version`, `-d/--dest`) | ✅ |
 | `pull --repo URL` + auth/TLS (`--username`, `--password`, `--cert-file`, `--key-file`, `--ca-file`, `--insecure-skip-tls-verify`, `--pass-credentials`) | ✅ | Pull a chart directly from a repository URL with inline credentials, without a prior `repo add`.
-| `pull` (`--untar`, `--verify`) | ✗ | Charts are unpacked into `--dest`; provenance verification not yet wired.
+| `pull` (`--untar`, `--untardir`) | ✅ | Unpacks the fetched chart into `--untardir` (default `.`) and removes the `.tgz`.
+| `pull` (`--verify`, `--prov`, `--keyring`) | ✅ | Fetches the chart's detached `.prov` and checks its PGP provenance before use (`--prov` keeps the file without verifying).
+| `pull` (`--devel`) | ✗ | Prerelease/latest-version resolution is not yet implemented (jhelm requires an explicit `--version`).
 |===
 
 == Porting a Helm script to jhelm
@@ -148,7 +150,8 @@ Beyond the per-command tables above, these commonly-used Helm options are not ye
 * *`install`/`upgrade`* — `upgrade --cleanup-on-fail`.
   (install-from-repo `--version`/`--repo`/`--username`/`--password` + TLS is supported;
   `-g`/`--generate-name` on `install`; `--description`/`--labels`/`--set-literal`/`--dependency-update` on both.)
-* *`pull`* — `--untar`/`--untardir`, `--verify`/`--prov`/`--keyring`, `--devel`.
+* *`pull`* — `--devel` (prerelease/latest-version resolution). `--untar`/`--untardir` and
+  `--verify`/`--prov`/`--keyring` are supported.
 * *Global flags* — Helm's persistent flags (`--kube-context`, `--kubeconfig`,
   `--kube-apiserver`, `--registry-config`, `--repository-config`, `--repository-cache`,
   `--debug`) aren't accepted inline; jhelm resolves these via Spring properties / environment

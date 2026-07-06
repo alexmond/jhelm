@@ -49,6 +49,11 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
   `--cleanup-on-fail` (delete resources created during a failed rollback), `--recreate-pods` (rolling
   restart of the release's workloads via a restart annotation), and `--wait`/`--wait-for-jobs`/`--timeout`.
   The rollback readiness wait now lives in the action so REST and MCP honor it too (#683).
+* *`pull` unpack & provenance* -- `--untar`/`--untardir` unpack the fetched chart (and drop the
+  `.tgz`), and `--verify`/`--prov`/`--keyring` fetch the chart's detached `.prov` and check its PGP
+  provenance before use (reusing the `verify` layer). REST `POST /repos/pull` gains a `verify` flag.
+  `--devel` (prerelease resolution) remains the one open pull gap — it needs semver latest-version
+  resolution jhelm does not have yet (#684).
 * *REST releases API now returns Helm-shaped JSON* -- the `/releases` list/status/history and
   install/upgrade responses now use Helm's `-o json` schema (snake_case, nested `info`) instead
   of jhelm's internal DTO, so REST consumers see the same shape as `helm ... -o json` and the

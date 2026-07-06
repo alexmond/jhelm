@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.alexmond.jhelm.core.model.RepositoryConfig;
+import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.alexmond.jhelm.rest.dto.ChartVersionDto;
@@ -50,15 +51,19 @@ public class RepoController {
 
 	private final RepoManager repoManager;
 
+	private final VerifyAction verifyAction;
+
 	private final JhelmRestProperties properties;
 
 	/**
 	 * Creates the controller with the repository manager it delegates to.
 	 * @param repoManager manages chart repositories
+	 * @param verifyAction verifies a packaged chart's PGP provenance
 	 * @param properties REST module configuration (temp directory, base path)
 	 */
-	public RepoController(RepoManager repoManager, JhelmRestProperties properties) {
+	public RepoController(RepoManager repoManager, VerifyAction verifyAction, JhelmRestProperties properties) {
 		this.repoManager = repoManager;
+		this.verifyAction = verifyAction;
 		this.properties = properties;
 	}
 
@@ -150,14 +155,20 @@ public class RepoController {
 			description = "Pull a chart from a repository or OCI registry and return it as a .tgz archive")
 	public ResponseEntity<byte[]> pull(@Valid @RequestBody PullRequest request) throws IOException {
 		try (TempDir tempDir = new TempDir(this.properties.getTempDir(), "jhelm-pull-")) {
-			this.repoManager.pull(request.getChart(), request.getVersion(), tempDir.path().toString());
+			this.repoManager.pull(request.getChart(), request.getVersion(), tempDir.path().toString(),
+					request.isVerify());
 			String fileName = resolveFileName(request.getChart(), request.getVersion());
 			File[] files = tempDir.path().toFile().listFiles();
-			if (files != null && files.length == 1 && files[0].getName().endsWith(".tgz")) {
-				byte[] tgz = Files.readAllBytes(files[0].toPath());
+			File tgzFile = firstTgz(files);
+			if (request.isVerify() && tgzFile != null) {
+				this.verifyAction.verify(tgzFile.getPath(),
+						(request.getKeyring() != null) ? request.getKeyring() : defaultKeyringPath());
+			}
+			if (tgzFile != null) {
+				byte[] tgz = Files.readAllBytes(tgzFile.toPath());
 				return ResponseEntity.ok()
 					.contentType(APPLICATION_GZIP)
-					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + files[0].getName() + "\"")
+					.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + tgzFile.getName() + "\"")
 					.body(tgz);
 			}
 			Path chartDir = ChartLoader.findChartDir(tempDir.path());
@@ -201,6 +212,24 @@ public class RepoController {
 			this.repoManager.pushOci(tgzPath.toString(), remote);
 			return ResponseEntity.ok().build();
 		}
+	}
+
+	// The downloaded .tgz among the temp-dir contents (a --verify pull also writes a
+	// .prov, and a registered-repo pull may leave an unpacked directory).
+	private static File firstTgz(File[] files) {
+		if (files == null) {
+			return null;
+		}
+		for (File f : files) {
+			if (f.isFile() && f.getName().endsWith(".tgz")) {
+				return f;
+			}
+		}
+		return null;
+	}
+
+	private static String defaultKeyringPath() {
+		return System.getProperty("user.home") + "/.gnupg/pubring.gpg";
 	}
 
 	private static String resolveFileName(String chart, String version) {

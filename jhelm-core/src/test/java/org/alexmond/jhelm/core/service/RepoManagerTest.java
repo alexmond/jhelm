@@ -389,6 +389,30 @@ class RepoManagerTest {
 	}
 
 	@Test
+	void testPullFromRepoUrlWithProvFetchesProvenance() throws Exception {
+		RepoManager rm = new RepoManager();
+		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
+		rm.setHttpClientForTest(mockClient);
+		byte[] tgz = createMinimalTgz();
+		String index = """
+				entries:
+				  mychart:
+				    - version: "1.0.0"
+				      urls:
+				        - "https://charts.example.com/mychart-1.0.0.tgz"
+				""";
+		// Three sequential fetches: index.yaml, the .tgz, then the .prov.
+		when(mockClient.execute(isA(HttpGet.class), any(HttpClientResponseHandler.class)))
+			.thenAnswer(httpAnswer(200, index.getBytes(StandardCharsets.UTF_8)))
+			.thenAnswer(httpAnswer(200, tgz))
+			.thenAnswer(httpAnswer(200, "signed-prov".getBytes(StandardCharsets.UTF_8)));
+		rm.pullFromRepoUrl("https://charts.example.com", "mychart", "1.0.0", tempDir.toString(), null, true);
+		assertTrue(tempDir.resolve("mychart-1.0.0.tgz").toFile().exists());
+		assertTrue(tempDir.resolve("mychart-1.0.0.tgz.prov").toFile().exists(),
+				"the .prov file is fetched with --prov");
+	}
+
+	@Test
 	void testPullFromRepoUrlRequiresVersion() {
 		RepoManager rm = new RepoManager();
 		assertThrows(java.io.IOException.class,
