@@ -74,7 +74,7 @@ no shelling out, no glue code. See xref:mcp.adoc[MCP Server].
 * Java 21
 * Spring Boot 4.0.7
 * Kubernetes Client 26.0.0
-* gotmpl4j 1.1.0 (Go template + Sprig engine)
+* gotmpl4j 1.2.0 (Go template + Sprig engine)
 * Picocli 4.7.7 (CLI framework)
 
 == Quick Links
