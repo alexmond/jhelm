@@ -48,6 +48,17 @@ public class LintCommand implements Callable<Integer> {
 	@Option(names = { "--strict" }, defaultValue = "false", description = "fail on lint warnings")
 	private boolean strict;
 
+	@Option(names = { "--quiet" }, defaultValue = "false",
+			description = "print only warnings and errors (suppress the linting header)")
+	private boolean quiet;
+
+	@Option(names = { "--with-subcharts" }, defaultValue = "false", description = "lint dependent charts")
+	private boolean withSubcharts;
+
+	@Option(names = { "--kube-version" },
+			description = "Kubernetes version used for capabilities checks during template rendering")
+	private String kubeVersion;
+
 	/**
 	 * Creates the command.
 	 * @param lintAction the action that lints the chart
@@ -61,9 +72,11 @@ public class LintCommand implements Callable<Integer> {
 		try {
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, setValues, setStringValues,
 					setFileValues, setJsonValues, setLiteralValues);
-			LintAction.LintResult result = lintAction.lint(chartPath, overrides, strict);
+			LintAction.LintResult result = lintAction.lint(chartPath, overrides, strict, withSubcharts, kubeVersion);
 
-			CliOutput.println("==> Linting " + result.getChartPath());
+			if (!quiet) {
+				CliOutput.println("==> Linting " + result.getChartPath());
+			}
 
 			for (String warning : result.getWarnings()) {
 				CliOutput.println("[WARNING] " + warning);

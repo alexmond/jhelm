@@ -53,4 +53,20 @@ class VersionCommandTest {
 		assertFalse(out.contains("jhelm version"));
 	}
 
+	@Test
+	void testTemplateRendersVersionField() {
+		String out = run("--template", "{{.Version}}");
+		// --template drives the whole output; only the rendered version, no "jhelm
+		// version".
+		assertTrue(out.startsWith("v9.9.9-test"), "Output: " + out);
+		assertFalse(out.contains("jhelm version"), "Output: " + out);
+	}
+
+	@Test
+	void testTemplateRendersGoVersionField() {
+		String out = run("--template", "go={{.GoVersion}}");
+		assertTrue(out.startsWith("go="), "Output: " + out);
+		assertTrue(out.contains(System.getProperty("java.version")), "Output: " + out);
+	}
+
 }

@@ -1,8 +1,11 @@
 package org.alexmond.jhelm.app.command;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
+import org.alexmond.gotmpl4j.GoTemplate;
 import org.alexmond.jhelm.app.VersionInfo;
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.springframework.stereotype.Component;
@@ -20,6 +23,10 @@ public class VersionCommand implements Callable<Integer> {
 
 	@CommandLine.Option(names = { "--short" }, description = "print the version number only")
 	private boolean shortOutput;
+
+	@CommandLine.Option(names = { "--template" },
+			description = "template for the output (Go template against .Version, .GitCommit, .GitTreeState, .GoVersion)")
+	private String template;
 
 	private final VersionInfo versionInfo;
 
@@ -42,6 +49,9 @@ public class VersionCommand implements Callable<Integer> {
 
 	@Override
 	public Integer call() {
+		if (this.template != null) {
+			return renderTemplate();
+		}
 		if (this.shortOutput) {
 			CliOutput.println(versionString());
 		}
@@ -54,6 +64,27 @@ public class VersionCommand implements Callable<Integer> {
 			CliOutput.println("jhelm version " + versionString() + " (" + details + ")");
 		}
 		return CommandLine.ExitCode.OK;
+	}
+
+	// Renders --template as a Go template against the version info, matching
+	// `helm version --template`. jhelm has no git metadata, so GitCommit/GitTreeState are
+	// empty and GoVersion carries the running Java version.
+	private Integer renderTemplate() {
+		Map<String, Object> data = new LinkedHashMap<>();
+		data.put("Version", versionString());
+		data.put("GitCommit", "");
+		data.put("GitTreeState", "");
+		data.put("GoVersion", System.getProperty("java.version"));
+		try {
+			GoTemplate engine = new GoTemplate();
+			engine.parse("version", this.template);
+			CliOutput.printf("%s", engine.render("version", data));
+			return CommandLine.ExitCode.OK;
+		}
+		catch (RuntimeException ex) {
+			CliOutput.errPrintln(CliOutput.error("Error rendering version template: " + ex.getMessage()));
+			return CommandLine.ExitCode.SOFTWARE;
+		}
 	}
 
 }

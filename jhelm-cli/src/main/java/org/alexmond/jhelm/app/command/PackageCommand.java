@@ -6,9 +6,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 
+import java.util.List;
+
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
+import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.action.PackageAction;
+import org.alexmond.jhelm.core.service.SigningKey;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -24,8 +28,20 @@ public class PackageCommand implements Callable<Integer> {
 
 	private final PackageAction packageAction;
 
+	private final DependencyUpdateAction dependencyUpdateAction;
+
 	@CommandLine.Parameters(index = "0", description = "path to the chart directory")
 	private String chartPath;
+
+	@CommandLine.Option(names = { "--version" }, description = "set the version on the packaged chart")
+	private String version;
+
+	@CommandLine.Option(names = { "--app-version" }, description = "set the appVersion on the packaged chart")
+	private String appVersion;
+
+	@CommandLine.Option(names = { "-u", "--dependency-update" },
+			description = "update dependencies from Chart.yaml before packaging")
+	private boolean dependencyUpdate;
 
 	@CommandLine.Option(names = { "-d", "--destination" }, defaultValue = ".",
 			description = "destination directory for the packaged chart")
@@ -47,14 +63,19 @@ public class PackageCommand implements Callable<Integer> {
 	/**
 	 * Creates the command.
 	 * @param packageAction the action that packages and optionally signs the chart
+	 * @param dependencyUpdateAction updates the chart's dependencies for {@code -u}
 	 */
-	public PackageCommand(PackageAction packageAction) {
+	public PackageCommand(PackageAction packageAction, DependencyUpdateAction dependencyUpdateAction) {
 		this.packageAction = packageAction;
+		this.dependencyUpdateAction = dependencyUpdateAction;
 	}
 
 	@Override
 	public Integer call() {
 		try {
+			if (dependencyUpdate) {
+				dependencyUpdateAction.update(new File(chartPath), List.of(), false);
+			}
 			packageAction.setDestination(new File(destination));
 			File archive;
 
@@ -65,10 +86,11 @@ public class PackageCommand implements Callable<Integer> {
 				}
 				String resolvedKeyring = (keyring != null) ? keyring : defaultKeyringPath();
 				char[] passphrase = loadPassphrase();
-				archive = packageAction.packageChart(chartPath, resolvedKeyring, keyId, passphrase);
+				archive = packageAction.packageChart(chartPath, resolvedKeyring, keyId, passphrase, version,
+						appVersion);
 			}
 			else {
-				archive = packageAction.packageChart(chartPath);
+				archive = packageAction.packageChart(chartPath, (SigningKey) null, null, version, appVersion);
 			}
 
 			CliOutput.println(CliOutput.success("Successfully packaged chart: " + archive.getName()));
