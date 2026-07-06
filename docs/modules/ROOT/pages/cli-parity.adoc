@@ -122,7 +122,8 @@ template produced each manifest.
 | `repo update [name...]` | ✅ | Refreshes all repos, or the named ones.
 | `repo add` auth/TLS (`--username`, `--password`, `--cert-file`, `--key-file`, `--ca-file`, `--insecure-skip-tls-verify`, `--pass-credentials`) | ✅ | Persisted into `repositories.yaml`; the stored credentials are host-gated and honored on every index refresh and chart pull.
 | `repo add` (`--force-update`, `--no-update`) | ✅ | `--force-update` replaces an existing repo (adding a duplicate name otherwise fails); `--no-update` skips the immediate index fetch.
-| `registry login` (`-u`, `-p`, `--password-stdin`) / `logout` | ✅ | `registry login` stores credentials only (no TLS handshake), so `--insecure`/`--plain-http`/`--ca-file`/`--cert-file`/`--key-file` are not yet wired.
+| `registry login` (`-u`, `-p`, `--password-stdin`) / `logout` | ✅ | Like Helm, `registry login` validates the credentials against the registry (a `/v2/` ping and, on a Bearer challenge, a token exchange) before storing them; a bad password, TLS failure, or unreachable registry fails the login.
+| `registry login` TLS (`--insecure`, `--plain-http`, `--ca-file`, `--cert-file`, `--key-file`) | ✅ | Configure the login-time validation handshake (skip TLS verify, plain HTTP, custom CA, and client mTLS). Matching Helm, they are used only for the handshake and are not persisted.
 | `pull` (`--version`, `-d/--dest`) | ✅ |
 | `pull --repo URL` + auth/TLS (`--username`, `--password`, `--cert-file`, `--key-file`, `--ca-file`, `--insecure-skip-tls-verify`, `--pass-credentials`) | ✅ | Pull a chart directly from a repository URL with inline credentials, without a prior `repo add`.
 | `pull` (`--untar`, `--untardir`) | ✅ | Unpacks the fetched chart into `--untardir` (default `.`) and removes the `.tgz`.
@@ -192,9 +193,8 @@ Beyond the per-command tables above, these commonly-used Helm options are not ye
   `-g`/`--generate-name` on `install`; `--description`/`--labels`/`--set-literal`/`--dependency-update` on both.)
 * *`pull`/`show`* — `--devel` (prerelease/latest-version resolution). `pull` `--untar`/`--untardir`
   and `--verify`/`--prov`/`--keyring`, and `show` `--version`/`--repo`/auth, are supported.
-* *`registry login`* — `--insecure`/`--plain-http`/`--ca-file`/`--cert-file`/`--key-file`.
-  jhelm's `registry login` stores credentials locally without a TLS handshake, so these
-  transport options have nothing to act on yet (tracked in #708).
+  (`registry login` now validates credentials against the registry and honors its TLS/transport
+  flags, matching Helm.)
 
 For sharing repositories, registry credentials, and releases with the `helm` binary itself, see
 xref:interoperability.adoc[Interoperability with Helm].

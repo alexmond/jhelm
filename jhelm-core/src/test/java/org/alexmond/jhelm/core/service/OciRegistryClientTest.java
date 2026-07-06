@@ -15,7 +15,9 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -265,6 +267,77 @@ class OciRegistryClientTest {
 		IOException ex = assertThrows(IOException.class,
 				() -> c.downloadBlob("https://registry.example.com/v2/blob", "tok", tempDir.resolve("b").toFile()));
 		assertTrue(ex.getMessage().contains("Too many redirects"));
+	}
+
+	@Test
+	void testVerifyLoginRejectsInternalMetadataHost() {
+		// SSRF guard fires on the /v2/ ping URL before any request is sent
+		assertThrows(SecurityException.class, () -> client.verifyLogin("169.254.169.254", "dXNlcjpwYXNz", false));
+	}
+
+	@Test
+	void testVerifyLoginSucceedsWhenPingReturns200() throws Exception {
+		OciRegistryClient c = clientReturning(jsonResponse(200, null));
+		assertDoesNotThrow(() -> c.verifyLogin("registry.example.com", "dXNlcjpwYXNz", false));
+	}
+
+	@Test
+	void testVerifyLoginExchangesTokenOnBearerChallenge() throws Exception {
+		ClassicHttpResponse ping = challengeResponse(401,
+				"Bearer realm=\"https://registry.example.com/token\",service=\"registry.example.com\"");
+		ClassicHttpResponse token = jsonResponse(200, "{\"token\":\"abc\"}");
+		OciRegistryClient c = clientReturningSequence(ping, token);
+		assertDoesNotThrow(() -> c.verifyLogin("registry.example.com", "dXNlcjpwYXNz", false));
+	}
+
+	@Test
+	void testVerifyLoginRejectsBadCredentialsOnTokenExchange() throws Exception {
+		ClassicHttpResponse ping = challengeResponse(401,
+				"Bearer realm=\"https://registry.example.com/token\",service=\"registry.example.com\"");
+		ClassicHttpResponse token = jsonResponse(401, null);
+		OciRegistryClient c = clientReturningSequence(ping, token);
+		IOException ex = assertThrows(IOException.class,
+				() -> c.verifyLogin("registry.example.com", "dXNlcjpwYXNz", false));
+		assertTrue(ex.getMessage().contains("credentials rejected"));
+	}
+
+	@Test
+	void testVerifyLoginRejectsBasicChallenge() throws Exception {
+		OciRegistryClient c = clientReturning(challengeResponse(401, "Basic realm=\"registry\""));
+		assertThrows(IOException.class, () -> c.verifyLogin("registry.example.com", "dXNlcjpwYXNz", false));
+	}
+
+	@Test
+	void testVerifyLoginThrowsOnServerError() throws Exception {
+		OciRegistryClient c = clientReturning(jsonResponse(500, null));
+		assertThrows(IOException.class, () -> c.verifyLogin("registry.example.com", "dXNlcjpwYXNz", false));
+	}
+
+	/**
+	 * Builds a mocked 401 response advertising the given {@code WWW-Authenticate}
+	 * challenge.
+	 */
+	private ClassicHttpResponse challengeResponse(int code, String wwwAuthenticate) {
+		ClassicHttpResponse response = mock(ClassicHttpResponse.class);
+		when(response.getCode()).thenReturn(code);
+		when(response.getFirstHeader("WWW-Authenticate"))
+			.thenReturn(new BasicHeader("WWW-Authenticate", wwwAuthenticate));
+		return response;
+	}
+
+	/**
+	 * Builds a client whose successive HTTP executes run the handler against each
+	 * response in order.
+	 */
+	@SuppressWarnings("unchecked")
+	private OciRegistryClient clientReturningSequence(ClassicHttpResponse... responses) throws Exception {
+		CloseableHttpClient http = mock(CloseableHttpClient.class);
+		AtomicInteger idx = new AtomicInteger();
+		when(http.execute(any(HttpUriRequest.class), any(HttpClientResponseHandler.class))).thenAnswer((inv) -> {
+			ClassicHttpResponse response = responses[Math.min(idx.getAndIncrement(), responses.length - 1)];
+			return inv.getArgument(1, HttpClientResponseHandler.class).handleResponse(response);
+		});
+		return new OciRegistryClient(http);
 	}
 
 	/** Builds a mocked response with the given status and optional JSON body. */
