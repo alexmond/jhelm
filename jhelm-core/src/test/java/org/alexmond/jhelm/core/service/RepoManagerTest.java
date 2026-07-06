@@ -135,6 +135,22 @@ class RepoManagerTest {
 	}
 
 	@Test
+	void testRepositoryCacheOverrideTakesPrecedence() {
+		RepoManager rm = new RepoManager();
+		String custom = tempDir.resolve("mycache").toFile().getPath();
+		rm.setRepositoryCacheOverride(custom);
+		assertEquals(custom, rm.getRepositoryCachePath());
+	}
+
+	@Test
+	void testRepositoryCacheOverrideBlankFallsBackToDefault() {
+		RepoManager rm = new RepoManager();
+		String def = rm.getRepositoryCachePath();
+		rm.setRepositoryCacheOverride("");
+		assertEquals(def, rm.getRepositoryCachePath());
+	}
+
+	@Test
 	void testRepoNotFound() {
 		RepoManager repoManager = new RepoManager();
 		assertThrows(IOException.class, () -> repoManager.getChartVersions("non-existent", "nginx"));

@@ -82,6 +82,41 @@ public class JHelmCommand implements Callable<Integer> {
 		}
 	}
 
+	// Helm's global persistent flags. Their effect is applied before the Spring context
+	// is
+	// built (see GlobalOptionsPreParser and HelmJavaApplication#main); these declarations
+	// make Picocli accept them on every command and list them in --help.
+
+	@CommandLine.Option(names = GlobalOptionsPreParser.KUBECONFIG, paramLabel = "<path>",
+			description = "path to the kubeconfig file", scope = CommandLine.ScopeType.INHERIT)
+	String kubeconfig;
+
+	@CommandLine.Option(names = GlobalOptionsPreParser.KUBE_CONTEXT, paramLabel = "<context>",
+			description = "name of the kubeconfig context to use", scope = CommandLine.ScopeType.INHERIT)
+	String kubeContext;
+
+	@CommandLine.Option(names = GlobalOptionsPreParser.KUBE_APISERVER, paramLabel = "<url>",
+			description = "the address and port of the Kubernetes API server", scope = CommandLine.ScopeType.INHERIT)
+	String kubeApiServer;
+
+	@CommandLine.Option(names = GlobalOptionsPreParser.REGISTRY_CONFIG, paramLabel = "<path>",
+			description = "path to the registry config file", scope = CommandLine.ScopeType.INHERIT)
+	String registryConfig;
+
+	@CommandLine.Option(names = GlobalOptionsPreParser.REPOSITORY_CONFIG, paramLabel = "<path>",
+			description = "path to the file containing repository names and URLs",
+			scope = CommandLine.ScopeType.INHERIT)
+	String repositoryConfig;
+
+	@CommandLine.Option(names = GlobalOptionsPreParser.REPOSITORY_CACHE, paramLabel = "<path>",
+			description = "path to the directory containing cached repository indexes",
+			scope = CommandLine.ScopeType.INHERIT)
+	String repositoryCache;
+
+	@CommandLine.Option(names = GlobalOptionsPreParser.DEBUG, description = "enable verbose (debug) output",
+			scope = CommandLine.ScopeType.INHERIT)
+	boolean debug;
+
 	/**
 	 * Prints the jhelm banner (to stderr, so piped stdout stays clean) followed by the
 	 * usage help when {@code jhelm} is invoked without a subcommand.

@@ -144,6 +144,31 @@ template produced each manifest.
 | `version` (`--template`) | ✅ | Go-templates the version output against `.Version`, `.GitCommit`, `.GitTreeState`, `.GoVersion` (jhelm has no git metadata, so `GitCommit`/`GitTreeState` are empty and `GoVersion` is the running Java version).
 |===
 
+== Global flags
+
+Helm's persistent flags are accepted on **every** command (before or after the subcommand),
+matching `helm`. They configure beans that are built at startup, so jhelm resolves them from
+the command line before the application context is created.
+
+[cols="2,1,3"]
+|===
+| Flag | jhelm | Notes
+
+| `--kubeconfig <path>` | ✅ | Path to the kubeconfig file.
+| `--kube-context <name>` | ✅ | Select a context from the kubeconfig (loaded from `--kubeconfig`, `$KUBECONFIG`, or `~/.kube/config`).
+| `--kube-apiserver <url>` | ✅ | Override the Kubernetes API server address resolved from the kubeconfig.
+| `--registry-config <path>` | ✅ | Path to the OCI registry auth file (`config.json`).
+| `--repository-config <path>` | ✅ | Path to `repositories.yaml`.
+| `--repository-cache <path>` | ✅ | Path to the repository index cache directory.
+| `--debug` | ✅ | Enable verbose (debug) logging.
+|===
+
+These flags are equivalent to the corresponding `jhelm.*` Spring properties / environment
+variables (e.g. `--kubeconfig` ⇔ `jhelm.kubernetes.kubeconfig-path`); the inline flag takes
+precedence. Because they configure startup beans, an invalid value (e.g. a `--kubeconfig`
+pointing at a missing file, or an unknown `--kube-context`) fails at startup rather than when
+the cluster is first used.
+
 == Porting a Helm script to jhelm
 
 Most scripts work unchanged. Watch for these deliberate differences:
@@ -170,10 +195,6 @@ Beyond the per-command tables above, these commonly-used Helm options are not ye
 * *`registry login`* — `--insecure`/`--plain-http`/`--ca-file`/`--cert-file`/`--key-file`.
   jhelm's `registry login` stores credentials locally without a TLS handshake, so these
   transport options have nothing to act on yet (tracked in #708).
-* *Global flags* — Helm's persistent flags (`--kube-context`, `--kubeconfig`,
-  `--kube-apiserver`, `--registry-config`, `--repository-config`, `--repository-cache`,
-  `--debug`) aren't accepted inline; jhelm resolves these via Spring properties / environment
-  variables instead (tracked in #708).
 
 For sharing repositories, registry credentials, and releases with the `helm` binary itself, see
 xref:interoperability.adoc[Interoperability with Helm].

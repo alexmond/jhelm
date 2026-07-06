@@ -25,6 +25,11 @@ import picocli.CommandLine.IFactory;
 @SpringBootApplication
 public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator {
 
+	// The unmodified argument vector, captured in main(). Picocli parses this (so the
+	// global flags are accepted anywhere), while Spring receives the vector with those
+	// flags stripped.
+	private static String[] originalArgs = {};
+
 	private final IFactory factory;
 
 	private final JHelmCommand jHelmCommand;
@@ -47,7 +52,12 @@ public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator
 	 * @param args the command-line arguments
 	 */
 	public static void main(String[] args) {
-		System.exit(SpringApplication.exit(SpringApplication.run(HelmJavaApplication.class, args)));
+		originalArgs = args.clone();
+		// Resolve Helm's global persistent flags before the context is built (they
+		// configure eagerly-created beans), and hide them from Spring's own arg parsing.
+		GlobalOptionsPreParser.Result parsed = GlobalOptionsPreParser.parse(args);
+		parsed.systemProperties().forEach(System::setProperty);
+		System.exit(SpringApplication.exit(SpringApplication.run(HelmJavaApplication.class, parsed.springArgs())));
 	}
 
 	/**
@@ -59,7 +69,10 @@ public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator
 		CommandLine cmd = new CommandLine(jHelmCommand, factory);
 		cmd.setUsageHelpWidth(120);
 		cmd.setColorScheme(CommandLine.Help.defaultColorScheme(Ansi.AUTO));
-		exitCode = cmd.execute(args);
+		// Picocli parses the original vector so the global flags (stripped from the
+		// Spring
+		// args) are still accepted and shown in --help.
+		exitCode = cmd.execute(originalArgs);
 	}
 
 	/**

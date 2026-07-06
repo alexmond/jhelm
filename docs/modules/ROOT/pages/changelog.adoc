@@ -58,6 +58,12 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
   are persisted into `repositories.yaml` and honored (host-gated) on every index refresh and chart
   pull; `--force-update` replaces an existing repo (a duplicate name otherwise fails) and
   `--no-update` skips the immediate index fetch. Mirrored on REST `POST /repos` (#685).
+* *Global persistent flags* -- Helm's cluster/config flags are now accepted on every command
+  (before or after the subcommand): `--kubeconfig`, `--kube-context`, `--kube-apiserver`,
+  `--registry-config`, `--repository-config`, `--repository-cache`, and `--debug`. They are
+  resolved before the application context is built (they configure startup beans) and take
+  precedence over the equivalent `jhelm.*` properties/env. `registry login` TLS flags remain a
+  documented gap (#708).
 * *Misc command flags* -- `package --version`/`--app-version` (rewrites the `Chart.yaml` inside the
   archive) and `-u`/`--dependency-update`; `show chart\|values\|readme\|crds\|all` `--version`/`--repo`/`--username`/`--password`
   + TLS (show a chart from a repository without a prior `pull`); `lint --quiet`/`--with-subcharts`/`--kube-version`;
