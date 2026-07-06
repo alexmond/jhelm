@@ -10,6 +10,7 @@ import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.alexmond.jhelm.core.service.KubeService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -113,6 +114,21 @@ public class ObservableKubeService implements KubeService {
 	}
 
 	@Override
+	public void delete(String namespace, String yamlContent, CascadePolicy cascade) {
+		timeVoid(deleteTimer, () -> delegate.delete(namespace, yamlContent, cascade));
+	}
+
+	@Override
+	public void waitForDeleted(String namespace, String manifest, int timeoutSeconds) {
+		delegate.waitForDeleted(namespace, manifest, timeoutSeconds);
+	}
+
+	@Override
+	public void restartWorkloads(String namespace, String manifest) {
+		timeVoid(applyTimer, () -> delegate.restartWorkloads(namespace, manifest));
+	}
+
+	@Override
 	public List<ResourceStatus> getResourceStatuses(String namespace, String manifest) {
 		return time(getTimer, () -> delegate.getResourceStatuses(namespace, manifest));
 	}
@@ -120,6 +136,11 @@ public class ObservableKubeService implements KubeService {
 	@Override
 	public void waitForReady(String namespace, String manifest, int timeoutSeconds) {
 		delegate.waitForReady(namespace, manifest, timeoutSeconds);
+	}
+
+	@Override
+	public void waitForReady(String namespace, String manifest, int timeoutSeconds, boolean waitForJobs) {
+		delegate.waitForReady(namespace, manifest, timeoutSeconds, waitForJobs);
 	}
 
 	@Override

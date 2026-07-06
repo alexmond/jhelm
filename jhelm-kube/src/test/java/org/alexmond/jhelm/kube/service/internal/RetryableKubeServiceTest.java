@@ -9,6 +9,7 @@ import io.kubernetes.client.openapi.ApiException;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.alexmond.jhelm.core.service.KubeService;
 import java.time.Duration;
 
@@ -64,6 +65,30 @@ class RetryableKubeServiceTest {
 
 		assertEquals(2, retryableService.listAllReleases().size());
 		verify(delegate).listAllReleases();
+	}
+
+	@Test
+	void testCascadeDeleteDelegates() {
+		retryableService.delete("default", "yaml", CascadePolicy.FOREGROUND);
+		verify(delegate).delete("default", "yaml", CascadePolicy.FOREGROUND);
+	}
+
+	@Test
+	void testWaitForDeletedDelegates() {
+		retryableService.waitForDeleted("default", "yaml", 30);
+		verify(delegate).waitForDeleted("default", "yaml", 30);
+	}
+
+	@Test
+	void testRestartWorkloadsDelegates() {
+		retryableService.restartWorkloads("default", "yaml");
+		verify(delegate).restartWorkloads("default", "yaml");
+	}
+
+	@Test
+	void testWaitForReadyWithJobsDelegates() {
+		retryableService.waitForReady("default", "yaml", 30, true);
+		verify(delegate).waitForReady("default", "yaml", 30, true);
 	}
 
 	@Test

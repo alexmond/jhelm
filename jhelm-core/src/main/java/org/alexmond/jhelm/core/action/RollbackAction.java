@@ -45,7 +45,6 @@ public class RollbackAction {
 		String namespace = options.getNamespace();
 		int revision = options.getRevision();
 		boolean noHooks = options.isNoHooks();
-		int maxHistory = options.getMaxHistory();
 		List<Release> history = kubeService.getReleaseHistory(name, namespace);
 		Optional<Release> targetReleaseOpt = history.stream().filter((r) -> r.getVersion() == revision).findFirst();
 
@@ -75,18 +74,67 @@ public class RollbackAction {
 
 		String manifest = newRelease.getManifest();
 		String regularManifest = HookParser.stripHooks(manifest);
+		// --dry-run: report the target revision without applying or storing anything.
+		if (options.isDryRun()) {
+			log.info("--dry-run: would roll back release {} to revision {}", name, revision);
+			return newRelease;
+		}
 		List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(manifest);
 		HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
 		if (!noHooks) {
 			runHooks(hookExecutor, namespace, hooks, "pre-rollback");
 		}
-		kubeService.apply(namespace, regularManifest);
-		kubeService.storeRelease(newRelease);
-		kubeService.pruneReleaseHistory(name, namespace, maxHistory);
+		applyRollback(options, newRelease, regularManifest);
 		if (!noHooks) {
 			runHooks(hookExecutor, namespace, hooks, "post-rollback");
 		}
+		if (options.isWait()) {
+			kubeService.waitForReady(namespace, regularManifest, options.getTimeout(), options.isWaitForJobs());
+		}
 		return newRelease;
+	}
+
+	/**
+	 * Applies the rolled-back manifest and stores the new revision, honoring the
+	 * {@code --force}, {@code --cleanup-on-fail} and {@code --recreate-pods} options.
+	 * @param options the rollback options
+	 * @param newRelease the new revision to store after a successful apply
+	 * @param regularManifest the hooks-stripped manifest to apply
+	 */
+	private void applyRollback(RollbackOptions options, Release newRelease, String regularManifest) {
+		String name = newRelease.getName();
+		String namespace = newRelease.getNamespace();
+		if (options.isForce()) {
+			log.info("--force: deleting existing resources of release {} before rollback", name);
+			kubeService.delete(namespace, regularManifest);
+		}
+		try {
+			kubeService.apply(namespace, regularManifest);
+		}
+		catch (RuntimeException ex) {
+			if (options.isCleanupOnFail()) {
+				cleanupFailedRollback(namespace, regularManifest, name);
+			}
+			throw ex;
+		}
+		kubeService.storeRelease(newRelease);
+		kubeService.pruneReleaseHistory(name, namespace, options.getMaxHistory());
+		if (options.isRecreatePods()) {
+			log.info("--recreate-pods: restarting workloads of release {}", name);
+			kubeService.restartWorkloads(namespace, regularManifest);
+		}
+	}
+
+	// --cleanup-on-fail: best-effort deletion of resources created during a failed
+	// rollback; a failed cleanup is logged and the original apply failure is rethrown.
+	private void cleanupFailedRollback(String namespace, String regularManifest, String name) {
+		log.warn("--cleanup-on-fail: deleting resources created during the failed rollback of {}", name);
+		try {
+			kubeService.delete(namespace, regularManifest);
+		}
+		catch (RuntimeException cleanupEx) {
+			log.error("cleanup-on-fail delete failed for release {}: {}", name, cleanupEx.getMessage(), cleanupEx);
+		}
 	}
 
 	private void runHooks(HookExecutor hookExecutor, String namespace, List<HelmHook> hooks, String phase) {

@@ -9,6 +9,7 @@ import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryTemplate;
@@ -120,6 +121,28 @@ public class RetryableKubeService implements KubeService {
 	}
 
 	@Override
+	public void delete(String namespace, String yamlContent, CascadePolicy cascade) {
+		executeWithRetry("delete", () -> {
+			delegate.delete(namespace, yamlContent, cascade);
+			return null;
+		});
+	}
+
+	@Override
+	public void waitForDeleted(String namespace, String manifest, int timeoutSeconds) {
+		// waitForDeleted already polls internally; do not retry the entire operation
+		delegate.waitForDeleted(namespace, manifest, timeoutSeconds);
+	}
+
+	@Override
+	public void restartWorkloads(String namespace, String manifest) {
+		executeWithRetry("restartWorkloads", () -> {
+			delegate.restartWorkloads(namespace, manifest);
+			return null;
+		});
+	}
+
+	@Override
 	public List<ResourceStatus> getResourceStatuses(String namespace, String manifest) {
 		return executeWithRetry("getResourceStatuses", () -> delegate.getResourceStatuses(namespace, manifest));
 	}
@@ -128,6 +151,12 @@ public class RetryableKubeService implements KubeService {
 	public void waitForReady(String namespace, String manifest, int timeoutSeconds) {
 		// waitForReady already polls internally; do not retry the entire operation
 		delegate.waitForReady(namespace, manifest, timeoutSeconds);
+	}
+
+	@Override
+	public void waitForReady(String namespace, String manifest, int timeoutSeconds, boolean waitForJobs) {
+		// waitForReady already polls internally; do not retry the entire operation
+		delegate.waitForReady(namespace, manifest, timeoutSeconds, waitForJobs);
 	}
 
 	@Override

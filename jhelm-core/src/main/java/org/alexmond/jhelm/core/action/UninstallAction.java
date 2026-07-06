@@ -53,25 +53,34 @@ public class UninstallAction {
 
 		Release release = releaseOpt.get();
 		String regularManifest = HookParser.stripHooks(release.getManifest());
+		String deletableManifest = HookParser.stripKeptResources(regularManifest);
+		// --dry-run: report what would happen without deleting resources or touching
+		// history.
+		if (options.isDryRun()) {
+			log.info("--dry-run: would uninstall release {} in namespace {}", releaseName, namespace);
+			return;
+		}
 		List<HelmHook> hooks = noHooks ? List.of() : HookParser.parseHooks(release.getManifest());
 		HookExecutor hookExecutor = noHooks ? null : new HookExecutor(kubeService);
 		if (!noHooks) {
 			runHooks(hookExecutor, namespace, hooks, "pre-delete");
 		}
-		String deletableManifest = HookParser.stripKeptResources(regularManifest);
-		kubeService.delete(namespace, deletableManifest);
+		kubeService.delete(namespace, deletableManifest, options.getCascade());
+		if (options.isWait()) {
+			kubeService.waitForDeleted(namespace, deletableManifest, options.getTimeout());
+		}
 		if (!noHooks) {
 			runHooks(hookExecutor, namespace, hooks, "post-delete");
 		}
 		if (options.isKeepHistory()) {
-			kubeService.storeRelease(markUninstalled(release));
+			kubeService.storeRelease(markUninstalled(release, options.getDescription()));
 		}
 		else {
 			kubeService.deleteReleaseHistory(releaseName, namespace);
 		}
 	}
 
-	private Release markUninstalled(Release release) {
+	private Release markUninstalled(Release release, String description) {
 		Release.ReleaseInfo previousInfo = release.getInfo();
 		OffsetDateTime firstDeployed = (previousInfo != null) ? previousInfo.getFirstDeployed() : null;
 		return Release.builder()
@@ -84,7 +93,7 @@ public class UninstallAction {
 				.firstDeployed(firstDeployed)
 				.lastDeployed(OffsetDateTime.now())
 				.status(ReleaseStatus.UNINSTALLED)
-				.description("Uninstallation complete")
+				.description((description != null && !description.isBlank()) ? description : "Uninstallation complete")
 				.build())
 			.build();
 	}

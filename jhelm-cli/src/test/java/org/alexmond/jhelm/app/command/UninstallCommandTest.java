@@ -5,13 +5,17 @@ import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.config.JhelmAccessMode;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
@@ -64,6 +68,34 @@ class UninstallCommandTest {
 
 		CommandLine cmd = new CommandLine(uninstallCommand);
 		cmd.execute("my-release");
+	}
+
+	@Test
+	void testUninstallFlagsReachOptions() throws Exception {
+		ArgumentCaptor<UninstallOptions> captor = ArgumentCaptor.forClass(UninstallOptions.class);
+		doNothing().when(uninstallAction).uninstall(captor.capture());
+
+		int exit = new CommandLine(uninstallCommand).execute("my-release", "--wait", "--timeout", "90", "--cascade",
+				"foreground", "--keep-history", "--description", "cleanup");
+
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		UninstallOptions opts = captor.getValue();
+		assertTrue(opts.isWait());
+		assertEquals(90, opts.getTimeout());
+		assertEquals(CascadePolicy.FOREGROUND, opts.getCascade());
+		assertTrue(opts.isKeepHistory());
+		assertEquals("cleanup", opts.getDescription());
+	}
+
+	@Test
+	void testUninstallDryRunReportsWithoutError() throws Exception {
+		ArgumentCaptor<UninstallOptions> captor = ArgumentCaptor.forClass(UninstallOptions.class);
+		doNothing().when(uninstallAction).uninstall(captor.capture());
+
+		int exit = new CommandLine(uninstallCommand).execute("my-release", "--dry-run");
+
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		assertTrue(captor.getValue().isDryRun());
 	}
 
 	@Test

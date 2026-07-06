@@ -27,6 +27,8 @@ import io.kubernetes.client.openapi.models.V1SecretList;
 import io.kubernetes.client.util.generic.KubernetesApiResponse;
 import io.kubernetes.client.util.generic.dynamic.DynamicKubernetesApi;
 import io.kubernetes.client.util.generic.dynamic.DynamicKubernetesObject;
+import io.kubernetes.client.util.generic.options.DeleteOptions;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import io.kubernetes.client.util.generic.options.PatchOptions;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
@@ -175,6 +177,10 @@ class HelmKubeServiceTest {
 			when(mock.patch(anyString(), anyString(), any(V1Patch.class), any(PatchOptions.class))).thenReturn(resp);
 			when(mock.delete(anyString(), anyString())).thenReturn(resp);
 			when(mock.delete(anyString())).thenReturn(resp);
+			when(mock.delete(anyString(), anyString(), any(DeleteOptions.class))).thenReturn(resp);
+			when(mock.delete(anyString(), any(DeleteOptions.class))).thenReturn(resp);
+			when(mock.get(anyString(), anyString())).thenReturn(resp);
+			when(mock.get(anyString())).thenReturn(resp);
 		});
 	}
 
@@ -579,6 +585,80 @@ class HelmKubeServiceTest {
 	}
 
 	@Test
+	void testDeleteWithCascadePassesPropagationPolicy() throws Exception {
+		String yaml = """
+				apiVersion: apps/v1
+				kind: Deployment
+				metadata:
+				  name: my-deploy
+				  namespace: default
+				""";
+
+		setupSsaMock();
+		kubeService.delete("default", yaml, CascadePolicy.FOREGROUND);
+
+		ArgumentCaptor<DeleteOptions> captor = ArgumentCaptor.forClass(DeleteOptions.class);
+		verify(mockDynamicApi).delete(eq("default"), eq("my-deploy"), captor.capture());
+		assertEquals("Foreground", captor.getValue().getPropagationPolicy());
+	}
+
+	@Test
+	void testRestartWorkloadsStrategicMergePatchesWorkload() throws Exception {
+		String yaml = """
+				apiVersion: apps/v1
+				kind: Deployment
+				metadata:
+				  name: my-deploy
+				  namespace: default
+				""";
+
+		setupSsaMock();
+		kubeService.restartWorkloads("default", yaml);
+
+		verify(mockDynamicApi).patch(eq("default"), eq("my-deploy"), eq(V1Patch.PATCH_FORMAT_STRATEGIC_MERGE_PATCH),
+				any(V1Patch.class), any(PatchOptions.class));
+	}
+
+	@Test
+	void testRestartWorkloadsIgnoresNonWorkloadKinds() throws Exception {
+		String yaml = """
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: my-cfg
+				  namespace: default
+				""";
+
+		setupSsaMock();
+		kubeService.restartWorkloads("default", yaml);
+
+		// A ConfigMap is not a workload, so no DynamicKubernetesApi is constructed to
+		// patch.
+		assertTrue(dynamicApiConstruction.constructed().isEmpty());
+	}
+
+	@Test
+	void testWaitForDeletedReturnsWhenResourceAbsent() throws Exception {
+		String yaml = """
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: my-cfg
+				  namespace: default
+				""";
+
+		dynamicApiConstruction = mockConstruction(DynamicKubernetesApi.class, (mock, ctx) -> {
+			@SuppressWarnings("unchecked")
+			KubernetesApiResponse<DynamicKubernetesObject> resp = mock(KubernetesApiResponse.class);
+			// isSuccess() == false models a 404 — the resource is already gone.
+			when(resp.isSuccess()).thenReturn(false);
+			when(mock.get(anyString(), anyString())).thenReturn(resp);
+		});
+
+		assertDoesNotThrow(() -> kubeService.waitForDeleted("default", yaml, 5));
+	}
+
+	@Test
 	void testApplyClusterScopedResourceUsesClusterPath() throws Exception {
 		// Regression for #650: a ClusterRole must be applied via the cluster-scoped path
 		// (no namespace segment), not scoped into the release namespace.
@@ -622,8 +702,8 @@ class HelmKubeServiceTest {
 		setupSsaMock();
 		kubeService.delete("demo", yaml);
 
-		verify(mockDynamicApi).delete(eq("demo-discovery"));
-		verify(mockDynamicApi, never()).delete(anyString(), anyString());
+		verify(mockDynamicApi).delete(eq("demo-discovery"), any(DeleteOptions.class));
+		verify(mockDynamicApi, never()).delete(anyString(), anyString(), any(DeleteOptions.class));
 	}
 
 	@Test
@@ -709,7 +789,7 @@ class HelmKubeServiceTest {
 		assertEquals("apps", lastDynamicApiCtorArgs.get(0));
 		assertEquals("v1", lastDynamicApiCtorArgs.get(1));
 		assertEquals("deployments", lastDynamicApiCtorArgs.get(2));
-		verify(mockDynamicApi).delete("default", "my-deploy");
+		verify(mockDynamicApi).delete(eq("default"), eq("my-deploy"), any(DeleteOptions.class));
 	}
 
 	@Test
@@ -728,7 +808,7 @@ class HelmKubeServiceTest {
 			KubernetesApiResponse<DynamicKubernetesObject> resp = mock(KubernetesApiResponse.class);
 			when(resp.isSuccess()).thenReturn(false);
 			when(resp.getHttpStatusCode()).thenReturn(404);
-			when(mock.delete(anyString(), anyString())).thenReturn(resp);
+			when(mock.delete(anyString(), anyString(), any(DeleteOptions.class))).thenReturn(resp);
 		});
 
 		// Should not throw on 404
@@ -823,7 +903,7 @@ class HelmKubeServiceTest {
 		assertEquals("", lastDynamicApiCtorArgs.get(0));
 		assertEquals("v1", lastDynamicApiCtorArgs.get(1));
 		assertEquals("namespaces", lastDynamicApiCtorArgs.get(2));
-		verify(mockDynamicApi).delete("test-ns");
+		verify(mockDynamicApi).delete(eq("test-ns"), any(DeleteOptions.class));
 	}
 
 	// --- ensureNamespace ---

@@ -13,6 +13,7 @@ import org.alexmond.jhelm.core.action.RollbackOptions;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
@@ -131,9 +132,26 @@ public class ReleaseMutatingTools {
 			description = "Uninstall a Helm release (like 'helm uninstall'). MUTATES the cluster: deletes the "
 					+ "release's resources and removes its history.")
 	public String uninstall(@McpToolParam(description = "Release name to uninstall") String name,
-			@McpToolParam(description = "Kubernetes namespace") String namespace) {
-		this.uninstallAction.uninstall(UninstallOptions.builder().releaseName(name).namespace(namespace).build());
-		return "Uninstalled release '" + name + "' from namespace '" + namespace + '\'';
+			@McpToolParam(description = "Kubernetes namespace") String namespace,
+			@McpToolParam(required = false, description = "Simulate without deleting anything") boolean dryRun,
+			@McpToolParam(required = false,
+					description = "Wait until the resources are removed from the cluster") boolean wait,
+			@McpToolParam(required = false, description = "Timeout in seconds for wait (default 300)") Integer timeout,
+			@McpToolParam(required = false,
+					description = "Deletion propagation: background, foreground, or orphan") String cascade,
+			@McpToolParam(required = false,
+					description = "Retain history and mark the release uninstalled") boolean keepHistory) {
+		this.uninstallAction.uninstall(UninstallOptions.builder()
+			.releaseName(name)
+			.namespace(namespace)
+			.dryRun(dryRun)
+			.wait(wait)
+			.timeout((timeout != null) ? timeout : 300)
+			.cascade(CascadePolicy.fromString(cascade))
+			.keepHistory(keepHistory)
+			.build());
+		String verb = dryRun ? "Would uninstall" : "Uninstalled";
+		return verb + " release '" + name + "' from namespace '" + namespace + '\'';
 	}
 
 	/**
@@ -149,10 +167,35 @@ public class ReleaseMutatingTools {
 					+ "cluster: re-applies the target revision's resources as a new revision.")
 	public String rollback(@McpToolParam(description = "Release name") String name,
 			@McpToolParam(description = "Kubernetes namespace") String namespace,
-			@McpToolParam(description = "Target revision number to roll back to") int revision) {
-		this.rollbackAction
-			.rollback(RollbackOptions.builder().releaseName(name).namespace(namespace).revision(revision).build());
-		return "Rolled back release '" + name + "' in namespace '" + namespace + "' to revision " + revision;
+			@McpToolParam(description = "Target revision number to roll back to") int revision,
+			@McpToolParam(required = false,
+					description = "Simulate without applying or storing a revision") boolean dryRun,
+			@McpToolParam(required = false,
+					description = "Delete and recreate resources instead of patching in place") boolean force,
+			@McpToolParam(required = false,
+					description = "Delete resources created during the rollback if it fails") boolean cleanupOnFail,
+			@McpToolParam(required = false,
+					description = "Rolling-restart the release's workloads after the rollback") boolean recreatePods,
+			@McpToolParam(required = false,
+					description = "Wait until the rolled-back resources are ready") boolean wait,
+			@McpToolParam(required = false,
+					description = "With wait, also wait for Jobs to complete") boolean waitForJobs,
+			@McpToolParam(required = false,
+					description = "Timeout in seconds for wait (default 300)") Integer timeout) {
+		this.rollbackAction.rollback(RollbackOptions.builder()
+			.releaseName(name)
+			.namespace(namespace)
+			.revision(revision)
+			.dryRun(dryRun)
+			.force(force)
+			.cleanupOnFail(cleanupOnFail)
+			.recreatePods(recreatePods)
+			.wait(wait)
+			.waitForJobs(waitForJobs)
+			.timeout((timeout != null) ? timeout : 300)
+			.build());
+		String verb = dryRun ? "Would roll back" : "Rolled back";
+		return verb + " release '" + name + "' in namespace '" + namespace + "' to revision " + revision;
 	}
 
 	/**

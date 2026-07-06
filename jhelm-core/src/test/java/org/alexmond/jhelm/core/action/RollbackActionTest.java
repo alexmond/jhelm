@@ -21,9 +21,11 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.ArgumentMatchers.eq;
 import org.alexmond.jhelm.core.exception.ReleaseNotFoundException;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
@@ -315,6 +317,114 @@ class RollbackActionTest {
 			.rollback(RollbackOptions.builder().releaseName("myapp").namespace("default").revision(99).build()));
 
 		assertTrue(exception.getMessage().contains("Revision 99 not found"));
+	}
+
+	// --- #683 rollback semantics ---
+
+	private List<Release> twoRevisionHistory() {
+		Chart chart = Chart.builder()
+			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").build())
+			.build();
+		Release v1 = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.manifest("---\nv1 manifest")
+			.info(Release.ReleaseInfo.builder()
+				.firstDeployed(OffsetDateTime.now().minusDays(2))
+				.lastDeployed(OffsetDateTime.now().minusDays(2))
+				.status(ReleaseStatus.DEPLOYED)
+				.build())
+			.build();
+		Release v2 = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(2)
+			.chart(chart)
+			.manifest("---\nv2 manifest")
+			.info(Release.ReleaseInfo.builder()
+				.firstDeployed(OffsetDateTime.now().minusDays(2))
+				.lastDeployed(OffsetDateTime.now().minusDays(1))
+				.status(ReleaseStatus.DEPLOYED)
+				.build())
+			.build();
+		return Arrays.asList(v2, v1);
+	}
+
+	@Test
+	void testDryRunDoesNotApplyOrStore() {
+		when(kubeService.getReleaseHistory(anyString(), anyString())).thenReturn(twoRevisionHistory());
+
+		rollbackAction.rollback(
+				RollbackOptions.builder().releaseName("myapp").namespace("default").revision(1).dryRun(true).build());
+
+		verify(kubeService, never()).apply(anyString(), anyString());
+		verify(kubeService, never()).storeRelease(any(Release.class));
+	}
+
+	@Test
+	void testForceDeletesBeforeApply() {
+		when(kubeService.getReleaseHistory(anyString(), anyString())).thenReturn(twoRevisionHistory());
+		doNothing().when(kubeService).apply(anyString(), anyString());
+
+		rollbackAction.rollback(
+				RollbackOptions.builder().releaseName("myapp").namespace("default").revision(1).force(true).build());
+
+		String manifest = HookParser.stripHooks("---\nv1 manifest");
+		InOrder ord = inOrder(kubeService);
+		ord.verify(kubeService).delete("default", manifest);
+		ord.verify(kubeService).apply("default", manifest);
+	}
+
+	@Test
+	void testCleanupOnFailDeletesAndRethrows() {
+		when(kubeService.getReleaseHistory(anyString(), anyString())).thenReturn(twoRevisionHistory());
+		doThrow(new RuntimeException("apply failed")).when(kubeService).apply(anyString(), anyString());
+
+		RuntimeException ex = assertThrows(RuntimeException.class,
+				() -> rollbackAction.rollback(RollbackOptions.builder()
+					.releaseName("myapp")
+					.namespace("default")
+					.revision(1)
+					.cleanupOnFail(true)
+					.build()));
+
+		assertTrue(ex.getMessage().contains("apply failed"));
+		verify(kubeService).delete("default", HookParser.stripHooks("---\nv1 manifest"));
+		verify(kubeService, never()).storeRelease(any(Release.class));
+	}
+
+	@Test
+	void testRecreatePodsRestartsWorkloads() {
+		when(kubeService.getReleaseHistory(anyString(), anyString())).thenReturn(twoRevisionHistory());
+		doNothing().when(kubeService).apply(anyString(), anyString());
+
+		rollbackAction.rollback(RollbackOptions.builder()
+			.releaseName("myapp")
+			.namespace("default")
+			.revision(1)
+			.recreatePods(true)
+			.build());
+
+		verify(kubeService).restartWorkloads("default", HookParser.stripHooks("---\nv1 manifest"));
+	}
+
+	@Test
+	void testWaitCallsWaitForReadyWithJobsFlag() {
+		when(kubeService.getReleaseHistory(anyString(), anyString())).thenReturn(twoRevisionHistory());
+		doNothing().when(kubeService).apply(anyString(), anyString());
+
+		rollbackAction.rollback(RollbackOptions.builder()
+			.releaseName("myapp")
+			.namespace("default")
+			.revision(1)
+			.wait(true)
+			.waitForJobs(true)
+			.timeout(77)
+			.build());
+
+		verify(kubeService).waitForReady(eq("default"), anyString(), eq(77), eq(true));
 	}
 
 }

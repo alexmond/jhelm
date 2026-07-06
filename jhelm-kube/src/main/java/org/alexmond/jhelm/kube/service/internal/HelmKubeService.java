@@ -25,6 +25,7 @@ import io.kubernetes.client.util.Yaml;
 import io.kubernetes.client.util.generic.KubernetesApiResponse;
 import io.kubernetes.client.util.generic.dynamic.DynamicKubernetesApi;
 import io.kubernetes.client.util.generic.dynamic.DynamicKubernetesObject;
+import io.kubernetes.client.util.generic.options.DeleteOptions;
 import io.kubernetes.client.util.generic.options.PatchOptions;
 import lombok.extern.slf4j.Slf4j;
 import org.yaml.snakeyaml.DumperOptions;
@@ -33,6 +34,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.HelmReleaseCodec;
@@ -52,6 +54,7 @@ import java.util.Comparator;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 
 /**
  * Default {@link KubeService} implementation backed by the official Kubernetes Java
@@ -71,6 +74,9 @@ public class HelmKubeService implements KubeService {
 	// Storage labels Helm's own tooling queries on; custom --labels must not override
 	// these.
 	private static final Set<String> RESERVED_RELEASE_LABELS = Set.of("owner", "name", "status", "version");
+
+	// Workload kinds whose pods a rolling restart (--recreate-pods) can trigger.
+	private static final Set<String> RESTARTABLE_KINDS = Set.of("Deployment", "StatefulSet", "DaemonSet");
 
 	/** Configured Kubernetes API client used for all cluster operations. */
 	private final ApiClient apiClient;
@@ -476,12 +482,21 @@ public class HelmKubeService implements KubeService {
 	 */
 	@Override
 	public void delete(String namespace, String yamlContent) {
+		delete(namespace, yamlContent, CascadePolicy.BACKGROUND);
+	}
+
+	/**
+	 * Deletes the manifest's resources using the given deletion propagation policy (Helm
+	 * {@code --cascade}).
+	 */
+	@Override
+	public void delete(String namespace, String yamlContent, CascadePolicy cascade) {
 		try {
 			for (Object doc : loadUnstructured(yamlContent)) {
 				if (doc instanceof Map<?, ?> map) {
 					@SuppressWarnings("unchecked")
 					Map<String, Object> resource = (Map<String, Object>) map;
-					deleteResource(namespace, resource);
+					deleteResource(namespace, resource, cascade);
 				}
 			}
 		}
@@ -493,7 +508,8 @@ public class HelmKubeService implements KubeService {
 		}
 	}
 
-	private void deleteResource(String namespace, Map<String, Object> resource) throws ApiException {
+	private void deleteResource(String namespace, Map<String, Object> resource, CascadePolicy cascade)
+			throws ApiException {
 		String[] id = identify(resource);
 		String apiVersion = id[0];
 		String kind = id[1];
@@ -507,12 +523,134 @@ public class HelmKubeService implements KubeService {
 			log.info("Deleting {} {}{}", kind, name, namespaced ? " in namespace " + namespace : " (cluster-scoped)");
 		}
 
+		DeleteOptions deleteOptions = new DeleteOptions();
+		deleteOptions.setPropagationPolicy(cascade.propagationPolicy());
 		// Same core-group vs named-group routing and kind-based scoping as applyResource.
 		DynamicKubernetesApi api = new DynamicKubernetesApi(group, version, plural, apiClient);
-		KubernetesApiResponse<DynamicKubernetesObject> response = namespaced ? api.delete(namespace, name)
-				: api.delete(name);
+		KubernetesApiResponse<DynamicKubernetesObject> response = namespaced
+				? api.delete(namespace, name, deleteOptions) : api.delete(name, deleteOptions);
 		if (!response.isSuccess() && response.getHttpStatusCode() != 404) {
 			response.throwsApiException();
+		}
+	}
+
+	/**
+	 * Polls until every resource in the manifest is gone from the cluster or the timeout
+	 * elapses (Helm {@code uninstall --wait}).
+	 */
+	@Override
+	public void waitForDeleted(String namespace, String manifest, int timeoutSeconds) {
+		long deadline = System.currentTimeMillis() + (long) timeoutSeconds * 1000;
+		int pollIntervalMs = 2000;
+		List<Map<String, Object>> resources = new ArrayList<>();
+		for (Object doc : loadUnstructured(manifest)) {
+			if (doc instanceof Map<?, ?> map) {
+				@SuppressWarnings("unchecked")
+				Map<String, Object> resource = (Map<String, Object>) map;
+				resources.add(resource);
+			}
+		}
+		while (true) {
+			List<String> remaining = stillPresent(namespace, resources);
+			if (remaining.isEmpty()) {
+				return;
+			}
+			long left = deadline - System.currentTimeMillis();
+			if (left <= 0) {
+				throw new WaitTimeoutException(
+						"Timeout waiting for resources to be deleted: " + String.join(", ", remaining), List.of());
+			}
+			remaining.forEach((r) -> log.info("Waiting for {} to be deleted", r));
+			try {
+				Thread.sleep(Math.min(pollIntervalMs, left));
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				throw new KubernetesOperationException("Interrupted while waiting for resources to be deleted", ex);
+			}
+		}
+	}
+
+	// Returns "kind/name" for each manifest resource still present in the cluster.
+	private List<String> stillPresent(String namespace, List<Map<String, Object>> resources) {
+		List<String> remaining = new ArrayList<>();
+		try {
+			for (Map<String, Object> resource : resources) {
+				if (resourceExists(namespace, resource)) {
+					String[] id = identify(resource);
+					remaining.add(id[1] + "/" + id[2]);
+				}
+			}
+		}
+		catch (ApiException ex) {
+			throw new KubernetesOperationException("Failed while waiting for resources to be deleted", ex,
+					ex.getCode());
+		}
+		return remaining;
+	}
+
+	private boolean resourceExists(String namespace, Map<String, Object> resource) throws ApiException {
+		String[] id = identify(resource);
+		String apiVersion = id[0];
+		String kind = id[1];
+		String name = id[2];
+		String group = apiVersion.contains("/") ? apiVersion.split("/")[0] : "";
+		String version = apiVersion.contains("/") ? apiVersion.split("/")[1] : apiVersion;
+		String plural = inferPlural(kind);
+		boolean namespaced = inferNamespaced(kind);
+		DynamicKubernetesApi api = new DynamicKubernetesApi(group, version, plural, apiClient);
+		KubernetesApiResponse<DynamicKubernetesObject> resp = namespaced ? api.get(namespace, name) : api.get(name);
+		return resp.isSuccess();
+	}
+
+	/**
+	 * Triggers a rolling restart of the manifest's workloads by stamping a
+	 * {@code kubectl.kubernetes.io/restartedAt} annotation on their pod template (Helm's
+	 * deprecated {@code rollback --recreate-pods}).
+	 */
+	@Override
+	public void restartWorkloads(String namespace, String manifest) {
+		String restartedAt = OffsetDateTime.now().toString();
+		try {
+			for (Object doc : loadUnstructured(manifest)) {
+				if (doc instanceof Map<?, ?> map) {
+					String kind = (String) map.get("kind");
+					if (RESTARTABLE_KINDS.contains(kind)) {
+						@SuppressWarnings("unchecked")
+						Map<String, Object> resource = (Map<String, Object>) map;
+						restartWorkload(namespace, resource, restartedAt);
+					}
+				}
+			}
+		}
+		catch (ApiException ex) {
+			throw new KubernetesOperationException("Failed to restart workloads", ex, ex.getCode());
+		}
+		catch (Exception ex) {
+			throw new KubernetesOperationException("Failed to restart workloads", ex);
+		}
+	}
+
+	private void restartWorkload(String namespace, Map<String, Object> resource, String restartedAt)
+			throws ApiException {
+		String[] id = identify(resource);
+		String apiVersion = id[0];
+		String kind = id[1];
+		String name = id[2];
+		String group = apiVersion.contains("/") ? apiVersion.split("/")[0] : "";
+		String version = apiVersion.contains("/") ? apiVersion.split("/")[1] : apiVersion;
+		String plural = inferPlural(kind);
+		DynamicKubernetesApi api = new DynamicKubernetesApi(group, version, plural, apiClient);
+		String patchJson = "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":"
+				+ "{\"kubectl.kubernetes.io/restartedAt\":\"" + restartedAt + "\"}}}}}";
+		V1Patch patch = new V1Patch(patchJson);
+		PatchOptions options = new PatchOptions();
+		options.setFieldManager("helm");
+		KubernetesApiResponse<DynamicKubernetesObject> response = api.patch(namespace, name,
+				V1Patch.PATCH_FORMAT_STRATEGIC_MERGE_PATCH, patch, options);
+		response.throwsApiException();
+		if (log.isInfoEnabled()) {
+			log.info("Restarted workload {}/{}", kind, name);
 		}
 	}
 

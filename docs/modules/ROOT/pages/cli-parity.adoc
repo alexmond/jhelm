@@ -48,7 +48,10 @@ Status legend: ✅ same flag · ✎ supported but differs (see note) · ✗ not 
 | `-n`, `--namespace` | ✅ |
 | `--no-hooks` | ✅ |
 | `--keep-history` | ✅ |
-| `--wait`, `--timeout`, `--cascade` | ✗ |
+| `--dry-run` | ✅ | Reports what would be uninstalled without deleting resources or touching history.
+| `--wait`, `--timeout` | ✅ | Blocks until the release's resources are gone from the cluster (polls each resource).
+| `--cascade` | ✅ | `background` (default), `foreground`, or `orphan` — the Kubernetes deletion propagation policy.
+| `--description` | ✅ | Custom description stored on the release when `--keep-history` is set.
 |===
 
 == list
@@ -69,12 +72,17 @@ Status legend: ✅ same flag · ✎ supported but differs (see note) · ✗ not 
 |===
 | Command | Helm flag | jhelm
 
-| rollback | `-n`, `--no-hooks`, `--wait`, `--timeout` | ✅
-| rollback | `--force`, `--cleanup-on-fail`, `--recreate-pods`, `--wait-for-jobs` | ✗
+| rollback | `-n`, `--no-hooks`, `--wait`, `--timeout`, `--dry-run` | ✅
+| rollback | `--force`, `--cleanup-on-fail`, `--recreate-pods`, `--wait-for-jobs` | ✅
 | status | `-n`, `--show-resources`, `-o/--output` | ✅
 | status | `--revision` | ✗
 | history | `-n`, `-o/--output`, `--max` | ✅
 |===
+
+On `rollback`: `--force` delete-and-recreates the target revision's resources, `--cleanup-on-fail`
+deletes any resources created during a failed rollback, and `--recreate-pods` triggers a rolling
+restart of the release's workloads (Deployments/StatefulSets/DaemonSets) via a restart annotation.
+`--wait-for-jobs` extends `--wait` to also block on Job completion.
 
 `status -o json|yaml` emits the Helm-shaped release object (nested `info`, plus a `resources`
 array when `--show-resources` is set); `history -o json|yaml` emits the Helm history array.
@@ -127,8 +135,6 @@ Most scripts work unchanged. Watch for these deliberate differences:
   kube-context namespace or `$HELM_NAMESPACE`).
 * *`--timeout`* — jhelm expects **seconds** (`--timeout 300`), not a Go duration (`5m0s`).
 * *`--dry-run`* — use the bare flag; the `=client|server` value form is not parsed.
-* *`list -A`* — not supported; iterate namespaces, or pass `-n`.
-* *`--force` / `--wait-for-jobs`* — not yet supported on install/upgrade/rollback.
 * *Output* — `-o table|json|yaml` is supported on `list`, `get values`, `get metadata`,
   `status`, `history`, `install`, `upgrade`, `repo list`, and `search hub`, producing
   Helm-shaped output for scripts and agents. Commands where Helm has no `-o` (`template`,
@@ -139,11 +145,9 @@ Most scripts work unchanged. Watch for these deliberate differences:
 Beyond the per-command tables above, these commonly-used Helm options are not yet wired
 (tracked for follow-up):
 
-* *`install`/`upgrade`* — install-from-repo (`--version`/`--repo`/`--username`/`--password`);
-  `upgrade --cleanup-on-fail`.
-  (`-g`/`--generate-name` is supported on `install`; `--description`/`--labels`/`--set-literal`/`--dependency-update` on both.)
-* *`uninstall`/`rollback`* — `--wait`/`--timeout`/`--cascade` (uninstall);
-  `--force`/`--cleanup-on-fail`/`--recreate-pods`/`--wait-for-jobs` (rollback).
+* *`install`/`upgrade`* — `upgrade --cleanup-on-fail`.
+  (install-from-repo `--version`/`--repo`/`--username`/`--password` + TLS is supported;
+  `-g`/`--generate-name` on `install`; `--description`/`--labels`/`--set-literal`/`--dependency-update` on both.)
 * *`pull`* — `--untar`/`--untardir`, `--verify`/`--prov`/`--keyring`, `--devel`.
 * *Global flags* — Helm's persistent flags (`--kube-context`, `--kubeconfig`,
   `--kube-apiserver`, `--registry-config`, `--repository-config`, `--repository-cache`,

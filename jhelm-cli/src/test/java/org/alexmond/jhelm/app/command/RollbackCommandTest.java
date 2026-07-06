@@ -6,14 +6,16 @@ import org.alexmond.jhelm.core.config.JhelmAccessMode;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
 import org.alexmond.jhelm.core.model.Release;
-import org.alexmond.jhelm.core.service.KubeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -25,15 +27,12 @@ class RollbackCommandTest {
 	@Mock
 	private RollbackAction rollbackAction;
 
-	@Mock
-	private KubeService kubeService;
-
 	private RollbackCommand rollbackCommand;
 
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		rollbackCommand = new RollbackCommand(rollbackAction, kubeService, enabledPolicy());
+		rollbackCommand = new RollbackCommand(rollbackAction, enabledPolicy());
 	}
 
 	@Test
@@ -63,8 +62,39 @@ class RollbackCommandTest {
 	}
 
 	@Test
+	void testRollbackFlagsReachOptions() throws Exception {
+		Release release = Release.builder().name("my-release").namespace("default").manifest("---\n").build();
+		ArgumentCaptor<RollbackOptions> captor = ArgumentCaptor.forClass(RollbackOptions.class);
+		when(rollbackAction.rollback(captor.capture())).thenReturn(release);
+
+		int exit = new CommandLine(rollbackCommand).execute("my-release", "1", "--force", "--cleanup-on-fail",
+				"--recreate-pods", "--wait", "--wait-for-jobs", "--timeout", "120");
+
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		RollbackOptions opts = captor.getValue();
+		assertTrue(opts.isForce());
+		assertTrue(opts.isCleanupOnFail());
+		assertTrue(opts.isRecreatePods());
+		assertTrue(opts.isWait());
+		assertTrue(opts.isWaitForJobs());
+		assertEquals(120, opts.getTimeout());
+	}
+
+	@Test
+	void testRollbackDryRunPassesFlag() throws Exception {
+		Release release = Release.builder().name("my-release").namespace("default").manifest("---\n").build();
+		ArgumentCaptor<RollbackOptions> captor = ArgumentCaptor.forClass(RollbackOptions.class);
+		when(rollbackAction.rollback(captor.capture())).thenReturn(release);
+
+		int exit = new CommandLine(rollbackCommand).execute("my-release", "1", "--dry-run");
+
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		assertTrue(captor.getValue().isDryRun());
+	}
+
+	@Test
 	void testRollbackBlockedInReadOnlyMode() throws Exception {
-		RollbackCommand readOnlyCommand = new RollbackCommand(rollbackAction, kubeService, readOnlyPolicy());
+		RollbackCommand readOnlyCommand = new RollbackCommand(rollbackAction, readOnlyPolicy());
 
 		CommandLine cmd = new CommandLine(readOnlyCommand);
 		int exitCode = cmd.execute("my-release", "1", "-n", "default");

@@ -10,6 +10,7 @@ import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,30 @@ class ObservableKubeServiceTest {
 		when(delegate.listAllReleases()).thenReturn(List.of(mock(Release.class)));
 		assertEquals(1, service.listAllReleases().size());
 		verify(delegate).listAllReleases();
+	}
+
+	@Test
+	void testCascadeDeleteForwardsToDelegate() {
+		service.delete("default", "yaml", CascadePolicy.ORPHAN);
+		verify(delegate).delete("default", "yaml", CascadePolicy.ORPHAN);
+	}
+
+	@Test
+	void testWaitForDeletedForwardsToDelegate() {
+		service.waitForDeleted("default", "yaml", 30);
+		verify(delegate).waitForDeleted("default", "yaml", 30);
+	}
+
+	@Test
+	void testRestartWorkloadsForwardsToDelegate() {
+		service.restartWorkloads("default", "yaml");
+		verify(delegate).restartWorkloads("default", "yaml");
+	}
+
+	@Test
+	void testWaitForReadyWithJobsForwardsToDelegate() {
+		service.waitForReady("default", "yaml", 30, true);
+		verify(delegate).waitForReady("default", "yaml", 30, true);
 	}
 
 	@Test
