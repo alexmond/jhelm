@@ -4,6 +4,7 @@ import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.core.model.RepositoryConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
@@ -15,7 +16,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.doThrow;
@@ -54,18 +58,41 @@ class RepoCommandTest {
 
 	@Test
 	void testAddCommandSuccess() throws IOException {
-		doNothing().when(repoManager).addRepo(anyString(), anyString());
+		int exit = new CommandLine(addCommand).execute("bitnami", "https://charts.bitnami.com/bitnami");
 
-		CommandLine cmd = new CommandLine(addCommand);
-		cmd.execute("bitnami", "https://charts.bitnami.com/bitnami");
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		ArgumentCaptor<RepositoryConfig.Repository> captor = ArgumentCaptor.forClass(RepositoryConfig.Repository.class);
+		verify(repoManager).addRepo(captor.capture(), eq(true), eq(false));
+		assertEquals("bitnami", captor.getValue().getName());
+		assertEquals("https://charts.bitnami.com/bitnami", captor.getValue().getUrl());
+	}
+
+	@Test
+	void testAddCommandWithAuthTlsAndFlags() throws IOException {
+		int exit = new CommandLine(addCommand).execute("private", "https://charts.example.com", "--username", "u",
+				"--password", "p", "--ca-file", "/ca.pem", "--insecure-skip-tls-verify", "--pass-credentials",
+				"--force-update", "--no-update");
+
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		ArgumentCaptor<RepositoryConfig.Repository> captor = ArgumentCaptor.forClass(RepositoryConfig.Repository.class);
+		// --no-update -> update=false, --force-update -> forceUpdate=true
+		verify(repoManager).addRepo(captor.capture(), eq(false), eq(true));
+		RepositoryConfig.Repository repo = captor.getValue();
+		assertEquals("u", repo.getUsername());
+		assertEquals("p", repo.getPassword());
+		assertEquals("/ca.pem", repo.getCaFile());
+		assertTrue(repo.isInsecureSkipTlsVerify());
+		assertTrue(repo.isPassCredentialsAll());
 	}
 
 	@Test
 	void testAddCommandWithError() throws IOException {
-		doThrow(new IOException("Test error")).when(repoManager).addRepo(anyString(), anyString());
+		doThrow(new IOException("Test error")).when(repoManager)
+			.addRepo(any(RepositoryConfig.Repository.class), anyBoolean(), anyBoolean());
 
-		CommandLine cmd = new CommandLine(addCommand);
-		cmd.execute("bitnami", "https://charts.bitnami.com/bitnami");
+		int exit = new CommandLine(addCommand).execute("bitnami", "https://charts.bitnami.com/bitnami");
+
+		assertEquals(CommandLine.ExitCode.SOFTWARE, exit);
 	}
 
 	@Test

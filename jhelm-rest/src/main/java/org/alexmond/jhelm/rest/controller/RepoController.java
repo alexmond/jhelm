@@ -75,7 +75,18 @@ public class RepoController {
 	@PostMapping
 	@Operation(summary = "Add a repository")
 	public ResponseEntity<Void> addRepo(@Valid @RequestBody RepoAddRequest request) throws IOException {
-		this.repoManager.addRepo(request.getName(), request.getUrl());
+		RepositoryConfig.Repository repo = RepositoryConfig.Repository.builder()
+			.name(request.getName())
+			.url(request.getUrl())
+			.username(request.getUsername())
+			.password(request.getPassword())
+			.certFile(request.getCertFile())
+			.keyFile(request.getKeyFile())
+			.caFile(request.getCaFile())
+			.insecureSkipTlsVerify(request.isInsecureSkipTlsVerify())
+			.passCredentialsAll(request.isPassCredentials())
+			.build();
+		this.repoManager.addRepo(repo, !request.isNoUpdate(), request.isForceUpdate());
 		return ResponseEntity.status(HttpStatus.CREATED).build();
 	}
 

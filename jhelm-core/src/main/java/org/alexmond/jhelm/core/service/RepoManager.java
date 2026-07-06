@@ -253,19 +253,41 @@ public class RepoManager {
 	}
 
 	public void addRepo(String name, String url) throws IOException {
-		validateRepoName(name);
+		addRepo(RepositoryConfig.Repository.builder().name(name).url(url).build(), true, true);
+	}
+
+	/**
+	 * Registers a chart repository, persisting its auth/TLS settings and optionally
+	 * refreshing its index, matching {@code helm repo add} semantics.
+	 * @param repo the repository to add (name, URL, and any credentials/TLS settings)
+	 * @param update {@code true} to fetch the repository index immediately (Helm's
+	 * default; {@code --no-update} passes {@code false})
+	 * @param forceUpdate {@code true} to replace an existing repository of the same name
+	 * ({@code --force-update}); when {@code false}, adding a name that already exists
+	 * fails
+	 * @throws IOException if the name is already registered and {@code forceUpdate} is
+	 * {@code false}, or the config cannot be written
+	 */
+	public void addRepo(RepositoryConfig.Repository repo, boolean update, boolean forceUpdate) throws IOException {
+		validateRepoName(repo.getName());
 		RepositoryConfig config = loadConfig();
-		config.getRepositories().removeIf((r) -> r.getName().equals(name));
-		RepositoryConfig.Repository repo = RepositoryConfig.Repository.builder().name(name).url(url).build();
+		boolean exists = config.getRepositories().stream().anyMatch((r) -> r.getName().equals(repo.getName()));
+		if (exists && !forceUpdate) {
+			throw new IOException("repository name (" + repo.getName()
+					+ ") already exists, please specify a different name or use --force-update to replace it");
+		}
+		config.getRepositories().removeIf((r) -> r.getName().equals(repo.getName()));
 		config.getRepositories().add(repo);
 		config.setGenerated(OffsetDateTime.now().toString());
 		saveConfig(config);
-		try {
-			updateRepo(name);
-		}
-		catch (IOException ex) {
-			if (log.isWarnEnabled()) {
-				log.warn("Failed to update repo '{}' immediately after add: {}", name, ex.getMessage());
+		if (update) {
+			try {
+				updateRepo(repo.getName());
+			}
+			catch (IOException ex) {
+				if (log.isWarnEnabled()) {
+					log.warn("Failed to update repo '{}' immediately after add: {}", repo.getName(), ex.getMessage());
+				}
 			}
 		}
 	}

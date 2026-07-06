@@ -55,6 +55,37 @@ public class RepoCommand implements Callable<Integer> {
 		@CommandLine.Parameters(index = "1", description = "repository url")
 		private String url;
 
+		@CommandLine.Option(names = { "--username" }, description = "chart repository username")
+		private String username;
+
+		@CommandLine.Option(names = { "--password" }, description = "chart repository password")
+		private String password;
+
+		@CommandLine.Option(names = { "--cert-file" }, description = "identity certificate (PEM) for client TLS auth")
+		private String certFile;
+
+		@CommandLine.Option(names = { "--key-file" }, description = "identity key (PEM) for client TLS auth")
+		private String keyFile;
+
+		@CommandLine.Option(names = { "--ca-file" },
+				description = "verify server certificate against this CA bundle (PEM)")
+		private String caFile;
+
+		@CommandLine.Option(names = { "--insecure-skip-tls-verify" },
+				description = "skip TLS verification of the repository")
+		private boolean insecureSkipTlsVerify;
+
+		@CommandLine.Option(names = { "--pass-credentials" },
+				description = "send credentials to all domains, not just the repository host")
+		private boolean passCredentials;
+
+		@CommandLine.Option(names = { "--force-update" },
+				description = "replace the repository if it already exists (default: fail)")
+		private boolean forceUpdate;
+
+		@CommandLine.Option(names = { "--no-update" }, description = "do not fetch the repository index after adding")
+		private boolean noUpdate;
+
 		/**
 		 * Creates the command.
 		 * @param repoManager the repository manager that stores the repository
@@ -66,7 +97,18 @@ public class RepoCommand implements Callable<Integer> {
 		@Override
 		public Integer call() {
 			try {
-				repoManager.addRepo(name, url);
+				RepositoryConfig.Repository repo = RepositoryConfig.Repository.builder()
+					.name(name)
+					.url(url)
+					.username(username)
+					.password(password)
+					.certFile(certFile)
+					.keyFile(keyFile)
+					.caFile(caFile)
+					.insecureSkipTlsVerify(insecureSkipTlsVerify)
+					.passCredentialsAll(passCredentials)
+					.build();
+				repoManager.addRepo(repo, !noUpdate, forceUpdate);
 				CliOutput.println(CliOutput.success("\"" + name + "\" has been added to your repositories"));
 				return CommandLine.ExitCode.OK;
 			}

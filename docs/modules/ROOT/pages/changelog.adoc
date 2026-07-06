@@ -54,6 +54,10 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
   provenance before use (reusing the `verify` layer). REST `POST /repos/pull` gains a `verify` flag.
   `--devel` (prerelease resolution) remains the one open pull gap — it needs semver latest-version
   resolution jhelm does not have yet (#684).
+* *`repo add` auth, TLS & update control* -- `--username`/`--password`/`--cert-file`/`--key-file`/`--ca-file`/`--insecure-skip-tls-verify`/`--pass-credentials`
+  are persisted into `repositories.yaml` and honored (host-gated) on every index refresh and chart
+  pull; `--force-update` replaces an existing repo (a duplicate name otherwise fails) and
+  `--no-update` skips the immediate index fetch. Mirrored on REST `POST /repos` (#685).
 * *REST releases API now returns Helm-shaped JSON* -- the `/releases` list/status/history and
   install/upgrade responses now use Helm's `-o json` schema (snake_case, nested `info`) instead
   of jhelm's internal DTO, so REST consumers see the same shape as `helm ... -o json` and the

@@ -10,6 +10,7 @@ import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.JhelmRestExceptionHandler;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -19,6 +20,8 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -56,7 +59,32 @@ class RepoControllerTest {
 						{"name": "bitnami", "url": "https://charts.bitnami.com/bitnami"}
 						"""))
 			.andExpect(status().isCreated());
-		verify(this.repoManager).addRepo("bitnami", "https://charts.bitnami.com/bitnami");
+		ArgumentCaptor<RepositoryConfig.Repository> captor = ArgumentCaptor.forClass(RepositoryConfig.Repository.class);
+		verify(this.repoManager).addRepo(captor.capture(), eq(true), eq(false));
+		assertEquals("bitnami", captor.getValue().getName());
+		assertEquals("https://charts.bitnami.com/bitnami", captor.getValue().getUrl());
+	}
+
+	@Test
+	void addRepoPersistsCredentialsAndFlags() throws Exception {
+		this.mockMvc
+			.perform(post("/api/v1/repos").contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.content("""
+						{"name": "private", "url": "https://charts.example.com", "username": "u", "password": "p",
+						 "caFile": "/ca.pem", "insecureSkipTlsVerify": true, "passCredentials": true,
+						 "forceUpdate": true, "noUpdate": true}
+						"""))
+			.andExpect(status().isCreated());
+		ArgumentCaptor<RepositoryConfig.Repository> captor = ArgumentCaptor.forClass(RepositoryConfig.Repository.class);
+		// noUpdate -> update=false, forceUpdate -> true
+		verify(this.repoManager).addRepo(captor.capture(), eq(false), eq(true));
+		RepositoryConfig.Repository repo = captor.getValue();
+		assertEquals("u", repo.getUsername());
+		assertEquals("p", repo.getPassword());
+		assertEquals("/ca.pem", repo.getCaFile());
+		assertTrue(repo.isInsecureSkipTlsVerify());
+		assertTrue(repo.isPassCredentialsAll());
 	}
 
 	@Test

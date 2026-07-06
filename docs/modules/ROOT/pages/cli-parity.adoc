@@ -120,7 +120,8 @@ template produced each manifest.
 | `repo list -o table\|json\|yaml` | ✅ | Machine-readable repo listing (`name`, `url`).
 | `search hub -o table\|json\|yaml` | ✅ | Machine-readable Artifact Hub results.
 | `repo update [name...]` | ✅ | Refreshes all repos, or the named ones.
-| `repo add` auth (`--username`, `--password`, `--ca-file`) | ✗ |
+| `repo add` auth/TLS (`--username`, `--password`, `--cert-file`, `--key-file`, `--ca-file`, `--insecure-skip-tls-verify`, `--pass-credentials`) | ✅ | Persisted into `repositories.yaml`; the stored credentials are host-gated and honored on every index refresh and chart pull.
+| `repo add` (`--force-update`, `--no-update`) | ✅ | `--force-update` replaces an existing repo (adding a duplicate name otherwise fails); `--no-update` skips the immediate index fetch.
 | `registry login` (`-u`, `-p`, `--password-stdin`) / `logout` | ✅ |
 | `pull` (`--version`, `-d/--dest`) | ✅ |
 | `pull --repo URL` + auth/TLS (`--username`, `--password`, `--cert-file`, `--key-file`, `--ca-file`, `--insecure-skip-tls-verify`, `--pass-credentials`) | ✅ | Pull a chart directly from a repository URL with inline credentials, without a prior `repo add`.
