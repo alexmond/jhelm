@@ -155,6 +155,13 @@ class HelmKubeServiceTest {
 		when(mock.listNamespacedSecret(anyString())).thenReturn(listReq);
 	}
 
+	private void setupListAllRequest(CoreV1Api mock, V1SecretList list) throws Exception {
+		var listReq = mock(CoreV1Api.APIlistSecretForAllNamespacesRequest.class);
+		when(listReq.labelSelector(anyString())).thenReturn(listReq);
+		when(listReq.execute()).thenReturn(list);
+		when(mock.listSecretForAllNamespaces()).thenReturn(listReq);
+	}
+
 	private void setupSsaMock() {
 		dynamicApiConstruction = mockConstruction(DynamicKubernetesApi.class, (mock, ctx) -> {
 			mockDynamicApi = mock;
@@ -370,6 +377,23 @@ class HelmKubeServiceTest {
 		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListRequest(mock, list));
 
 		assertTrue(kubeService.listReleases("staging").isEmpty());
+	}
+
+	// --- listAllReleases ---
+
+	@Test
+	void testListAllReleasesSpansNamespacesAndKeepsSameNameDistinct() throws Exception {
+		// Two releases named "app" in different namespaces must NOT be collapsed into
+		// one.
+		Release teamA = createTestRelease("app", "team-a", 1, "deployed");
+		Release teamB = createTestRelease("app", "team-b", 1, "deployed");
+		V1SecretList list = new V1SecretList()
+			.items(List.of(createSecretForRelease(teamA), createSecretForRelease(teamB)));
+
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> setupListAllRequest(mock, list));
+
+		List<Release> releases = kubeService.listAllReleases();
+		assertEquals(2, releases.size());
 	}
 
 	// --- getReleaseHistory ---

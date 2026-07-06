@@ -45,6 +45,14 @@ public interface KubeService {
 	List<Release> listReleases(String namespace);
 
 	/**
+	 * Returns the latest revision of every release across all namespaces (Helm
+	 * {@code list --all-namespaces}).
+	 * @return the releases found, or an empty list if there are none
+	 * @throws KubernetesOperationException if the Kubernetes API cannot be reached
+	 */
+	List<Release> listAllReleases();
+
+	/**
 	 * Returns all stored revisions of a release, newest first.
 	 * @param name the release name
 	 * @param namespace the namespace to look in

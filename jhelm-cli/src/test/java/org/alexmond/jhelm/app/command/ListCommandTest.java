@@ -21,6 +21,8 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ListCommandTest {
@@ -190,6 +192,18 @@ class ListCommandTest {
 		String out = captured();
 		assertTrue(out.contains("\"name\":\"web\""), out);
 		assertTrue(out.contains("\"name\":\"old\""), out);
+	}
+
+	@Test
+	void testAllNamespacesUsesListAll() throws Exception {
+		when(listAction.listAll()).thenReturn(Arrays.asList(createMockRelease("web", 1)));
+
+		new CommandLine(listCommand).execute("-o", "json", "-A");
+
+		String out = captured();
+		assertTrue(out.contains("\"name\":\"web\""), out);
+		verify(listAction).listAll();
+		verify(listAction, never()).list(anyString());
 	}
 
 	@Test

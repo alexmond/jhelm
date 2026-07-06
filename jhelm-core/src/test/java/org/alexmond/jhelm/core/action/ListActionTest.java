@@ -51,4 +51,16 @@ class ListActionTest {
 		assertTrue(result.isEmpty());
 	}
 
+	@Test
+	void testListAllDelegatesToAllNamespaces() {
+		Release a = Release.builder().name("a").build();
+		Release b = Release.builder().name("b").build();
+		when(kubeService.listAllReleases()).thenReturn(Arrays.asList(a, b));
+
+		List<Release> result = listAction.listAll();
+
+		assertEquals(2, result.size());
+		assertEquals("a", result.get(0).getName());
+	}
+
 }

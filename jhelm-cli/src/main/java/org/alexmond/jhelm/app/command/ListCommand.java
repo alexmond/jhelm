@@ -32,6 +32,9 @@ public class ListCommand implements Callable<Integer> {
 	@CommandLine.Option(names = { "-n", "--namespace" }, defaultValue = "default", description = "namespace")
 	private String namespace;
 
+	@CommandLine.Option(names = { "-A", "--all-namespaces" }, description = "list releases across all namespaces")
+	private boolean allNamespaces;
+
 	@CommandLine.Option(names = { "-o", "--output" }, defaultValue = "table",
 			description = "output format: table, json, or yaml")
 	private String output;
@@ -98,7 +101,8 @@ public class ListCommand implements Callable<Integer> {
 	@Override
 	public Integer call() {
 		try {
-			List<Release> byStatus = ReleaseFilters.retainStatuses(listAction.list(namespace), resolveStatuses());
+			List<Release> fetched = allNamespaces ? listAction.listAll() : listAction.list(namespace);
+			List<Release> byStatus = ReleaseFilters.retainStatuses(fetched, resolveStatuses());
 			List<Release> releases = ReleaseFilters.apply(byStatus, selector, filter, offset, max);
 			switch (output.toLowerCase(Locale.ROOT)) {
 				case "json" -> System.out.println(OutputFormat.json(toRows(releases)));

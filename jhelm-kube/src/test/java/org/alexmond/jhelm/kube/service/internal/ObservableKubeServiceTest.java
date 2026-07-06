@@ -70,6 +70,13 @@ class ObservableKubeServiceTest {
 	}
 
 	@Test
+	void testListAllReleasesForwardsToDelegate() {
+		when(delegate.listAllReleases()).thenReturn(List.of(mock(Release.class)));
+		assertEquals(1, service.listAllReleases().size());
+		verify(delegate).listAllReleases();
+	}
+
+	@Test
 	void testApplyDryRunForwardsToDelegate() throws Exception {
 		service.applyDryRun("default", "apiVersion: v1");
 		verify(delegate).applyDryRun("default", "apiVersion: v1");
