@@ -1,7 +1,9 @@
 package org.alexmond.jhelm.core.util;
 
 import java.util.List;
+import java.util.Map;
 
+import tools.jackson.dataformat.yaml.YAMLMapper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -54,6 +56,39 @@ class HookParserTest {
 		String manifest = "---\n" + REGULAR_DOC;
 		List<HelmHook> hooks = HookParser.parseHooks(manifest);
 		assertTrue(hooks.isEmpty());
+	}
+
+	@Test
+	void testStripHooksKeepsManifestWithDashesInCommentParseable() {
+		// issue #713: a decorative comment containing --- must not be treated as a
+		// document
+		// separator; the stripped manifest fed to the apply path must stay valid YAML.
+		String manifest = """
+				# ---------------- Postgres ----------------
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: repro-dash
+				data:
+				  k: "1"
+				""";
+
+		String stripped = HookParser.stripHooks(manifest);
+
+		assertTrue(stripped.contains("kind: ConfigMap"));
+		// re-parse every document the way the apply path does — a mangled fragment throws
+		YAMLMapper mapper = YAMLMapper.builder().build();
+		int configMaps = 0;
+		for (String doc : ManifestDocuments.split(stripped)) {
+			if (doc.isBlank()) {
+				continue;
+			}
+			Map<String, Object> parsed = mapper.readValue(doc, Map.class);
+			if ("ConfigMap".equals(parsed.get("kind"))) {
+				configMaps++;
+			}
+		}
+		assertEquals(1, configMaps);
 	}
 
 	@Test

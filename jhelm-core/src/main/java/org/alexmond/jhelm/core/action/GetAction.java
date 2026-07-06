@@ -19,6 +19,7 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.util.ManifestDocuments;
 import org.alexmond.jhelm.core.util.ValuesLoader;
 
 /**
@@ -109,7 +110,7 @@ public class GetAction {
 		if (release.getManifest() == null || release.getManifest().isEmpty()) {
 			return "";
 		}
-		String[] docs = release.getManifest().split("---");
+		String[] docs = ManifestDocuments.split(release.getManifest());
 		StringBuilder hooks = new StringBuilder();
 		for (String doc : docs) {
 			if (doc.isBlank()) {

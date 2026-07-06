@@ -31,7 +31,7 @@ public final class HookParser {
 		}
 
 		List<HelmHook> hooks = new ArrayList<>();
-		String[] docs = manifest.split("---");
+		String[] docs = ManifestDocuments.split(manifest);
 
 		for (String doc : docs) {
 			if (doc.isBlank() || !doc.contains("helm.sh/hook")) {
@@ -107,7 +107,7 @@ public final class HookParser {
 			return manifest;
 		}
 
-		String[] docs = manifest.split("---");
+		String[] docs = ManifestDocuments.split(manifest);
 		StringBuilder result = new StringBuilder();
 
 		for (String doc : docs) {
@@ -134,7 +134,7 @@ public final class HookParser {
 			return manifest;
 		}
 
-		String[] docs = manifest.split("---");
+		String[] docs = ManifestDocuments.split(manifest);
 		StringBuilder result = new StringBuilder();
 
 		for (String doc : docs) {

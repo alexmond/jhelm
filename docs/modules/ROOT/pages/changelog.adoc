@@ -1,5 +1,18 @@
 = Changelog
 
+== 1.2.1
+
+=== Fixes
+
+* *`install`/`upgrade` no longer choke on `---` inside a YAML comment* -- a rendered manifest
+  with a decorative comment such as `# ---------------- Postgres ----------------` failed to
+  apply with a SnakeYAML parse error, because the manifest document splitter matched the `---`
+  inside the comment as a document separator and produced an invalid fragment (`jhelm template`
+  was unaffected; the bug was only in the apply/diff/get path that re-splits the manifest). The
+  splitter is now line-anchored — only a line that is exactly `---` (optionally with trailing
+  whitespace or a comment) starts a new document — via a shared `ManifestDocuments.split`
+  reused by hook stripping, manifest diffing, and `get`. #713.
+
 == 1.2.0
 
 Closing CLI flag-parity gaps with Helm across the `template`, `install`, and query commands, so

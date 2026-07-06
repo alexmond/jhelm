@@ -62,7 +62,7 @@ public final class ManifestDiff {
 			return resources;
 		}
 
-		String[] docs = manifest.split("---");
+		String[] docs = ManifestDocuments.split(manifest);
 		for (String doc : docs) {
 			if (doc.isBlank()) {
 				continue;
