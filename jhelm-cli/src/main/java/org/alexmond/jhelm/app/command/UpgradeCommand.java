@@ -67,6 +67,9 @@ public class UpgradeCommand implements Callable<Integer> {
 	@CommandLine.Mixin
 	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
 
+	@CommandLine.Mixin
+	private final RepoChartOptions repoOptions = new RepoChartOptions();
+
 	@CommandLine.Parameters(index = "0", description = "release name")
 	private String name;
 
@@ -218,7 +221,8 @@ public class UpgradeCommand implements Callable<Integer> {
 			ConfigServerValuesLoader.Result configServer = configServerValuesLoader.load(name, profiles.active(),
 					configServerOptions.toOptions());
 			updateDependenciesIfRequested();
-			Chart chart = chartResolver.resolve(chartPath, verify, keyring, profiles);
+			Chart chart = chartResolver.resolveFromRepo(chartPath, repoOptions.getVersion(), repoOptions.getRepo(),
+					repoOptions.hasRepo() ? repoOptions.auth() : null, verify, keyring, profiles);
 			Map<String, Object> overrides = ValuesOverrides.parse(valuesFiles, profiles, configServer.values(),
 					configServer.overrideNone(), configServer.overrideSystemProperties(), setValues, setStringValues,
 					setFileValues, setJsonValues, setLiteralValues);

@@ -36,6 +36,11 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
 * *`list -A`/`--all-namespaces`* -- list releases across every namespace, backed by a new
   `KubeService.listAllReleases()` (lists release Secrets cluster-wide). Releases are keyed by
   namespace+name so same-named releases in different namespaces stay distinct (#681).
+* *`install`/`upgrade` from a repository* -- pass a chart name with `--version` and an ad-hoc
+  `--repo <url>` (plus `--username`/`--password` and TLS `--cert-file`/`--key-file`/`--ca-file`/
+  `--insecure-skip-tls-verify`/`--pass-credentials`) to fetch the chart directly, matching
+  `helm install/upgrade --repo`. A `repo/chart` or `oci://` reference is also resolved via the
+  registered repositories. Local chart paths still work unchanged (#682).
 * *REST releases API now returns Helm-shaped JSON* -- the `/releases` list/status/history and
   install/upgrade responses now use Helm's `-o json` schema (snake_case, nested `info`) instead
   of jhelm's internal DTO, so REST consumers see the same shape as `helm ... -o json` and the

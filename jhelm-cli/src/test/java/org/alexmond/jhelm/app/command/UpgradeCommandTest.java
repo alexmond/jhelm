@@ -87,7 +87,8 @@ class UpgradeCommandTest {
 			.metadata(ChartMetadata.builder().name("test-chart").version("1.0.0").build())
 			.values(new HashMap<>())
 			.build();
-		when(chartResolver.resolve(anyString(), anyBoolean(), any())).thenReturn(defaultChart);
+		when(chartResolver.resolveFromRepo(anyString(), any(), any(), any(), anyBoolean(), any(), any()))
+			.thenReturn(defaultChart);
 		upgradeCommand = new UpgradeCommand(kubeService, installAction, uninstallAction, upgradeAction, rollbackAction,
 				chartResolver, enabledPolicy(), new JhelmCoreProperties(),
 				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
