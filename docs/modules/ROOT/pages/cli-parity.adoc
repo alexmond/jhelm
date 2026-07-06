@@ -29,7 +29,7 @@ Status legend: ✅ same flag · ✎ supported but differs (see note) · ✗ not 
 | `--force` (upgrade) | ✅ | Delete-and-recreate strategy: existing resources are deleted before the new manifest is applied. May cause downtime or data loss for stateful resources — use with care.
 | `--wait-for-jobs` | ✅ | Accepted for Helm compatibility; implies `--wait`. jhelm's `--wait` already waits for Job completion.
 | `-o`, `--output` | ✅ | `table` (default human summary), `json`, `yaml`. JSON/YAML emit the Helm-shaped release object (nested `info`, snake_case keys).
-| `--version`, `--repo`, `--username`/`--password` (install from a repo) | ✗ | Install from an added repo/OCI ref; inline repo+auth flags aren't wired.
+| `--version`, `--repo`, `--username`/`--password` (install/upgrade from a repo) | ✅ | Fetch the chart by name with `--version` and an ad-hoc `--repo <url>` (`--username`/`--password` + TLS `--cert-file`/`--key-file`/`--ca-file`/`--insecure-skip-tls-verify`/`--pass-credentials`). A `repo/chart` or `oci://` ref resolves via the registered repositories; local chart paths are unchanged.
 | `-g`, `--generate-name` (install) | ✅ | Omit the NAME positional and pass `-g` to auto-generate `<chart>-<timestamp>` (like Helm). Errors if both a name and `-g` are given, or if neither is.
 | `--description` (install) | ✅ | Custom release description stored on the release (falls back to `Install complete`).
 | `--labels` (install) | ✅ | `key=value` labels (comma-separated or repeatable) added to the release Secret; the reserved `owner`/`name`/`status`/`version` labels are never overridden.

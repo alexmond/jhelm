@@ -9,6 +9,7 @@ import java.util.Comparator;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.action.VerifyAction;
+import org.alexmond.jhelm.core.model.RepositoryConfig;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.util.ValuesProfiles;
@@ -104,6 +105,58 @@ public class ChartResolver {
 		}
 		finally {
 			deleteRecursively(workDir);
+		}
+	}
+
+	/**
+	 * Resolves a chart that may be a local path <em>or</em> a repository reference,
+	 * mirroring {@code helm install/upgrade [--repo URL] CHART --version V}. A local
+	 * directory or {@code .tgz} is loaded directly; otherwise the chart is pulled into a
+	 * temporary directory (from {@code repoUrl} when given, else from a registered
+	 * repository or an {@code oci://} URL) and the downloaded archive is loaded.
+	 * @param chartRef a local chart path, a {@code repo/chart} reference, or an
+	 * {@code oci://} URL
+	 * @param version the chart version (required for repository/{@code --repo} pulls)
+	 * @param repoUrl an ad-hoc repository URL (Helm's {@code --repo}), or {@code null}
+	 * @param auth the repository auth/TLS descriptor for a {@code --repo} pull, or
+	 * {@code null}
+	 * @param verify whether to verify the pulled archive's provenance
+	 * @param keyring path to the PGP public keyring, or {@code null} for the default
+	 * @param profiles the active value profiles
+	 * @return the loaded chart
+	 * @throws IOException if the chart cannot be pulled or loaded
+	 */
+	@SuppressWarnings("java:S5443")
+	public Chart resolveFromRepo(String chartRef, String version, String repoUrl, RepositoryConfig.Repository auth,
+			boolean verify, String keyring, ValuesProfiles profiles) throws IOException {
+		File local = new File(chartRef);
+		boolean fromRepo = (repoUrl != null && !repoUrl.isBlank());
+		if (!fromRepo && local.exists()) {
+			return resolve(chartRef, verify, keyring, profiles);
+		}
+		Path pullDir = Files.createTempDirectory("jhelm-pull-");
+		try {
+			if (fromRepo) {
+				repoManager.pullFromRepoUrl(repoUrl, chartRef, version, pullDir.toString(), auth);
+			}
+			else {
+				repoManager.pull(chartRef, version, pullDir.toString());
+			}
+			File archive = findArchive(pullDir, chartRef);
+			return resolve(archive.getPath(), verify, keyring, profiles);
+		}
+		finally {
+			deleteRecursively(pullDir);
+		}
+	}
+
+	// Locates the single .tgz the pull wrote into the temp directory.
+	private static File findArchive(Path pullDir, String chartRef) throws IOException {
+		try (var paths = Files.list(pullDir)) {
+			return paths.filter((p) -> p.getFileName().toString().endsWith(".tgz"))
+				.findFirst()
+				.map(Path::toFile)
+				.orElseThrow(() -> new IOException("No chart archive was pulled for '" + chartRef + "'"));
 		}
 	}
 

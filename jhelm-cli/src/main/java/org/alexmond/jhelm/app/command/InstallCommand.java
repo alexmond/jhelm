@@ -59,6 +59,9 @@ public class InstallCommand implements Callable<Integer> {
 	@CommandLine.Mixin
 	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
 
+	@CommandLine.Mixin
+	private final RepoChartOptions repoOptions = new RepoChartOptions();
+
 	@CommandLine.Parameters(arity = "1..2", paramLabel = "[NAME] CHART",
 			description = "release name (optional with -g/--generate-name) followed by the chart path")
 	private List<String> nameAndChart = new ArrayList<>();
@@ -196,7 +199,8 @@ public class InstallCommand implements Callable<Integer> {
 					dependencyUpdateAction.update(localChart, List.of(), false);
 				}
 			}
-			Chart chart = chartResolver.resolve(chartPath, verify, keyring, profiles);
+			Chart chart = chartResolver.resolveFromRepo(chartPath, repoOptions.getVersion(), repoOptions.getRepo(),
+					repoOptions.hasRepo() ? repoOptions.auth() : null, verify, keyring, profiles);
 			if (name == null) {
 				name = ReleaseNames.generateName(chart.getMetadata().getName());
 			}

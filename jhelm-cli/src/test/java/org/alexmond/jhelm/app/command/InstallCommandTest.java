@@ -9,6 +9,7 @@ import org.alexmond.jhelm.core.config.ConfigServerProperties;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
+import org.alexmond.jhelm.core.model.RepositoryConfig;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
@@ -78,7 +79,8 @@ class InstallCommandTest {
 			.metadata(ChartMetadata.builder().name("test-chart").version("1.0.0").build())
 			.values(new HashMap<>())
 			.build();
-		when(chartResolver.resolve(anyString(), anyBoolean(), any())).thenReturn(defaultChart);
+		when(chartResolver.resolveFromRepo(anyString(), any(), any(), any(), anyBoolean(), any(), any()))
+			.thenReturn(defaultChart);
 		installCommand = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver, enabledPolicy(),
 				new JhelmCoreProperties(), new ConfigServerValuesLoader(new ConfigServerProperties(), null),
 				dependencyUpdateAction);
@@ -130,13 +132,36 @@ class InstallCommandTest {
 	}
 
 	@Test
+	void testRepoFlagsReachChartResolution() throws Exception {
+		ArgumentCaptor<String> versionCap = ArgumentCaptor.forClass(String.class);
+		ArgumentCaptor<String> repoCap = ArgumentCaptor.forClass(String.class);
+		ArgumentCaptor<RepositoryConfig.Repository> authCap = ArgumentCaptor
+			.forClass(RepositoryConfig.Repository.class);
+		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("web", 1));
+
+		int exit = new CommandLine(installCommand).execute("web", "nginx", "--repo", "https://charts.example.com",
+				"--version", "1.2.3", "--username", "u", "--password", "p", "--insecure-skip-tls-verify");
+
+		assertEquals(CommandLine.ExitCode.OK, exit);
+		verify(chartResolver).resolveFromRepo(eq("nginx"), versionCap.capture(), repoCap.capture(), authCap.capture(),
+				anyBoolean(), any(), any());
+		assertEquals("1.2.3", versionCap.getValue());
+		assertEquals("https://charts.example.com", repoCap.getValue());
+		RepositoryConfig.Repository auth = authCap.getValue();
+		assertEquals("u", auth.getUsername());
+		assertEquals("p", auth.getPassword());
+		assertTrue(auth.isInsecureSkipTlsVerify());
+	}
+
+	@Test
 	void testGenerateNameProducesNameFromChart() throws Exception {
 		File chartDir = createMockChart();
 		Chart chart = Chart.builder()
 			.metadata(ChartMetadata.builder().name("mychart").version("1.0.0").build())
 			.values(new HashMap<>())
 			.build();
-		when(chartResolver.resolve(anyString(), anyBoolean(), any(), any())).thenReturn(chart);
+		when(chartResolver.resolveFromRepo(anyString(), any(), any(), any(), anyBoolean(), any(), any()))
+			.thenReturn(chart);
 		ArgumentCaptor<InstallOptions> captor = ArgumentCaptor.forClass(InstallOptions.class);
 		when(installAction.install(captor.capture())).thenReturn(createMockRelease("mychart-1", 1));
 
