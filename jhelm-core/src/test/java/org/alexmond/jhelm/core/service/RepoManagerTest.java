@@ -84,6 +84,57 @@ class RepoManagerTest {
 	}
 
 	@Test
+	void testAddRepoPersistsCredentialsAndTls() throws IOException {
+		RepoManager rm = new RepoManager(tempDir.resolve("repositories.yaml").toString());
+		RepositoryConfig.Repository repo = RepositoryConfig.Repository.builder()
+			.name("private")
+			.url("https://charts.example.com")
+			.username("u")
+			.password("p")
+			.caFile("/ca.pem")
+			.insecureSkipTlsVerify(true)
+			.passCredentialsAll(true)
+			.build();
+		rm.addRepo(repo, false, false);
+		RepositoryConfig.Repository saved = rm.loadConfig()
+			.getRepositories()
+			.stream()
+			.filter((r) -> "private".equals(r.getName()))
+			.findFirst()
+			.orElseThrow();
+		assertEquals("u", saved.getUsername());
+		assertEquals("p", saved.getPassword());
+		assertEquals("/ca.pem", saved.getCaFile());
+		assertTrue(saved.isInsecureSkipTlsVerify());
+		assertTrue(saved.isPassCredentialsAll());
+	}
+
+	@Test
+	void testAddRepoDuplicateWithoutForceUpdateFails() throws IOException {
+		RepoManager rm = new RepoManager(tempDir.resolve("repositories.yaml").toString());
+		rm.addRepo(RepositoryConfig.Repository.builder().name("dup").url("https://a.example.com").build(), false,
+				false);
+		assertThrows(IOException.class,
+				() -> rm.addRepo(RepositoryConfig.Repository.builder().name("dup").url("https://b.example.com").build(),
+						false, false));
+	}
+
+	@Test
+	void testAddRepoForceUpdateReplaces() throws IOException {
+		RepoManager rm = new RepoManager(tempDir.resolve("repositories.yaml").toString());
+		rm.addRepo(RepositoryConfig.Repository.builder().name("dup").url("https://a.example.com").build(), false,
+				false);
+		rm.addRepo(RepositoryConfig.Repository.builder().name("dup").url("https://b.example.com").build(), false, true);
+		List<RepositoryConfig.Repository> dups = rm.loadConfig()
+			.getRepositories()
+			.stream()
+			.filter((r) -> "dup".equals(r.getName()))
+			.toList();
+		assertEquals(1, dups.size());
+		assertEquals("https://b.example.com", dups.get(0).getUrl());
+	}
+
+	@Test
 	void testRepoNotFound() {
 		RepoManager repoManager = new RepoManager();
 		assertThrows(IOException.class, () -> repoManager.getChartVersions("non-existent", "nginx"));
