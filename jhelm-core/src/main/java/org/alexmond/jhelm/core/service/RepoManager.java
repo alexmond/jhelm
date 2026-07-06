@@ -31,6 +31,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -176,6 +177,50 @@ public class RepoManager {
 		this.httpClient = client;
 		this.httpClientFactory = new RepoHttpClientFactory(client, insecureSkipTlsVerify, blockPrivateNetworks);
 		this.ociClient = new OciRegistryClient(client, blockPrivateNetworks);
+	}
+
+	/**
+	 * Logs in to an OCI registry following Helm's flow: validate the credentials against
+	 * the registry with a login handshake using the supplied transport options, then —
+	 * only on success — store the credentials. The transport options ({@code --insecure},
+	 * {@code --plain-http}, and the CA/cert/key files) apply to the handshake only and
+	 * are not persisted, matching {@code helm registry login}.
+	 * @param registry the registry hostname
+	 * @param username the username
+	 * @param password the password
+	 * @param options the login-time transport options (never {@code null}; use
+	 * {@link RegistryLoginOptions#none()})
+	 * @throws IOException if the registry is unreachable, the TLS material is invalid,
+	 * the credentials are rejected, or the credentials cannot be stored
+	 */
+	public void registryLogin(String registry, String username, String password, RegistryLoginOptions options)
+			throws IOException {
+		if (registryManager == null) {
+			throw new IOException("no registry credential store is configured");
+		}
+		RegistryLoginOptions opts = (options != null) ? options : RegistryLoginOptions.none();
+		String auth = Base64.getEncoder().encodeToString((username + ":" + password).getBytes(StandardCharsets.UTF_8));
+		if (hasLoginTls(opts)) {
+			// Custom transport: a fresh, self-contained client honoring the login TLS
+			// flags.
+			try (CloseableHttpClient loginClient = httpClientFactory.buildLoginClient(opts.caFile(), opts.certFile(),
+					opts.keyFile(), opts.insecureSkipTlsVerify())) {
+				new OciRegistryClient(loginClient, blockPrivateNetworks).verifyLogin(registry, auth, opts.plainHttp());
+			}
+		}
+		else {
+			// No custom TLS: reuse the shared OCI client (default trust, SSRF-guarded).
+			ociClient.verifyLogin(registry, auth, opts.plainHttp());
+		}
+		registryManager.login(registry, username, password);
+	}
+
+	private static boolean hasLoginTls(RegistryLoginOptions opts) {
+		return opts.insecureSkipTlsVerify() || isSet(opts.caFile()) || isSet(opts.certFile()) || isSet(opts.keyFile());
+	}
+
+	private static boolean isSet(String value) {
+		return value != null && !value.isBlank();
 	}
 
 	private static String resolveDefaultConfigPath() {

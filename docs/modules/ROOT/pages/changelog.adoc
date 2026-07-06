@@ -58,6 +58,12 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
   are persisted into `repositories.yaml` and honored (host-gated) on every index refresh and chart
   pull; `--force-update` replaces an existing repo (a duplicate name otherwise fails) and
   `--no-update` skips the immediate index fetch. Mirrored on REST `POST /repos` (#685).
+* *Validating `registry login`* -- `registry login` now follows Helm's flow: it validates the
+  credentials against the registry (a `/v2/` ping and, on a Bearer challenge, a token exchange)
+  before storing them, and honors the login-time transport flags `--insecure`, `--plain-http`,
+  `--ca-file`, `--cert-file`, and `--key-file`. As in Helm, those transport options apply only to
+  the handshake and are not persisted -- only the credentials are stored. A wrong password, TLS
+  failure, or unreachable registry now fails the login instead of silently saving. Completes #708.
 * *Global persistent flags* -- Helm's cluster/config flags are now accepted on every command
   (before or after the subcommand): `--kubeconfig`, `--kube-context`, `--kube-apiserver`,
   `--registry-config`, `--repository-config`, `--repository-cache`, and `--debug`. They are

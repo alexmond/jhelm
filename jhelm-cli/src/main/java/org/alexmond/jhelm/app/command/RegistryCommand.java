@@ -2,7 +2,9 @@ package org.alexmond.jhelm.app.command;
 
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.app.output.CliOutput;
+import org.alexmond.jhelm.core.service.RegistryLoginOptions;
 import org.alexmond.jhelm.core.service.RegistryManager;
+import org.alexmond.jhelm.core.service.RepoManager;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -42,7 +44,7 @@ public class RegistryCommand implements Callable<Integer> {
 	@Slf4j
 	public static class LoginCommand implements Callable<Integer> {
 
-		private final RegistryManager registryManager;
+		private final RepoManager repoManager;
 
 		@CommandLine.Parameters(index = "0", description = "registry server")
 		private String server;
@@ -56,18 +58,37 @@ public class RegistryCommand implements Callable<Integer> {
 		@CommandLine.Option(names = "--password-stdin", description = "take the password from stdin")
 		private boolean passwordStdin;
 
+		@CommandLine.Option(names = "--insecure", description = "allow connections to TLS registry without certs")
+		private boolean insecure;
+
+		@CommandLine.Option(names = "--plain-http", description = "use insecure HTTP connections for the registry")
+		private boolean plainHttp;
+
+		@CommandLine.Option(names = "--ca-file",
+				description = "verify certificates of HTTPS-enabled servers using this CA bundle")
+		private String caFile;
+
+		@CommandLine.Option(names = "--cert-file",
+				description = "identify registry client using this SSL certificate file")
+		private String certFile;
+
+		@CommandLine.Option(names = "--key-file", description = "identify registry client using this SSL key file")
+		private String keyFile;
+
 		/**
 		 * Creates the command.
-		 * @param registryManager the manager that performs the registry login
+		 * @param repoManager performs the validating registry login (handshake then
+		 * store)
 		 */
-		public LoginCommand(RegistryManager registryManager) {
-			this.registryManager = registryManager;
+		public LoginCommand(RepoManager repoManager) {
+			this.repoManager = repoManager;
 		}
 
 		@Override
 		public Integer call() {
 			try {
-				registryManager.login(server, username, resolvePassword());
+				RegistryLoginOptions options = new RegistryLoginOptions(caFile, certFile, keyFile, insecure, plainHttp);
+				repoManager.registryLogin(server, username, resolvePassword(), options);
 				CliOutput.println(CliOutput.success("Login Succeeded"));
 				return CommandLine.ExitCode.OK;
 			}
@@ -75,7 +96,9 @@ public class RegistryCommand implements Callable<Integer> {
 				CliOutput.errPrintln(CliOutput.error(ex.getMessage()));
 				return CommandLine.ExitCode.SOFTWARE;
 			}
-			catch (IOException ex) {
+			catch (IOException | SecurityException ex) {
+				// IOException: registry unreachable / TLS failure / credentials rejected.
+				// SecurityException: the SSRF guard refused the registry host.
 				CliOutput.errPrintln(CliOutput.error("Error logging in: " + ex.getMessage()));
 				return CommandLine.ExitCode.SOFTWARE;
 			}

@@ -729,6 +729,50 @@ class RepoManagerTest {
 		};
 	}
 
+	private static Answer<Object> challengeAnswer(int code, String wwwAuthenticate) {
+		return (inv) -> {
+			HttpClientResponseHandler<Object> handler = inv.getArgument(1);
+			ClassicHttpResponse resp = mock(ClassicHttpResponse.class);
+			when(resp.getCode()).thenReturn(code);
+			Header header = mock(Header.class);
+			when(header.getValue()).thenReturn(wwwAuthenticate);
+			when(resp.getFirstHeader("WWW-Authenticate")).thenReturn(header);
+			return handler.handleResponse(resp);
+		};
+	}
+
+	@Test
+	void testRegistryLoginValidatesThenStores() throws IOException {
+		RegistryManager registryManager = new RegistryManager(tempDir.resolve("registry-config.json").toString());
+		RepoManager rm = new RepoManager(registryManager, false);
+		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
+		rm.setHttpClientForTest(mockClient);
+		// /v2/ ping returns 200 -> the registry accepts the credentials
+		when(mockClient.execute(isA(HttpGet.class), any(HttpClientResponseHandler.class)))
+			.thenAnswer(httpAnswer(200, null));
+
+		rm.registryLogin("registry.example.com", "user", "pass", RegistryLoginOptions.none());
+
+		String expected = Base64.getEncoder().encodeToString("user:pass".getBytes(StandardCharsets.UTF_8));
+		assertEquals(expected, registryManager.getAuth("registry.example.com"));
+	}
+
+	@Test
+	void testRegistryLoginRejectsBadCredentialsWithoutStoring() throws IOException {
+		RegistryManager registryManager = new RegistryManager(tempDir.resolve("registry-config.json").toString());
+		RepoManager rm = new RepoManager(registryManager, false);
+		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
+		rm.setHttpClientForTest(mockClient);
+		// /v2/ ping returns 401 with a Basic challenge -> credentials rejected
+		when(mockClient.execute(isA(HttpGet.class), any(HttpClientResponseHandler.class)))
+			.thenAnswer(challengeAnswer(401, "Basic realm=\"registry\""));
+
+		assertThrows(IOException.class,
+				() -> rm.registryLogin("registry.example.com", "user", "wrong", RegistryLoginOptions.none()));
+		// nothing was persisted because validation failed first
+		assertNull(registryManager.getAuth("registry.example.com"));
+	}
+
 	@ParameterizedTest
 	@CsvSource({ "oci://ghcr.io/helm/charts/nginx:1.0.0, nginx-1.0.0.tgz",
 			"oci://registry.example.com/charts/myapp:2.3.4, myapp-2.3.4.tgz",

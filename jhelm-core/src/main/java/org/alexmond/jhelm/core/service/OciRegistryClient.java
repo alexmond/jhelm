@@ -6,6 +6,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
@@ -128,6 +135,120 @@ class OciRegistryClient {
 			}
 			return null;
 		}
+	}
+
+	// Matches a single key="value" parameter inside a WWW-Authenticate challenge.
+	private static final Pattern CHALLENGE_PARAM = Pattern.compile("(\\w+)=\"([^\"]*)\"");
+
+	/**
+	 * Validates registry credentials by performing Helm's registry-login handshake: a
+	 * {@code GET /v2/} ping, and — if the registry answers with a {@code Bearer} auth
+	 * challenge — a token exchange against the advertised realm using the supplied Basic
+	 * credentials. Mirrors Helm's {@code registry login} ping: on success it returns
+	 * quietly; on rejected credentials, a TLS failure, or an unreachable registry it
+	 * throws. The transport (TLS material, plain-HTTP scheme) comes from the
+	 * caller-provided HTTP client and {@code plainHttp} flag and is <em>not</em>
+	 * persisted.
+	 * @param registry the registry hostname
+	 * @param auth Base64-encoded {@code user:pass} Basic credentials, or {@code null} for
+	 * an anonymous ping
+	 * @param plainHttp contact the registry over {@code http://} instead of
+	 * {@code https://}
+	 * @throws IOException if the registry is unreachable or the credentials are rejected
+	 */
+	void verifyLogin(String registry, String auth, boolean plainHttp) throws IOException {
+		String scheme = plainHttp ? "http://" : "https://";
+		String pingUrl = scheme + registry + "/v2/";
+		validateOciUrl(pingUrl);
+		HttpGet ping = new HttpGet(pingUrl);
+		if (auth != null) {
+			ping.setHeader("Authorization", "Basic " + auth);
+		}
+		String challenge = httpClient.execute(ping, (response) -> {
+			int code = response.getCode();
+			if (code == 200) {
+				// Authenticated (or the registry allows anonymous access, like Helm's
+				// ping).
+				return "";
+			}
+			if (code == 401) {
+				Header wwwAuth = response.getFirstHeader("WWW-Authenticate");
+				if (wwwAuth == null || wwwAuth.getValue() == null || wwwAuth.getValue().isBlank()) {
+					throw new IOException("registry requires authentication but sent no challenge");
+				}
+				return wwwAuth.getValue();
+			}
+			throw new IOException("unexpected response from registry: HTTP " + code);
+		});
+		if (challenge.isEmpty()) {
+			return;
+		}
+		// A Bearer challenge means the registry wants a token — exchange the Basic
+		// credentials for one at the advertised realm. Any other challenge (e.g. Basic)
+		// coming back after we already sent Basic auth means the credentials were
+		// rejected.
+		if (challenge.toLowerCase(Locale.ROOT).startsWith("bearer")) {
+			exchangeTokenOrThrow(challenge, auth);
+		}
+		else {
+			throw new IOException("authentication failed: credentials rejected");
+		}
+	}
+
+	private void exchangeTokenOrThrow(String challenge, String auth) throws IOException {
+		Map<String, String> params = parseChallengeParams(challenge);
+		String realm = params.get("realm");
+		if (realm == null || realm.isBlank()) {
+			throw new IOException("registry auth challenge missing realm");
+		}
+		StringBuilder tokenUrl = new StringBuilder(realm);
+		char sep = (realm.indexOf('?') >= 0) ? '&' : '?';
+		String service = params.get("service");
+		if (service != null && !service.isBlank()) {
+			tokenUrl.append(sep).append("service=").append(urlEncode(service));
+			sep = '&';
+		}
+		String scope = params.get("scope");
+		if (scope != null && !scope.isBlank()) {
+			tokenUrl.append(sep).append("scope=").append(urlEncode(scope));
+		}
+		String url = tokenUrl.toString();
+		validateOciUrl(url);
+		HttpGet httpGet = new HttpGet(url);
+		if (auth != null) {
+			httpGet.setHeader("Authorization", "Basic " + auth);
+		}
+		boolean granted = Boolean.TRUE.equals(httpClient.execute(httpGet, (response) -> {
+			if (response.getCode() != 200) {
+				return false;
+			}
+			HttpEntity entity = response.getEntity();
+			if (entity == null) {
+				return false;
+			}
+			try (InputStream in = entity.getContent()) {
+				JsonNode node = jsonMapper.readTree(in);
+				return node.has("token") || node.has("access_token");
+			}
+		}));
+		if (!granted) {
+			throw new IOException("authentication failed: credentials rejected");
+		}
+	}
+
+	private static Map<String, String> parseChallengeParams(String challenge) {
+		Map<String, String> params = new HashMap<>();
+		int space = challenge.indexOf(' ');
+		String rest = (space >= 0) ? challenge.substring(space + 1) : challenge;
+		Matcher matcher = CHALLENGE_PARAM.matcher(rest);
+		while (matcher.find()) {
+			params.put(matcher.group(1).toLowerCase(Locale.ROOT), matcher.group(2));
+		}
+		return params;
+	}
+
+	private static String urlEncode(String value) {
+		return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
 	}
 
 	/**

@@ -123,6 +123,37 @@ final class RepoHttpClientFactory {
 		return defaultClient.execute(request, handler);
 	}
 
+	/**
+	 * Builds a fresh, self-contained HTTP client for a one-shot registry-login handshake
+	 * from the caller's TLS options
+	 * ({@code --ca-file}/{@code --cert-file}/{@code --key-file}/{@code --insecure}). The
+	 * returned client is always newly created (never the shared default) and
+	 * SSRF-guarded, so the caller owns it and must close it (use try-with-resources).
+	 * @param caFile CA bundle path, or {@code null}
+	 * @param certFile client certificate path, or {@code null}
+	 * @param keyFile client key path, or {@code null}
+	 * @param insecureSkipTls whether to skip TLS verification
+	 * @return a new HTTP client honoring the given TLS options
+	 * @throws IOException if the TLS material cannot be loaded
+	 */
+	CloseableHttpClient buildLoginClient(String caFile, String certFile, String keyFile, boolean insecureSkipTls)
+			throws IOException {
+		RepositoryConfig.Repository repo = new RepositoryConfig.Repository();
+		repo.setCaFile(caFile);
+		repo.setCertFile(certFile);
+		repo.setKeyFile(keyFile);
+		repo.setInsecureSkipTlsVerify(insecureSkipTls);
+		if (needsCustomTls(repo)) {
+			return buildTlsClient(repo);
+		}
+		// No custom TLS: a plain client with the same SSRF-guarded DNS resolver as the
+		// default, built fresh so the caller can always close it.
+		HttpClientConnectionManager connManager = PoolingHttpClientConnectionManagerBuilder.create()
+			.setDnsResolver(new SsrfGuardingDnsResolver(blockPrivateNetworks))
+			.build();
+		return HttpClients.custom().setConnectionManager(connManager).build();
+	}
+
 	private boolean needsCustomTls(RepositoryConfig.Repository repo) {
 		if (repo == null) {
 			return false;
