@@ -117,6 +117,42 @@ class LintActionTest {
 		assertTrue(result.isOk(), "valid override values should pass: " + result.getErrors());
 	}
 
+	@Test
+	void testLintWithSubchartsSurfacesSubchartFindings() throws Exception {
+		Path parent = createChart("parent-chart", "1.0.0", "v2", "Parent chart");
+		Path subDir = parent.resolve("charts/badsub");
+		Files.createDirectories(subDir);
+		// Subchart missing a description -> a lint warning.
+		Files.writeString(subDir.resolve("Chart.yaml"), "apiVersion: v2\nname: badsub\nversion: 0.1.0\n");
+		Files.writeString(subDir.resolve("values.yaml"), "{}\n");
+
+		// Without --with-subcharts the subchart is not inspected.
+		LintAction.LintResult without = lintAction.lint(parent.toString(), null, false, false, null);
+		assertFalse(without.getWarnings().stream().anyMatch((w) -> w.contains("[badsub]")),
+				without.getWarnings().toString());
+
+		// With --with-subcharts the subchart's warning surfaces, prefixed by its name.
+		LintAction.LintResult with = lintAction.lint(parent.toString(), null, false, true, null);
+		assertTrue(with.getWarnings().stream().anyMatch((w) -> w.contains("[badsub]")), with.getWarnings().toString());
+	}
+
+	@Test
+	void testLintWithKubeVersionRendersTemplates() throws Exception {
+		Path chartDir = createMinimalChart("kubever-chart", "1.0.0", "v2");
+		Files.createDirectories(chartDir.resolve("templates"));
+		// A template that reads .Capabilities.KubeVersion must render without error.
+		Files.writeString(chartDir.resolve("templates/cm.yaml"), """
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: cm
+				data:
+				  kube: "{{ .Capabilities.KubeVersion.Version }}"
+				""");
+		LintAction.LintResult result = lintAction.lint(chartDir.toString(), null, false, false, "v1.30.0");
+		assertTrue(result.isOk(), "rendering with an explicit kube-version should pass: " + result.getErrors());
+	}
+
 	private Path createMinimalChart(String name, String version, String apiVersion) throws Exception {
 		return createChart(name, version, apiVersion, "A test chart");
 	}

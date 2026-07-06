@@ -58,6 +58,11 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
   are persisted into `repositories.yaml` and honored (host-gated) on every index refresh and chart
   pull; `--force-update` replaces an existing repo (a duplicate name otherwise fails) and
   `--no-update` skips the immediate index fetch. Mirrored on REST `POST /repos` (#685).
+* *Misc command flags* -- `package --version`/`--app-version` (rewrites the `Chart.yaml` inside the
+  archive) and `-u`/`--dependency-update`; `show chart\|values\|readme\|crds\|all` `--version`/`--repo`/`--username`/`--password`
+  + TLS (show a chart from a repository without a prior `pull`); `lint --quiet`/`--with-subcharts`/`--kube-version`;
+  and `version --template` (Go-templates the version output). `show --devel` and `registry login`
+  TLS flags remain documented gaps (#687).
 * *REST releases API now returns Helm-shaped JSON* -- the `/releases` list/status/history and
   install/upgrade responses now use Helm's `-o json` schema (snake_case, nested `info`) instead
   of jhelm's internal DTO, so REST consumers see the same shape as `helm ... -o json` and the

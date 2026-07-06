@@ -10,9 +10,12 @@ import org.mockito.MockitoAnnotations;
 import picocli.CommandLine;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class LintCommandTest {
@@ -30,7 +33,7 @@ class LintCommandTest {
 
 	@Test
 	void testLintCommandSuccess() {
-		when(lintAction.lint(anyString(), anyMap(), anyBoolean()))
+		when(lintAction.lint(anyString(), anyMap(), anyBoolean(), anyBoolean(), any()))
 			.thenReturn(new LintAction.LintResult("./", List.of(), List.of()));
 		CommandLine cmd = new CommandLine(lintCommand);
 		int exitCode = cmd.execute(".");
@@ -39,7 +42,7 @@ class LintCommandTest {
 
 	@Test
 	void testLintCommandWithWarnings() {
-		when(lintAction.lint(anyString(), anyMap(), anyBoolean()))
+		when(lintAction.lint(anyString(), anyMap(), anyBoolean(), anyBoolean(), any()))
 			.thenReturn(new LintAction.LintResult("./", List.of(), List.of("missing description")));
 		CommandLine cmd = new CommandLine(lintCommand);
 		int exitCode = cmd.execute(".");
@@ -47,8 +50,18 @@ class LintCommandTest {
 	}
 
 	@Test
+	void testLintThreadsSubchartsQuietAndKubeVersion() {
+		when(lintAction.lint(anyString(), anyMap(), anyBoolean(), anyBoolean(), any()))
+			.thenReturn(new LintAction.LintResult("./chart", List.of(), List.of()));
+		CommandLine cmd = new CommandLine(lintCommand);
+		int exitCode = cmd.execute(".", "--with-subcharts", "--kube-version", "1.30.0", "--quiet");
+		assertEquals(0, exitCode);
+		verify(lintAction).lint(eq("."), anyMap(), eq(false), eq(true), eq("1.30.0"));
+	}
+
+	@Test
 	void testLintCommandWithErrors() {
-		when(lintAction.lint(anyString(), anyMap(), anyBoolean()))
+		when(lintAction.lint(anyString(), anyMap(), anyBoolean(), anyBoolean(), any()))
 			.thenReturn(new LintAction.LintResult("./", List.of("chart name is required"), List.of()));
 		CommandLine cmd = new CommandLine(lintCommand);
 		int exitCode = cmd.execute(".");

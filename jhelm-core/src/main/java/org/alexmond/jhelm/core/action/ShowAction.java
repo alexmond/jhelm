@@ -17,12 +17,29 @@ public class ShowAction {
 	private final ChartLoader chartLoader;
 
 	public String showChart(String chartPath) {
-		Chart chart = chartLoader.load(new File(chartPath));
+		return showChart(chartLoader.load(new File(chartPath)));
+	}
+
+	/**
+	 * Renders the chart's {@code Chart.yaml} from an already-loaded chart (e.g. one
+	 * pulled from a repository).
+	 * @param chart the loaded chart
+	 * @return the chart metadata as YAML
+	 */
+	public String showChart(Chart chart) {
 		return toYaml(chart.getMetadata());
 	}
 
 	public String showValues(String chartPath) {
-		Chart chart = chartLoader.load(new File(chartPath));
+		return showValues(chartLoader.load(new File(chartPath)));
+	}
+
+	/**
+	 * Renders the chart's {@code values.yaml} from an already-loaded chart.
+	 * @param chart the loaded chart
+	 * @return the default values as YAML, or {@code {}} when there are none
+	 */
+	public String showValues(Chart chart) {
 		if (chart.getValues() == null || chart.getValues().isEmpty()) {
 			return "{}";
 		}
@@ -30,12 +47,28 @@ public class ShowAction {
 	}
 
 	public String showReadme(String chartPath) {
-		Chart chart = chartLoader.load(new File(chartPath));
+		return showReadme(chartLoader.load(new File(chartPath)));
+	}
+
+	/**
+	 * Returns the chart's README from an already-loaded chart.
+	 * @param chart the loaded chart
+	 * @return the README text, or an empty string when absent
+	 */
+	public String showReadme(Chart chart) {
 		return (chart.getReadme() != null) ? chart.getReadme() : "";
 	}
 
 	public String showCrds(String chartPath) {
-		Chart chart = chartLoader.load(new File(chartPath));
+		return showCrds(chartLoader.load(new File(chartPath)));
+	}
+
+	/**
+	 * Returns the chart's Custom Resource Definitions from an already-loaded chart.
+	 * @param chart the loaded chart
+	 * @return the concatenated CRD documents, or an empty string when absent
+	 */
+	public String showCrds(Chart chart) {
 		if (chart.getCrds() == null || chart.getCrds().isEmpty()) {
 			return "";
 		}
@@ -50,7 +83,16 @@ public class ShowAction {
 	}
 
 	public String showAll(String chartPath) {
-		Chart chart = chartLoader.load(new File(chartPath));
+		return showAll(chartLoader.load(new File(chartPath)));
+	}
+
+	/**
+	 * Renders the chart's combined {@code Chart.yaml}, values, README, and CRDs from an
+	 * already-loaded chart.
+	 * @param chart the loaded chart
+	 * @return the combined document
+	 */
+	public String showAll(Chart chart) {
 		StringBuilder sb = new StringBuilder();
 
 		sb.append("# Chart.yaml\n");

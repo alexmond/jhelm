@@ -1,7 +1,10 @@
 package org.alexmond.jhelm.app.command;
 
 import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.RepoManager;
+import org.alexmond.jhelm.core.service.SignatureService;
 import org.alexmond.jhelm.core.action.ShowAction;
+import org.alexmond.jhelm.core.action.VerifyAction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -31,6 +34,8 @@ class ShowCommandTest {
 
 	private ShowAction showAction;
 
+	private ChartResolver chartResolver;
+
 	@BeforeEach
 	void setUp() throws Exception {
 		// Redirect System.out to capture command output
@@ -38,6 +43,10 @@ class ShowCommandTest {
 
 		ChartLoader chartLoader = new ChartLoader();
 		showAction = new ShowAction(chartLoader);
+		// Local chart paths resolve directly (no repo pull), so the
+		// RepoManager/VerifyAction
+		// wiring here is only to satisfy the resolver's constructor.
+		chartResolver = new ChartResolver(chartLoader, new RepoManager(), new VerifyAction(new SignatureService()));
 
 		// Create a test chart
 		chartDir = tempDir.resolve("test-chart");
@@ -127,7 +136,7 @@ class ShowCommandTest {
 
 	@Test
 	void testShowChart() {
-		ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
+		ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction, chartResolver);
 		command.chartPath = chartDir.toString();
 
 		command.call();
@@ -143,7 +152,7 @@ class ShowCommandTest {
 
 	@Test
 	void testShowValues() {
-		ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
+		ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction, chartResolver);
 		command.chartPath = chartDir.toString();
 
 		command.call();
@@ -157,7 +166,7 @@ class ShowCommandTest {
 
 	@Test
 	void testShowReadme() {
-		ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
+		ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction, chartResolver);
 		command.chartPath = chartDir.toString();
 
 		command.call();
@@ -171,7 +180,7 @@ class ShowCommandTest {
 
 	@Test
 	void testShowCrds() {
-		ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
+		ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction, chartResolver);
 		command.chartPath = chartDir.toString();
 
 		command.call();
@@ -187,7 +196,7 @@ class ShowCommandTest {
 
 	@Test
 	void testShowAll() {
-		ShowCommand.AllCommand command = new ShowCommand.AllCommand(showAction);
+		ShowCommand.AllCommand command = new ShowCommand.AllCommand(showAction, chartResolver);
 		command.chartPath = chartDir.toString();
 
 		command.call();
@@ -229,7 +238,7 @@ class ShowCommandTest {
 		Files.writeString(noReadmeDir.resolve("values.yaml"), "{}");
 		Files.createDirectories(noReadmeDir.resolve("templates"));
 
-		ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction);
+		ShowCommand.ReadmeCommand command = new ShowCommand.ReadmeCommand(showAction, chartResolver);
 		command.chartPath = noReadmeDir.toString();
 
 		command.call();
@@ -253,7 +262,7 @@ class ShowCommandTest {
 		Files.writeString(noCrdsDir.resolve("values.yaml"), "{}");
 		Files.createDirectories(noCrdsDir.resolve("templates"));
 
-		ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction);
+		ShowCommand.CrdsCommand command = new ShowCommand.CrdsCommand(showAction, chartResolver);
 		command.chartPath = noCrdsDir.toString();
 
 		command.call();
@@ -277,7 +286,7 @@ class ShowCommandTest {
 		Files.writeString(emptyValuesDir.resolve("values.yaml"), "{}");
 		Files.createDirectories(emptyValuesDir.resolve("templates"));
 
-		ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction);
+		ShowCommand.ValuesCommand command = new ShowCommand.ValuesCommand(showAction, chartResolver);
 		command.chartPath = emptyValuesDir.toString();
 
 		command.call();
@@ -288,7 +297,7 @@ class ShowCommandTest {
 
 	@Test
 	void testShowCommandWithInvalidPath() {
-		ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
+		ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction, chartResolver);
 		command.chartPath = "/nonexistent/path";
 
 		// Should not throw, but should log error
@@ -298,10 +307,37 @@ class ShowCommandTest {
 		// In a real scenario, this would be verified with a logging framework test
 	}
 
+	// Picocli must instantiate the subcommands to resolve their @Mixin options; the
+	// subcommands have no no-arg constructor, so supply a factory that builds them from
+	// the
+	// test collaborators (Spring does this in production).
+	private CommandLine.IFactory subcommandFactory() {
+		return new CommandLine.IFactory() {
+			@Override
+			public <K> K create(Class<K> cls) throws Exception {
+				if (cls == ShowCommand.ChartCommand.class) {
+					return cls.cast(new ShowCommand.ChartCommand(showAction, chartResolver));
+				}
+				if (cls == ShowCommand.ValuesCommand.class) {
+					return cls.cast(new ShowCommand.ValuesCommand(showAction, chartResolver));
+				}
+				if (cls == ShowCommand.ReadmeCommand.class) {
+					return cls.cast(new ShowCommand.ReadmeCommand(showAction, chartResolver));
+				}
+				if (cls == ShowCommand.CrdsCommand.class) {
+					return cls.cast(new ShowCommand.CrdsCommand(showAction, chartResolver));
+				}
+				if (cls == ShowCommand.AllCommand.class) {
+					return cls.cast(new ShowCommand.AllCommand(showAction, chartResolver));
+				}
+				return CommandLine.defaultFactory().create(cls);
+			}
+		};
+	}
+
 	@Test
 	void testShowCommandHelp() {
-		ShowCommand showCommand = new ShowCommand();
-		CommandLine cmd = new CommandLine(showCommand);
+		CommandLine cmd = new CommandLine(new ShowCommand(), subcommandFactory());
 
 		String help = cmd.getUsageMessage();
 
@@ -312,8 +348,9 @@ class ShowCommandTest {
 	@Test
 	void testShowCommandRunShowsUsage() {
 		outputStream.reset();
-		ShowCommand showCommand = new ShowCommand();
-		showCommand.call();
+		// Executing with no subcommand invokes ShowCommand.call(), which prints usage via
+		// the injected spec (the factory-built command line).
+		new CommandLine(new ShowCommand(), subcommandFactory()).execute();
 
 		String output = outputStream.toString();
 		assertTrue(output.contains("show") || output.contains("Usage"));
@@ -326,27 +363,27 @@ class ShowCommandTest {
 		// All subcommands should handle nonexistent paths gracefully
 		switch (commandName) {
 			case "chart" -> {
-				var cmd = new ShowCommand.ChartCommand(showAction);
+				var cmd = new ShowCommand.ChartCommand(showAction, chartResolver);
 				cmd.chartPath = invalidDir.toString();
 				cmd.call();
 			}
 			case "values" -> {
-				var cmd = new ShowCommand.ValuesCommand(showAction);
+				var cmd = new ShowCommand.ValuesCommand(showAction, chartResolver);
 				cmd.chartPath = invalidDir.toString();
 				cmd.call();
 			}
 			case "all" -> {
-				var cmd = new ShowCommand.AllCommand(showAction);
+				var cmd = new ShowCommand.AllCommand(showAction, chartResolver);
 				cmd.chartPath = invalidDir.toString();
 				cmd.call();
 			}
 			case "readme" -> {
-				var cmd = new ShowCommand.ReadmeCommand(showAction);
+				var cmd = new ShowCommand.ReadmeCommand(showAction, chartResolver);
 				cmd.chartPath = invalidDir.toString();
 				cmd.call();
 			}
 			case "crds" -> {
-				var cmd = new ShowCommand.CrdsCommand(showAction);
+				var cmd = new ShowCommand.CrdsCommand(showAction, chartResolver);
 				cmd.chartPath = invalidDir.toString();
 				cmd.call();
 			}
@@ -360,7 +397,7 @@ class ShowCommandTest {
 
 	@Test
 	void testShowChartCommandDirectExecution() {
-		ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction);
+		ShowCommand.ChartCommand command = new ShowCommand.ChartCommand(showAction, chartResolver);
 		command.chartPath = chartDir.toString();
 
 		command.call();

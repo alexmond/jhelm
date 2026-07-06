@@ -13,12 +13,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Stream;
 
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.dataformat.yaml.YAMLMapper;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
@@ -39,6 +42,8 @@ public class PackageAction {
 	private final ChartLoader chartLoader;
 
 	private final SignatureService signatureService;
+
+	private final YAMLMapper yamlMapper = YAMLMapper.builder().build();
 
 	@Setter
 	private File destination;
@@ -69,6 +74,25 @@ public class PackageAction {
 	}
 
 	/**
+	 * Packages a chart, applying version/app-version overrides and signing it using the
+	 * specified keyring and key ID.
+	 * @param chartPath path to the chart directory
+	 * @param keyringPath path to the PGP secret keyring file
+	 * @param keyId substring to match against key user IDs
+	 * @param passphrase the key passphrase
+	 * @param versionOverride chart version to stamp into the archive, or {@code null}
+	 * @param appVersionOverride app-version to stamp into the archive, or {@code null}
+	 * @return the created archive file
+	 * @throws JhelmException if the chart cannot be read or the archive cannot be written
+	 * @throws SignatureException if the signing key cannot be loaded or signing fails
+	 */
+	public File packageChart(String chartPath, String keyringPath, String keyId, char[] passphrase,
+			String versionOverride, String appVersionOverride) {
+		SigningKey signingKey = signatureService.loadSigningKey(keyringPath, keyId);
+		return packageChart(chartPath, signingKey, passphrase, versionOverride, appVersionOverride);
+	}
+
+	/**
 	 * Packages a chart directory into a {@code .tgz} archive and optionally signs it.
 	 * @param chartPath path to the chart directory
 	 * @param signingKey signing key, or {@code null} to skip signing
@@ -78,14 +102,43 @@ public class PackageAction {
 	 * @throws SignatureException if signing fails
 	 */
 	public File packageChart(String chartPath, SigningKey signingKey, char[] passphrase) {
+		return packageChart(chartPath, signingKey, passphrase, null, null);
+	}
+
+	/**
+	 * Packages a chart directory, optionally overriding its version and/or app-version
+	 * and signing it. When an override is given, the {@code Chart.yaml} written into the
+	 * archive carries the new value (matching
+	 * {@code helm package --version}/{@code --app-version}), and the archive is named for
+	 * the overridden version.
+	 * @param chartPath path to the chart directory
+	 * @param signingKey signing key, or {@code null} to skip signing
+	 * @param passphrase key passphrase, or {@code null} if not signing
+	 * @param versionOverride chart version to stamp into the archive, or {@code null} to
+	 * keep the {@code Chart.yaml} value
+	 * @param appVersionOverride app-version to stamp into the archive, or {@code null} to
+	 * keep the {@code Chart.yaml} value
+	 * @return the created archive file
+	 * @throws JhelmException if the chart cannot be read or the archive cannot be written
+	 * @throws SignatureException if signing fails
+	 */
+	public File packageChart(String chartPath, SigningKey signingKey, char[] passphrase, String versionOverride,
+			String appVersionOverride) {
 		Chart chart = chartLoader.load(new File(chartPath));
+		if (versionOverride != null && !versionOverride.isBlank()) {
+			chart.getMetadata().setVersion(versionOverride);
+		}
+		if (appVersionOverride != null && !appVersionOverride.isBlank()) {
+			chart.getMetadata().setAppVersion(appVersionOverride);
+		}
 		String archiveName = chart.getMetadata().getName() + "-" + chart.getMetadata().getVersion() + ".tgz";
 
 		File destDir = (destination != null) ? destination : new File(".");
 		File archiveFile = new File(destDir, archiveName);
 
 		try {
-			createTgz(new File(chartPath), chart.getMetadata().getName(), archiveFile);
+			createTgz(new File(chartPath), chart.getMetadata().getName(), archiveFile, versionOverride,
+					appVersionOverride);
 			if (log.isInfoEnabled()) {
 				log.info("Successfully packaged chart and saved it to: {}", archiveFile.getAbsolutePath());
 			}
@@ -106,19 +159,45 @@ public class PackageAction {
 		return archiveFile;
 	}
 
-	private void createTgz(File chartDir, String chartName, File outputFile) throws IOException {
+	private void createTgz(File chartDir, String chartName, File outputFile, String versionOverride,
+			String appVersionOverride) throws IOException {
 		List<PathMatcher> ignoreMatchers = loadHelmIgnore(chartDir);
+		byte[] chartYamlOverride = chartYamlOverrideBytes(chartDir, versionOverride, appVersionOverride);
 		try (OutputStream fos = Files.newOutputStream(outputFile.toPath());
 				BufferedOutputStream bos = new BufferedOutputStream(fos);
 				GzipCompressorOutputStream gzos = new GzipCompressorOutputStream(bos);
 				TarArchiveOutputStream taos = new TarArchiveOutputStream(gzos)) {
 			taos.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
-			addDirectory(taos, chartDir, chartName, ignoreMatchers);
+			addDirectory(taos, chartDir, chartName, ignoreMatchers, chartYamlOverride);
 		}
 	}
 
-	private void addDirectory(TarArchiveOutputStream taos, File dir, String entryBase, List<PathMatcher> ignoreMatchers)
+	// Re-serializes the top-level Chart.yaml with the version/app-version overrides
+	// applied,
+	// preserving the other keys, so `package --version`/`--app-version` change the
+	// archive
+	// contents (not just its filename). Returns null when there is nothing to override.
+	private byte[] chartYamlOverrideBytes(File chartDir, String versionOverride, String appVersionOverride)
 			throws IOException {
+		boolean hasVersion = versionOverride != null && !versionOverride.isBlank();
+		boolean hasAppVersion = appVersionOverride != null && !appVersionOverride.isBlank();
+		if (!hasVersion && !hasAppVersion) {
+			return null;
+		}
+		File chartYaml = new File(chartDir, "Chart.yaml");
+		LinkedHashMap<String, Object> map = yamlMapper.readValue(chartYaml, new TypeReference<>() {
+		});
+		if (hasVersion) {
+			map.put("version", versionOverride);
+		}
+		if (hasAppVersion) {
+			map.put("appVersion", appVersionOverride);
+		}
+		return yamlMapper.writeValueAsBytes(map);
+	}
+
+	private void addDirectory(TarArchiveOutputStream taos, File dir, String entryBase, List<PathMatcher> ignoreMatchers,
+			byte[] chartYamlOverride) throws IOException {
 		Path dirPath = dir.toPath();
 		try (Stream<Path> paths = Files.walk(dirPath)) {
 			paths.forEach((path) -> {
@@ -132,6 +211,10 @@ public class PackageAction {
 						return;
 					}
 					String entryName = entryBase + "/" + relativePath;
+					if (chartYamlOverride != null && "Chart.yaml".equals(relativePath.toString())) {
+						writeBytesEntry(taos, entryName, chartYamlOverride);
+						return;
+					}
 					TarArchiveEntry entry = new TarArchiveEntry(file, entryName);
 					taos.putArchiveEntry(entry);
 					Files.copy(path, taos);
@@ -145,6 +228,15 @@ public class PackageAction {
 		catch (UncheckedIOException ex) {
 			throw ex.getCause();
 		}
+	}
+
+	private static void writeBytesEntry(TarArchiveOutputStream taos, String entryName, byte[] content)
+			throws IOException {
+		TarArchiveEntry entry = new TarArchiveEntry(entryName);
+		entry.setSize(content.length);
+		taos.putArchiveEntry(entry);
+		taos.write(content);
+		taos.closeArchiveEntry();
 	}
 
 	static List<PathMatcher> loadHelmIgnore(File chartDir) {

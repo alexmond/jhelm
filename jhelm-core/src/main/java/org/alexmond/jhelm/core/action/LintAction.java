@@ -9,6 +9,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.SchemaValidationException;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.ReleaseContext;
@@ -28,6 +29,24 @@ public class LintAction {
 	private final SchemaValidator schemaValidator;
 
 	public LintResult lint(String chartPath, Map<String, Object> overrideValues, boolean strict) {
+		return lint(chartPath, overrideValues, strict, false, null);
+	}
+
+	/**
+	 * Lints a chart, optionally descending into its subcharts and rendering templates
+	 * against a specific Kubernetes version.
+	 * @param chartPath the chart directory to lint
+	 * @param overrideValues user value overrides applied before schema/template checks
+	 * @param strict whether warnings are treated as failures (evaluated by the caller)
+	 * @param withSubcharts also lint each of the chart's subcharts
+	 * ({@code --with-subcharts})
+	 * @param kubeVersion the Kubernetes version to expose as
+	 * {@code .Capabilities.KubeVersion} during template rendering, or {@code null} for
+	 * the engine default ({@code --kube-version})
+	 * @return the collected errors and warnings
+	 */
+	public LintResult lint(String chartPath, Map<String, Object> overrideValues, boolean strict, boolean withSubcharts,
+			String kubeVersion) {
 		List<String> errors = new ArrayList<>();
 		List<String> warnings = new ArrayList<>();
 
@@ -48,9 +67,36 @@ public class LintAction {
 
 		validateMetadata(chart.getMetadata(), errors, warnings);
 		validateValues(chart, overrideValues, errors);
-		validateTemplates(chart, overrideValues, errors);
+		validateTemplates(chart, overrideValues, errors, kubeVersion);
+
+		if (withSubcharts) {
+			for (Chart sub : chart.getDependencies()) {
+				lintSubchart(sub, errors, warnings, kubeVersion);
+			}
+		}
 
 		return new LintResult(chartPath, errors, warnings);
+	}
+
+	// Lints a loaded subchart, prefixing its findings with the subchart name so they are
+	// attributable in the parent chart's combined report.
+	private void lintSubchart(Chart sub, List<String> errors, List<String> warnings, String kubeVersion) {
+		String name = (sub.getMetadata() != null && sub.getMetadata().getName() != null) ? sub.getMetadata().getName()
+				: "subchart";
+		List<String> subErrors = new ArrayList<>();
+		List<String> subWarnings = new ArrayList<>();
+		validateMetadata(sub.getMetadata(), subErrors, subWarnings);
+		validateValues(sub, null, subErrors);
+		validateTemplates(sub, null, subErrors, kubeVersion);
+		for (String w : subWarnings) {
+			warnings.add("[" + name + "] " + w);
+		}
+		for (String e : subErrors) {
+			errors.add("[" + name + "] " + e);
+		}
+		for (Chart nested : sub.getDependencies()) {
+			lintSubchart(nested, errors, warnings, kubeVersion);
+		}
 	}
 
 	private void validateMetadata(ChartMetadata metadata, List<String> errors, List<String> warnings) {
@@ -93,7 +139,8 @@ public class LintAction {
 		}
 	}
 
-	private void validateTemplates(Chart chart, Map<String, Object> overrideValues, List<String> errors) {
+	private void validateTemplates(Chart chart, Map<String, Object> overrideValues, List<String> errors,
+			String kubeVersion) {
 		if ("library".equals(chart.getMetadata().getType())) {
 			return;
 		}
@@ -111,7 +158,12 @@ public class LintAction {
 			.build();
 
 		try {
-			engine.render(chart, values, releaseContext);
+			if (kubeVersion != null && !kubeVersion.isBlank()) {
+				engine.render(chart, values, releaseContext, new Capabilities(kubeVersion, List.of()));
+			}
+			else {
+				engine.render(chart, values, releaseContext);
+			}
 		}
 		catch (Exception ex) {
 			errors.add("template rendering failed: " + ex.getMessage());

@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.action.PackageAction;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -26,6 +28,9 @@ class PackageCommandTest {
 
 	@Mock
 	private PackageAction packageAction;
+
+	@Mock
+	private DependencyUpdateAction dependencyUpdateAction;
 
 	private PackageCommand packageCommand;
 
@@ -43,7 +48,7 @@ class PackageCommandTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		packageCommand = new PackageCommand(packageAction);
+		packageCommand = new PackageCommand(packageAction, dependencyUpdateAction);
 		System.setOut(new PrintStream(outStream));
 		System.setErr(new PrintStream(errStream));
 	}
@@ -57,26 +62,50 @@ class PackageCommandTest {
 	@Test
 	void testPackageChart() throws Exception {
 		File archive = new File("test-chart-1.0.0.tgz");
-		when(packageAction.packageChart("./my-chart")).thenReturn(archive);
+		when(packageAction.packageChart(eq("./my-chart"), any(), any(), any(), any())).thenReturn(archive);
 
 		CommandLine cmd = new CommandLine(packageCommand);
 		cmd.execute("./my-chart");
 
 		verify(packageAction).setDestination(any(File.class));
-		verify(packageAction).packageChart("./my-chart");
+		verify(packageAction).packageChart(eq("./my-chart"), isNull(), isNull(), isNull(), isNull());
 		assertTrue(outStream.toString().contains("Successfully packaged chart"));
 	}
 
 	@Test
 	void testPackageWithDestination() throws Exception {
 		File archive = new File("test-chart-1.0.0.tgz");
-		when(packageAction.packageChart("./my-chart")).thenReturn(archive);
+		when(packageAction.packageChart(eq("./my-chart"), any(), any(), any(), any())).thenReturn(archive);
 
 		CommandLine cmd = new CommandLine(packageCommand);
 		cmd.execute("./my-chart", "-d", "/tmp/output");
 
 		verify(packageAction).setDestination(new File("/tmp/output"));
-		verify(packageAction).packageChart("./my-chart");
+		verify(packageAction).packageChart(eq("./my-chart"), isNull(), isNull(), isNull(), isNull());
+	}
+
+	@Test
+	void testPackageWithVersionOverrides() throws Exception {
+		File archive = new File("test-chart-2.0.0.tgz");
+		when(packageAction.packageChart(eq("./my-chart"), any(), any(), any(), any())).thenReturn(archive);
+
+		CommandLine cmd = new CommandLine(packageCommand);
+		cmd.execute("./my-chart", "--version", "2.0.0", "--app-version", "9.9");
+
+		// version/app-version thread through to the packager (positions 4 and 5).
+		verify(packageAction).packageChart(eq("./my-chart"), isNull(), isNull(), eq("2.0.0"), eq("9.9"));
+	}
+
+	@Test
+	void testPackageWithDependencyUpdate() throws Exception {
+		File archive = new File("test-chart-1.0.0.tgz");
+		when(packageAction.packageChart(eq("./my-chart"), any(), any(), any(), any())).thenReturn(archive);
+
+		CommandLine cmd = new CommandLine(packageCommand);
+		cmd.execute("./my-chart", "-u");
+
+		verify(dependencyUpdateAction).update(eq(new File("./my-chart")), any(), eq(false));
+		verify(packageAction).packageChart(eq("./my-chart"), isNull(), isNull(), isNull(), isNull());
 	}
 
 	@Test
@@ -85,7 +114,8 @@ class PackageCommandTest {
 		Files.writeString(passphraseFile, "secret123");
 
 		File archive = new File("test-chart-1.0.0.tgz");
-		when(packageAction.packageChart(eq("./my-chart"), anyString(), eq("user@example.com"), any(char[].class)))
+		when(packageAction.packageChart(eq("./my-chart"), anyString(), eq("user@example.com"), any(char[].class), any(),
+				any()))
 			.thenReturn(archive);
 
 		CommandLine cmd = new CommandLine(packageCommand);
@@ -93,7 +123,7 @@ class PackageCommandTest {
 				"--passphrase-file", passphraseFile.toString());
 
 		verify(packageAction).packageChart(eq("./my-chart"), eq("/path/to/keyring.gpg"), eq("user@example.com"),
-				any(char[].class));
+				any(char[].class), isNull(), isNull());
 	}
 
 	@Test
@@ -106,7 +136,8 @@ class PackageCommandTest {
 
 	@Test
 	void testPackageWithError() throws Exception {
-		when(packageAction.packageChart("./my-chart")).thenThrow(new RuntimeException("chart not found"));
+		when(packageAction.packageChart(eq("./my-chart"), any(), any(), any(), any()))
+			.thenThrow(new RuntimeException("chart not found"));
 
 		CommandLine cmd = new CommandLine(packageCommand);
 		cmd.execute("./my-chart");
@@ -118,7 +149,8 @@ class PackageCommandTest {
 	void testPackageSignWithEnvPassphrase() throws Exception {
 		// When no passphrase file and no env var, should error
 		File archive = new File("test-chart-1.0.0.tgz");
-		when(packageAction.packageChart(eq("./my-chart"), anyString(), eq("user@example.com"), any(char[].class)))
+		when(packageAction.packageChart(eq("./my-chart"), anyString(), eq("user@example.com"), any(char[].class), any(),
+				any()))
 			.thenReturn(archive);
 
 		CommandLine cmd = new CommandLine(packageCommand);

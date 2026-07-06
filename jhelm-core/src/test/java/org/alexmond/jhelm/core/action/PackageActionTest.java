@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.core.action;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -12,6 +13,7 @@ import java.util.Date;
 import java.util.List;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.SignatureService;
+import org.alexmond.jhelm.core.service.SigningKey;
 import org.bouncycastle.bcpg.ArmoredOutputStream;
 import org.bouncycastle.bcpg.HashAlgorithmTags;
 import org.bouncycastle.bcpg.PublicKeyAlgorithmTags;
@@ -38,6 +40,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -141,6 +144,37 @@ class PackageActionTest {
 		assertTrue(entries.stream().anyMatch((e) -> e.contains("Chart.yaml")), "Chart.yaml should be included");
 		assertFalse(entries.stream().anyMatch((e) -> e.contains(".git")), ".git should be excluded");
 		assertFalse(entries.stream().anyMatch((e) -> e.contains("notes.txt")), "notes.txt should be excluded");
+	}
+
+	@Test
+	void testPackageChartWithVersionOverridesRewritesChartYaml() throws Exception {
+		Path chartDir = createMinimalChart("override-chart", "1.0.0");
+		packageAction.setDestination(tempDir.toFile());
+
+		File archive = packageAction.packageChart(chartDir.toString(), (SigningKey) null, null, "2.5.0", "9.9");
+
+		// The archive is named for the overridden version...
+		assertEquals("override-chart-2.5.0.tgz", archive.getName());
+		// ...and the Chart.yaml inside carries the overrides (not just the filename).
+		String chartYaml = readTgzEntry(archive, "Chart.yaml");
+		assertTrue(chartYaml.contains("override-chart"), chartYaml);
+		assertTrue(chartYaml.contains("2.5.0"), chartYaml);
+		assertTrue(chartYaml.contains("9.9"), chartYaml);
+		assertFalse(chartYaml.contains("1.0.0"), chartYaml);
+	}
+
+	private String readTgzEntry(File tgzFile, String suffix) throws Exception {
+		try (var fis = Files.newInputStream(tgzFile.toPath());
+				var gis = new GzipCompressorInputStream(fis);
+				var tis = new TarArchiveInputStream(gis)) {
+			TarArchiveEntry entry;
+			while ((entry = tis.getNextEntry()) != null) {
+				if (entry.getName().endsWith(suffix)) {
+					return new String(tis.readAllBytes(), StandardCharsets.UTF_8);
+				}
+			}
+		}
+		return "";
 	}
 
 	private Set<String> listTgzEntries(File tgzFile) throws Exception {
