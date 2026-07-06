@@ -659,6 +659,21 @@ public class RepoManager {
 	 * @param destDir destination directory
 	 */
 	public void pull(String chart, String version, String destDir) throws IOException {
+		pull(chart, version, destDir, false);
+	}
+
+	/**
+	 * Downloads a chart, optionally also fetching its {@code .prov} provenance file (Helm
+	 * {@code pull --prov}/{@code --verify}). Provenance fetching is not supported for
+	 * {@code oci://} references in this path.
+	 * @param chart {@code repo/chartName}, {@code repo/chartName:version}, or
+	 * {@code oci://...}
+	 * @param version optional version (for repo charts)
+	 * @param destDir destination directory
+	 * @param withProv when {@code true}, also download the chart's {@code .prov} file
+	 * @throws IOException if the chart (or requested provenance) cannot be downloaded
+	 */
+	public void pull(String chart, String version, String destDir, boolean withProv) throws IOException {
 		if (chart.startsWith("oci://")) {
 			String fileName = deriveOciFileName(chart);
 			pullOci(chart, destDir, fileName);
@@ -673,7 +688,7 @@ public class RepoManager {
 			if (resolvedVersion == null || resolvedVersion.isBlank()) {
 				throw new IOException("version is required for repository chart pulls");
 			}
-			pull(chart, null, resolvedVersion, destDir);
+			pull(chart, null, resolvedVersion, destDir, withProv);
 		}
 	}
 
@@ -687,6 +702,21 @@ public class RepoManager {
 	}
 
 	public void pull(String chartFullName, String repoName, String version, String destDir) throws IOException {
+		pull(chartFullName, repoName, version, destDir, false);
+	}
+
+	/**
+	 * Downloads a chart from a registered repository, optionally also fetching its
+	 * {@code .prov} provenance file (Helm {@code pull --prov}/{@code --verify}).
+	 * @param chartFullName the chart name, optionally prefixed with {@code repo/}
+	 * @param repoName the repository name (or {@code null} to take it from the prefix)
+	 * @param version the chart version
+	 * @param destDir the destination directory
+	 * @param withProv when {@code true}, also download the chart's {@code .prov} file
+	 * @throws IOException if the chart (or requested provenance) cannot be downloaded
+	 */
+	public void pull(String chartFullName, String repoName, String version, String destDir, boolean withProv)
+			throws IOException {
 		String finalChartName = chartFullName;
 		String finalRepoName = repoName;
 
@@ -712,6 +742,7 @@ public class RepoManager {
 		String chartUrl = resolveChartUrl((indexEntry != null) ? indexEntry[0] : null, repo.getUrl(), finalChartName,
 				version);
 		String chartDigest = (indexEntry != null) ? indexEntry[1] : null;
+		String tgzFileName = finalChartName + "-" + version + ".tgz";
 
 		if (chartDigest != null) {
 			File cached = getChartCacheFile(chartDigest);
@@ -719,15 +750,20 @@ public class RepoManager {
 				if (log.isInfoEnabled()) {
 					log.info("Using cached chart (digest: {})", chartDigest);
 				}
-				File destFile = new File(destDir, finalChartName + "-" + version + ".tgz");
+				File destFile = new File(destDir, tgzFileName);
 				Files.copy(cached.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 				untar(destFile, new File(destDir));
+				if (withProv) {
+					fetchProvenance(chartUrl, destDir, tgzFileName, repo);
+				}
 				return;
 			}
 		}
 
-		String tgzFileName = finalChartName + "-" + version + ".tgz";
 		pullFromUrl(chartUrl, destDir, tgzFileName, repo);
+		if (withProv) {
+			fetchProvenance(chartUrl, destDir, tgzFileName, repo);
+		}
 
 		File downloaded = new File(destDir, tgzFileName);
 		if (downloaded.exists()) {
@@ -737,6 +773,29 @@ public class RepoManager {
 				Files.copy(downloaded.toPath(), cacheTarget.toPath());
 			}
 		}
+	}
+
+	// Downloads the chart's detached PGP provenance (.prov) next to the .tgz — the file
+	// Helm's --verify checks and --prov keeps. Unlike pullFromUrl this is a raw fetch (a
+	// .prov is not a gzip archive, so it must not be untarred).
+	private void fetchProvenance(String chartUrl, String destDir, String tgzFileName, RepositoryConfig.Repository repo)
+			throws IOException {
+		String provUrl = chartUrl + ".prov";
+		File provFile = new File(destDir, tgzFileName + ".prov");
+		HttpGet httpGet = new HttpGet(provUrl);
+		httpGet.setHeader("User-Agent", "jhelm");
+		httpClientFactory.executeGet(httpGet, repo, (response) -> {
+			if (response.getCode() != 200) {
+				throw new IOException("Failed to download provenance from " + provUrl + ": " + response.getCode());
+			}
+			HttpEntity entity = response.getEntity();
+			if (entity != null) {
+				try (InputStream in = entity.getContent(); FileOutputStream fos = new FileOutputStream(provFile)) {
+					in.transferTo(fos);
+				}
+			}
+			return null;
+		});
 	}
 
 	/**
@@ -760,6 +819,26 @@ public class RepoManager {
 	@SuppressWarnings("java:S5443")
 	public void pullFromRepoUrl(String repoUrl, String chartName, String version, String destDir,
 			RepositoryConfig.Repository auth) throws IOException {
+		pullFromRepoUrl(repoUrl, chartName, version, destDir, auth, false);
+	}
+
+	/**
+	 * As
+	 * {@link #pullFromRepoUrl(String, String, String, String, RepositoryConfig.Repository)},
+	 * optionally also fetching the chart's {@code .prov} provenance file (Helm
+	 * {@code pull --repo ... --prov}/{@code --verify}).
+	 * @param repoUrl the repository base URL
+	 * @param chartName the chart name to resolve in the index
+	 * @param version the chart version (required)
+	 * @param destDir the destination directory
+	 * @param auth a repository descriptor carrying auth and TLS settings, or {@code null}
+	 * @param withProv when {@code true}, also download the chart's {@code .prov} file
+	 * @throws IOException if the index, chart, or requested provenance cannot be
+	 * downloaded
+	 */
+	@SuppressWarnings("java:S5443")
+	public void pullFromRepoUrl(String repoUrl, String chartName, String version, String destDir,
+			RepositoryConfig.Repository auth, boolean withProv) throws IOException {
 		if (version == null || version.isBlank()) {
 			throw new IOException("version is required when pulling with --repo");
 		}
@@ -788,7 +867,11 @@ public class RepoManager {
 			});
 			String[] indexEntry = lookupChartInIndex(indexTmp, chartName, version);
 			String chartUrl = resolveChartUrl((indexEntry != null) ? indexEntry[0] : null, repoUrl, chartName, version);
-			pullFromUrl(chartUrl, destDir, chartName + "-" + version + ".tgz", repo);
+			String tgzFileName = chartName + "-" + version + ".tgz";
+			pullFromUrl(chartUrl, destDir, tgzFileName, repo);
+			if (withProv) {
+				fetchProvenance(chartUrl, destDir, tgzFileName, repo);
+			}
 		}
 		finally {
 			Files.deleteIfExists(indexTmp.toPath());

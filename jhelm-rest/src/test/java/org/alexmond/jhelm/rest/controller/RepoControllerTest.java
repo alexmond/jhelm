@@ -4,6 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.core.model.RepositoryConfig;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.alexmond.jhelm.rest.JhelmRestExceptionHandler;
@@ -18,6 +19,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -41,6 +43,9 @@ class RepoControllerTest {
 
 	@MockitoBean
 	private RepoManager repoManager;
+
+	@MockitoBean
+	private VerifyAction verifyAction;
 
 	@Test
 	void addRepo() throws Exception {
@@ -125,7 +130,7 @@ class RepoControllerTest {
 			Files.createDirectories(chartDir);
 			Files.writeString(chartDir.resolve("Chart.yaml"), "name: nginx\nversion: 1.0.0");
 			return null;
-		}).when(this.repoManager).pull(eq("bitnami/nginx"), eq("1.0.0"), anyString());
+		}).when(this.repoManager).pull(eq("bitnami/nginx"), eq("1.0.0"), anyString(), anyBoolean());
 
 		this.mockMvc.perform(post("/api/v1/repos/pull").contentType(MediaType.APPLICATION_JSON).content("""
 				{"chart": "bitnami/nginx", "version": "1.0.0"}
@@ -136,6 +141,23 @@ class RepoControllerTest {
 	}
 
 	@Test
+	void pullWithVerifyChecksProvenance() throws Exception {
+		doAnswer((invocation) -> {
+			String destDir = invocation.getArgument(2);
+			Files.writeString(Path.of(destDir).resolve("nginx-1.0.0.tgz"), "tgz");
+			Files.writeString(Path.of(destDir).resolve("nginx-1.0.0.tgz.prov"), "prov");
+			return null;
+		}).when(this.repoManager).pull(eq("bitnami/nginx"), eq("1.0.0"), anyString(), eq(true));
+
+		this.mockMvc.perform(post("/api/v1/repos/pull").contentType(MediaType.APPLICATION_JSON).content("""
+				{"chart": "bitnami/nginx", "version": "1.0.0", "verify": true}
+				""")).andExpect(status().isOk());
+
+		verify(this.repoManager).pull(eq("bitnami/nginx"), eq("1.0.0"), anyString(), eq(true));
+		verify(this.verifyAction).verify(anyString(), anyString());
+	}
+
+	@Test
 	void pullOciChartReturnsArchiveDownload() throws Exception {
 		doAnswer((invocation) -> {
 			String destDir = invocation.getArgument(2);
@@ -143,7 +165,8 @@ class RepoControllerTest {
 			Files.createDirectories(chartDir);
 			Files.writeString(chartDir.resolve("Chart.yaml"), "name: nginx\nversion: 1.0.0");
 			return null;
-		}).when(this.repoManager).pull(eq("oci://registry.example.com/nginx:1.0.0"), eq(null), anyString());
+		}).when(this.repoManager)
+			.pull(eq("oci://registry.example.com/nginx:1.0.0"), eq(null), anyString(), anyBoolean());
 
 		this.mockMvc.perform(post("/api/v1/repos/pull").contentType(MediaType.APPLICATION_JSON).content("""
 				{"chart": "oci://registry.example.com/nginx:1.0.0"}

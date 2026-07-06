@@ -3,6 +3,7 @@ package org.alexmond.jhelm.rest;
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.action.CreateAction;
+import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.SearchHubAction;
 import org.alexmond.jhelm.core.action.HistoryAction;
@@ -219,8 +220,9 @@ public class JhelmRestAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	@ConditionalOnBean(RepoManager.class)
-	public RepoController repoController(RepoManager repoManager, JhelmRestProperties properties) {
-		return new RepoController(repoManager, properties);
+	public RepoController repoController(RepoManager repoManager, VerifyAction verifyAction,
+			JhelmRestProperties properties) {
+		return new RepoController(repoManager, verifyAction, properties);
 	}
 
 	/**
