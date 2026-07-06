@@ -7,8 +7,6 @@ import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.RollbackAction;
 import org.alexmond.jhelm.core.action.RollbackOptions;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
-import org.alexmond.jhelm.core.model.Release;
-import org.alexmond.jhelm.core.service.KubeService;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -23,8 +21,6 @@ import picocli.CommandLine;
 public class RollbackCommand implements Callable<Integer> {
 
 	private final RollbackAction rollbackAction;
-
-	private final KubeService kubeService;
 
 	private final JhelmSecurityPolicy securityPolicy;
 
@@ -47,20 +43,38 @@ public class RollbackCommand implements Callable<Integer> {
 	@CommandLine.Option(names = { "--wait" }, description = "wait until all resources are ready")
 	private boolean wait;
 
+	@CommandLine.Option(names = { "--wait-for-jobs" },
+			description = "with --wait, also wait for Jobs to complete before marking the rollback done")
+	private boolean waitForJobs;
+
 	@CommandLine.Option(names = { "--timeout" }, defaultValue = "300",
 			description = "timeout in seconds for --wait (default 300)")
 	private int timeout;
 
+	@CommandLine.Option(names = { "--dry-run" },
+			description = "simulate the rollback without applying manifests or storing a revision")
+	private boolean dryRun;
+
+	@CommandLine.Option(names = { "--force" },
+			description = "delete and recreate the target revision's resources instead of patching in place")
+	private boolean force;
+
+	@CommandLine.Option(names = { "--cleanup-on-fail" },
+			description = "delete resources created during the rollback if it fails")
+	private boolean cleanupOnFail;
+
+	@CommandLine.Option(names = { "--recreate-pods" },
+			description = "perform a rolling restart of the release's workloads after the rollback (deprecated in Helm)")
+	private boolean recreatePods;
+
 	/**
 	 * Creates the command.
 	 * @param rollbackAction the action that performs the rollback
-	 * @param kubeService the Kubernetes service used to wait for resource readiness
 	 * @param securityPolicy the unified access-mode policy; the operation is refused
 	 * unless mutating operations are enabled
 	 */
-	public RollbackCommand(RollbackAction rollbackAction, KubeService kubeService, JhelmSecurityPolicy securityPolicy) {
+	public RollbackCommand(RollbackAction rollbackAction, JhelmSecurityPolicy securityPolicy) {
 		this.rollbackAction = rollbackAction;
-		this.kubeService = kubeService;
 		this.securityPolicy = securityPolicy;
 	}
 
@@ -70,17 +84,22 @@ public class RollbackCommand implements Callable<Integer> {
 			return CommandLine.ExitCode.SOFTWARE;
 		}
 		try {
-			Release release = rollbackAction.rollback(RollbackOptions.builder()
+			rollbackAction.rollback(RollbackOptions.builder()
 				.releaseName(name)
 				.namespace(namespace)
 				.revision(revision)
 				.noHooks(noHooks)
 				.maxHistory(historyMax)
+				.dryRun(dryRun)
+				.force(force)
+				.cleanupOnFail(cleanupOnFail)
+				.recreatePods(recreatePods)
+				.wait(wait)
+				.waitForJobs(waitForJobs)
+				.timeout(timeout)
 				.build());
-			CliOutput.println(CliOutput.success("Rollback was a success! Happy Helming!"));
-			if (wait) {
-				kubeService.waitForReady(namespace, release.getManifest(), timeout);
-			}
+			CliOutput.println(CliOutput
+				.success(dryRun ? "Rollback dry run complete. No changes were applied." : "Rollback was a success!"));
 			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {

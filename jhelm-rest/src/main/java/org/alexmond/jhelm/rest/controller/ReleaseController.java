@@ -23,6 +23,7 @@ import org.alexmond.jhelm.core.action.StatusAction;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
@@ -305,8 +306,31 @@ public class ReleaseController {
 	@MutatingOperation
 	@Operation(summary = "Uninstall a release")
 	public ResponseEntity<Void> uninstall(@Parameter(description = "Release name") @PathVariable String name,
-			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace) {
-		this.uninstallAction.uninstall(UninstallOptions.builder().releaseName(name).namespace(namespace).build());
+			@Parameter(description = "Kubernetes namespace") @RequestParam(defaultValue = "default") String namespace,
+			@Parameter(description = "Skip pre/post-delete hooks") @RequestParam(
+					defaultValue = "false") boolean noHooks,
+			@Parameter(description = "Retain release history, marking it uninstalled") @RequestParam(
+					defaultValue = "false") boolean keepHistory,
+			@Parameter(description = "Simulate without deleting anything") @RequestParam(
+					defaultValue = "false") boolean dryRun,
+			@Parameter(description = "Wait until resources are removed") @RequestParam(
+					defaultValue = "false") boolean wait,
+			@Parameter(description = "Timeout in seconds for wait") @RequestParam(defaultValue = "300") int timeout,
+			@Parameter(description = "Deletion propagation: background, foreground, or orphan") @RequestParam(
+					defaultValue = "background") String cascade,
+			@Parameter(description = "Custom description when keeping history") @RequestParam(
+					required = false) String description) {
+		this.uninstallAction.uninstall(UninstallOptions.builder()
+			.releaseName(name)
+			.namespace(namespace)
+			.noHooks(noHooks)
+			.keepHistory(keepHistory)
+			.dryRun(dryRun)
+			.wait(wait)
+			.timeout(timeout)
+			.cascade(CascadePolicy.fromString(cascade))
+			.description(description)
+			.build());
 		return ResponseEntity.noContent().build();
 	}
 
@@ -341,6 +365,15 @@ public class ReleaseController {
 			.releaseName(name)
 			.namespace(namespace)
 			.revision(request.getRevision())
+			.noHooks(request.isNoHooks())
+			.maxHistory(request.getMaxHistory())
+			.dryRun(request.isDryRun())
+			.force(request.isForce())
+			.cleanupOnFail(request.isCleanupOnFail())
+			.recreatePods(request.isRecreatePods())
+			.wait(request.isWait())
+			.waitForJobs(request.isWaitForJobs())
+			.timeout(request.getTimeout())
 			.build());
 		return ResponseEntity.noContent().build();
 	}

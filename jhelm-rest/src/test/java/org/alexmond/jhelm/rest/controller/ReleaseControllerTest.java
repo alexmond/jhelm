@@ -18,6 +18,7 @@ import org.alexmond.jhelm.core.action.StatusAction;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.UpgradeOptions;
 import org.alexmond.jhelm.core.action.UpgradeValueStrategy;
@@ -329,6 +330,19 @@ class ReleaseControllerTest {
 	}
 
 	@Test
+	void uninstallWithWaitCascadeAndDryRunParams() throws Exception {
+		this.mockMvc
+			.perform(delete("/api/v1/releases/my-release").param("wait", "true")
+				.param("timeout", "90")
+				.param("cascade", "foreground")
+				.param("dryRun", "true"))
+			.andExpect(status().isNoContent());
+		verify(this.uninstallAction)
+			.uninstall(argThat((UninstallOptions options) -> options.isWait() && options.getTimeout() == 90
+					&& options.getCascade() == CascadePolicy.FOREGROUND && options.isDryRun()));
+	}
+
+	@Test
 	void history() throws Exception {
 		when(this.historyAction.history("my-release", "default")).thenReturn(List.of(sampleRelease()));
 		this.mockMvc.perform(get("/api/v1/releases/my-release/history").accept(MediaType.APPLICATION_JSON))
@@ -349,6 +363,21 @@ class ReleaseControllerTest {
 		verify(this.rollbackAction)
 			.rollback(argThat((RollbackOptions options) -> "my-release".equals(options.getReleaseName())
 					&& "default".equals(options.getNamespace()) && options.getRevision() == 1));
+	}
+
+	@Test
+	void rollbackWithForceCleanupAndWaitFlags() throws Exception {
+		this.mockMvc
+			.perform(post("/api/v1/releases/my-release/rollback").contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.content("""
+						{"revision": 2, "force": true, "cleanupOnFail": true, "recreatePods": true,
+						 "wait": true, "waitForJobs": true, "timeout": 120}
+						"""))
+			.andExpect(status().isNoContent());
+		verify(this.rollbackAction).rollback(argThat((RollbackOptions options) -> options.getRevision() == 2
+				&& options.isForce() && options.isCleanupOnFail() && options.isRecreatePods() && options.isWait()
+				&& options.isWaitForJobs() && options.getTimeout() == 120));
 	}
 
 	@Test

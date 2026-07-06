@@ -127,6 +127,47 @@ public interface KubeService {
 	void delete(String namespace, String yamlContent);
 
 	/**
+	 * Deletes the resources described in a rendered manifest using the given deletion
+	 * propagation policy (Helm {@code --cascade}). The default implementation ignores the
+	 * policy and delegates to {@link #delete(String, String)} (background propagation),
+	 * so only implementations that support propagation control need to override it.
+	 * @param namespace the target namespace
+	 * @param yamlContent rendered YAML manifest (may contain multiple documents)
+	 * @param cascade the deletion propagation policy
+	 * @throws KubernetesOperationException if a resource cannot be deleted
+	 */
+	default void delete(String namespace, String yamlContent, CascadePolicy cascade) {
+		delete(namespace, yamlContent);
+	}
+
+	/**
+	 * Blocks until all resources described in the manifest are deleted from the cluster,
+	 * or until the timeout elapses (Helm {@code uninstall --wait}). The default
+	 * implementation is a no-op, so a test double or an implementation that cannot poll
+	 * the cluster returns immediately; real implementations override it.
+	 * @param namespace the namespace to query
+	 * @param manifest rendered YAML manifest
+	 * @param timeoutSeconds maximum seconds to wait
+	 * @throws WaitTimeoutException if the timeout elapses before all resources are gone
+	 * @throws KubernetesOperationException if the wait is interrupted or the Kubernetes
+	 * API cannot be reached
+	 */
+	default void waitForDeleted(String namespace, String manifest, int timeoutSeconds) {
+	}
+
+	/**
+	 * Triggers a rolling restart of the workloads (Deployments, StatefulSets, DaemonSets)
+	 * described in the manifest by stamping a restart annotation, mirroring Helm's
+	 * (deprecated) {@code rollback --recreate-pods}. The default implementation is a
+	 * no-op so test doubles need not implement it; real implementations override it.
+	 * @param namespace the namespace of the workloads
+	 * @param manifest rendered YAML manifest
+	 * @throws KubernetesOperationException if a workload cannot be patched
+	 */
+	default void restartWorkloads(String namespace, String manifest) {
+	}
+
+	/**
 	 * Returns the readiness status of each Kubernetes resource described in the rendered
 	 * manifest.
 	 * @param namespace the namespace to query
@@ -148,6 +189,24 @@ public interface KubeService {
 	 * API cannot be reached
 	 */
 	void waitForReady(String namespace, String manifest, int timeoutSeconds);
+
+	/**
+	 * Blocks until all resources described in the manifest are ready, additionally
+	 * waiting for any Jobs to run to completion when {@code waitForJobs} is set (Helm
+	 * {@code --wait-for-jobs}). The default implementation ignores {@code waitForJobs}
+	 * and delegates to {@link #waitForReady(String, String, int)}; implementations that
+	 * can distinguish Job completion override it.
+	 * @param namespace the namespace to query
+	 * @param manifest rendered YAML manifest
+	 * @param timeoutSeconds maximum seconds to wait
+	 * @param waitForJobs whether to also wait for Jobs to complete
+	 * @throws WaitTimeoutException if the timeout elapses before everything is ready
+	 * @throws KubernetesOperationException if the wait is interrupted or the Kubernetes
+	 * API cannot be reached
+	 */
+	default void waitForReady(String namespace, String manifest, int timeoutSeconds, boolean waitForJobs) {
+		waitForReady(namespace, manifest, timeoutSeconds);
+	}
 
 	/**
 	 * Returns the {@code .Capabilities} to expose to templates for this cluster — chiefly

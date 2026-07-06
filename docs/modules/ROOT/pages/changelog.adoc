@@ -41,6 +41,14 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
   `--insecure-skip-tls-verify`/`--pass-credentials`) to fetch the chart directly, matching
   `helm install/upgrade --repo`. A `repo/chart` or `oci://` reference is also resolved via the
   registered repositories. Local chart paths still work unchanged (#682).
+* *`uninstall` wait/cascade semantics* -- `--dry-run` (report without deleting), `--wait`/`--timeout`
+  (block until the resources are gone, backed by a new `KubeService.waitForDeleted`), `--cascade`
+  `background\|foreground\|orphan` (Kubernetes deletion propagation), and `--description` (stored on
+  the release when `--keep-history` is set). Mirrored on REST (`DELETE` query params) and MCP (#683).
+* *`rollback` force/cleanup semantics* -- `--dry-run`, `--force` (delete-and-recreate),
+  `--cleanup-on-fail` (delete resources created during a failed rollback), `--recreate-pods` (rolling
+  restart of the release's workloads via a restart annotation), and `--wait`/`--wait-for-jobs`/`--timeout`.
+  The rollback readiness wait now lives in the action so REST and MCP honor it too (#683).
 * *REST releases API now returns Helm-shaped JSON* -- the `/releases` list/status/history and
   install/upgrade responses now use Helm's `-o json` schema (snake_case, nested `info`) instead
   of jhelm's internal DTO, so REST consumers see the same shape as `helm ... -o json` and the

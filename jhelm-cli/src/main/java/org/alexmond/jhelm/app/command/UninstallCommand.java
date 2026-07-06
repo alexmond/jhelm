@@ -7,6 +7,7 @@ import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 
@@ -36,6 +37,26 @@ public class UninstallCommand implements Callable<Integer> {
 			description = "remove all associated resources and mark the release as deleted, but retain the release history")
 	private boolean keepHistory;
 
+	@CommandLine.Option(names = { "--dry-run" },
+			description = "simulate the uninstall without deleting resources or history")
+	private boolean dryRun;
+
+	@CommandLine.Option(names = { "--wait" },
+			description = "wait until the release's resources are removed from the cluster")
+	private boolean wait;
+
+	@CommandLine.Option(names = { "--timeout" }, defaultValue = "300",
+			description = "timeout in seconds for --wait (default 300)")
+	private int timeout;
+
+	@CommandLine.Option(names = { "--cascade" }, defaultValue = "background",
+			description = "resource deletion propagation: background, foreground, or orphan")
+	private String cascade;
+
+	@CommandLine.Option(names = { "--description" },
+			description = "custom description stored on the release when --keep-history is set")
+	private String description;
+
 	/**
 	 * Creates the command.
 	 * @param uninstallAction the action that uninstalls the release
@@ -58,8 +79,14 @@ public class UninstallCommand implements Callable<Integer> {
 				.namespace(namespace)
 				.noHooks(noHooks)
 				.keepHistory(keepHistory)
+				.dryRun(dryRun)
+				.wait(wait)
+				.timeout(timeout)
+				.cascade(CascadePolicy.fromString(cascade))
+				.description(description)
 				.build());
-			CliOutput.println(CliOutput.success("release \"" + name + "\" uninstalled"));
+			String verb = dryRun ? "\" would be uninstalled (dry run)" : "\" uninstalled";
+			CliOutput.println(CliOutput.success("release \"" + name + verb));
 			return CommandLine.ExitCode.OK;
 		}
 		catch (Exception ex) {

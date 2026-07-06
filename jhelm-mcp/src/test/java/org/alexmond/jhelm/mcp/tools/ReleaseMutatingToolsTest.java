@@ -8,9 +8,12 @@ import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.InstallAction;
 import org.alexmond.jhelm.core.action.InstallOptions;
 import org.alexmond.jhelm.core.action.RollbackAction;
+import org.alexmond.jhelm.core.action.RollbackOptions;
 import org.alexmond.jhelm.core.action.TestAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
+import org.alexmond.jhelm.core.action.UninstallOptions;
 import org.alexmond.jhelm.core.action.UpgradeAction;
+import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
@@ -23,7 +26,9 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ReleaseMutatingToolsTest {
@@ -101,6 +106,50 @@ class ReleaseMutatingToolsTest {
 		this.tools.install("/charts/nginx", "my-release", "default", false, null, null);
 
 		assertEquals(Map.of(), captor.getValue().getLabels());
+	}
+
+	@Test
+	void uninstallThreadsWaitCascadeAndDryRun() {
+		ArgumentCaptor<UninstallOptions> captor = ArgumentCaptor.forClass(UninstallOptions.class);
+
+		this.tools.uninstall("my-release", "default", true, true, 90, "foreground", true);
+
+		verify(this.uninstallAction).uninstall(captor.capture());
+		UninstallOptions opts = captor.getValue();
+		assertTrue(opts.isDryRun());
+		assertTrue(opts.isWait());
+		assertEquals(90, opts.getTimeout());
+		assertEquals(CascadePolicy.FOREGROUND, opts.getCascade());
+		assertTrue(opts.isKeepHistory());
+	}
+
+	@Test
+	void uninstallDefaultsTimeoutWhenNull() {
+		ArgumentCaptor<UninstallOptions> captor = ArgumentCaptor.forClass(UninstallOptions.class);
+
+		this.tools.uninstall("my-release", "default", false, false, null, null, false);
+
+		verify(this.uninstallAction).uninstall(captor.capture());
+		assertEquals(300, captor.getValue().getTimeout());
+		assertEquals(CascadePolicy.BACKGROUND, captor.getValue().getCascade());
+	}
+
+	@Test
+	void rollbackThreadsForceCleanupAndWaitFlags() {
+		Release release = Release.builder().name("my-release").namespace("default").version(2).build();
+		ArgumentCaptor<RollbackOptions> captor = ArgumentCaptor.forClass(RollbackOptions.class);
+		when(this.rollbackAction.rollback(captor.capture())).thenReturn(release);
+
+		this.tools.rollback("my-release", "default", 1, false, true, true, true, true, true, 120);
+
+		RollbackOptions opts = captor.getValue();
+		assertEquals(1, opts.getRevision());
+		assertTrue(opts.isForce());
+		assertTrue(opts.isCleanupOnFail());
+		assertTrue(opts.isRecreatePods());
+		assertTrue(opts.isWait());
+		assertTrue(opts.isWaitForJobs());
+		assertEquals(120, opts.getTimeout());
 	}
 
 }
