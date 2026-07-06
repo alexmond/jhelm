@@ -603,6 +603,11 @@ class EngineTest {
 			}
 
 			@Override
+			public List<Release> listAllReleases() {
+				return List.of();
+			}
+
+			@Override
 			public List<Release> getReleaseHistory(String name, String namespace) {
 				return List.of();
 			}

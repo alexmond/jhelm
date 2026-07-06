@@ -186,14 +186,24 @@ public class HelmKubeService implements KubeService {
 	@Override
 	public List<Release> listReleases(String namespace) {
 		CoreV1Api api = new CoreV1Api(apiClient);
-		String labelSelector = "owner=helm";
+		V1SecretList list = listSecrets(api, namespace, "owner=helm", "list releases in " + namespace);
+		return toLatestReleases(list);
+	}
 
-		V1SecretList list = listSecrets(api, namespace, labelSelector, "list releases in " + namespace);
+	@Override
+	public List<Release> listAllReleases() {
+		CoreV1Api api = new CoreV1Api(apiClient);
+		V1SecretList list = listAllSecrets(api, "owner=helm", "list releases across all namespaces");
+		return toLatestReleases(list);
+	}
 
-		// Group by name and pick the highest version for each
+	// Groups release Secrets by namespace+name (a release name is unique only within a
+	// namespace) and keeps the highest revision of each, decoding it to a Release.
+	private List<Release> toLatestReleases(V1SecretList list) {
 		Map<String, List<V1Secret>> grouped = list.getItems()
 			.stream()
-			.collect(Collectors.groupingBy((s) -> s.getMetadata().getLabels().get("name")));
+			.collect(Collectors
+				.groupingBy((s) -> s.getMetadata().getNamespace() + "/" + s.getMetadata().getLabels().get("name")));
 
 		List<V1Secret> latestPerName = grouped.values()
 			.stream()
@@ -303,6 +313,19 @@ public class HelmKubeService implements KubeService {
 	private V1SecretList listSecrets(CoreV1Api api, String namespace, String labelSelector, String operation) {
 		try {
 			return api.listNamespacedSecret(namespace).labelSelector(labelSelector).execute();
+		}
+		catch (ApiException ex) {
+			throw new KubernetesOperationException("Failed to " + operation, ex, ex.getCode());
+		}
+	}
+
+	/**
+	 * Lists release Secrets across all namespaces for a label selector, translating the
+	 * kubernetes-client {@link ApiException} into a {@link KubernetesOperationException}.
+	 */
+	private V1SecretList listAllSecrets(CoreV1Api api, String labelSelector, String operation) {
+		try {
+			return api.listSecretForAllNamespaces().labelSelector(labelSelector).execute();
 		}
 		catch (ApiException ex) {
 			throw new KubernetesOperationException("Failed to " + operation, ex, ex.getCode());

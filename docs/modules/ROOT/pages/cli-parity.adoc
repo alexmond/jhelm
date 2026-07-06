@@ -139,9 +139,6 @@ Most scripts work unchanged. Watch for these deliberate differences:
 Beyond the per-command tables above, these commonly-used Helm options are not yet wired
 (tracked for follow-up):
 
-* *`list`* — `-A`/`--all-namespaces`.
-  (`-l`/`--selector`, `--filter`, `--offset`/`--max`, `-a`/`--all`, and the status filters
-  `--deployed`/`--failed`/`--pending`/`--uninstalled`/`--uninstalling`/`--superseded` are supported.)
 * *`install`/`upgrade`* — install-from-repo (`--version`/`--repo`/`--username`/`--password`);
   `upgrade --cleanup-on-fail`.
   (`-g`/`--generate-name` is supported on `install`; `--description`/`--labels`/`--set-literal`/`--dependency-update` on both.)

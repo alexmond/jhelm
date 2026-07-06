@@ -73,6 +73,11 @@ public class ObservableKubeService implements KubeService {
 	}
 
 	@Override
+	public List<Release> listAllReleases() {
+		return time(listTimer, delegate::listAllReleases);
+	}
+
+	@Override
 	public List<Release> getReleaseHistory(String name, String namespace) {
 		return time(historyTimer, () -> delegate.getReleaseHistory(name, namespace));
 	}

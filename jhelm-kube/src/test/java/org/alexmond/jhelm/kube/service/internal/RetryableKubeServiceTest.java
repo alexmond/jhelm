@@ -59,6 +59,14 @@ class RetryableKubeServiceTest {
 	}
 
 	@Test
+	void testListAllReleasesDelegates() {
+		when(delegate.listAllReleases()).thenReturn(List.of(mock(Release.class), mock(Release.class)));
+
+		assertEquals(2, retryableService.listAllReleases().size());
+		verify(delegate).listAllReleases();
+	}
+
+	@Test
 	void testRetriesOnTransientException() throws Exception {
 		when(delegate.listReleases("default")).thenThrow(new RuntimeException(new ApiException(500, "Server Error")))
 			.thenThrow(new RuntimeException(new ApiException(503, "Unavailable")))

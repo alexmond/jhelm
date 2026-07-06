@@ -62,6 +62,11 @@ public class RetryableKubeService implements KubeService {
 	}
 
 	@Override
+	public List<Release> listAllReleases() {
+		return executeWithRetry("listAllReleases", delegate::listAllReleases);
+	}
+
+	@Override
 	public List<Release> getReleaseHistory(String name, String namespace) {
 		return executeWithRetry("getReleaseHistory", () -> delegate.getReleaseHistory(name, namespace));
 	}

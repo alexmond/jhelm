@@ -33,6 +33,9 @@ more `helm` scripts run unchanged against `jhelm`. See xref:cli-parity.adoc[CLI 
 * *`list` status filters* -- `-a`/`--all` shows every status, and `--deployed`/`--failed`/`--pending`/
   `--uninstalled`/`--uninstalling`/`--superseded` restrict to those states. The default view hides
   uninstalled and superseded releases, matching Helm (#681).
+* *`list -A`/`--all-namespaces`* -- list releases across every namespace, backed by a new
+  `KubeService.listAllReleases()` (lists release Secrets cluster-wide). Releases are keyed by
+  namespace+name so same-named releases in different namespaces stay distinct (#681).
 * *REST releases API now returns Helm-shaped JSON* -- the `/releases` list/status/history and
   install/upgrade responses now use Helm's `-o json` schema (snake_case, nested `info`) instead
   of jhelm's internal DTO, so REST consumers see the same shape as `helm ... -o json` and the
