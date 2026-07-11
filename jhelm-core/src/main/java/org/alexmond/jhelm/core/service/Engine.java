@@ -8,6 +8,7 @@ import org.alexmond.jhelm.core.exception.TemplateRenderException;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.gotmpl4j.Function;
 import org.alexmond.gotmpl4j.GoTemplate;
+import org.alexmond.gotmpl4j.GoTemplateRegistry;
 import org.alexmond.gotmpl4j.parse.Node;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesFunctions;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
@@ -85,6 +86,17 @@ public class Engine {
 	private final JhelmMetrics metrics;
 
 	private GoTemplate factory;
+
+	// Shared function registry, built once per engine. It runs the ServiceLoader
+	// discovery
+	// and builds the template-INDEPENDENT function set (Sprig's ~260 functions) and the
+	// reflection/dispatch caches a single time, then every per-render GoTemplate is built
+	// from it (see doRender) so those are reused instead of rebuilt each render. The
+	// template-DEPENDENT Helm provider (include/tpl/required, which close over the
+	// specific
+	// template) is re-bound per render instance by the registry, so rendering is
+	// unchanged.
+	private final GoTemplateRegistry templateRegistry = GoTemplateRegistry.create();
 
 	// Optional cluster-backed provider for the `lookup` template function. Null when no
 	// Kubernetes access is wired (e.g. jhelm-core used standalone) — lookup then falls
@@ -259,22 +271,25 @@ public class Engine {
 		namedTemplates.clear();
 		templateVersions.clear();
 		parsedTextHash.clear();
-		// Create a new template for each render to avoid accumulation. Helm renders a
-		// nil/absent value as "" (missingkey=zero), not Go's "<no value>". When a live
-		// Kubernetes provider is wired, override the ServiceLoader stub's `lookup` with
-		// the
+		// Build a fresh template per render (its parsed-node namespace is per-render),
+		// but
+		// from the shared registry so the ServiceLoader discovery, Sprig's function set,
+		// and
+		// the reflection/dispatch caches are reused instead of rebuilt each render. Helm
+		// renders a nil/absent value as "" (missingkey=zero), not Go's "<no value>". When
+		// a
+		// live Kubernetes provider is wired, override the stub `lookup` with the
 		// cluster-backed one so `lookup` returns real resources (incl. Secret/ConfigMap
-		// data) during install/upgrade, as Helm does — the map passed to the constructor
-		// is
-		// applied on top of the discovered providers.
+		// data)
+		// during install/upgrade, as Helm does — withFunctions is applied on top of the
+		// registry-supplied providers, so the override wins.
+		GoTemplate.Builder builder = GoTemplate.builder().registry(this.templateRegistry);
 		if (this.kubernetesProvider != null) {
 			Map<String, Function> overrides = new HashMap<>();
 			overrides.put("lookup", KubernetesFunctions.getFunctions(this.kubernetesProvider).get("lookup"));
-			this.factory = new GoTemplate(overrides).option("missingkey=zero");
+			builder.withFunctions(overrides);
 		}
-		else {
-			this.factory = new GoTemplate().option("missingkey=zero");
-		}
+		this.factory = builder.build().option("missingkey=zero");
 
 		// Apply aliases from dependency metadata before collecting templates, so that
 		// subchart .Chart.Name and template registration keys use the alias consistently.
