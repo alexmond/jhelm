@@ -46,7 +46,7 @@
              The chart-parity suite renders + diffs every chart (large manifests through
              SnakeYAML), so the parity CI job overrides this (-Djhelm.test.maxHeap=4g). -->
         <jhelm.test.maxHeap>512m</jhelm.test.maxHeap>
-        <gotmpl4j.version>1.2.2</gotmpl4j.version>
+        <gotmpl4j.version>1.3.0</gotmpl4j.version>
         <kubernetes-client.version>26.0.0</kubernetes-client.version>
         <picocli.version>4.7.7</picocli.version>
         <semver4j.version>6.0.0</semver4j.version>
