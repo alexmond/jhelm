@@ -94,7 +94,7 @@ as a dependency.
 | Java | 21
 | Spring Boot | 4.0.7
 | Kubernetes Client | 26.0.0
-| Template engine | gotmpl4j 1.2.0
+| Template engine | gotmpl4j 1.2.2
 | CLI framework | Picocli 4.7.7
 |===
 

@@ -2,6 +2,12 @@
 
 == 1.2.1
 
+=== Dependencies
+
+* *Template engine moved to `gotmpl4j 1.2.2`* (from 1.2.0). Picks up a Go-parity correctness
+  fix -- variadic method calls on values now resolve instead of silently returning nil -- plus
+  custom action delimiters and a thread-safe template cache. No jhelm API or rendering change.
+
 === Fixes
 
 * *`install`/`upgrade` no longer choke on `---` inside a YAML comment* -- a rendered manifest
