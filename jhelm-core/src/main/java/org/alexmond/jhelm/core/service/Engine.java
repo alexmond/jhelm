@@ -75,6 +75,13 @@ public class Engine {
 	// offline `template` output matches upstream helm.
 	private static final String DEFAULT_KUBE_VERSION = "v1.35.0";
 
+	// Default parse-cache size for the no-arg constructor, matching the Spring autoconfig
+	// default (jhelm.template-cache-max-size). The Spring-wired engine already gets a
+	// cache
+	// by default; this makes the direct-API engine (and the parity harness) match, so the
+	// cache path is exercised against real library charts (guards #726 from regressing).
+	private static final int DEFAULT_TEMPLATE_CACHE_SIZE = 256;
+
 	private final Map<String, String> namedTemplates = new HashMap<>();
 
 	private final Map<String, String> templateVersions = new HashMap<>();
@@ -110,11 +117,11 @@ public class Engine {
 	private final Map<String, Integer> parsedTextHash = new HashMap<>();
 
 	/**
-	 * Creates an engine with no template cache and no metrics, using a default schema
-	 * validator.
+	 * Creates an engine with a default template cache (parse reuse enabled) and no
+	 * metrics, using a default schema validator.
 	 */
 	public Engine() {
-		this(null, new SchemaValidator(), null);
+		this(new TemplateCache(DEFAULT_TEMPLATE_CACHE_SIZE), new SchemaValidator(), null);
 	}
 
 	/**
@@ -170,12 +177,25 @@ public class Engine {
 		// under the same name) still parse, preserving define precedence and collision
 		// resolution. The `define` check is a cheap superset guard: a false positive only
 		// costs a redundant parse, never correctness.
+		boolean hasDefine = text.contains("define");
 		Integer prevHash = parsedTextHash.get(name);
-		if (prevHash != null && prevHash == text.hashCode() && !text.contains("define")
-				&& factory.getRootNodes().containsKey(name)) {
+		if (prevHash != null && prevHash == text.hashCode() && !hasDefine && factory.getRootNodes().containsKey(name)) {
 			return;
 		}
-		if (templateCache == null) {
+		// A `define` registers a GLOBAL named template as a side effect of parsing. The
+		// cache
+		// stores a per-template node DELTA (keys this parse added), which cannot
+		// represent a
+		// define that another template also registers: a define already present when this
+		// template was first parsed is omitted from the delta, so a later cross-chart
+		// cache
+		// hit on that partial entry loses the define (#726 — e.g. bitnami `common`
+		// helpers,
+		// whose subchart-relative key is shared across parent charts). Always parse
+		// define-bearing templates; never serve them from or store them in the cache.
+		// Only
+		// define-free templates (whose delta is just their own root node) are cached.
+		if (templateCache == null || hasDefine) {
 			factory.parse(name, text);
 			parsedTextHash.put(name, text.hashCode());
 			return;
