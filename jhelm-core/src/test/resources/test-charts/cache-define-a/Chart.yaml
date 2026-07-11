@@ -1,0 +1,10 @@
+apiVersion: v2
+name: cache-define-a
+version: 1.0.0
+dependencies:
+  - name: aaa
+    version: 0.1.0
+    repository: ""
+  - name: lib
+    version: 0.1.0
+    repository: ""
