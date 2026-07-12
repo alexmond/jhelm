@@ -1,0 +1,59 @@
+replicaCount: 3
+image:
+  repository: example/bench-app
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+serviceAccount:
+  create: true
+  name: ""
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: bench-a.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: bench-b.example.com
+      paths:
+        - path: /api
+          pathType: Prefix
+resources:
+  limits:
+    cpu: "1"
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 128Mi
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+env:
+  - name: LOG_LEVEL
+    value: info
+  - name: MAX_CONNS
+    value: "100"
+  - name: FEATURE_X
+    value: "true"
+config:
+  app.properties: |
+    server.port=8080
+    cache.size=256
+  extra:
+    nested:
+      deeply:
+        value: 42
+        flag: true
+nodeSelector:
+  disktype: ssd
+tolerations:
+  - key: dedicated
+    operator: Equal
+    value: bench
+    effect: NoSchedule
