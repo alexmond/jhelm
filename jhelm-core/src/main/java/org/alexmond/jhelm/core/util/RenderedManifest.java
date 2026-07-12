@@ -24,6 +24,11 @@ public final class RenderedManifest {
 	// (and the legacy `test-success` / `test-failure` values), with optional quoting.
 	private static final Pattern TEST_HOOK = Pattern.compile("(?m)helm\\.sh/hook[\"']?\\s*:\\s*[\"']?\\s*test");
 
+	/**
+	 * Splits on a {@code ---} document separator alone on its own line (CRLF-tolerant).
+	 */
+	private static final Pattern DOC_SEPARATOR = Pattern.compile("\\r?\\n---\\r?\\n");
+
 	private RenderedManifest() {
 	}
 
@@ -40,7 +45,7 @@ public final class RenderedManifest {
 			return docs;
 		}
 		String lastSource = null;
-		for (String chunk : manifest.split("\\r?\\n---\\r?\\n")) {
+		for (String chunk : DOC_SEPARATOR.split(manifest)) {
 			if (chunk.isBlank()) {
 				continue;
 			}
