@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "bench-app.fullname" . }}-config
+  labels:
+    {{- include "bench-app.labels" . | nindent 4 }}
+data:
+  {{- toYaml .Values.config | nindent 2 }}
