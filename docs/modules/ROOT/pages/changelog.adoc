@@ -10,8 +10,34 @@
   (shareable function registry, cached method/field dispatch, cheaper scope handling). Additive
   and non-breaking; no jhelm API or rendering change (chart-parity suite unchanged).
 
+=== Performance
+
+The render hot path was profiled (JFR / jvmlens) and tightened. Every change is byte-for-byte
+identical to Helm across the full chart-parity suite (547 charts, 0 diffs):
+
+* *Function registry reused across renders* -- the ServiceLoader result and the
+  template-independent Sprig function set (~260 functions), plus their reflection/dispatch
+  caches, are built once per `Engine` and shared by every render instead of rebuilt each call
+  (#717).
+* *Render thread reused instead of spawned per render* -- rendering runs on a single reused
+  daemon executor rather than creating and joining a fresh large-stack thread every call. On the
+  JMH render harness this is ~1.6x throughput with far less GC churn, and it also closes a
+  pre-existing data race on shared engine state under concurrent renders (#721).
+* *`toYaml` quote-stripping scans in one pass* -- the YAML post-processor no longer splits the
+  document into a `String[]` and rebuilds it; it scans in place, allocating only for the lines it
+  actually rewrites (#720).
+* *Render values boxed once per render* -- numeric leaf coercion runs a single time and the boxed
+  leaves are reused, instead of deep-copying the value tree twice (#718).
+* *Template parse cache on by default* -- a new `Engine()` now keeps a 256-entry parsed-template
+  cache, so re-rendering a chart skips re-parsing unchanged templates (#726).
+
 === Fixes
 
+* *Library-chart `define`s are no longer served from a partial parse-cache entry* -- with the
+  parse cache enabled, a global `define` registered by an earlier template could be served from
+  an incomplete cached node-delta when a second chart reused the same cache key, dropping the
+  definition (`include: Template '...' not found`). Templates carrying a `define` now always
+  parse in full, keeping the cache safe for library charts such as Bitnami Common (#726).
 * *`install`/`upgrade` no longer choke on `---` inside a YAML comment* -- a rendered manifest
   with a decorative comment such as `# ---------------- Postgres ----------------` failed to
   apply with a SnakeYAML parse error, because the manifest document splitter matched the `---`
