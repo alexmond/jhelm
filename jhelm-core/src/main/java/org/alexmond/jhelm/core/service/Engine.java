@@ -23,7 +23,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Chart;
@@ -229,10 +235,40 @@ public class Engine {
 	 */
 	private static final long RENDER_STACK_SIZE = 32L * 1024 * 1024;
 
+	// Splits the rendered manifest on a "---" that starts a line (optionally followed by
+	// whitespace / an inline comment). Compiled once — cleanManifest runs on every
+	// render.
+	private static final Pattern DOC_SPLIT = Pattern.compile("(?m)^---[ \\t]*");
+
+	// Renders run on a large-stack thread (deeply nested tpl/include chains overflow the
+	// default ~512KB stack). The thread is REUSED across renders via a single-thread
+	// executor
+	// instead of being spawned + joined per render — that per-render Thread create + join
+	// was
+	// the dominant render-time allocation (jvmlens, #721). Single-thread also serialises
+	// this
+	// engine's renders, which is required regardless because doRender mutates per-render
+	// engine state (factory, namedTemplates, parsedTextHash). allowCoreThreadTimeOut lets
+	// an
+	// idle engine (tests, one-shot CLI) reclaim the thread instead of leaking it.
+	private final ExecutorService renderExecutor = newRenderExecutor();
+
+	private static ExecutorService newRenderExecutor() {
+		ThreadFactory factory = (runnable) -> {
+			Thread thread = new Thread(null, runnable, "jhelm-render", RENDER_STACK_SIZE);
+			thread.setDaemon(true);
+			return thread;
+		};
+		ThreadPoolExecutor executor = new ThreadPoolExecutor(1, 1, 30L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+				factory);
+		executor.allowCoreThreadTimeOut(true);
+		return executor;
+	}
+
 	/**
 	 * Renders the chart's templates to a single concatenated manifest string. Rendering
-	 * runs on a dedicated thread with an enlarged stack to accommodate deeply nested
-	 * {@code tpl}/{@code include} chains.
+	 * runs on a reused large-stack thread to accommodate deeply nested {@code tpl}/
+	 * {@code include} chains.
 	 * @param chart the chart to render
 	 * @param values the user-supplied values merged over the chart defaults, exposed as
 	 * {@code .Values}
@@ -262,22 +298,22 @@ public class Engine {
 		Capabilities caps = (capabilities != null) ? capabilities : Capabilities.DEFAULT;
 		long startNanos = System.nanoTime();
 		try {
-			AtomicReference<String> result = new AtomicReference<>();
-			AtomicReference<RuntimeException> error = new AtomicReference<>();
-			Thread renderThread = new Thread(null, () -> {
-				try {
-					result.set(doRender(chart, values, releaseInfo, caps));
-				}
-				catch (RuntimeException ex) {
-					error.set(ex);
-				}
-			}, "jhelm-render", RENDER_STACK_SIZE);
-			renderThread.start();
-			renderThread.join();
-			if (error.get() != null) {
-				throw error.get();
+			return renderExecutor.submit(() -> doRender(chart, values, releaseInfo, caps)).get();
+		}
+		catch (ExecutionException ex) {
+			// Unwrap so the render failure propagates exactly as if doRender ran inline.
+			Throwable cause = ex.getCause();
+			if (cause instanceof RuntimeException runtime) {
+				throw runtime;
 			}
-			return result.get();
+			if (cause instanceof Error error) {
+				throw error;
+			}
+			throw new TemplateRenderException("Render failed", cause, chart.getMetadata().getName(), null);
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new TemplateRenderException("Render interrupted", ex, chart.getMetadata().getName(), null);
 		}
 		finally {
 			if (metrics != null) {
@@ -424,7 +460,7 @@ public class Engine {
 		// no longer parsed as a resource. The "---" must be at column 0; an indented
 		// "---" inside a block scalar is content, not a separator (Helm behaves the
 		// same).
-		String[] docs = normalized.split("(?m)^---[ \\t]*");
+		String[] docs = DOC_SPLIT.split(normalized);
 		StringBuilder cleaned = new StringBuilder();
 
 		for (String doc : docs) {
