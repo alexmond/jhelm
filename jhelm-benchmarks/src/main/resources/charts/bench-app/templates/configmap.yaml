@@ -6,3 +6,9 @@ metadata:
     {{- include "bench-app.labels" . | nindent 4 }}
 data:
   {{- toYaml .Values.config | nindent 2 }}
+  metrics.yaml: |
+    {{- toYaml .Values.metrics | nindent 4 }}
+  pools.yaml: |
+    {{- toYaml .Values.pools | nindent 4 }}
+  shards.yaml: |
+    {{- toYaml .Values.shards | nindent 4 }}

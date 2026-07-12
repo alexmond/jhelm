@@ -57,3 +57,28 @@ tolerations:
     operator: Equal
     value: bench
     effect: NoSchedule
+# Large nested block to make values-prep (deep copy + Integer->Double boxing) measurable.
+metrics:
+  scrape:
+    interval: 30
+    timeout: 10
+    limits:
+      samples: 50000
+      series: 1000000
+  thresholds:
+    cpu: 80
+    memory: 75
+    disk: 90
+    latencyMs: 250
+pools:
+  a: { size: 8, weight: 100, port: 9001, maxIdle: 16, minIdle: 2 }
+  b: { size: 16, weight: 200, port: 9002, maxIdle: 32, minIdle: 4 }
+  c: { size: 32, weight: 400, port: 9003, maxIdle: 64, minIdle: 8 }
+  d: { size: 64, weight: 800, port: 9004, maxIdle: 128, minIdle: 16 }
+shards:
+  - { id: 0, replicas: 3, weight: 10, port: 7000, capacity: 100000 }
+  - { id: 1, replicas: 3, weight: 20, port: 7001, capacity: 200000 }
+  - { id: 2, replicas: 5, weight: 30, port: 7002, capacity: 300000 }
+  - { id: 3, replicas: 5, weight: 40, port: 7003, capacity: 400000 }
+  - { id: 4, replicas: 7, weight: 50, port: 7004, capacity: 500000 }
+  - { id: 5, replicas: 7, weight: 60, port: 7005, capacity: 600000 }
