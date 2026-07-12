@@ -827,48 +827,61 @@ public final class ConversionFunctions {
 	 */
 	static String removeUnnecessaryQuotes(String yaml) {
 		StringBuilder sb = new StringBuilder(yaml.length());
-		for (String line : yaml.split("\n", -1)) {
+		int len = yaml.length();
+		int pos = 0;
+		// Walk the manifest line by line without splitting it into a String[] of per-line
+		// Strings (toYaml is ubiquitous, so that array + N substrings is real per-call
+		// garbage). A line is [pos, end); the newline is re-added between lines only.
+		while (true) {
+			int nl = yaml.indexOf('\n', pos);
+			int end = (nl < 0) ? len : nl;
+			int quote = yaml.indexOf('"', pos);
 			// Fast path: QUOTED_VALUE requires a double-quoted scalar, so a line with no
-			// '"' can never match — skip the regex + Matcher allocation entirely. In a
-			// typical rendered manifest the large majority of lines are unquoted, so this
-			// avoids running the regex (and its garbage) on most of them.
-			if (line.indexOf('"') < 0) {
-				sb.append(line).append('\n');
-				continue;
+			// '"' can never match — append the slice directly (no substring, no regex).
+			// In a
+			// typical rendered manifest the large majority of lines take this path.
+			if (quote < 0 || quote >= end) {
+				sb.append(yaml, pos, end);
 			}
-			Matcher m = QUOTED_VALUE.matcher(line);
-			if (m.matches()) {
-				String prefix = m.group(1);
-				String escaped = m.group(2);
-				String unescaped = yamlUnescape(escaped);
-				if (canBePlainScalar(unescaped)) {
-					sb.append(prefix).append(unescaped);
-				}
-				else if (canBeSingleQuoted(unescaped) && !needsDoubleQuote(unescaped)) {
-					// Go's yaml.Marshal (Helm's toYaml, via sigs.k8s.io/yaml -> yaml.v2)
-					// emits SINGLE-quote style for non-plain scalars — e.g. values with a
-					// ": "/" #" indicator or a flow-indicator start like "{{" — reserving
-					// double quotes for empty/numeric/keyword strings (see
-					// needsDoubleQuote)
-					// and control-char content. Single quotes also keep backslashes
-					// literal,
-					// so a re-parse of tpl(toYaml ...) over {{ include "x" . }} stays
-					// intact
-					// (#327).
-					sb.append(prefix).append('\'').append(unescaped.replace("'", "''")).append('\'');
+			else {
+				String line = yaml.substring(pos, end);
+				Matcher m = QUOTED_VALUE.matcher(line);
+				if (m.matches()) {
+					String prefix = m.group(1);
+					String escaped = m.group(2);
+					String unescaped = yamlUnescape(escaped);
+					if (canBePlainScalar(unescaped)) {
+						sb.append(prefix).append(unescaped);
+					}
+					else if (canBeSingleQuoted(unescaped) && !needsDoubleQuote(unescaped)) {
+						// Go's yaml.Marshal (Helm's toYaml, via sigs.k8s.io/yaml ->
+						// yaml.v2)
+						// emits SINGLE-quote style for non-plain scalars — e.g. values
+						// with a
+						// ": "/" #" indicator or a flow-indicator start like "{{" —
+						// reserving
+						// double quotes for empty/numeric/keyword strings (see
+						// needsDoubleQuote)
+						// and control-char content. Single quotes also keep backslashes
+						// literal,
+						// so a re-parse of tpl(toYaml ...) over {{ include "x" . }} stays
+						// intact
+						// (#327).
+						sb.append(prefix).append('\'').append(unescaped.replace("'", "''")).append('\'');
+					}
+					else {
+						sb.append(line);
+					}
 				}
 				else {
 					sb.append(line);
 				}
 			}
-			else {
-				sb.append(line);
+			if (nl < 0) {
+				break;
 			}
 			sb.append('\n');
-		}
-		// Remove trailing newline added by loop
-		if (sb.length() > 0 && sb.charAt(sb.length() - 1) == '\n') {
-			sb.setLength(sb.length() - 1);
+			pos = nl + 1;
 		}
 		return sb.toString();
 	}
