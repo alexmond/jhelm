@@ -804,16 +804,26 @@ public class Engine {
 		// * Null map entries are pruned for a subchart (depth > 0) but kept for the
 		// top-level release chart, mirroring Helm's coalesce ("a null key removes it",
 		// applied while coalescing subcharts).
-		// Pruned view for THIS chart's own rendering: Helm removes null keys while
-		// coalescing a subchart (depth > 0); the top-level release chart keeps them.
-		Map<String, Object> renderValues = prepareRenderValues(mergedValues, chartValues, depth > 0);
 		// Unpruned view (null tombstones retained) for slicing down to subcharts. A
 		// parent's null override must survive to DELETE the subchart's same-named default
 		// (Helm's coalesce nil-deletion). Pruning before slicing drops the tombstone and
 		// lets the subchart re-introduce its default — e.g. signoz nulls
 		// clickhouse.zookeeper.image.registry to drop bitnami zookeeper's docker.io. The
-		// subchart prunes the null itself when it renders.
-		Map<String, Object> subchartSliceValues = prepareRenderValues(mergedValues, null, false);
+		// subchart prunes the null itself when it renders. This is the ONE pass that
+		// boxes
+		// numbers to Double.
+		Map<String, Object> subchartSliceValues = prepareRenderValues(mergedValues, null, false, true);
+		// Pruned view for THIS chart's own rendering: Helm removes null keys while
+		// coalescing a subchart (depth > 0); the top-level release chart keeps them.
+		// Derived
+		// from the boxed slice view above (not a second walk of mergedValues) — it clones
+		// the
+		// container maps/lists (kept independent because subchartSliceValues is mutated
+		// below
+		// with each subchart's merged global) but REUSES the already-boxed immutable
+		// leaves,
+		// so numbers are boxed once per render instead of twice.
+		Map<String, Object> renderValues = prepareRenderValues(subchartSliceValues, chartValues, depth > 0, false);
 
 		// Validate merged values against the chart's JSON Schema (if present)
 		if (chart.getValuesSchema() != null) {
@@ -1317,12 +1327,12 @@ public class Engine {
 	 */
 	@SuppressWarnings("unchecked")
 	private Map<String, Object> prepareRenderValues(Map<String, Object> values, Map<String, Object> chartDefaults,
-			boolean pruneNulls) {
-		return (Map<String, Object>) prepareValueNode(values, chartDefaults, pruneNulls);
+			boolean pruneNulls, boolean boxNumbers) {
+		return (Map<String, Object>) prepareValueNode(values, chartDefaults, pruneNulls, boxNumbers);
 	}
 
 	@SuppressWarnings("unchecked")
-	private Object prepareValueNode(Object node, Object defaultNode, boolean pruneNulls) {
+	private Object prepareValueNode(Object node, Object defaultNode, boolean pruneNulls, boolean boxNumbers) {
 		if (node instanceof Map) {
 			Map<String, Object> src = (Map<String, Object>) node;
 			Map<String, Object> defMap = (defaultNode instanceof Map) ? (Map<String, Object>) defaultNode : null;
@@ -1341,7 +1351,7 @@ public class Engine {
 					continue;
 				}
 				Object dv = (defMap != null) ? defMap.get(entry.getKey()) : null;
-				out.put(entry.getKey(), prepareValueNode(value, dv, pruneNulls));
+				out.put(entry.getKey(), prepareValueNode(value, dv, pruneNulls, boxNumbers));
 			}
 			return out;
 		}
@@ -1349,16 +1359,20 @@ public class Engine {
 			List<Object> src = (List<Object>) node;
 			List<Object> out = new ArrayList<>(src.size());
 			for (Object item : src) {
-				out.add(prepareValueNode(item, null, pruneNulls));
+				out.add(prepareValueNode(item, null, pruneNulls, boxNumbers));
 			}
 			return out;
 		}
 		// Helm's values numbers are all float64; integer types become Double so a direct
 		// interpolation matches Go's float formatting. Double/Float and BigDecimal are
 		// left
-		// as-is (already floating), and booleans/strings are untouched.
-		if (node instanceof Integer || node instanceof Long || node instanceof Short || node instanceof Byte
-				|| node instanceof BigInteger) {
+		// as-is (already floating), and booleans/strings are untouched. When boxNumbers
+		// is
+		// false the leaf is already a prepared (boxed) value from an earlier pass — reuse
+		// it
+		// as-is (leaves are immutable, so sharing them across the two views is safe).
+		if (boxNumbers && (node instanceof Integer || node instanceof Long || node instanceof Short
+				|| node instanceof Byte || node instanceof BigInteger)) {
 			return ((Number) node).doubleValue();
 		}
 		return node;
