@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
+import org.alexmond.jhelm.app.plugin.HelmPostRendererResolver;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.ConfigServerProperties;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
@@ -83,7 +84,7 @@ class InstallCommandTest {
 			.thenReturn(defaultChart);
 		installCommand = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver, enabledPolicy(),
 				new JhelmCoreProperties(), new ConfigServerValuesLoader(new ConfigServerProperties(), null),
-				dependencyUpdateAction);
+				dependencyUpdateAction, HelmPostRendererResolver.fileOnly(enabledPolicy()));
 	}
 
 	private static JhelmSecurityPolicy enabledPolicy() {
@@ -267,7 +268,8 @@ class InstallCommandTest {
 		File chartDir = createMockChart();
 		InstallCommand readOnly = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver,
 				readOnlyPolicy(), new JhelmCoreProperties(),
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction,
+				HelmPostRendererResolver.fileOnly(enabledPolicy()));
 
 		int exitCode = new CommandLine(readOnly).execute("my-release", chartDir.getAbsolutePath());
 
@@ -286,7 +288,8 @@ class InstallCommandTest {
 		when(installAction.install(any(InstallOptions.class))).thenReturn(createMockRelease("my-release", 1));
 		InstallCommand full = new InstallCommand(installAction, uninstallAction, kubeService, chartResolver,
 				new JhelmSecurityPolicy(props), new JhelmCoreProperties(),
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction,
+				HelmPostRendererResolver.fileOnly(enabledPolicy()));
 
 		int exitCode = new CommandLine(full).execute("my-release", chartDir.getAbsolutePath(), "-n", "default");
 
