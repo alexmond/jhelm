@@ -1,0 +1,9 @@
+name: "s3"
+version: "0.16.0"
+usage: "s3 protocol support for Helm charts"
+description: "This plugin provides s3 protocol support for downloading and uploading Helm charts."
+command: "$HELM_PLUGIN_DIR/bin/helms3"
+downloaders:
+  - command: "$HELM_PLUGIN_DIR/bin/helms3"
+    protocols:
+      - "s3"

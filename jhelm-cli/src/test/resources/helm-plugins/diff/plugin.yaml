@@ -1,0 +1,19 @@
+name: "diff"
+version: "3.9.0"
+usage: "Preview helm upgrade changes as a diff"
+description: |-
+  A Helm plugin that shows a diff explaining what a helm upgrade would change.
+command: "$HELM_PLUGIN_DIR/bin/diff"
+platformCommand:
+  - os: linux
+    arch: amd64
+    command: "$HELM_PLUGIN_DIR/bin/diff-linux-amd64"
+  - os: linux
+    command: "$HELM_PLUGIN_DIR/bin/diff-linux"
+  - os: darwin
+    arch: arm64
+    command: "$HELM_PLUGIN_DIR/bin/diff-darwin-arm64"
+ignoreFlags: false
+hooks:
+  install: "$HELM_PLUGIN_DIR/install-binary.sh"
+  update: "$HELM_PLUGIN_DIR/install-binary.sh -u"
