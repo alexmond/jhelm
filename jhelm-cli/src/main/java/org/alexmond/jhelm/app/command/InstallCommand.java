@@ -21,6 +21,7 @@ import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
+import org.alexmond.jhelm.app.plugin.HelmPostRendererResolver;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.util.ReleaseNames;
@@ -55,6 +56,8 @@ public class InstallCommand implements Callable<Integer> {
 	private final ConfigServerValuesLoader configServerValuesLoader;
 
 	private final DependencyUpdateAction dependencyUpdateAction;
+
+	private final HelmPostRendererResolver postRendererResolver;
 
 	@CommandLine.Mixin
 	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
@@ -130,8 +133,12 @@ public class InstallCommand implements Callable<Integer> {
 	@Option(names = { "--atomic" }, description = "uninstall on failure (implies --wait)")
 	private boolean atomic;
 
-	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
+	@Option(names = { "--post-renderer" },
+			description = "path to an executable, or an installed plugin name, to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
+
+	@Option(names = { "--post-renderer-args" }, description = "arguments to pass to the post-renderer")
+	private List<String> postRendererArgs = new ArrayList<>();
 
 	@Option(names = { "--no-hooks" }, description = "prevent hooks from running during this operation")
 	private boolean noHooks;
@@ -170,7 +177,8 @@ public class InstallCommand implements Callable<Integer> {
 	 */
 	public InstallCommand(InstallAction installAction, UninstallAction uninstallAction, KubeService kubeService,
 			ChartResolver chartResolver, JhelmSecurityPolicy securityPolicy, JhelmCoreProperties coreProperties,
-			ConfigServerValuesLoader configServerValuesLoader, DependencyUpdateAction dependencyUpdateAction) {
+			ConfigServerValuesLoader configServerValuesLoader, DependencyUpdateAction dependencyUpdateAction,
+			HelmPostRendererResolver postRendererResolver) {
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
 		this.kubeService = kubeService;
@@ -179,6 +187,7 @@ public class InstallCommand implements Callable<Integer> {
 		this.coreProperties = coreProperties;
 		this.configServerValuesLoader = configServerValuesLoader;
 		this.dependencyUpdateAction = dependencyUpdateAction;
+		this.postRendererResolver = postRendererResolver;
 	}
 
 	@Override
@@ -312,7 +321,9 @@ public class InstallCommand implements Callable<Integer> {
 		}
 		String manifest = release.getManifest();
 		for (String renderer : postRenderers) {
-			manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
+			manifest = new ExternalCommandPostRenderer(
+					this.postRendererResolver.resolve(renderer, this.postRendererArgs))
+				.process(manifest);
 		}
 		return release.toBuilder().manifest(manifest).build();
 	}

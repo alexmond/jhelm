@@ -25,6 +25,7 @@ import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.model.Chart;
 import org.alexmond.jhelm.core.model.Release;
+import org.alexmond.jhelm.app.plugin.HelmPostRendererResolver;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
@@ -63,6 +64,8 @@ public class UpgradeCommand implements Callable<Integer> {
 	private final ConfigServerValuesLoader configServerValuesLoader;
 
 	private final DependencyUpdateAction dependencyUpdateAction;
+
+	private final HelmPostRendererResolver postRendererResolver;
 
 	@CommandLine.Mixin
 	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
@@ -138,8 +141,12 @@ public class UpgradeCommand implements Callable<Integer> {
 			+ "(may cause downtime or data loss for stateful resources)")
 	private boolean force;
 
-	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
+	@Option(names = { "--post-renderer" },
+			description = "path to an executable, or an installed plugin name, to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
+
+	@Option(names = { "--post-renderer-args" }, description = "arguments to pass to the post-renderer")
+	private List<String> postRendererArgs = new ArrayList<>();
 
 	@Option(names = { "--reset-values" },
 			description = "when upgrading, reset the values to the ones built into the chart")
@@ -193,7 +200,8 @@ public class UpgradeCommand implements Callable<Integer> {
 	public UpgradeCommand(KubeService kubeService, InstallAction installAction, UninstallAction uninstallAction,
 			UpgradeAction upgradeAction, RollbackAction rollbackAction, ChartResolver chartResolver,
 			JhelmSecurityPolicy securityPolicy, JhelmCoreProperties coreProperties,
-			ConfigServerValuesLoader configServerValuesLoader, DependencyUpdateAction dependencyUpdateAction) {
+			ConfigServerValuesLoader configServerValuesLoader, DependencyUpdateAction dependencyUpdateAction,
+			HelmPostRendererResolver postRendererResolver) {
 		this.kubeService = kubeService;
 		this.installAction = installAction;
 		this.uninstallAction = uninstallAction;
@@ -204,6 +212,7 @@ public class UpgradeCommand implements Callable<Integer> {
 		this.coreProperties = coreProperties;
 		this.configServerValuesLoader = configServerValuesLoader;
 		this.dependencyUpdateAction = dependencyUpdateAction;
+		this.postRendererResolver = postRendererResolver;
 	}
 
 	@Override
@@ -363,7 +372,9 @@ public class UpgradeCommand implements Callable<Integer> {
 		}
 		String manifest = release.getManifest();
 		for (String renderer : postRenderers) {
-			manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
+			manifest = new ExternalCommandPostRenderer(
+					this.postRendererResolver.resolve(renderer, this.postRendererArgs))
+				.process(manifest);
 		}
 		return release.toBuilder().manifest(manifest).build();
 	}

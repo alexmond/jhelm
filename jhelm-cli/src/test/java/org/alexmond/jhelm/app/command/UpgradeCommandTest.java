@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.app.command;
 
+import org.alexmond.jhelm.app.plugin.HelmPostRendererResolver;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.ConfigServerProperties;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
@@ -91,7 +92,8 @@ class UpgradeCommandTest {
 			.thenReturn(defaultChart);
 		upgradeCommand = new UpgradeCommand(kubeService, installAction, uninstallAction, upgradeAction, rollbackAction,
 				chartResolver, enabledPolicy(), new JhelmCoreProperties(),
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction,
+				HelmPostRendererResolver.fileOnly(enabledPolicy()));
 	}
 
 	private static JhelmSecurityPolicy enabledPolicy() {
@@ -148,7 +150,8 @@ class UpgradeCommandTest {
 		File chartDir = createMockChart();
 		UpgradeCommand readOnly = new UpgradeCommand(kubeService, installAction, uninstallAction, upgradeAction,
 				rollbackAction, chartResolver, readOnlyPolicy(), new JhelmCoreProperties(),
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction,
+				HelmPostRendererResolver.fileOnly(enabledPolicy()));
 
 		int exitCode = new CommandLine(readOnly).execute("my-release", chartDir.getAbsolutePath());
 

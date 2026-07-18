@@ -10,6 +10,9 @@ import java.util.List;
 
 import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
+import org.alexmond.jhelm.app.plugin.HelmPostRendererResolver;
+import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
+import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.ConfigServerProperties;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
@@ -48,7 +51,8 @@ class TemplateCommandTest {
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
 		templateCommand = new TemplateCommand(templateAction, new JhelmCoreProperties(),
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction,
+				HelmPostRendererResolver.fileOnly(new JhelmSecurityPolicy(new JhelmSecurityProperties())));
 	}
 
 	@Test
@@ -191,7 +195,8 @@ class TemplateCommandTest {
 
 	private ValuesProfiles runAndCaptureProfiles(JhelmCoreProperties props, String... args) {
 		TemplateCommand command = new TemplateCommand(templateAction, props,
-				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction);
+				new ConfigServerValuesLoader(new ConfigServerProperties(), null), dependencyUpdateAction,
+				HelmPostRendererResolver.fileOnly(new JhelmSecurityPolicy(new JhelmSecurityProperties())));
 		ArgumentCaptor<ValuesProfiles> captor = ArgumentCaptor.forClass(ValuesProfiles.class);
 		when(templateAction.render(anyString(), anyString(), anyString(), anyMap(), captor.capture(), any(), anyList(),
 				anyBoolean(), anyBoolean()))

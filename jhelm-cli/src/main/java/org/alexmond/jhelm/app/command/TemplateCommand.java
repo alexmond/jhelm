@@ -16,6 +16,7 @@ import org.alexmond.jhelm.core.action.DependencyUpdateAction;
 import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
+import org.alexmond.jhelm.app.plugin.HelmPostRendererResolver;
 import org.alexmond.jhelm.core.service.ExternalCommandPostRenderer;
 import org.alexmond.jhelm.core.util.RenderedManifest;
 import org.alexmond.jhelm.core.util.ValuesOverrides;
@@ -40,6 +41,8 @@ public class TemplateCommand implements Callable<Integer> {
 	private final ConfigServerValuesLoader configServerValuesLoader;
 
 	private final DependencyUpdateAction dependencyUpdateAction;
+
+	private final HelmPostRendererResolver postRendererResolver;
 
 	@CommandLine.Mixin
 	private final ConfigServerCliOptions configServerOptions = new ConfigServerCliOptions();
@@ -81,8 +84,12 @@ public class TemplateCommand implements Callable<Integer> {
 			description = "update dependencies from Chart.yaml to charts/ before rendering (local chart dir only)")
 	private boolean dependencyUpdate;
 
-	@Option(names = { "--post-renderer" }, description = "path to an executable to use as a post-renderer")
+	@Option(names = { "--post-renderer" },
+			description = "path to an executable, or an installed plugin name, to use as a post-renderer")
 	private List<String> postRenderers = new ArrayList<>();
+
+	@Option(names = { "--post-renderer-args" }, description = "arguments to pass to the post-renderer")
+	private List<String> postRendererArgs = new ArrayList<>();
 
 	@Option(names = { "--kube-version" },
 			description = "Kubernetes version used for .Capabilities.KubeVersion (e.g. v1.29.0)")
@@ -119,11 +126,13 @@ public class TemplateCommand implements Callable<Integer> {
 	 * by default)
 	 */
 	public TemplateCommand(TemplateAction templateAction, JhelmCoreProperties coreProperties,
-			ConfigServerValuesLoader configServerValuesLoader, DependencyUpdateAction dependencyUpdateAction) {
+			ConfigServerValuesLoader configServerValuesLoader, DependencyUpdateAction dependencyUpdateAction,
+			HelmPostRendererResolver postRendererResolver) {
 		this.templateAction = templateAction;
 		this.coreProperties = coreProperties;
 		this.configServerValuesLoader = configServerValuesLoader;
 		this.dependencyUpdateAction = dependencyUpdateAction;
+		this.postRendererResolver = postRendererResolver;
 	}
 
 	@Override
@@ -145,7 +154,9 @@ public class TemplateCommand implements Callable<Integer> {
 			String manifest = templateAction.render(chartPath, name, namespace, overrides, profiles, kubeVersion,
 					apiVersions, isUpgrade, includeCrds);
 			for (String renderer : postRenderers) {
-				manifest = new ExternalCommandPostRenderer(List.of(renderer)).process(manifest);
+				manifest = new ExternalCommandPostRenderer(
+						this.postRendererResolver.resolve(renderer, this.postRendererArgs))
+					.process(manifest);
 			}
 			if (skipTests) {
 				manifest = RenderedManifest.skipTests(manifest);
