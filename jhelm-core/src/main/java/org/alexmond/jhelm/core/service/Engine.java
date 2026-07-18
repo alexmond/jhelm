@@ -117,6 +117,12 @@ public class Engine {
 	// to the ServiceLoader stub that returns an empty map. Set by the kube autoconfig.
 	private KubernetesProvider kubernetesProvider;
 
+	// Template functions contributed by Java JhelmTemplateFunctionProvider plugins,
+	// applied
+	// as overrides on every render. Empty unless plugins are present. Set by the
+	// autoconfig.
+	private Map<String, Function> pluginFunctions = Map.of();
+
 	// Per-render record of the text hash last parsed under each template name, so the
 	// render pass can skip re-parsing a template the collect pass already parsed (see
 	// parseWithCache). Reset each render in doRender alongside the factory.
@@ -168,6 +174,17 @@ public class Engine {
 	 */
 	public void setKubernetesProvider(KubernetesProvider kubernetesProvider) {
 		this.kubernetesProvider = kubernetesProvider;
+	}
+
+	/**
+	 * Registers template functions contributed by Java plugins, applied as overrides on
+	 * every render. Names that collide with a built-in override it, so plugins should use
+	 * distinctive/namespaced names (the built-in {@code lookup} is always preserved).
+	 * @param pluginFunctions the plugin functions keyed by template name (never
+	 * {@code null})
+	 */
+	public void setPluginFunctions(Map<String, Function> pluginFunctions) {
+		this.pluginFunctions = (pluginFunctions != null) ? Map.copyOf(pluginFunctions) : Map.of();
 	}
 
 	private void parseWithCache(String name, String text) {
@@ -340,9 +357,13 @@ public class Engine {
 		// during install/upgrade, as Helm does — withFunctions is applied on top of the
 		// registry-supplied providers, so the override wins.
 		GoTemplate.Builder builder = GoTemplate.builder().registry(this.templateRegistry);
+		Map<String, Function> overrides = new HashMap<>(this.pluginFunctions);
 		if (this.kubernetesProvider != null) {
-			Map<String, Function> overrides = new HashMap<>();
+			// Added after the plugin functions so the built-in lookup can never be
+			// clobbered by a plugin function named "lookup".
 			overrides.put("lookup", KubernetesFunctions.getFunctions(this.kubernetesProvider).get("lookup"));
+		}
+		if (!overrides.isEmpty()) {
 			builder.withFunctions(overrides);
 		}
 		this.factory = builder.build().option("missingkey=zero");

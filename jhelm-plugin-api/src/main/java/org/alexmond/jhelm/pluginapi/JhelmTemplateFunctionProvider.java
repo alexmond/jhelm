@@ -8,8 +8,10 @@ import java.util.Map;
  * can call them like any built-in, Sprig, or Helm function.
  *
  * <p>
- * Function names should be namespaced or distinctive to avoid colliding with built-in
- * functions; a collision resolves in favor of the built-in and is logged.
+ * Function names should be namespaced or distinctive: a name that collides with a
+ * built-in (Sprig/Helm) function <em>overrides</em> it, so an accidental clash can change
+ * chart rendering. The engine's cluster-backed {@code lookup} is the one exception — it
+ * is always preserved.
  */
 public interface JhelmTemplateFunctionProvider extends JhelmPlugin {
 
