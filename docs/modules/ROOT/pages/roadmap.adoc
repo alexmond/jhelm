@@ -132,7 +132,7 @@ The roadmap is divided into several phases focusing on compatibility, feature co
 | *Helm 4 must* Functions* | ❌ | ✅ | ✅ | P1 | ✅ *Complete*
 | Server-Side Apply | ❌ | ✅ | ❌ | P1 | Pending
 | Three-Way Merge | ✅ | ❌ | ✅ | P1 | Complete
-| Plugin System | ✅ | ✅ (new) | ✅ | P2 | ✅ Complete (Helm 3 plugins + WASM; see xref:plugin-parity.adoc[Plugin Compatibility])
+| Plugin System | ✅ | ✅ (new) | ✅ | P2 | ✅ Complete (Helm 3 plugins + WASM + xref:java-plugin-api.adoc[Java plugin API]; see xref:plugin-parity.adoc[Plugin Compatibility])
 | OCI Registries | ✅ | ✅ (enhanced) | ⚠️ | P1 | Partial
 | Chart Dependencies | ✅ | ✅ | ✅ | P2 | ✅ Complete
 | Hooks | ✅ | ✅ | ✅ | P2 | ✅ Complete
