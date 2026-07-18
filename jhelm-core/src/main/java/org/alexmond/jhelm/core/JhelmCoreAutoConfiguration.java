@@ -1,5 +1,6 @@
 package org.alexmond.jhelm.core;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.alexmond.jhelm.core.cache.TemplateCache;
@@ -39,7 +40,9 @@ import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.core.service.ChartDownloader;
 import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.JhelmChartDownloaderAdapter;
 import org.alexmond.jhelm.core.service.JhelmPostRendererAdapter;
+import org.alexmond.jhelm.pluginapi.JhelmChartDownloader;
 import org.alexmond.jhelm.pluginapi.JhelmPlugins;
 import org.alexmond.jhelm.pluginapi.JhelmPostRenderer;
 import org.alexmond.jhelm.core.service.ConfigServerClient;
@@ -113,14 +116,18 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnMissingBean
 	public RepoManager repoManager(JhelmCoreProperties props, JhelmSecurityProperties securityProps,
 			RegistryManager registryManager, ObjectProvider<JhelmMetrics> metrics,
-			ObjectProvider<ChartDownloader> chartDownloaders) {
+			ObjectProvider<ChartDownloader> chartDownloaders,
+			ObjectProvider<JhelmChartDownloader> javaChartDownloaders) {
 		boolean blockPrivate = securityProps.isBlockPrivateNetworks();
 		RepoManager repoManager = (props.getConfigPath() != null)
 				? new RepoManager(props.getConfigPath(), registryManager, props.isInsecureSkipTlsVerify(), blockPrivate)
 				: new RepoManager(registryManager, props.isInsecureSkipTlsVerify(), blockPrivate);
 		repoManager.setMetrics(metrics.getIfAvailable());
 		repoManager.setRepositoryCacheOverride(props.getRepositoryCachePath());
-		repoManager.setChartDownloaders(chartDownloaders.stream().toList());
+		List<ChartDownloader> downloaders = new ArrayList<>(chartDownloaders.stream().toList());
+		JhelmPlugins.merge(JhelmChartDownloader.class, javaChartDownloaders.stream().toList())
+			.forEach((plugin) -> downloaders.add(new JhelmChartDownloaderAdapter(plugin)));
+		repoManager.setChartDownloaders(downloaders);
 		return repoManager;
 	}
 
