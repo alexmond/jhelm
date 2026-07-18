@@ -43,10 +43,12 @@ import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.JhelmChartDownloaderAdapter;
 import org.alexmond.jhelm.core.service.JhelmLifecycleListenerAdapter;
 import org.alexmond.jhelm.core.service.JhelmPostRendererAdapter;
+import org.alexmond.jhelm.core.service.JhelmTemplateFunctionAdapter;
 import org.alexmond.jhelm.pluginapi.JhelmChartDownloader;
 import org.alexmond.jhelm.pluginapi.JhelmLifecycleListener;
 import org.alexmond.jhelm.pluginapi.JhelmPlugins;
 import org.alexmond.jhelm.pluginapi.JhelmPostRenderer;
+import org.alexmond.jhelm.pluginapi.JhelmTemplateFunctionProvider;
 import org.alexmond.jhelm.core.service.ConfigServerClient;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.service.Engine;
@@ -228,9 +230,12 @@ public class JhelmCoreAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	public Engine engine(ObjectProvider<TemplateCache> templateCache, SchemaValidator schemaValidator,
-			ObjectProvider<JhelmMetrics> metrics, ObjectProvider<KubernetesProvider> kubernetesProvider) {
+			ObjectProvider<JhelmMetrics> metrics, ObjectProvider<KubernetesProvider> kubernetesProvider,
+			ObjectProvider<JhelmTemplateFunctionProvider> templateFunctionPlugins) {
 		Engine engine = new Engine(templateCache.getIfAvailable(), schemaValidator, metrics.getIfAvailable());
 		engine.setKubernetesProvider(kubernetesProvider.getIfAvailable());
+		engine.setPluginFunctions(JhelmTemplateFunctionAdapter.collect(
+				JhelmPlugins.merge(JhelmTemplateFunctionProvider.class, templateFunctionPlugins.stream().toList())));
 		return engine;
 	}
 
