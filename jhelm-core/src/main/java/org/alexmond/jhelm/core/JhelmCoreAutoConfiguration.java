@@ -37,6 +37,7 @@ import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.VerifyAction;
+import org.alexmond.jhelm.core.service.ChartDownloader;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.ConfigServerClient;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
@@ -108,13 +109,15 @@ public class JhelmCoreAutoConfiguration {
 	@Bean
 	@ConditionalOnMissingBean
 	public RepoManager repoManager(JhelmCoreProperties props, JhelmSecurityProperties securityProps,
-			RegistryManager registryManager, ObjectProvider<JhelmMetrics> metrics) {
+			RegistryManager registryManager, ObjectProvider<JhelmMetrics> metrics,
+			ObjectProvider<ChartDownloader> chartDownloaders) {
 		boolean blockPrivate = securityProps.isBlockPrivateNetworks();
 		RepoManager repoManager = (props.getConfigPath() != null)
 				? new RepoManager(props.getConfigPath(), registryManager, props.isInsecureSkipTlsVerify(), blockPrivate)
 				: new RepoManager(registryManager, props.isInsecureSkipTlsVerify(), blockPrivate);
 		repoManager.setMetrics(metrics.getIfAvailable());
 		repoManager.setRepositoryCacheOverride(props.getRepositoryCachePath());
+		repoManager.setChartDownloaders(chartDownloaders.stream().toList());
 		return repoManager;
 	}
 
