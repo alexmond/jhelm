@@ -1,0 +1,84 @@
+= Helm Plugin Compatibility
+:description: How jhelm consumes real Helm plugins — subcommand, downloader, and post-renderer plugins — from $HELM_PLUGINS.
+
+jhelm runs plugins from the existing Helm ecosystem (helm-diff, helm-secrets, helm-s3, …).
+Plugins are discovered from the same location Helm uses and invoked the same way, so most
+`helm` plugin workflows run unchanged against `jhelm`.
+
+[NOTE]
+====
+This is distinct from jhelm's own *WASM plugin system* (`.jhp` archives, `jhelm.plugins.enabled`),
+which sandboxes plugins in a WebAssembly runtime. Helm plugins are native executables and
+run as subprocesses; the two coexist and `jhelm plugin list` shows both (a `KIND` column
+distinguishes `helm` from `wasm`).
+====
+
+== Discovery and layout
+
+Plugins live under the Helm plugins directory, resolved exactly as Helm resolves it:
+
+* `$HELM_PLUGINS` if set, otherwise
+* `$HELM_DATA_HOME/plugins`, otherwise
+* `$XDG_DATA_HOME/helm/plugins`, otherwise
+* `~/.local/share/helm/plugins`.
+
+Each plugin is a directory containing a `plugin.yaml` (Helm's schema: `name`, `version`,
+`usage`, `command`, `platformCommand`, `hooks`, `downloaders`, `ignoreFlags`). The
+`command` is resolved for the current OS/architecture (via `platformCommand`) and
+environment-expanded (notably `$HELM_PLUGIN_DIR`).
+
+== The `HELM_*` environment
+
+Every plugin process receives the `HELM_*` environment Helm exports, built from jhelm's
+resolved configuration (the same values `jhelm env` reports): `HELM_BIN`, `HELM_PLUGINS`,
+`HELM_DATA_HOME`, `HELM_CONFIG_HOME`, `HELM_CACHE_HOME`, `HELM_NAMESPACE`,
+`HELM_KUBECONTEXT`, `KUBECONFIG`, `HELM_REGISTRY_CONFIG`, `HELM_REPOSITORY_CONFIG`,
+`HELM_REPOSITORY_CACHE`, plus per-plugin `HELM_PLUGIN_NAME` and `HELM_PLUGIN_DIR`.
+
+== Supported plugin kinds
+
+Subcommand plugins:: `jhelm <name>` where `<name>` is an installed plugin runs the
+plugin's command as a subprocess, forwarding the remaining arguments and propagating the
+exit code — e.g. `jhelm diff upgrade …`. An unknown name that is not a plugin still fails
+with the normal "unmatched command" error.
+
+Downloader plugins:: a chart referenced with a custom URL scheme (`s3://`, `gs://`, …) is
+fetched via the plugin whose `downloaders[].protocols` declare that scheme, invoked with
+Helm's contract `command <cert> <key> <ca> <full-URL>` (chart bytes on stdout). Enables
+helm-s3, helm-gcs, and similar.
+
+Post-renderer plugins:: `--post-renderer <name>` (on `template`, `install`, `upgrade`)
+resolves an installed plugin by name in addition to a filesystem path (Helm 3.10+),
+with `--post-renderer-args` passed through. The manifest is piped to the plugin on stdin
+and read back from stdout.
+
+== Managing plugins
+
+[source,console]
+----
+jhelm plugin install https://github.com/databus23/helm-diff   # git URL (optional --version)
+jhelm plugin install ./my-plugin.tar.gz                       # archive (local or http(s))
+jhelm plugin install ./my-plugin                              # local directory
+jhelm plugin list                                             # helm + wasm plugins
+jhelm plugin update  <name>                                   # git pull + update hook
+jhelm plugin uninstall <name>                                 # delete hook + remove
+----
+
+Installing runs the plugin's `install` hook; `update`/`uninstall` run the `update`/`delete`
+hooks. A git-checked-out plugin is refreshed with `git pull` on update.
+
+== Security
+
+A Helm plugin is arbitrary local code, so *running* one (subcommand dispatch, downloader,
+post-renderer, and install/update/delete hooks) requires the CLI's `FULL` security posture
+— the same gate as the cluster-mutating commands (`jhelm.security.mode=FULL`, the default
+for the CLI). Installing the plugin *files* works in any mode; hooks are skipped with a
+warning under `READ_ONLY`. The local kubeconfig is the trust boundary, as with `helm`.
+
+== Deliberate gaps
+
+* *Helm 4 WASM plugins* (the redesigned WebAssembly plugin ABI, signing, `plugin package`/`verify`,
+  OCI distribution) are not consumed as Helm-4 plugins; jhelm has its own WASM runtime for
+  `.jhp` plugins.
+* The `HELM_*` environment is not injected into post-renderer processes beyond what the
+  parent process already exports; `$HELM_PLUGIN_DIR` is expanded into the resolved command.

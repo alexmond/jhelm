@@ -1,5 +1,30 @@
 = Changelog
 
+== 1.2.2
+
+=== Helm plugin compatibility
+
+jhelm now consumes real Helm plugins from the existing ecosystem (helm-diff, helm-secrets,
+helm-s3, …), discovered from `$HELM_PLUGINS` and invoked the way Helm invokes them. See
+xref:plugin-parity.adoc[Helm Plugin Compatibility]. This is separate from jhelm's existing
+WASM (`.jhp`) plugin system, which stays as-is.
+
+* *Subcommand plugins* -- `jhelm <name>` runs an installed plugin (helm-diff, helm-secrets)
+  as a subprocess with the `HELM_*` environment, propagating its exit code (#735).
+* *`plugin install` from Helm sources* -- git URL (with `--version`), `.tar.gz`/`.tgz`
+  (local or `http(s)`), or a local directory, in addition to `.jhp`; runs the install hook
+  (#736).
+* *`plugin list` / `update` / `uninstall`* -- list shows Helm and WASM plugins with a
+  `KIND` column; update does `git pull` + update hook; uninstall runs the delete hook and
+  removes the plugin (#737).
+* *Downloader plugins* -- a chart URL with a custom scheme (`s3://`, `gs://`, …) is fetched
+  via the matching downloader plugin using Helm's downloader contract (#738).
+* *Post-renderer plugins* -- `--post-renderer <name>` resolves an installed plugin (Helm
+  3.10+), with `--post-renderer-args`, on `template`/`install`/`upgrade` (#739).
+
+Running a native plugin (dispatch, downloader, post-renderer, hooks) is gated on the CLI's
+`FULL` security posture -- the local kubeconfig is the trust boundary, as with `helm`.
+
 == 1.2.1
 
 === Dependencies

@@ -8,6 +8,7 @@
 * xref:mcp.adoc[MCP Server]
 * xref:cli-reference.adoc[CLI Reference]
 * xref:cli-parity.adoc[CLI Flag Parity with Helm]
+* xref:plugin-parity.adoc[Helm Plugin Compatibility]
 * xref:configuration.adoc[Configuration]
 * xref:value-profiles.adoc[Value Profiles]
 * xref:interoperability.adoc[Interoperability with Helm]
