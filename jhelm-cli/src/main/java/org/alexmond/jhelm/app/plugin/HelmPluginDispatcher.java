@@ -2,7 +2,6 @@ package org.alexmond.jhelm.app.plugin;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -13,9 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.alexmond.jhelm.app.output.CliOutput;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
-import org.alexmond.jhelm.core.service.RegistryManager;
-import org.alexmond.jhelm.core.service.RepoManager;
-import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.ExitCode;
@@ -45,19 +41,17 @@ public class HelmPluginDispatcher {
 	private final HelmPluginRunner runner;
 
 	/**
-	 * Spring constructor: builds the discovery and {@code HELM_*} environment from
-	 * jhelm's already-resolved runtime configuration.
-	 * @param repoManager supplies the repository config and cache paths
-	 * @param registryManager supplies the registry config path
-	 * @param kubeProperties supplies the configured kubeconfig override, if any
+	 * Spring constructor: builds the discovery from the Helm plugins directory and
+	 * sources the {@code HELM_*} environment from the shared factory.
+	 * @param environmentFactory builds the {@code HELM_*} environment for plugin
+	 * processes
 	 * @param policy the security policy that gates native plugin execution
 	 * @param runner runs the resolved plugin command as a child process
 	 */
 	@Autowired
-	public HelmPluginDispatcher(RepoManager repoManager, RegistryManager registryManager,
-			JhelmKubernetesProperties kubeProperties, JhelmSecurityPolicy policy, HelmPluginRunner runner) {
-		this(new HelmPluginDiscovery(HelmPluginPaths.fromEnvironment()),
-				() -> springEnvironment(repoManager, registryManager, kubeProperties), policy, runner);
+	public HelmPluginDispatcher(HelmPluginEnvironmentFactory environmentFactory, JhelmSecurityPolicy policy,
+			HelmPluginRunner runner) {
+		this(new HelmPluginDiscovery(HelmPluginPaths.fromEnvironment()), environmentFactory::create, policy, runner);
 	}
 
 	HelmPluginDispatcher(HelmPluginDiscovery discovery, Supplier<HelmPluginEnvironment> environment,
@@ -113,33 +107,6 @@ public class HelmPluginDispatcher {
 			CliOutput.errPrintln(CliOutput.error("interrupted while running plugin '" + plugin.name() + '\''));
 			return ExitCode.SOFTWARE;
 		}
-	}
-
-	private static HelmPluginEnvironment springEnvironment(RepoManager repoManager, RegistryManager registryManager,
-			JhelmKubernetesProperties kubeProperties) {
-		return HelmPluginEnvironment.builder()
-			.paths(HelmPluginPaths.fromEnvironment())
-			.namespace(envOrDefault("HELM_NAMESPACE", "default"))
-			.kubeConfig(resolveKubeconfig(kubeProperties))
-			.registryConfig(registryManager.getConfigPath())
-			.repositoryConfig(repoManager.getConfigPath())
-			.repositoryCache(repoManager.getRepositoryCachePath())
-			.debug(Boolean.parseBoolean(envOrDefault("HELM_DEBUG", "false")))
-			.build();
-	}
-
-	private static String resolveKubeconfig(JhelmKubernetesProperties kubeProperties) {
-		String configured = kubeProperties.getKubeconfigPath();
-		if (configured != null && !configured.isBlank()) {
-			return configured;
-		}
-		return envOrDefault("KUBECONFIG",
-				Paths.get(System.getProperty("user.home", "."), ".kube", "config").toString());
-	}
-
-	private static String envOrDefault(String name, String fallback) {
-		String value = System.getenv(name);
-		return (value != null && !value.isBlank()) ? value : fallback;
 	}
 
 	// Retained for symmetry with test construction over an explicit plugins directory.

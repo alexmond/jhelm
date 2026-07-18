@@ -1,9 +1,13 @@
 package org.alexmond.jhelm.app.command;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Callable;
 
+import org.alexmond.jhelm.app.plugin.DiscoveredHelmPlugin;
+import org.alexmond.jhelm.app.plugin.HelmPluginInstaller;
 import org.alexmond.jhelm.plugin.model.PluginDescriptor;
 import org.alexmond.jhelm.plugin.service.PluginManager;
 import org.springframework.beans.factory.ObjectProvider;
@@ -35,36 +39,70 @@ public class PluginCommand implements Callable<Integer> {
 	}
 
 	/**
-	 * Implements {@code plugin install}: installs a plugin from a {@code .jhp} archive.
+	 * Implements {@code plugin install}: installs a Helm plugin from a git URL, a
+	 * {@code .tar.gz}/{@code .tgz} archive, or a local directory (mirroring
+	 * {@code helm plugin install}), or a jhelm {@code .jhp} WASM archive.
 	 */
 	@Component
 	@CommandLine.Command(name = "install", mixinStandardHelpOptions = true,
-			description = "Install a plugin from a .jhp archive")
+			description = "Install a plugin from a git URL, a .tar.gz/.tgz, a directory, or a .jhp archive")
 	public static class Install implements Callable<Integer> {
 
-		@CommandLine.Parameters(index = "0", description = "Path to plugin archive (.jhp)")
-		private File archivePath;
+		@CommandLine.Parameters(index = "0",
+				description = "Plugin source: a git URL, a .tar.gz/.tgz path or URL, a directory, or a .jhp archive")
+		private String source;
+
+		@CommandLine.Option(names = { "--version" },
+				description = "git ref (tag, branch, or commit) to install for a git source")
+		private String version;
 
 		private final ObjectProvider<PluginManager> pluginManagerProvider;
 
+		private final HelmPluginInstaller helmInstaller;
+
 		/**
 		 * Creates the command.
-		 * @param pluginManagerProvider provider for the plugin manager (may be absent
-		 * when plugins are disabled)
+		 * @param pluginManagerProvider provider for the WASM plugin manager (may be
+		 * absent when the {@code .jhp} plugin system is disabled)
+		 * @param helmInstaller installs Helm plugins from a git URL, archive, or
+		 * directory
 		 */
-		public Install(ObjectProvider<PluginManager> pluginManagerProvider) {
+		public Install(ObjectProvider<PluginManager> pluginManagerProvider, HelmPluginInstaller helmInstaller) {
 			this.pluginManagerProvider = pluginManagerProvider;
+			this.helmInstaller = helmInstaller;
 		}
 
 		@Override
 		public Integer call() {
-			PluginManager pm = pluginManagerProvider.getIfAvailable();
+			if (this.source.toLowerCase(Locale.ROOT).endsWith(".jhp")) {
+				return installWasm();
+			}
+			try {
+				DiscoveredHelmPlugin plugin = this.helmInstaller.install(this.source, this.version);
+				String ver = plugin.manifest().getVersion();
+				CliOutput.println(CliOutput.success(
+						"Installed plugin: " + plugin.name() + ((ver != null && !ver.isBlank()) ? " " + ver : "")));
+				return CommandLine.ExitCode.OK;
+			}
+			catch (InterruptedException ex) {
+				Thread.currentThread().interrupt();
+				CliOutput.errPrintln(CliOutput.error("Interrupted while installing plugin"));
+				return CommandLine.ExitCode.SOFTWARE;
+			}
+			catch (IOException ex) {
+				CliOutput.errPrintln(CliOutput.error("Failed to install plugin: " + ex.getMessage()));
+				return CommandLine.ExitCode.SOFTWARE;
+			}
+		}
+
+		private Integer installWasm() {
+			PluginManager pm = this.pluginManagerProvider.getIfAvailable();
 			if (pm == null) {
 				CliOutput.errPrintln(CliOutput.error("Plugin system is not enabled. Set jhelm.plugins.enabled=true"));
 				return CommandLine.ExitCode.SOFTWARE;
 			}
 			try {
-				PluginDescriptor desc = pm.install(archivePath);
+				PluginDescriptor desc = pm.install(new File(this.source));
 				CliOutput.println(CliOutput.success("Installed plugin: " + desc.getManifest().getName() + " (type: "
 						+ desc.getManifest().getType().getValue() + ")"));
 				return CommandLine.ExitCode.OK;
