@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.zip.GZIPOutputStream;
@@ -126,6 +128,58 @@ class HelmPluginInstallerTest {
 		assertTrue(Files.isRegularFile(this.pluginsDir.resolve("hooked/plugin.yaml")), "files still installed");
 		assertFalse(Files.exists(marker), "install hook must not run in READ_ONLY mode");
 		assertEquals("hooked", plugin.name());
+	}
+
+	@Test
+	void listReturnsInstalledPlugins() throws Exception {
+		installer(JhelmAccessMode.FULL, failCloner()).install(pluginSourceDir("aaa", "").toString(), null);
+		installer(JhelmAccessMode.FULL, failCloner()).install(pluginSourceDir("bbb", "").toString(), null);
+		List<DiscoveredHelmPlugin> list = installer(JhelmAccessMode.FULL, failCloner()).list();
+		assertEquals(List.of("aaa", "bbb"), list.stream().map(DiscoveredHelmPlugin::name).toList());
+	}
+
+	@Test
+	void uninstallRemovesThePluginDirectory() throws Exception {
+		installer(JhelmAccessMode.FULL, failCloner()).install(pluginSourceDir("gone", "").toString(), null);
+		assertTrue(installer(JhelmAccessMode.FULL, failCloner()).uninstall("gone"));
+		assertFalse(Files.exists(this.pluginsDir.resolve("gone")));
+		assertFalse(installer(JhelmAccessMode.FULL, failCloner()).uninstall("gone"), "second uninstall finds nothing");
+	}
+
+	@Test
+	@EnabledOnOs({ OS.LINUX, OS.MAC })
+	void uninstallRunsDeleteHook() throws Exception {
+		Path marker = this.work.resolve("deleted");
+		installer(JhelmAccessMode.FULL, failCloner())
+			.install(pluginSourceDir("hd", "hooks:\n  delete: \"touch " + marker + "\"\n").toString(), null);
+		installer(JhelmAccessMode.FULL, failCloner()).uninstall("hd");
+		assertTrue(Files.exists(marker), "delete hook should run");
+		assertFalse(Files.exists(this.pluginsDir.resolve("hd")), "directory removed");
+	}
+
+	@Test
+	void updateGitPluginPullsThroughTheUpdater() throws Exception {
+		installer(JhelmAccessMode.FULL, failCloner()).install(pluginSourceDir("gp", "").toString(), null);
+		Files.createDirectories(this.pluginsDir.resolve("gp/.git"));
+		AtomicBoolean pulled = new AtomicBoolean();
+		HelmPluginInstaller inst = installer6(JhelmAccessMode.FULL, (dir) -> pulled.set(true));
+		assertTrue(inst.update("gp").isPresent());
+		assertTrue(pulled.get(), "git-checked-out plugin should be pulled");
+	}
+
+	@Test
+	void updateReturnsEmptyForUnknownPlugin() throws Exception {
+		assertTrue(installer(JhelmAccessMode.FULL, failCloner()).update("nope").isEmpty());
+	}
+
+	private HelmPluginInstaller installer6(JhelmAccessMode mode, GitUpdater updater) {
+		JhelmSecurityProperties props = new JhelmSecurityProperties();
+		props.setMode(mode);
+		HelmPluginPaths paths = new HelmPluginPaths(Map.of("HELM_PLUGINS", this.pluginsDir.toString())::get,
+				Path.of("/home/tester"));
+		Supplier<HelmPluginEnvironment> env = () -> HelmPluginEnvironment.builder().paths(paths).build();
+		return new HelmPluginInstaller(paths, env, new JhelmSecurityPolicy(props), new ProcessHelmPluginRunner(),
+				failCloner(), updater);
 	}
 
 	private static GitCloner failCloner() {
