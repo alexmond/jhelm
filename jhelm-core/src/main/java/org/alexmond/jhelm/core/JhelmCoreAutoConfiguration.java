@@ -41,8 +41,10 @@ import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.core.service.ChartDownloader;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.JhelmChartDownloaderAdapter;
+import org.alexmond.jhelm.core.service.JhelmLifecycleListenerAdapter;
 import org.alexmond.jhelm.core.service.JhelmPostRendererAdapter;
 import org.alexmond.jhelm.pluginapi.JhelmChartDownloader;
+import org.alexmond.jhelm.pluginapi.JhelmLifecycleListener;
 import org.alexmond.jhelm.pluginapi.JhelmPlugins;
 import org.alexmond.jhelm.pluginapi.JhelmPostRenderer;
 import org.alexmond.jhelm.core.service.ConfigServerClient;
@@ -265,6 +267,22 @@ public class JhelmCoreAutoConfiguration {
 		return JhelmPlugins.merge(JhelmPostRenderer.class, postRendererPlugins.stream().toList())
 			.stream()
 			.<PostRenderProcessor>map(JhelmPostRendererAdapter::new)
+			.toList();
+	}
+
+	/**
+	 * Collects Java {@link JhelmLifecycleListener} plugins — discovered as Spring beans
+	 * and via {@link java.util.ServiceLoader} — as internal {@link LifecycleListener}s
+	 * notified on release lifecycle events (install, upgrade, rollback).
+	 * @param listenerPlugins the lifecycle-listener plugin beans (if any)
+	 * @return the lifecycle listeners, or an empty list if no plugins are present
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public List<LifecycleListener> jhelmLifecycleListeners(ObjectProvider<JhelmLifecycleListener> listenerPlugins) {
+		return JhelmPlugins.merge(JhelmLifecycleListener.class, listenerPlugins.stream().toList())
+			.stream()
+			.<LifecycleListener>map(JhelmLifecycleListenerAdapter::new)
 			.toList();
 	}
 

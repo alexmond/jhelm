@@ -24,6 +24,10 @@ public record JhelmReleaseEvent(Phase phase, String releaseName, String namespac
 		PRE_UPGRADE,
 		/** After a successful upgrade. */
 		POST_UPGRADE,
+		/** Before a rollback. */
+		PRE_ROLLBACK,
+		/** After a successful rollback. */
+		POST_ROLLBACK,
 		/** Before an uninstall. */
 		PRE_UNINSTALL,
 		/** After a successful uninstall. */
