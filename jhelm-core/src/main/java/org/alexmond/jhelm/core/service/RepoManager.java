@@ -67,6 +67,10 @@ public class RepoManager {
 	// Null in library/direct-construction use (no instrumentation, no overhead).
 	private JhelmMetrics metrics;
 
+	// Custom-protocol chart downloaders (Helm downloader plugins: s3://, gs://, ...),
+	// consulted before the HTTP path in pullFromUrl. Set by the auto-configuration.
+	private List<ChartDownloader> chartDownloaders = List.of();
+
 	// Optional repository-cache directory override (Helm's --repository-cache), set by
 	// the
 	// auto-configuration from jhelm.repository-cache-path. Null -> standard resolution.
@@ -162,6 +166,16 @@ public class RepoManager {
 	 */
 	public void setMetrics(JhelmMetrics metrics) {
 		this.metrics = metrics;
+	}
+
+	/**
+	 * Registers custom-protocol chart downloaders (Helm downloader plugins). When a chart
+	 * URL uses a scheme one of these supports (for example {@code s3://}), it is fetched
+	 * via that downloader instead of the built-in HTTP path.
+	 * @param chartDownloaders the downloaders to consult (never {@code null})
+	 */
+	public void setChartDownloaders(List<ChartDownloader> chartDownloaders) {
+		this.chartDownloaders = (chartDownloaders != null) ? List.copyOf(chartDownloaders) : List.of();
 	}
 
 	private void recordChartPull(String source, JhelmMetrics.IoRunnable op) throws IOException {
@@ -1014,7 +1028,38 @@ public class RepoManager {
 			pullOci(chartUrl, destDir, fileName);
 			return;
 		}
+		ChartDownloader downloader = findChartDownloader(chartUrl);
+		if (downloader != null) {
+			recordChartPull("plugin", () -> doDownloaderPull(downloader, chartUrl, destDir, fileName));
+			return;
+		}
 		recordChartPull("http", () -> doHttpPull(chartUrl, destDir, fileName, repo));
+	}
+
+	// Finds a registered downloader for a non-HTTP(S) URL scheme (s3://, gs://, ...);
+	// returns null for http/https so the built-in HTTP path handles those.
+	private ChartDownloader findChartDownloader(String chartUrl) {
+		int schemeEnd = chartUrl.indexOf("://");
+		if (schemeEnd <= 0) {
+			return null;
+		}
+		String scheme = chartUrl.substring(0, schemeEnd);
+		if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
+			return null;
+		}
+		return this.chartDownloaders.stream().filter((d) -> d.supportsProtocol(scheme)).findFirst().orElse(null);
+	}
+
+	private void doDownloaderPull(ChartDownloader downloader, String chartUrl, String destDir, String fileName)
+			throws IOException {
+		if (log.isInfoEnabled()) {
+			log.info("Pulling chart from {} via a downloader plugin to {}", chartUrl, destDir);
+		}
+		byte[] data = downloader.download(chartUrl);
+		File destFile = new File(destDir, fileName);
+		destFile.getParentFile().mkdirs();
+		Files.write(destFile.toPath(), data);
+		untar(destFile, new File(destDir));
 	}
 
 	private void doHttpPull(String chartUrl, String destDir, String fileName, RepositoryConfig.Repository repo)
