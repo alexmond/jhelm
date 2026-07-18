@@ -1,5 +1,5 @@
 = jhelm
-:jhelm-version: 1.2.1
+:jhelm-version: 1.3.0
 :url-docs: https://www.alexmond.org/jhelm/current/
 :url-docs-mcp: https://www.alexmond.org/jhelm/current/mcp/
 :url-docs-rest: https://www.alexmond.org/jhelm/current/rest-api/

@@ -32,6 +32,9 @@ the {page-component-version} release.
 
 | `jhelm-plugin` — WASM plugin runtime
 | {api-plugin}/{page-component-version}/index.html[browse^]
+
+| `jhelm-plugin-api` — Java plugin extension points (post-renderer, downloader, lifecycle, template functions)
+| {api-plugin-api}/{page-component-version}/index.html[browse^]
 |===
 
 [NOTE]
@@ -59,6 +62,11 @@ are not published to Maven Central.
 *Helm template functions* (`jhelm-gotemplate-helm`)
 
 * {api-gotemplate-helm}/{page-component-version}/org/alexmond/jhelm/gotemplate/helm/HelmFunctions.html[HelmFunctions^] — the Helm function provider. The Go template engine itself is the external https://github.com/alexmond/gotmpl4j[gotmpl4j] library, which publishes its own Javadoc.
+
+*Java plugin API* (`jhelm-plugin-api`, package `org.alexmond.jhelm.pluginapi`)
+
+* {api-plugin-api}/{page-component-version}/org/alexmond/jhelm/pluginapi/JhelmPlugin.html[JhelmPlugin^] — the marker base type; extend one of the four extension interfaces below.
+* {api-plugin-api}/{page-component-version}/org/alexmond/jhelm/pluginapi/JhelmPostRenderer.html[JhelmPostRenderer^], {api-plugin-api}/{page-component-version}/org/alexmond/jhelm/pluginapi/JhelmChartDownloader.html[JhelmChartDownloader^], {api-plugin-api}/{page-component-version}/org/alexmond/jhelm/pluginapi/JhelmLifecycleListener.html[JhelmLifecycleListener^], and {api-plugin-api}/{page-component-version}/org/alexmond/jhelm/pluginapi/JhelmTemplateFunctionProvider.html[JhelmTemplateFunctionProvider^] — the extension points, discovered via ServiceLoader or Spring beans. See xref:java-plugin-api.adoc[Java Plugin API].
 
 *Spring Boot auto-configuration entry points*
 
