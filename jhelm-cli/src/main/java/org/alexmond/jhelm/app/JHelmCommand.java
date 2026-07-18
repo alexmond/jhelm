@@ -117,6 +117,11 @@ public class JHelmCommand implements Callable<Integer> {
 			scope = CommandLine.ScopeType.INHERIT)
 	boolean debug;
 
+	@CommandLine.Option(names = GlobalOptionsPreParser.PLUGIN_DIR, paramLabel = "<dir>",
+			description = "director(y|ies) of external Java plugin JARs (comma-separated)",
+			scope = CommandLine.ScopeType.INHERIT)
+	String pluginDir;
+
 	/**
 	 * Prints the jhelm banner (to stderr, so piped stdout stays clean) followed by the
 	 * usage help when {@code jhelm} is invoked without a subcommand.

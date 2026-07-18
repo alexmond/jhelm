@@ -1,5 +1,20 @@
 = Changelog
 
+== 1.4.0
+
+=== External Java plugin JARs
+
+Java plugins built against `jhelm-plugin-api` can now be loaded from a directory at runtime,
+without being on the build classpath. See xref:java-plugin-api.adoc#_loading_external_plugin_jars[Loading external plugin JARs].
+
+* *`jhelm.plugins.path`* -- one or more directories scanned for external plugin JARs. Each
+  jar is loaded in its own class loader (isolated so plugins can carry conflicting
+  transitive dependencies) and its declared `ServiceLoader` services are merged with the
+  classpath and Spring-bean plugins. Works on every surface (CLI/REST/MCP/embedded),
+  independent of how the application is launched (#765).
+* *CLI `--plugin-dir`* -- a global flag (also `JHELM_PLUGINS_PATH`) to set the plugin
+  directory for a run (#766).
+
 == 1.3.0
 
 === Helm plugin compatibility
