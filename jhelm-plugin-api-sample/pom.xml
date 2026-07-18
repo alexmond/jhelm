@@ -15,7 +15,10 @@
         end-to-end test that runs them through jhelm-core</description>
 
     <properties>
+        <!-- Example module: not published, and not coverage-gated (like jhelm-benchmarks). -->
         <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <jacoco.skip>true</jacoco.skip>
     </properties>
 
     <dependencies>
