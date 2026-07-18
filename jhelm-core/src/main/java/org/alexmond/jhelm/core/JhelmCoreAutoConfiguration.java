@@ -39,6 +39,9 @@ import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.action.VerifyAction;
 import org.alexmond.jhelm.core.service.ChartDownloader;
 import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.JhelmPostRendererAdapter;
+import org.alexmond.jhelm.pluginapi.JhelmPlugins;
+import org.alexmond.jhelm.pluginapi.JhelmPostRenderer;
 import org.alexmond.jhelm.core.service.ConfigServerClient;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.service.Engine;
@@ -240,6 +243,22 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnMissingBean
 	public CreateAction createAction() {
 		return new CreateAction();
+	}
+
+	/**
+	 * Collects Java {@link JhelmPostRenderer} plugins — discovered as Spring beans and
+	 * via {@link java.util.ServiceLoader} — as {@link PostRenderProcessor}s applied in
+	 * the render path (install, upgrade, template) across every jhelm surface.
+	 * @param postRendererPlugins the post-renderer plugin beans (if any)
+	 * @return the post-render processors, or an empty list if no plugins are present
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public List<PostRenderProcessor> jhelmPostRenderProcessors(ObjectProvider<JhelmPostRenderer> postRendererPlugins) {
+		return JhelmPlugins.merge(JhelmPostRenderer.class, postRendererPlugins.stream().toList())
+			.stream()
+			.<PostRenderProcessor>map(JhelmPostRendererAdapter::new)
+			.toList();
 	}
 
 	/**

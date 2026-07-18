@@ -49,6 +49,10 @@
         </dependency>
         <dependency>
             <groupId>org.alexmond</groupId>
+            <artifactId>jhelm-plugin-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.alexmond</groupId>
             <artifactId>jhelm-gotemplate-helm</artifactId>
         </dependency>
         <dependency>
