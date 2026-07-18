@@ -8,6 +8,7 @@ import org.alexmond.jhelm.core.config.ConfigServerProperties;
 import org.alexmond.jhelm.core.config.JhelmAccessMode;
 import org.alexmond.jhelm.core.config.JhelmCoreProperties;
 import org.alexmond.jhelm.core.config.JhelmEncryptProperties;
+import org.alexmond.jhelm.core.config.JhelmPluginProperties;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.alexmond.jhelm.core.config.JhelmSecurityProperties;
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
@@ -46,9 +47,11 @@ import org.alexmond.jhelm.core.service.JhelmPostRendererAdapter;
 import org.alexmond.jhelm.core.service.JhelmTemplateFunctionAdapter;
 import org.alexmond.jhelm.pluginapi.JhelmChartDownloader;
 import org.alexmond.jhelm.pluginapi.JhelmLifecycleListener;
+import org.alexmond.jhelm.pluginapi.JhelmPlugin;
 import org.alexmond.jhelm.pluginapi.JhelmPlugins;
 import org.alexmond.jhelm.pluginapi.JhelmPostRenderer;
 import org.alexmond.jhelm.pluginapi.JhelmTemplateFunctionProvider;
+import org.alexmond.jhelm.core.service.PluginLoader;
 import org.alexmond.jhelm.core.service.ConfigServerClient;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.service.Engine;
@@ -70,7 +73,7 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
 @Slf4j
 @AutoConfiguration(after = JhelmMetricsAutoConfiguration.class)
 @EnableConfigurationProperties({ JhelmCoreProperties.class, JhelmSecurityProperties.class, ConfigServerProperties.class,
-		JhelmEncryptProperties.class })
+		JhelmEncryptProperties.class, JhelmPluginProperties.class })
 public class JhelmCoreAutoConfiguration {
 
 	/**
@@ -110,6 +113,40 @@ public class JhelmCoreAutoConfiguration {
 	}
 
 	/**
+	 * Loads jhelm Java plugins from external JAR files listed under
+	 * {@code jhelm.plugins.path} (directories not on the application classpath). The
+	 * loaded plugins are merged with classpath and Spring-bean plugins wherever those are
+	 * consumed. Closed on context shutdown so the plugin class loaders are released.
+	 * @param props the external-plugin configuration
+	 * @return the plugin loader bean
+	 */
+	@Bean
+	@ConditionalOnMissingBean
+	public PluginLoader jhelmPluginLoader(JhelmPluginProperties props) {
+		return new PluginLoader(props.getPath());
+	}
+
+	/**
+	 * Unions Spring-bean plugins, classpath {@code ServiceLoader} plugins, and
+	 * external-JAR plugins for one plugin interface, de-duplicated by implementation
+	 * class.
+	 * @param type the plugin interface
+	 * @param springBeans the plugins supplied as Spring beans (may be empty)
+	 * @param pluginLoader the external-JAR loader (may be {@code null} when none is
+	 * configured)
+	 * @param <T> the plugin type
+	 * @return the merged plugin list
+	 */
+	private static <T extends JhelmPlugin> List<T> mergePlugins(Class<T> type, List<? extends T> springBeans,
+			PluginLoader pluginLoader) {
+		List<T> supplied = new ArrayList<>(springBeans);
+		if (pluginLoader != null) {
+			supplied.addAll(pluginLoader.load(type));
+		}
+		return JhelmPlugins.merge(type, supplied);
+	}
+
+	/**
 	 * Provides the chart repository manager, configured from the jhelm properties.
 	 * @param props the jhelm core configuration properties
 	 * @param registryManager the OCI registry auth provider
@@ -120,8 +157,8 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnMissingBean
 	public RepoManager repoManager(JhelmCoreProperties props, JhelmSecurityProperties securityProps,
 			RegistryManager registryManager, ObjectProvider<JhelmMetrics> metrics,
-			ObjectProvider<ChartDownloader> chartDownloaders,
-			ObjectProvider<JhelmChartDownloader> javaChartDownloaders) {
+			ObjectProvider<ChartDownloader> chartDownloaders, ObjectProvider<JhelmChartDownloader> javaChartDownloaders,
+			ObjectProvider<PluginLoader> pluginLoader) {
 		boolean blockPrivate = securityProps.isBlockPrivateNetworks();
 		RepoManager repoManager = (props.getConfigPath() != null)
 				? new RepoManager(props.getConfigPath(), registryManager, props.isInsecureSkipTlsVerify(), blockPrivate)
@@ -129,7 +166,7 @@ public class JhelmCoreAutoConfiguration {
 		repoManager.setMetrics(metrics.getIfAvailable());
 		repoManager.setRepositoryCacheOverride(props.getRepositoryCachePath());
 		List<ChartDownloader> downloaders = new ArrayList<>(chartDownloaders.stream().toList());
-		JhelmPlugins.merge(JhelmChartDownloader.class, javaChartDownloaders.stream().toList())
+		mergePlugins(JhelmChartDownloader.class, javaChartDownloaders.stream().toList(), pluginLoader.getIfAvailable())
 			.forEach((plugin) -> downloaders.add(new JhelmChartDownloaderAdapter(plugin)));
 		repoManager.setChartDownloaders(downloaders);
 		return repoManager;
@@ -231,11 +268,12 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnMissingBean
 	public Engine engine(ObjectProvider<TemplateCache> templateCache, SchemaValidator schemaValidator,
 			ObjectProvider<JhelmMetrics> metrics, ObjectProvider<KubernetesProvider> kubernetesProvider,
-			ObjectProvider<JhelmTemplateFunctionProvider> templateFunctionPlugins) {
+			ObjectProvider<JhelmTemplateFunctionProvider> templateFunctionPlugins,
+			ObjectProvider<PluginLoader> pluginLoader) {
 		Engine engine = new Engine(templateCache.getIfAvailable(), schemaValidator, metrics.getIfAvailable());
 		engine.setKubernetesProvider(kubernetesProvider.getIfAvailable());
-		engine.setPluginFunctions(JhelmTemplateFunctionAdapter.collect(
-				JhelmPlugins.merge(JhelmTemplateFunctionProvider.class, templateFunctionPlugins.stream().toList())));
+		engine.setPluginFunctions(JhelmTemplateFunctionAdapter.collect(mergePlugins(JhelmTemplateFunctionProvider.class,
+				templateFunctionPlugins.stream().toList(), pluginLoader.getIfAvailable())));
 		return engine;
 	}
 
@@ -268,8 +306,10 @@ public class JhelmCoreAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public List<PostRenderProcessor> jhelmPostRenderProcessors(ObjectProvider<JhelmPostRenderer> postRendererPlugins) {
-		return JhelmPlugins.merge(JhelmPostRenderer.class, postRendererPlugins.stream().toList())
+	public List<PostRenderProcessor> jhelmPostRenderProcessors(ObjectProvider<JhelmPostRenderer> postRendererPlugins,
+			ObjectProvider<PluginLoader> pluginLoader) {
+		return mergePlugins(JhelmPostRenderer.class, postRendererPlugins.stream().toList(),
+				pluginLoader.getIfAvailable())
 			.stream()
 			.<PostRenderProcessor>map(JhelmPostRendererAdapter::new)
 			.toList();
@@ -284,8 +324,10 @@ public class JhelmCoreAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public List<LifecycleListener> jhelmLifecycleListeners(ObjectProvider<JhelmLifecycleListener> listenerPlugins) {
-		return JhelmPlugins.merge(JhelmLifecycleListener.class, listenerPlugins.stream().toList())
+	public List<LifecycleListener> jhelmLifecycleListeners(ObjectProvider<JhelmLifecycleListener> listenerPlugins,
+			ObjectProvider<PluginLoader> pluginLoader) {
+		return mergePlugins(JhelmLifecycleListener.class, listenerPlugins.stream().toList(),
+				pluginLoader.getIfAvailable())
 			.stream()
 			.<LifecycleListener>map(JhelmLifecycleListenerAdapter::new)
 			.toList();
