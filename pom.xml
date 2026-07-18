@@ -79,6 +79,7 @@
         <url>https://github.com/alexmond/jhelm</url>
     </scm>
     <modules>
+        <module>jhelm-plugin-api</module>
         <module>jhelm-gotemplate-helm</module>
         <module>jhelm-core</module>
         <module>jhelm-kube</module>
