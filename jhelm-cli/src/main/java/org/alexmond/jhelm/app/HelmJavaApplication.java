@@ -2,6 +2,8 @@ package org.alexmond.jhelm.app;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.alexmond.jhelm.app.plugin.HelmPluginDispatcher;
+import org.alexmond.jhelm.app.plugin.HelmPluginParameterExceptionHandler;
 import org.alexmond.jhelm.core.config.JhelmAccessMode;
 import org.alexmond.jhelm.core.config.JhelmSecurityPolicy;
 import org.springframework.boot.ApplicationRunner;
@@ -34,16 +36,20 @@ public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator
 
 	private final JHelmCommand jHelmCommand;
 
+	private final HelmPluginDispatcher pluginDispatcher;
+
 	private int exitCode;
 
 	/**
 	 * Creates the application runner.
 	 * @param factory the Picocli factory used to instantiate Spring-managed commands
 	 * @param jHelmCommand the root {@code jhelm} command
+	 * @param pluginDispatcher dispatches unmatched subcommands to installed Helm plugins
 	 */
-	public HelmJavaApplication(IFactory factory, JHelmCommand jHelmCommand) {
+	public HelmJavaApplication(IFactory factory, JHelmCommand jHelmCommand, HelmPluginDispatcher pluginDispatcher) {
 		this.factory = factory;
 		this.jHelmCommand = jHelmCommand;
+		this.pluginDispatcher = pluginDispatcher;
 	}
 
 	/**
@@ -69,6 +75,10 @@ public class HelmJavaApplication implements CommandLineRunner, ExitCodeGenerator
 		CommandLine cmd = new CommandLine(jHelmCommand, factory);
 		cmd.setUsageHelpWidth(120);
 		cmd.setColorScheme(CommandLine.Help.defaultColorScheme(Ansi.AUTO));
+		// Route an unmatched top-level subcommand to an installed Helm plugin (helm-diff,
+		// helm-secrets, …) before falling back to the default "Unmatched argument" error.
+		cmd.setParameterExceptionHandler(
+				new HelmPluginParameterExceptionHandler(cmd.getParameterExceptionHandler(), pluginDispatcher));
 		// Picocli parses the original vector so the global flags (stripped from the
 		// Spring
 		// args) are still accepted and shown in --help.
