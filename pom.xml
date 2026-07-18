@@ -120,6 +120,11 @@
             <!-- Internal Modules -->
             <dependency>
                 <groupId>org.alexmond</groupId>
+                <artifactId>jhelm-plugin-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.alexmond</groupId>
                 <artifactId>jhelm-gotemplate-helm</artifactId>
                 <version>${project.version}</version>
             </dependency>
