@@ -93,6 +93,7 @@
         <module>jhelm-rest-sample</module>
         <module>jhelm-mcp-sample</module>
         <module>jhelm-config-server-sample</module>
+        <module>jhelm-plugin-api-sample</module>
         <module>jhelm-benchmarks</module>
     </modules>
 
@@ -329,6 +330,7 @@
                             <excludeArtifact>jhelm-rest-sample</excludeArtifact>
                             <excludeArtifact>jhelm-mcp-sample</excludeArtifact>
                             <excludeArtifact>jhelm-config-server-sample</excludeArtifact>
+                            <excludeArtifact>jhelm-plugin-api-sample</excludeArtifact>
                             <excludeArtifact>jhelm-benchmarks</excludeArtifact>
                         </excludeArtifacts>
                     </configuration>

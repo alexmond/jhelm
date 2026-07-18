@@ -1,0 +1,111 @@
+= Java Plugin API
+:description: Extend jhelm in plain Java — post-renderers, chart downloaders, lifecycle listeners, and template functions discovered via ServiceLoader or Spring beans.
+
+The `jhelm-plugin-api` module lets you extend jhelm by implementing a small Java interface —
+no WebAssembly to compile, no subprocess to spawn. Your plugin runs in-process and is
+discovered off the classpath, either as a JDK `ServiceLoader` service (any application) or
+as a Spring bean (the jhelm CLI/REST/MCP apps, or your own Spring app embedding jhelm).
+
+[NOTE]
+====
+This is one of three plugin surfaces. See also xref:plugin-parity.adoc[Helm plugin compatibility]
+(native Helm plugins as subprocesses) and the WASM `.jhp` system. Java plugins are the
+simplest way to extend jhelm from Java code.
+====
+
+== Dependency
+
+[source,xml,subs="attributes"]
+----
+<dependency>
+    <groupId>org.alexmond</groupId>
+    <artifactId>jhelm-plugin-api</artifactId>
+    <version>{page-component-version}</version>
+</dependency>
+----
+
+== Extension points
+
+All interfaces live in `org.alexmond.jhelm.pluginapi` and extend `JhelmPlugin` (which
+provides a `name()` for listings/logs).
+
+Post-renderer:: `JhelmPostRenderer` — transform the rendered manifest (install, upgrade,
+template).
++
+[source,java]
+----
+public class BannerPostRenderer implements JhelmPostRenderer {
+    public String postRender(String manifest) {
+        return "# rendered via my plugin\n" + manifest;
+    }
+}
+----
+
+Chart downloader:: `JhelmChartDownloader` — fetch charts for a custom URL scheme (`s3://`,
+`gs://`, …). `supports(scheme)` selects it; `download(url)` returns the chart archive bytes.
+
+Lifecycle listener:: `JhelmLifecycleListener` — react to release events. `onEvent(JhelmReleaseEvent)`
+receives the phase (`PRE_INSTALL`, `POST_INSTALL`, `PRE_UPGRADE`, `POST_UPGRADE`,
+`PRE_ROLLBACK`, `POST_ROLLBACK`, `PRE_UNINSTALL`, `POST_UNINSTALL`), release name, namespace,
+and metadata. A throwing listener is logged and ignored.
+
+Template functions:: `JhelmTemplateFunctionProvider` — contribute Go-template functions
+callable from any chart.
++
+[source,java]
+----
+public class MyFunctions implements JhelmTemplateFunctionProvider {
+    public Map<String, JhelmTemplateFunction> functions() {
+        return Map.of("my_greet", args -> "hello, " + args[0]);
+    }
+}
+----
++
+Name your functions distinctively — a name that collides with a built-in *overrides* it
+(the cluster-backed `lookup` is the one exception, always preserved).
+
+Any method may throw `JhelmPluginException`; jhelm surfaces the message and aborts the
+operation.
+
+== Registering a plugin
+
+ServiceLoader (any application):: add a file under `META-INF/services/` named for the
+interface, listing your implementation class. For a post-renderer:
++
+.`META-INF/services/org.alexmond.jhelm.pluginapi.JhelmPostRenderer`
+----
+com.example.BannerPostRenderer
+----
+
+Spring bean (jhelm CLI/REST/MCP, or your Spring app):: expose the plugin as a bean:
++
+[source,java]
+----
+@Bean
+JhelmPostRenderer bannerPostRenderer() {
+    return new BannerPostRenderer();
+}
+----
+
+jhelm unions both sources and de-duplicates by implementation class (a Spring bean that is
+also a declared service is registered once, preferring the bean instance).
+
+== Worked examples
+
+The `jhelm-plugin-api-sample` module in the source tree implements one plugin of each kind
+(post-renderer, downloader, lifecycle listener, template functions) with `ServiceLoader`
+registrations, and an integration test that runs them through jhelm-core end to end.
+
+== Stability
+
+The plugin API follows the project's semantic versioning: interfaces are additive within a
+minor line. New extension points and enum constants may be added; existing method
+signatures are kept stable within a major version.
+
+== Relation to the native-Helm and WASM plugin systems
+
+Java plugins run in-process, so — unlike native Helm plugins (arbitrary executables) — they
+are not gated on the `FULL` security posture; they are code you already put on the
+classpath. Use a Java plugin when you extend jhelm from Java, a
+xref:plugin-parity.adoc[Helm plugin] to reuse an existing Helm plugin, and the WASM `.jhp`
+system for a sandboxed, language-agnostic plugin.

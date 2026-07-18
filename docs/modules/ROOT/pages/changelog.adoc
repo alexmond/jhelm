@@ -25,6 +25,18 @@ WASM (`.jhp`) plugin system, which stays as-is.
 Running a native plugin (dispatch, downloader, post-renderer, hooks) is gated on the CLI's
 `FULL` security posture -- the local kubeconfig is the trust boundary, as with `helm`.
 
+=== Java plugin API
+
+New `jhelm-plugin-api` module: extend jhelm by implementing a Java interface, discovered via
+`ServiceLoader` or as a Spring bean. See xref:java-plugin-api.adoc[Java Plugin API].
+
+* *Post-renderers* (`JhelmPostRenderer`), *chart downloaders* (`JhelmChartDownloader`),
+  *lifecycle listeners* (`JhelmLifecycleListener`), and *template-function providers*
+  (`JhelmTemplateFunctionProvider`) run in the same render/fetch/lifecycle/engine paths as
+  the native-Helm and WASM plugins, across every jhelm surface (CLI/REST/MCP/library).
+* Java plugins run in-process (code already on the classpath), so they are not gated on the
+  security posture; a `jhelm-plugin-api-sample` module shows one of each.
+
 == 1.2.1
 
 === Dependencies
