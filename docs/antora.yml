@@ -10,6 +10,7 @@ asciidoc:
     api-rest: 'https://javadoc.io/page/org.alexmond/jhelm-rest'
     api-mcp: 'https://javadoc.io/page/org.alexmond/jhelm-mcp'
     api-plugin: 'https://javadoc.io/page/org.alexmond/jhelm-plugin'
+    api-plugin-api: 'https://javadoc.io/page/org.alexmond/jhelm-plugin-api'
     toc: left
     sectnums: ''
     keywords: 'Helm, Java, Kubernetes, Spring Boot, Chart management, Template engine'
