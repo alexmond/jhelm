@@ -63,6 +63,12 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.zookeeper.properties"
         reason: "embedded zookeeper.properties differs only by trailing block-scalar whitespace"
+      # The embedded nifi.properties block scalar has the same CI-only trailing block-scalar
+      # whitespace nuance as zookeeper.properties above: local helm matches jhelm byte-for-byte,
+      # but the CI runner's helm renders a trailing line differently. Semantically identical.
+      - resource: "ConfigMap/*"
+        path: "data.nifi.properties"
+        reason: "embedded nifi.properties differs only by trailing block-scalar whitespace on the CI helm"
     "[agones/agones]":
       # caBundle is a genCA/genSignedCert TLS cert, regenerated per render (same
       # class as the webhook TLS certs ignored globally above).
@@ -79,6 +85,10 @@ jhelmtest:
       - resource: "ConfigMap/*"
         path: "data.zookeeper.properties"
         reason: "embedded zookeeper.properties differs only by trailing block-scalar whitespace"
+      # Same embedded-nifi nifi.properties trailing block-scalar whitespace nuance as cetic/nifi.
+      - resource: "ConfigMap/*"
+        path: "data.nifi.properties"
+        reason: "embedded nifi.properties differs only by trailing block-scalar whitespace on the CI helm"
       # fadi also bundles jupyterhub; its embedded python configs (jupyterhub_config.py and
       # z2jh.py in hub-config) are byte-identical to helm apart from the same trailing
       # block-scalar whitespace nuance.
