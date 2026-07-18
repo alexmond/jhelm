@@ -90,6 +90,51 @@ JhelmPostRenderer bannerPostRenderer() {
 jhelm unions both sources and de-duplicates by implementation class (a Spring bean that is
 also a declared service is registered once, preferring the bean instance).
 
+== Loading external plugin JARs
+
+The two mechanisms above discover plugins already on the application classpath. To load a
+plugin *without* rebuilding jhelm — dropping a JAR into a directory — point
+`jhelm.plugins.path` at one or more directories:
+
+[source,yaml]
+----
+jhelm:
+  plugins:
+    path: /opt/jhelm-plugins        # or a comma-separated list of directories
+----
+
+Every `*.jar` in each directory is loaded in its own class loader (parented on jhelm-core,
+so the plugin resolves the `jhelm-plugin-api` types; isolating each jar tolerates
+conflicting transitive dependencies between plugins), and its declared `ServiceLoader`
+services are discovered and merged with the classpath and Spring-bean plugins. This works on
+every surface — the CLI, the REST and MCP servers, and an embedded library — and is
+independent of how the application is launched. Empty by default, so nothing is scanned
+until a directory is configured.
+
+On the CLI, set it with the global `--plugin-dir` flag, the `JHELM_PLUGINS_PATH` environment
+variable, or the property directly:
+
+[source,bash]
+----
+jhelm --plugin-dir /opt/jhelm-plugins template my-release ./chart
+----
+
+=== Packaging a plugin as a self-contained JAR
+
+Build an ordinary JAR that (1) compiles against `jhelm-plugin-api` (scope `provided` — jhelm
+supplies it at runtime) and (2) contains a `META-INF/services/` file for each extension
+point it implements, as in <<Registering a plugin>>. Bundle any third-party libraries your
+plugin needs into the JAR (a shaded/uber JAR), since only that JAR is added to the plugin's
+class loader. Drop the finished JAR into a `jhelm.plugins.path` directory.
+
+[NOTE]
+====
+This is jhelm's own Java plugin store, distinct from the native-Helm plugin store
+(`$HELM_PLUGINS`) and the WASM `.jhp` store. A JAR here is in-process Java code — the same
+trust model as a classpath plugin — so, like the other Java plugins, it is not gated on the
+`FULL` security posture; the directory you point at is the trust boundary.
+====
+
 == Worked examples
 
 The `jhelm-plugin-api-sample` module in the source tree implements one plugin of each kind

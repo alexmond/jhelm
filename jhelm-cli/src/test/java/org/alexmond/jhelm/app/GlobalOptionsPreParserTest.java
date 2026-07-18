@@ -29,6 +29,15 @@ class GlobalOptionsPreParserTest {
 	}
 
 	@Test
+	void mapsPluginDirToPluginsPathAndStripsIt() {
+		GlobalOptionsPreParser.Result r = GlobalOptionsPreParser
+			.parse(new String[] { "--plugin-dir", "/opt/jhelm-plugins", "template", "./chart" });
+
+		assertEquals("/opt/jhelm-plugins", r.systemProperties().get("jhelm.plugins.path"));
+		assertArrayEquals(new String[] { "template", "./chart" }, r.springArgs());
+	}
+
+	@Test
 	void debugMapsToLogLevelAndIsStripped() {
 		GlobalOptionsPreParser.Result r = GlobalOptionsPreParser.parse(new String[] { "--debug", "status", "rel" });
 
@@ -47,9 +56,10 @@ class GlobalOptionsPreParserTest {
 
 	@Test
 	void mapsEveryGlobalFlag() {
-		GlobalOptionsPreParser.Result r = GlobalOptionsPreParser.parse(new String[] { "--kubeconfig", "/k",
-				"--kube-context", "c", "--kube-apiserver", "https://s:6443", "--registry-config", "/rc",
-				"--repository-config", "/rp", "--repository-cache", "/rch", "--debug", "version" });
+		GlobalOptionsPreParser.Result r = GlobalOptionsPreParser
+			.parse(new String[] { "--kubeconfig", "/k", "--kube-context", "c", "--kube-apiserver", "https://s:6443",
+					"--registry-config", "/rc", "--repository-config", "/rp", "--repository-cache", "/rch",
+					"--plugin-dir", "/pd", "--debug", "version" });
 
 		Map<String, String> p = r.systemProperties();
 		assertEquals("/k", p.get("jhelm.kubernetes.kubeconfig-path"));
@@ -58,6 +68,7 @@ class GlobalOptionsPreParserTest {
 		assertEquals("/rc", p.get("jhelm.registry-config-path"));
 		assertEquals("/rp", p.get("jhelm.config-path"));
 		assertEquals("/rch", p.get("jhelm.repository-cache-path"));
+		assertEquals("/pd", p.get("jhelm.plugins.path"));
 		assertEquals("DEBUG", p.get("logging.level.org.alexmond.jhelm"));
 		assertArrayEquals(new String[] { "version" }, r.springArgs());
 	}

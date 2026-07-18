@@ -44,11 +44,17 @@ public final class GlobalOptionsPreParser {
 	/** Enable verbose (debug) logging. */
 	public static final String DEBUG = "--debug";
 
+	/**
+	 * Directory (or comma-separated directories) scanned for external jhelm Java plugin
+	 * JARs. jhelm-specific — Helm has no equivalent flag.
+	 */
+	public static final String PLUGIN_DIR = "--plugin-dir";
+
 	// Value-taking global flags mapped to their jhelm Spring property.
 	private static final Map<String, String> VALUE_FLAGS = Map.of(KUBE_CONTEXT, "jhelm.kubernetes.context", KUBECONFIG,
 			"jhelm.kubernetes.kubeconfig-path", KUBE_APISERVER, "jhelm.kubernetes.api-server", REGISTRY_CONFIG,
 			"jhelm.registry-config-path", REPOSITORY_CONFIG, "jhelm.config-path", REPOSITORY_CACHE,
-			"jhelm.repository-cache-path");
+			"jhelm.repository-cache-path", PLUGIN_DIR, "jhelm.plugins.path");
 
 	private GlobalOptionsPreParser() {
 	}
