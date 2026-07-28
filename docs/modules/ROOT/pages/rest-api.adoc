@@ -600,6 +600,35 @@ public class CustomReleaseController {
 }
 ----
 
+=== Multi-cluster / per-request cluster selection
+
+By default jhelm-rest is *single-cluster*: every release action is wired to the one singleton
+`KubeService`, and endpoints scope only by namespace. A host that embeds jhelm against more than
+one cluster — addressing clusters by id — can route each request to a per-cluster `KubeService`
+without changing any controller or action.
+
+Supply a `KubeServiceResolver` bean (from `org.alexmond.jhelm.core.service`). It is a functional
+interface with a single `KubeService resolve()` method that inspects the current request — a
+header, a path variable, a thread-local, an id on the security context — and returns the
+`KubeService` for the target cluster. When such a bean is present, jhelm-core exposes a
+`@Primary` delegating `KubeService` that routes every call through the resolver, so the release
+API transparently operates on the selected cluster. With no resolver bean the delegating service
+is absent and the default single-cluster behavior is unchanged.
+
+[source,java]
+----
+@Bean
+@RequestScope
+public KubeServiceResolver kubeServiceResolver(HttpServletRequest request,
+        ClusterRegistry clusters) {
+    // e.g. read a cluster id from a request header and look up its KubeService
+    return () -> clusters.kubeServiceFor(request.getHeader("X-Cluster-Id"));
+}
+----
+
+The resolver is consulted once per `KubeService` method call, so a request-scoped bean picks the
+target cluster for the in-flight request. `resolve()` must return a non-`null` `KubeService`.
+
 == MCP Server
 
 In addition to the REST API, jhelm ships an https://modelcontextprotocol.io[Model Context
