@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.Mockito.mock;
@@ -77,6 +78,21 @@ class KubeBackendSelectionTest {
 			.withPropertyValues("jhelm.kubernetes.backend=fabric8", "jhelm.kubernetes.retry.enabled=false")
 			.withBean(KubernetesClient.class, () -> mock(KubernetesClient.class))
 			.run((ctx) -> assertInstanceOf(Fabric8AsyncKubeService.class, ctx.getBean(KubeService.class)));
+	}
+
+	@Test
+	void noneBuildsNoAmbientBackendEvenWithBothClientsPresent() {
+		// Both client libraries are on the test classpath, yet backend=none must suppress
+		// every ambient backend bean so the host can supply its own KubeService(s).
+		this.contextRunner.withPropertyValues("jhelm.kubernetes.backend=none").run((ctx) -> {
+			assertEquals(0, ctx.getBeanNamesForType(KubeService.class).length,
+					"backend=none must not create a default KubeService");
+			assertEquals(0, ctx.getBeanNamesForType(KubernetesProvider.class).length,
+					"backend=none must not create a default KubernetesProvider");
+			assertFalse(ctx.containsBean("kubeClient"), "backend=none must not create the client-java KubeClient");
+			assertFalse(ctx.containsBean("kubernetesClient"),
+					"backend=none must not create the Fabric8 KubernetesClient");
+		});
 	}
 
 }
