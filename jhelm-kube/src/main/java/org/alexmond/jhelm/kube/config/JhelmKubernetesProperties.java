@@ -1,5 +1,8 @@
 package org.alexmond.jhelm.kube.config;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -51,6 +54,16 @@ public class JhelmKubernetesProperties {
 	 * {@code ClientJavaKubeConfiguration} / {@code Fabric8KubeConfiguration}.
 	 */
 	private String backend = "auto";
+
+	/**
+	 * Namespaces to which release enumeration is restricted. When empty (the default),
+	 * {@code listAllReleases()} lists releases cluster-wide, which needs cluster-wide
+	 * {@code secrets:list} RBAC. When set, release listing is scoped to exactly these
+	 * namespaces, enumerated one at a time with only namespace-scoped list permission —
+	 * so {@code list --all-namespaces} works on a least-privilege / namespace-scoped
+	 * cluster that would otherwise return {@code 403 Forbidden}.
+	 */
+	private List<String> releaseNamespaces = new ArrayList<>();
 
 	/**
 	 * Retry configuration for transient Kubernetes API failures.

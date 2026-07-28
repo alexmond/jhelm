@@ -11,10 +11,14 @@ import org.alexmond.jhelm.kube.service.internal.AsyncHelmKubeService;
 import org.alexmond.jhelm.kube.service.internal.Fabric8AsyncKubeService;
 import org.alexmond.jhelm.kube.service.internal.Fabric8KubernetesProvider;
 import org.alexmond.jhelm.kube.service.internal.KubernetesClientProvider;
+import org.alexmond.jhelm.kube.service.internal.NamespaceScopedReleasesKubeService;
 import org.alexmond.jhelm.kube.service.internal.ObservableKubeService;
 import org.alexmond.jhelm.kube.service.internal.RetryableKubeService;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.Mockito.mock;
 
@@ -68,6 +72,22 @@ class KubeServicesTest {
 	void clientJavaIsBareBaseWhenRetryDisabled() {
 		KubeService service = KubeServices.clientJava(mock(ApiClient.class), retryDisabled(), null);
 		assertInstanceOf(AsyncHelmKubeService.class, service);
+	}
+
+	@Test
+	void fabric8NotNamespaceScopedByDefault() {
+		// Default props have empty release-namespaces, so listing stays cluster-wide.
+		JhelmKubernetesProperties props = new JhelmKubernetesProperties();
+		assertFalse(KubeServices.fabric8(mock(KubernetesClient.class), props,
+				null) instanceof NamespaceScopedReleasesKubeService);
+	}
+
+	@Test
+	void fabric8IsNamespaceScopedWhenReleaseNamespacesSet() {
+		JhelmKubernetesProperties props = new JhelmKubernetesProperties();
+		props.setReleaseNamespaces(List.of("a", "b"));
+		KubeService service = KubeServices.fabric8(mock(KubernetesClient.class), props, null);
+		assertInstanceOf(NamespaceScopedReleasesKubeService.class, service);
 	}
 
 	@Test
