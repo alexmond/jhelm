@@ -321,7 +321,7 @@ public class HelmKubeService implements KubeService {
 			return api.listNamespacedSecret(namespace).labelSelector(labelSelector).execute();
 		}
 		catch (ApiException ex) {
-			throw new KubernetesOperationException("Failed to " + operation, ex, ex.getCode());
+			throw new KubernetesOperationException("Failed to " + operation + describeApiFailure(ex), ex, ex.getCode());
 		}
 	}
 
@@ -334,8 +334,29 @@ public class HelmKubeService implements KubeService {
 			return api.listSecretForAllNamespaces().labelSelector(labelSelector).execute();
 		}
 		catch (ApiException ex) {
-			throw new KubernetesOperationException("Failed to " + operation, ex, ex.getCode());
+			throw new KubernetesOperationException("Failed to " + operation + describeApiFailure(ex), ex, ex.getCode());
 		}
+	}
+
+	/**
+	 * Builds a human-readable suffix describing an {@link ApiException}, appending the
+	 * client's message and, when present, the raw API response body so the cluster's own
+	 * reason (an RBAC denial, a rate-limit note) is visible on the thrown message rather
+	 * than only on the cause.
+	 * @param ex the kubernetes-client API exception
+	 * @return a suffix beginning with {@code ": "}, or an empty string if no detail is
+	 * available
+	 */
+	private static String describeApiFailure(ApiException ex) {
+		StringBuilder detail = new StringBuilder();
+		if (ex.getMessage() != null && !ex.getMessage().isBlank()) {
+			detail.append(": ").append(ex.getMessage());
+		}
+		String body = ex.getResponseBody();
+		if (body != null && !body.isBlank()) {
+			detail.append(" (").append(body).append(')');
+		}
+		return detail.toString();
 	}
 
 	/**

@@ -385,7 +385,46 @@ class HelmKubeServiceTest {
 		assertTrue(kubeService.listReleases("staging").isEmpty());
 	}
 
+	@Test
+	void testListReleasesFailureKeepsStatusCodeAndReason() throws Exception {
+		// A 401/403 listing releases must reach callers with the cluster's status code
+		// and the reason on the message (issue #797), not a bare "Failed to list
+		// releases".
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
+			var listReq = mock(CoreV1Api.APIlistNamespacedSecretRequest.class);
+			when(listReq.labelSelector(anyString())).thenReturn(listReq);
+			when(listReq.execute())
+				.thenThrow(new ApiException("Forbidden", 403, null, "{\"reason\":\"Forbidden\",\"code\":403}"));
+			when(mock.listNamespacedSecret(anyString())).thenReturn(listReq);
+		});
+
+		KubernetesOperationException ex = assertThrows(KubernetesOperationException.class,
+				() -> kubeService.listReleases("default"));
+		assertEquals(403, ex.getStatusCode());
+		assertTrue(ex.getMessage().contains("list releases"), ex.getMessage());
+		assertTrue(ex.getMessage().contains("Forbidden"), ex.getMessage());
+		// the raw API response body is appended so the cluster's own reason is visible
+		assertTrue(ex.getMessage().contains("reason"), ex.getMessage());
+	}
+
 	// --- listAllReleases ---
+
+	@Test
+	void testListAllReleasesFailureKeepsStatusCodeAndReason() throws Exception {
+		coreV1ApiConstruction = mockConstruction(CoreV1Api.class, (mock, ctx) -> {
+			var listReq = mock(CoreV1Api.APIlistSecretForAllNamespacesRequest.class);
+			when(listReq.labelSelector(anyString())).thenReturn(listReq);
+			when(listReq.execute())
+				.thenThrow(new ApiException("Unauthorized", 401, null, "{\"reason\":\"Unauthorized\"}"));
+			when(mock.listSecretForAllNamespaces()).thenReturn(listReq);
+		});
+
+		KubernetesOperationException ex = assertThrows(KubernetesOperationException.class,
+				() -> kubeService.listAllReleases());
+		assertEquals(401, ex.getStatusCode());
+		assertTrue(ex.getMessage().contains("across all namespaces"), ex.getMessage());
+		assertTrue(ex.getMessage().contains("Unauthorized"), ex.getMessage());
+	}
 
 	@Test
 	void testListAllReleasesSpansNamespacesAndKeepsSameNameDistinct() throws Exception {
