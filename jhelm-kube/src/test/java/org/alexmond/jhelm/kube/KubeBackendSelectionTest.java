@@ -2,10 +2,15 @@ package org.alexmond.jhelm.kube;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.kubernetes.client.openapi.ApiClient;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.alexmond.jhelm.core.JhelmMetricsAutoConfiguration;
+import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
+import org.alexmond.jhelm.kube.service.internal.Fabric8AsyncKubeService;
 import org.alexmond.jhelm.kube.service.internal.Fabric8KubernetesProvider;
 import org.alexmond.jhelm.kube.service.internal.KubernetesClientProvider;
+import org.alexmond.jhelm.kube.service.internal.ObservableKubeService;
+import org.alexmond.jhelm.kube.service.internal.RetryableKubeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -49,6 +54,29 @@ class KubeBackendSelectionTest {
 				assertInstanceOf(Fabric8KubernetesProvider.class, ctx.getBean(KubernetesProvider.class));
 				assertFalse(ctx.containsBean("kubeClient"), "client-java backend must be inactive when fabric8 chosen");
 			});
+	}
+
+	@Test
+	void fabric8BackendGetsTheSameDecoratorChain() {
+		this.contextRunner.withPropertyValues("jhelm.kubernetes.backend=fabric8")
+			.withBean(KubernetesClient.class, () -> mock(KubernetesClient.class))
+			.run((ctx) -> assertInstanceOf(RetryableKubeService.class, ctx.getBean(KubeService.class)));
+	}
+
+	@Test
+	void fabric8BackendIsObservableWhenMetricsAvailable() {
+		this.contextRunner.withPropertyValues("jhelm.kubernetes.backend=fabric8")
+			.withBean(KubernetesClient.class, () -> mock(KubernetesClient.class))
+			.withBean(SimpleMeterRegistry.class, SimpleMeterRegistry::new)
+			.run((ctx) -> assertInstanceOf(ObservableKubeService.class, ctx.getBean(KubeService.class)));
+	}
+
+	@Test
+	void fabric8BackendBaseIsAsyncCapable() {
+		this.contextRunner
+			.withPropertyValues("jhelm.kubernetes.backend=fabric8", "jhelm.kubernetes.retry.enabled=false")
+			.withBean(KubernetesClient.class, () -> mock(KubernetesClient.class))
+			.run((ctx) -> assertInstanceOf(Fabric8AsyncKubeService.class, ctx.getBean(KubeService.class)));
 	}
 
 }

@@ -5,6 +5,7 @@ import java.net.SocketException;
 import java.util.List;
 import java.util.Optional;
 
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.kubernetes.client.openapi.ApiException;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.model.Capabilities;
@@ -223,6 +224,30 @@ class RetryableKubeServiceTest {
 	@Test
 	void testIsNotTransientForGenericException() {
 		assertFalse(RetryableKubeService.isTransient(new IllegalArgumentException("bad arg")));
+	}
+
+	// --- isTransient with the Fabric8 client exception (classified by reflected getCode)
+	// ---
+
+	@Test
+	void testIsTransientForFabric8_503() {
+		assertTrue(RetryableKubeService.isTransient(new KubernetesClientException("Unavailable", 503, null)));
+	}
+
+	@Test
+	void testIsTransientForFabric8_429() {
+		assertTrue(RetryableKubeService.isTransient(new KubernetesClientException("Too Many", 429, null)));
+	}
+
+	@Test
+	void testIsNotTransientForFabric8_404() {
+		assertFalse(RetryableKubeService.isTransient(new KubernetesClientException("Not Found", 404, null)));
+	}
+
+	@Test
+	void testIsTransientForWrappedFabric8Cause() {
+		assertTrue(RetryableKubeService
+			.isTransient(new RuntimeException(new KubernetesClientException("wrapped", 500, null))));
 	}
 
 }

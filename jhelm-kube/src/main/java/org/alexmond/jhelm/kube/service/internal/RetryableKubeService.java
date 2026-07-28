@@ -2,8 +2,8 @@ package org.alexmond.jhelm.kube.service.internal;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
-import io.kubernetes.client.openapi.ApiException;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.model.Capabilities;
@@ -28,6 +28,14 @@ import java.net.SocketException;
  */
 @Slf4j
 public class RetryableKubeService implements KubeService {
+
+	// Kubernetes client exception types (by name, so neither client library is
+	// hard-linked
+	// — jhelm may run on whichever one is on the classpath). Each exposes an int
+	// getCode()
+	// returning the HTTP status, read reflectively in clientHttpCode.
+	private static final Set<String> CLIENT_EXCEPTION_CLASSES = Set.of("io.kubernetes.client.openapi.ApiException",
+			"io.fabric8.kubernetes.client.KubernetesClientException");
 
 	private final KubeService delegate;
 
@@ -191,15 +199,17 @@ public class RetryableKubeService implements KubeService {
 	 * that may succeed on retry. Transient errors include HTTP 429 rate-limiting
 	 * responses, 5xx server errors, connection-level failures
 	 * ({@link SocketException}/{@link ConnectException}), and any wrapped cause that is
-	 * itself transient.
+	 * itself transient. The HTTP status is read from either Kubernetes client's exception
+	 * (official client-java or Fabric8) without hard-linking the client type, so this
+	 * works whichever client backend is active.
 	 * @param ex the exception to classify; its wrapped {@link Throwable#getCause() cause}
 	 * is inspected when the exception itself is not transient
 	 * @return {@code true} if the error is transient and the operation may be retried,
 	 * {@code false} otherwise
 	 */
 	public static boolean isTransient(Throwable ex) {
-		if (ex instanceof ApiException apiEx) {
-			int code = apiEx.getCode();
+		Integer code = clientHttpCode(ex);
+		if (code != null) {
 			return code == 429 || (code >= 500 && code < 600);
 		}
 		if (ex instanceof KubernetesOperationException kubeEx) {
@@ -214,6 +224,27 @@ public class RetryableKubeService implements KubeService {
 			return isTransient(ex.getCause());
 		}
 		return false;
+	}
+
+	// Returns the HTTP status from a Kubernetes client exception (client-java's
+	// ApiException
+	// or Fabric8's KubernetesClientException, including subclasses) via a reflective
+	// getCode(), or null if the exception is not one of those. Matching by class name
+	// keeps
+	// both client libraries off this class's hard dependencies.
+	private static Integer clientHttpCode(Throwable ex) {
+		for (Class<?> type = ex.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
+			if (CLIENT_EXCEPTION_CLASSES.contains(type.getName())) {
+				try {
+					Object code = ex.getClass().getMethod("getCode").invoke(ex);
+					return (code instanceof Integer value) ? value : null;
+				}
+				catch (ReflectiveOperationException | RuntimeException ignored) {
+					return null;
+				}
+			}
+		}
+		return null;
 	}
 
 }
