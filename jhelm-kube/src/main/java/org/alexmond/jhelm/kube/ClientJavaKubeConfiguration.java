@@ -38,6 +38,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(ApiClient.class)
+@ConditionalOnKubeBackend(KubeBackend.CLIENT_JAVA)
 class ClientJavaKubeConfiguration {
 
 	/**

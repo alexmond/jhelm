@@ -27,6 +27,13 @@
             <artifactId>client-java</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- Alternative Kubernetes backend, also optional: selected when Fabric8 is the
+             client on the consumer's classpath. See Fabric8KubeConfiguration. -->
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-client</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
