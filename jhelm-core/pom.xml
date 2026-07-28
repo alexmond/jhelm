@@ -39,6 +39,16 @@
             <groupId>tools.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
         </dependency>
+        <!--
+            ValuesLoader calls CoreScalarResolver(boolean), added in snakeyaml-engine 3.x.
+            Declared directly (version managed in the root pom) so the 3.x floor is explicit
+            and self-contained rather than relying on jackson-dataformat-yaml's transitive
+            version — see #770.
+        -->
+        <dependency>
+            <groupId>org.snakeyaml</groupId>
+            <artifactId>snakeyaml-engine</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.alexmond</groupId>
             <artifactId>gotmpl4j-core</artifactId>
