@@ -17,6 +17,7 @@ import org.alexmond.jhelm.core.exception.TemplateRenderException;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -120,13 +121,33 @@ public class JhelmRestExceptionHandler {
 	}
 
 	/**
-	 * Maps a failure originating in the upstream Kubernetes cluster (API call,
-	 * deployment, or release storage) to a {@code 502 Bad Gateway} problem response.
+	 * Maps a Kubernetes API failure to an HTTP status derived from the cluster's own
+	 * response code. A client-error code (400&ndash;499) reported by the API &mdash; an
+	 * auth/RBAC denial (401/403), a missing resource (404), a conflict (409), or
+	 * rate-limiting (429) &mdash; propagates as that same status so the caller sees the
+	 * real reason. An unknown code ({@code -1}) or a server-side/transient code (5xx) is
+	 * treated as an upstream failure and mapped to {@code 502 Bad Gateway}.
 	 * @param ex the cluster-side operation exception
 	 * @return the problem detail
 	 */
-	@ExceptionHandler({ KubernetesOperationException.class, DeploymentFailedException.class,
-			ReleaseStorageException.class })
+	@ExceptionHandler(KubernetesOperationException.class)
+	public ProblemDetail handleKubernetesOperation(KubernetesOperationException ex) {
+		int code = ex.getStatusCode();
+		if (code >= 400 && code < 500) {
+			log.warn("Kubernetes API returned client error {}: {}", code, ex.getMessage());
+			return problem(HttpStatusCode.valueOf(code), ex.getMessage());
+		}
+		log.error("Upstream cluster operation failed", ex);
+		return problem(HttpStatus.BAD_GATEWAY, ex.getMessage());
+	}
+
+	/**
+	 * Maps a failure originating in the upstream Kubernetes cluster (deployment or
+	 * release storage) to a {@code 502 Bad Gateway} problem response.
+	 * @param ex the cluster-side operation exception
+	 * @return the problem detail
+	 */
+	@ExceptionHandler({ DeploymentFailedException.class, ReleaseStorageException.class })
 	public ProblemDetail handleUpstream(JhelmException ex) {
 		log.error("Upstream cluster operation failed", ex);
 		return problem(HttpStatus.BAD_GATEWAY, ex.getMessage());
@@ -157,7 +178,7 @@ public class JhelmRestExceptionHandler {
 		return problem(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
 	}
 
-	private ProblemDetail problem(HttpStatus status, String message) {
+	private ProblemDetail problem(HttpStatusCode status, String message) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, (message != null) ? message : "Unknown error");
 		problem.setProperty("timestamp", Instant.now().toString());
 		return problem;

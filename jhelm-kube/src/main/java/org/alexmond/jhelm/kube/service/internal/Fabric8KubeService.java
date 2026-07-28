@@ -181,7 +181,8 @@ public class Fabric8KubeService implements KubeService {
 			secrets = this.client.secrets().inAnyNamespace().withLabel(OWNER_LABEL, OWNER_VALUE).list().getItems();
 		}
 		catch (KubernetesClientException ex) {
-			throw new KubernetesOperationException("Failed to list all releases", ex, ex.getCode());
+			throw new KubernetesOperationException("Failed to list all releases" + describeClientFailure(ex), ex,
+					ex.getCode());
 		}
 		return toLatestReleases(secrets);
 	}
@@ -257,8 +258,21 @@ public class Fabric8KubeService implements KubeService {
 			return this.client.secrets().inNamespace(namespace).withLabels(selector).list().getItems();
 		}
 		catch (KubernetesClientException ex) {
-			throw new KubernetesOperationException("Failed to " + operation, ex, ex.getCode());
+			throw new KubernetesOperationException("Failed to " + operation + describeClientFailure(ex), ex,
+					ex.getCode());
 		}
+	}
+
+	/**
+	 * Builds a human-readable suffix describing a {@link KubernetesClientException},
+	 * appending the client's message so the cluster's own reason (an RBAC denial, a
+	 * rate-limit note) is visible on the thrown message rather than only on the cause.
+	 * @param ex the fabric8 client exception
+	 * @return a suffix beginning with {@code ": "}, or an empty string if no detail is
+	 * available
+	 */
+	private static String describeClientFailure(KubernetesClientException ex) {
+		return (ex.getMessage() != null && !ex.getMessage().isBlank()) ? ": " + ex.getMessage() : "";
 	}
 
 	private static Map<String, String> ownerNameSelector(String name) {

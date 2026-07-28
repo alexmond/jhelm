@@ -132,14 +132,49 @@ class JhelmRestExceptionHandlerTest {
 
 	@Test
 	void upstreamClusterFailuresMapTo502() {
-		ProblemDetail kube = this.handler.handleUpstream(new KubernetesOperationException("apply failed"));
 		ProblemDetail deploy = this.handler
 			.handleUpstream(new DeploymentFailedException("deploy failed", new RuntimeException("api"), "manifest"));
 		ProblemDetail storage = this.handler.handleUpstream(new ReleaseStorageException("secret write failed"));
 
-		assertEquals(HttpStatus.BAD_GATEWAY.value(), kube.getStatus());
 		assertEquals(HttpStatus.BAD_GATEWAY.value(), deploy.getStatus());
 		assertEquals(HttpStatus.BAD_GATEWAY.value(), storage.getStatus());
+	}
+
+	@Test
+	void kubernetesClientErrorStatusPropagates() {
+		RuntimeException cause = new RuntimeException("api");
+		ProblemDetail unauthorized = this.handler.handleKubernetesOperation(
+				new KubernetesOperationException("Failed to list releases: Unauthorized", cause, 401));
+		ProblemDetail forbidden = this.handler.handleKubernetesOperation(
+				new KubernetesOperationException("Failed to list releases: Forbidden", cause, 403));
+		ProblemDetail notFound = this.handler.handleKubernetesOperation(
+				new KubernetesOperationException("Failed to list releases: NotFound", cause, 404));
+		ProblemDetail conflict = this.handler
+			.handleKubernetesOperation(new KubernetesOperationException("Failed to apply: Conflict", cause, 409));
+		ProblemDetail rateLimited = this.handler.handleKubernetesOperation(
+				new KubernetesOperationException("Failed to apply: TooManyRequests", cause, 429));
+
+		assertEquals(HttpStatus.UNAUTHORIZED.value(), unauthorized.getStatus());
+		assertEquals("Failed to list releases: Unauthorized", unauthorized.getDetail());
+		assertEquals(HttpStatus.FORBIDDEN.value(), forbidden.getStatus());
+		assertEquals(HttpStatus.NOT_FOUND.value(), notFound.getStatus());
+		assertEquals(HttpStatus.CONFLICT.value(), conflict.getStatus());
+		assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), rateLimited.getStatus());
+	}
+
+	@Test
+	void kubernetesUnknownOrServerErrorMapsTo502() {
+		RuntimeException cause = new RuntimeException("api");
+		ProblemDetail unknown = this.handler
+			.handleKubernetesOperation(new KubernetesOperationException("apply failed"));
+		ProblemDetail serverError = this.handler
+			.handleKubernetesOperation(new KubernetesOperationException("Failed to apply: InternalError", cause, 500));
+		ProblemDetail unavailable = this.handler.handleKubernetesOperation(
+				new KubernetesOperationException("Failed to apply: ServiceUnavailable", cause, 503));
+
+		assertEquals(HttpStatus.BAD_GATEWAY.value(), unknown.getStatus());
+		assertEquals(HttpStatus.BAD_GATEWAY.value(), serverError.getStatus());
+		assertEquals(HttpStatus.BAD_GATEWAY.value(), unavailable.getStatus());
 	}
 
 	@Test
