@@ -53,5 +53,6 @@ redpanda/redpanda,redpanda,https://charts.redpanda.com
 # cross-namespace same-name collision, not a render diff. Both renderers emit 211 documents
 # and each config renders in the CORRECT namespace; the 5 "failures" are the 4 colliding
 # ConfigMaps + the webhook-certs Secret. Real fix: key the comparator by namespace+kind+name
-# (tracked separately); until then this is a known, expected failure.
+# (tracked separately); until then this is a known, expected failure. Removed from charts.csv
+# (so compareAllTopCharts skips it), same as gitlab/redpanda; its subcharts stay in charts.csv.
 openfunction/openfunction,openfunction,https://openfunction.github.io/charts/
