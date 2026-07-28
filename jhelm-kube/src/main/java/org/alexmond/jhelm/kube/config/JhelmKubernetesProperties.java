@@ -44,7 +44,9 @@ public class JhelmKubernetesProperties {
 	 * Selects the Kubernetes client backend. {@code auto} (the default) picks the
 	 * preferred backend among those on the classpath (the official {@code client-java}
 	 * over Fabric8 when both are present); {@code client-java} or {@code fabric8} force a
-	 * specific backend, which then requires that client library to be present. jhelm
+	 * specific backend, which then requires that client library to be present;
+	 * {@code none} builds no ambient Kubernetes client and no default {@code KubeService}
+	 * even when a client library is on the classpath — the host supplies its own. jhelm
 	 * ships neither client itself — the consumer puts one on the classpath. See
 	 * {@code ClientJavaKubeConfiguration} / {@code Fabric8KubeConfiguration}.
 	 */

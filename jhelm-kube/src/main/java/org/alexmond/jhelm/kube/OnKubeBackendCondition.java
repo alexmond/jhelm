@@ -16,7 +16,11 @@ import org.springframework.util.ClassUtils;
  * backend, and only when its client library is on the classpath;</li>
  * <li>{@code auto} (the default) activates the first backend, in {@link KubeBackend}
  * declaration order, whose client library is present — so {@code client-java} is
- * preferred over Fabric8 when both are available.</li>
+ * preferred over Fabric8 when both are available;</li>
+ * <li>{@code none} activates no backend at all, so jhelm-kube builds no ambient
+ * {@code KubernetesClient} and no default {@code KubeService} /
+ * {@code KubernetesProvider} even when a client library is on the classpath — the host
+ * supplies its own {@code KubeService}(s).</li>
  * </ul>
  */
 public class OnKubeBackendCondition implements Condition {
@@ -25,10 +29,17 @@ public class OnKubeBackendCondition implements Condition {
 
 	private static final String AUTO = "auto";
 
+	private static final String NONE = "none";
+
 	@Override
 	public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
 		KubeBackend target = targetBackend(metadata);
 		String configured = context.getEnvironment().getProperty(PROPERTY, AUTO).trim().toLowerCase(Locale.ROOT);
+		if (NONE.equals(configured)) {
+			// No ambient backend: the host brings its own KubeService(s). Suppress every
+			// backend-gated bean regardless of what client libraries are present.
+			return false;
+		}
 		ClassLoader classLoader = context.getClassLoader();
 		if (!AUTO.equals(configured)) {
 			// Explicit selection: only the named backend, and only if its library is
