@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -232,6 +233,33 @@ class ChartControllerTest {
 			.perform(get("/api/v1/charts/show").param("chartRef", "bitnami/nginx").accept(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
 			.andExpect(content().string("name: nginx"));
+	}
+
+	@Test
+	void showValuesWithoutVersionResolvesLatest() throws Exception {
+		stubPull();
+		when(this.showAction.showValues(anyString())).thenReturn("replicas: 1");
+
+		this.mockMvc
+			.perform(get("/api/v1/charts/show/values").param("chartRef", "bitnami/nginx")
+				.accept(MediaType.APPLICATION_JSON))
+			.andExpect(status().isOk())
+			.andExpect(content().string("replicas: 1"));
+	}
+
+	@Test
+	void showValuesUnknownChartReturnsBadRequest() throws Exception {
+		// When no version resolves (repo has no such chart), RepoManager throws
+		// IllegalArgumentException, which must map to 400 — never a 500.
+		doThrow(new IllegalArgumentException(
+				"No chart 'nope' found in repository 'bitnami'; cannot resolve latest version"))
+			.when(this.repoManager)
+			.pull(anyString(), any(), anyString());
+
+		this.mockMvc
+			.perform(get("/api/v1/charts/show/values").param("chartRef", "bitnami/nope")
+				.accept(MediaType.APPLICATION_JSON))
+			.andExpect(status().isBadRequest());
 	}
 
 	private void stubPull() throws Exception {
