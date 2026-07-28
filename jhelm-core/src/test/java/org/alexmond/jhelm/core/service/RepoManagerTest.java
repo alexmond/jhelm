@@ -304,6 +304,57 @@ class RepoManagerTest {
 	}
 
 	@Test
+	void testPullResolvesLatestVersionWhenOmitted() throws Exception {
+		Path cache = tempDir.resolve("cache");
+		RepoManager rm = newRepoManagerWithCache(cache);
+		rm.addRepo(RepositoryConfig.Repository.builder().name("myrepo").url("https://charts.example.com").build(),
+				false, false);
+		// Two versions in the index; the newer (1.5.0) is what "latest" must resolve to.
+		writeIndex(cache, "myrepo", """
+				  mychart:
+				  - version: 1.2.0
+				    urls:
+				    - "https://charts.example.com/mychart-1.2.0.tgz"
+				  - version: 1.5.0
+				    urls:
+				    - "https://charts.example.com/mychart-1.5.0.tgz"
+				""");
+		CloseableHttpClient mockClient = mock(CloseableHttpClient.class);
+		rm.setHttpClientForTest(mockClient);
+		byte[] tgz = createMinimalTgz();
+		when(mockClient.execute(isA(HttpGet.class), any(HttpClientResponseHandler.class)))
+			.thenAnswer(httpAnswer(200, tgz));
+
+		Path dest = tempDir.resolve("dest");
+		Files.createDirectories(dest);
+		// version omitted (null) => must resolve and pull the newest version.
+		rm.pull("myrepo/mychart", null, dest.toString());
+
+		assertTrue(dest.resolve("mychart-1.5.0.tgz").toFile().exists(),
+				"the newest version (1.5.0) must be the one resolved and pulled");
+		assertFalse(dest.resolve("mychart-1.2.0.tgz").toFile().exists(), "the older version must not be pulled");
+	}
+
+	@Test
+	void testPullUnknownChartWithoutVersionThrowsIllegalArgument() throws Exception {
+		Path cache = tempDir.resolve("cache");
+		RepoManager rm = newRepoManagerWithCache(cache);
+		rm.addRepo(RepositoryConfig.Repository.builder().name("myrepo").url("https://charts.example.com").build(),
+				false, false);
+		writeIndex(cache, "myrepo", """
+				  mychart:
+				  - version: 1.5.0
+				    urls:
+				    - "https://charts.example.com/mychart-1.5.0.tgz"
+				""");
+		// A chart the index does not contain must fail as a bad request
+		// (IllegalArgumentException),
+		// not a bare IOException that surfaces as HTTP 500.
+		assertThrows(IllegalArgumentException.class,
+				() -> rm.pull("myrepo/nope", null, tempDir.resolve("dest").toString()));
+	}
+
+	@Test
 	void testComputeFileSha256() throws IOException {
 		RepoManager repoManager = new RepoManager();
 		File file = tempDir.resolve("test.bin").toFile();

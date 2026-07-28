@@ -772,10 +772,36 @@ public class RepoManager {
 				chart = chart.substring(0, colon);
 			}
 			if (resolvedVersion == null || resolvedVersion.isBlank()) {
-				throw new IOException("version is required for repository chart pulls");
+				resolvedVersion = resolveLatestVersion(chart);
 			}
 			pull(chart, null, resolvedVersion, destDir, withProv);
 		}
+	}
+
+	/**
+	 * Resolves the newest available version of a {@code repo/chart} reference from that
+	 * repository's index, mirroring {@code helm show}/{@code helm pull} behaviour when no
+	 * explicit version is requested.
+	 * @param chartFullName the chart reference, expected as {@code repo/chart}
+	 * @return the newest version string for the chart
+	 * @throws IllegalArgumentException if the reference has no {@code repo/} prefix, or
+	 * the repository index contains no version of the chart (so no latest can be
+	 * resolved)
+	 * @throws IOException if the repository index cannot be read
+	 */
+	private String resolveLatestVersion(String chartFullName) throws IOException {
+		int slashIndex = chartFullName.lastIndexOf('/');
+		if (slashIndex < 0) {
+			throw new IllegalArgumentException("version is required for repository chart pulls: " + chartFullName);
+		}
+		String repoName = chartFullName.substring(0, slashIndex);
+		String chartName = chartFullName.substring(slashIndex + 1);
+		List<ChartVersion> versions = getChartVersions(repoName, chartName);
+		if (versions.isEmpty()) {
+			throw new IllegalArgumentException("No chart '" + chartName + "' found in repository '" + repoName
+					+ "'; cannot resolve latest version");
+		}
+		return versions.getFirst().getChartVersion();
 	}
 
 	public static String deriveOciFileName(String ociUrl) {
