@@ -155,7 +155,7 @@ Provided by `JhelmCoreAutoConfiguration` when `jhelm-core` is on the classpath.
 | `jhelm.config-path`
 | `String`
 | `null`
-| Path to the Helm repository configuration file. Defaults to `~/.config/helm/repositories.yaml` when not set.
+| Path to the Helm repository configuration file. Bound at the `jhelm` root as `jhelm.config-path` (*not* `jhelm.core.config-path`); `jhelm.core.config-path` is also accepted as a relaxed alias. Defaults to the operator's Helm location (`$HELM_REPOSITORY_CONFIG`, else `~/.config/helm/repositories.yaml`) when unset — which jhelm reads *and writes* (see the embedding note below).
 
 | `jhelm.registry-config-path`
 | `String`
@@ -177,6 +177,26 @@ Provided by `JhelmCoreAutoConfiguration` when `jhelm-core` is on the classpath.
 | `256`
 | Maximum number of parsed templates to keep in the LRU cache. Only applies when `template-cache-enabled` is `true`.
 |===
+
+[NOTE]
+.Repository config path: property name and the embedded-vs-CLI default
+====
+The repository config path binds at the `jhelm` root — the property is `jhelm.config-path`, *not*
+`jhelm.core.config-path` — because it lives on `JhelmCoreProperties` (`@ConfigurationProperties(prefix = "jhelm")`),
+alongside the sibling `jhelm.rest.*` / `jhelm.security.*` / `jhelm.plugins.*` groups. Because the
+`jhelm.core.*` form is the natural guess, jhelm *also accepts* `jhelm.core.config-path` as a relaxed
+alias (resolved in `JhelmCoreAutoConfiguration`); either name works, and the same alias applies to
+`jhelm.repository-cache-path`.
+
+When *neither* name is set, the path is implicitly defaulted to the operator's real Helm location
+(`$HELM_REPOSITORY_CONFIG`, else the per-OS Helm default such as `~/.config/helm/repositories.yaml`),
+which jhelm both *reads and writes* (for example, `helm repo add`). That default is convenient for the
+CLI, but *surprising when embedding `jhelm-core` as a library in a long-running server* — it silently
+mutates the operator's Helm repositories. **When embedding, set `jhelm.config-path` (or
+`jhelm.core.config-path`) explicitly** to an application-owned location. The resolved config-path and
+cache-path are logged at `INFO` on startup, and a `WARN` is emitted when the path was left to the
+implicit default.
+====
 
 == Kubernetes Properties (`jhelm.kubernetes.*`)
 
