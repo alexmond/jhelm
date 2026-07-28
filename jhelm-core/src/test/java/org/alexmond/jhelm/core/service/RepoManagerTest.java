@@ -32,6 +32,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -177,6 +178,129 @@ class RepoManagerTest {
 		assertTrue(rm.safeCompareVersions("1.0.0", "1.0.0-rc1") > 0, "stable should outrank its pre-release");
 		assertTrue(rm.safeCompareVersions("1.0.0-rc2", "1.0.0-rc1") > 0, "rc2 should outrank rc1");
 		assertEquals(0, rm.safeCompareVersions("2.1.0", "v2.1.0"), "v-prefix is ignored");
+	}
+
+	@Test
+	void testChartVersionComparableSortsOldestFirst() {
+		RepoManager.ChartVersion older = new RepoManager.ChartVersion("r/c", "1.2.0", "1.0", "older");
+		RepoManager.ChartVersion newer = new RepoManager.ChartVersion("r/c", "1.10.0", "1.1", "newer");
+		RepoManager.ChartVersion pre = new RepoManager.ChartVersion("r/c", "1.10.0-rc1", "1.1", "pre");
+		assertTrue(older.compareTo(newer) < 0, "1.2.0 < 1.10.0 (numeric, not lexical)");
+		assertTrue(newer.compareTo(older) > 0);
+		assertEquals(0, newer.compareTo(new RepoManager.ChartVersion("x/y", "1.10.0", null, null)));
+		assertTrue(pre.compareTo(newer) < 0, "pre-release sorts below its release");
+		List<RepoManager.ChartVersion> list = new ArrayList<>(List.of(newer, older, pre));
+		list.sort(null); // natural ordering
+		assertEquals(List.of(older, pre, newer), list);
+	}
+
+	private RepoManager newRepoManagerWithCache(Path cache) throws IOException {
+		RepoManager rm = new RepoManager(tempDir.resolve("repositories.yaml").toString());
+		rm.setRepositoryCacheOverride(cache.toString());
+		Files.createDirectories(cache);
+		return rm;
+	}
+
+	private void writeIndex(Path cache, String repoName, String entriesYaml) throws IOException {
+		Files.writeString(cache.resolve(repoName + "-index.yaml"), "entries:\n" + entriesYaml);
+	}
+
+	@Test
+	void testFindChartVersionsAcrossRepos() throws IOException {
+		Path cache = tempDir.resolve("cache");
+		RepoManager rm = newRepoManagerWithCache(cache);
+		rm.addRepo(RepositoryConfig.Repository.builder().name("repo-a").url("https://a.example.com").build(), false,
+				false);
+		rm.addRepo(RepositoryConfig.Repository.builder().name("repo-b").url("https://b.example.com").build(), false,
+				false);
+		writeIndex(cache, "repo-a", """
+				  redis:
+				  - version: 1.2.0
+				    appVersion: "6.0"
+				    description: redis from repo-a
+				  - version: 1.5.0
+				    appVersion: "6.2"
+				    description: newer redis from repo-a
+				""");
+		writeIndex(cache, "repo-b", """
+				  redis:
+				  - version: 2.0.0
+				    appVersion: "7.0"
+				    description: redis from repo-b
+				  nginx:
+				  - version: 3.0.0
+				    appVersion: "1.25"
+				    description: nginx from repo-b
+				""");
+
+		List<RepoManager.ChartMatch> matches = rm.findChartVersions("redis");
+		assertEquals(3, matches.size(), "two versions in repo-a plus one in repo-b");
+		// Newest first across all repos.
+		assertEquals("repo-b", matches.get(0).repoName());
+		assertEquals("2.0.0", matches.get(0).version().getChartVersion());
+		assertEquals("1.5.0", matches.get(1).version().getChartVersion());
+		assertEquals("1.2.0", matches.get(2).version().getChartVersion());
+		assertEquals("repo-b/redis", matches.get(0).version().getName());
+
+		// A chart present in only one repo still resolves.
+		List<RepoManager.ChartMatch> nginx = rm.findChartVersions("nginx");
+		assertEquals(1, nginx.size());
+		assertEquals("repo-b", nginx.get(0).repoName());
+
+		// Missing chart => empty, not an error.
+		assertTrue(rm.findChartVersions("does-not-exist").isEmpty());
+	}
+
+	@Test
+	void testFindChartVersionsSkipsRepoWithoutIndex() throws IOException {
+		Path cache = tempDir.resolve("cache");
+		RepoManager rm = newRepoManagerWithCache(cache);
+		rm.addRepo(RepositoryConfig.Repository.builder().name("good").url("https://good.example.com").build(), false,
+				false);
+		// A repo with no URL and no cached index makes getChartVersions throw; the lookup
+		// must skip it rather than fail the whole search.
+		rm.addRepo(RepositoryConfig.Repository.builder().name("broken").build(), false, false);
+		writeIndex(cache, "good", """
+				  redis:
+				  - version: 1.0.0
+				    appVersion: "6.0"
+				    description: redis
+				""");
+
+		List<RepoManager.ChartMatch> matches = rm.findChartVersions("redis");
+		assertEquals(1, matches.size());
+		assertEquals("good", matches.get(0).repoName());
+	}
+
+	@Test
+	void testLatestOfAcrossRepos() throws IOException {
+		Path cache = tempDir.resolve("cache");
+		RepoManager rm = newRepoManagerWithCache(cache);
+		rm.addRepo(RepositoryConfig.Repository.builder().name("repo-a").url("https://a.example.com").build(), false,
+				false);
+		rm.addRepo(RepositoryConfig.Repository.builder().name("repo-b").url("https://b.example.com").build(), false,
+				false);
+		writeIndex(cache, "repo-a", """
+				  redis:
+				  - version: 1.5.0
+				    appVersion: "6.2"
+				    description: redis from repo-a
+				""");
+		writeIndex(cache, "repo-b", """
+				  redis:
+				  - version: 2.0.0
+				    appVersion: "7.0"
+				    description: redis from repo-b
+				""");
+
+		Optional<RepoManager.ChartMatch> latest = rm.latestOf("redis");
+		assertTrue(latest.isPresent());
+		assertEquals("repo-b", latest.get().repoName());
+		assertEquals("2.0.0", latest.get().version().getChartVersion());
+
+		assertTrue(rm.latestOf("missing").isEmpty(), "no repo has the chart");
+		assertTrue(rm.findChartVersions(null).isEmpty(), "null chart name is empty");
+		assertTrue(rm.findChartVersions("  ").isEmpty(), "blank chart name is empty");
 	}
 
 	@Test

@@ -38,6 +38,7 @@ import org.alexmond.jhelm.core.model.Dependency;
 import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.model.Values;
 import org.alexmond.jhelm.core.model.VersionSet;
+import org.alexmond.jhelm.core.util.ChartVersions;
 
 /**
  * Renders a Helm {@link Chart} to Kubernetes manifests by driving the Go template engine.
@@ -738,52 +739,12 @@ public class Engine {
 	}
 
 	/**
-	 * Compare two version strings by splitting on "." and comparing each segment
-	 * numerically. Returns positive if v1 &gt; v2, negative if v1 &lt; v2, zero if equal.
+	 * Compare two chart version strings by lenient SemVer precedence, delegating to
+	 * {@link ChartVersions#compare(String, String)}. Returns positive if {@code v1 > v2},
+	 * negative if {@code v1 < v2}, zero if equal.
 	 */
 	static int compareVersions(String v1, String v2) {
-		if (v1 == null && v2 == null) {
-			return 0;
-		}
-		if (v1 == null) {
-			return -1;
-		}
-		if (v2 == null) {
-			return 1;
-		}
-		String[] parts1 = v1.split("\\.");
-		String[] parts2 = v2.split("\\.");
-		int len = Math.max(parts1.length, parts2.length);
-		for (int i = 0; i < len; i++) {
-			int n1 = (i < parts1.length) ? parseSegment(parts1[i]) : 0;
-			int n2 = (i < parts2.length) ? parseSegment(parts2[i]) : 0;
-			if (n1 != n2) {
-				return Integer.compare(n1, n2);
-			}
-		}
-		return 0;
-	}
-
-	private static int parseSegment(String segment) {
-		try {
-			return Integer.parseInt(segment);
-		}
-		catch (NumberFormatException ex) {
-			// Strip non-numeric suffix (e.g. "1-beta") and parse the leading digits
-			StringBuilder digits = new StringBuilder();
-			for (char ch : segment.toCharArray()) {
-				if (Character.isDigit(ch)) {
-					digits.append(ch);
-				}
-				else {
-					break;
-				}
-			}
-			if (digits.length() > 0) {
-				return Integer.parseInt(digits.toString());
-			}
-			return 0;
-		}
+		return ChartVersions.compare(v1, v2);
 	}
 
 	private String renderWithSubcharts(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo,
