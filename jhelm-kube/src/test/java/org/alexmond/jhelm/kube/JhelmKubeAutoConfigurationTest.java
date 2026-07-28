@@ -7,14 +7,17 @@ import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.kube.service.internal.HelmKubeService;
 import org.alexmond.jhelm.kube.service.internal.KubeClient;
+import org.alexmond.jhelm.kube.service.internal.KubernetesHealthIndicator;
 import org.alexmond.jhelm.kube.service.internal.ObservableKubeService;
 import org.alexmond.jhelm.kube.service.internal.RetryableKubeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 class JhelmKubeAutoConfigurationTest {
@@ -75,6 +78,30 @@ class JhelmKubeAutoConfigurationTest {
 			// wrapper)
 			assertInstanceOf(RetryableKubeService.class, kubeService);
 		});
+	}
+
+	// A KubeClient bean is supplied directly (rather than only an ApiClient) so the
+	// indicator's @ConditionalOnBean(KubeClient) precondition is met regardless of
+	// bean-definition ordering, isolating the jhelm.kubernetes.health.enabled toggle.
+	@Test
+	void testHealthIndicatorRegisteredByDefault() {
+		KubeClient kubeClient = new KubeClient(mock(ApiClient.class));
+		contextRunner.withBean(KubeClient.class, () -> kubeClient).run((ctx) -> {
+			assertTrue(ctx.containsBean("kubernetesHealthIndicator"));
+			assertNotNull(ctx.getBean(KubernetesHealthIndicator.class));
+		});
+	}
+
+	@Test
+	void testHealthIndicatorAbsentWhenDisabled() {
+		KubeClient kubeClient = new KubeClient(mock(ApiClient.class));
+		contextRunner.withBean(KubeClient.class, () -> kubeClient)
+			.withPropertyValues("jhelm.kubernetes.health.enabled=false")
+			.run((ctx) -> {
+				assertNotNull(ctx.getBean(KubeClient.class));
+				assertFalse(ctx.containsBean("kubernetesHealthIndicator"));
+				assertTrue(ctx.getBeansOfType(KubernetesHealthIndicator.class).isEmpty());
+			});
 	}
 
 	@Test

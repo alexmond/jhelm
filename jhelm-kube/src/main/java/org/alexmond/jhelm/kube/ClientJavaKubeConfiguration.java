@@ -20,6 +20,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -161,6 +162,7 @@ class ClientJavaKubeConfiguration {
 		@Bean
 		@ConditionalOnBean(KubeClient.class)
 		@ConditionalOnMissingBean(KubernetesHealthIndicator.class)
+		@ConditionalOnProperty(prefix = "jhelm.kubernetes", name = "health.enabled", matchIfMissing = true)
 		KubernetesHealthIndicator kubernetesHealthIndicator(KubeClient kubeClient) {
 			return new KubernetesHealthIndicator(kubeClient);
 		}
