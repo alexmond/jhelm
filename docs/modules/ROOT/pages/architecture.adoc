@@ -63,9 +63,14 @@ Core Helm logic and models. Ships with Spring Boot auto-configuration (`JhelmCor
 === jhelm-kube
 
 Kubernetes client integration. Ships with Spring Boot auto-configuration (`JhelmKubeAutoConfiguration`).
+The concrete backend is chosen from the client library on the classpath — the official
+`io.kubernetes:client-java` or Fabric8 `io.fabric8:kubernetes-client` — via
+`jhelm.kubernetes.backend` (see xref:configuration.adoc#choosing-a-kubernetes-client-backend[Choosing a Kubernetes client backend]).
+Both implement the same `KubeService` surface behind identical, Helm-compatible on-cluster
+state.
 
-* *HelmKubeService* -- Kubernetes operations using the official Java client: resource apply/delete via server-side PATCH, ConfigMap-based release storage (Helm-compatible format), resource status checking (Deployments, StatefulSets, Jobs, Pods)
-* *AsyncHelmKubeService* -- extends `HelmKubeService` with `CompletableFuture`-based async methods using Java 21 virtual threads (`Executors.newVirtualThreadPerTaskExecutor()`)
+* *HelmKubeService / Fabric8KubeService* -- Kubernetes operations for each backend: resource apply/delete via server-side apply, Secret-based release storage (Helm-compatible `sh.helm.release.v1.*` format), resource status checking (Deployments, StatefulSets, Jobs, Pods)
+* *AsyncHelmKubeService / Fabric8AsyncKubeService* -- extend the base service with `CompletableFuture`-based async methods using Java 21 virtual threads (`Executors.newVirtualThreadPerTaskExecutor()`)
 
 === jhelm-cli
 
