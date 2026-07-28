@@ -42,3 +42,16 @@ gitlab/gitlab,gitlab,https://charts.gitlab.io
 # and the chart raises. Root cause is engine-level number typing (how numeric values read
 # from .Values are typed), i.e. a gotmpl4j concern — not fixed here. Deferred low priority.
 redpanda/redpanda,redpanda,https://charts.redpanda.com
+#
+# --- Parity-harness limitation (NOT a jhelm rendering bug) ---
+# openfunction is an umbrella that bundles BOTH tekton-pipelines and knative-serving, each
+# of which ships Knative's standard config maps (config-observability, config-defaults,
+# config-logging, config-leader-election) and a webhook-certs Secret under DIFFERENT
+# namespaces. The comparator keys resources by kind+name only, so Helm's tekton
+# `ConfigMap/config-observability` (ns tekton-pipelines, chart tekton-pipelines-0.37.2) is
+# paired against jhelm's knative one (ns knative-serving, chart knative-serving-1.3.2) — a
+# cross-namespace same-name collision, not a render diff. Both renderers emit 211 documents
+# and each config renders in the CORRECT namespace; the 5 "failures" are the 4 colliding
+# ConfigMaps + the webhook-certs Secret. Real fix: key the comparator by namespace+kind+name
+# (tracked separately); until then this is a known, expected failure.
+openfunction/openfunction,openfunction,https://openfunction.github.io/charts/
