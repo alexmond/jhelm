@@ -9,9 +9,13 @@ import java.nio.file.Path;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import org.alexmond.jhelm.core.metrics.JhelmMetrics;
+import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.gotemplate.helm.functions.KubernetesProvider;
 import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
+import org.alexmond.jhelm.kube.service.internal.Fabric8AsyncKubeService;
 import org.alexmond.jhelm.kube.service.internal.Fabric8KubernetesProvider;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -26,11 +30,9 @@ import org.springframework.context.annotation.Configuration;
  * {@link OnKubeBackendCondition}).
  *
  * <p>
- * This slice provides the client and the cluster-backed {@link KubernetesProvider} (the
- * {@code lookup}/{@code kubeVersion} SPI). The full {@code KubeService} implementation
- * (install/upgrade/uninstall cluster operations) is added in a later slice; until then a
- * Fabric8-only classpath renders templates and resolves {@code lookup}, but does not yet
- * perform releases.
+ * Provides the Fabric8 client, the cluster-backed {@link KubernetesProvider} (the
+ * {@code lookup}/{@code kubeVersion} SPI), and the {@link KubeService} (release storage,
+ * apply, delete, wait) — at behavioral parity with the official-client backend.
  *
  * <p>
  * Imported by {@link JhelmKubeAutoConfiguration}, which owns the module-wide,
@@ -67,6 +69,22 @@ class Fabric8KubeConfiguration {
 	@ConditionalOnMissingBean(KubernetesProvider.class)
 	KubernetesProvider kubernetesClientProvider(KubernetesClient client) {
 		return new Fabric8KubernetesProvider(client);
+	}
+
+	/**
+	 * Builds the Fabric8-backed {@link KubeService}, applying the module-wide decorator
+	 * chain (retry, metrics) owned by {@link JhelmKubeAutoConfiguration} — identical
+	 * decoration to the official-client backend.
+	 * @param client the Fabric8 client
+	 * @param props the Kubernetes configuration properties, providing the retry settings
+	 * @param metricsProvider provider for the optional metrics bean
+	 * @return the (possibly decorated) Kubernetes service
+	 */
+	@Bean
+	@ConditionalOnMissingBean(KubeService.class)
+	KubeService kubeService(KubernetesClient client, JhelmKubernetesProperties props,
+			ObjectProvider<JhelmMetrics> metricsProvider) {
+		return KubeServiceDecorators.decorate(new Fabric8AsyncKubeService(client), props, metricsProvider);
 	}
 
 	private Config buildConfig(JhelmKubernetesProperties props) throws IOException {
