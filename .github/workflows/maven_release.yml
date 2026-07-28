@@ -41,6 +41,20 @@ jobs:
       - name: Set Release Version
         run: ./mvnw versions:set -DnewVersion=${{ github.event.inputs.releaseVersion }} --no-transfer-progress
 
+      # jhelm-kube's coverage gate is met only when its @KubeClusterAvailable integration
+      # tests run (the Fabric8/client-java KubeService impls are integration-covered), so
+      # Verify Build needs a cluster + Helm — same as build.yml. Without it, jacoco:check
+      # fails on jhelm-kube.
+      - name: Create Kubernetes Cluster (Kind)
+        uses: helm/kind-action@v1.12.0
+        with:
+          cluster_name: kind
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.2
+
       - name: Verify Build
         run: ./mvnw --batch-mode clean verify --no-transfer-progress
 
