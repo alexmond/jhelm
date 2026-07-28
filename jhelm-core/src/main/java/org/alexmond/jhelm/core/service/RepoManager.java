@@ -38,11 +38,13 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import tools.jackson.databind.JsonNode;
 
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.model.RepositoryConfig;
+import org.alexmond.jhelm.core.util.ChartVersions;
 
 @Slf4j
 public class RepoManager {
@@ -610,6 +612,60 @@ public class RepoManager {
 		return result;
 	}
 
+	/**
+	 * Finds every version of a chart across <em>all</em> configured repositories.
+	 *
+	 * <p>
+	 * Each configured repository is searched by its short chart name; matches are
+	 * returned as {@link ChartMatch} entries carrying the originating repo name alongside
+	 * the {@link ChartVersion}. A repository whose index is missing or unreadable is
+	 * skipped rather than failing the whole lookup, mirroring how {@link #updateAll()}
+	 * tolerates a single bad repo. Results are ordered newest version first, ties broken
+	 * by repo name.
+	 * @param chartName the short chart name to search for (without a {@code repo/}
+	 * prefix)
+	 * @return matches across all repos, newest first; empty if none match
+	 * @throws IOException if the repository configuration itself cannot be read
+	 */
+	public List<ChartMatch> findChartVersions(String chartName) throws IOException {
+		List<ChartMatch> matches = new ArrayList<>();
+		if (chartName == null || chartName.isBlank()) {
+			return matches;
+		}
+		RepositoryConfig config = loadConfig();
+		for (RepositoryConfig.Repository repo : config.getRepositories()) {
+			String repoName = repo.getName();
+			try {
+				for (ChartVersion version : getChartVersions(repoName, chartName)) {
+					matches.add(new ChartMatch(repoName, version));
+				}
+			}
+			catch (IOException ex) {
+				if (log.isWarnEnabled()) {
+					log.warn("Skipping repo {} while searching for chart {}: {}", repoName, chartName, ex.getMessage());
+				}
+			}
+		}
+		matches.sort((a, b) -> {
+			int byVersion = safeCompareVersions(b.version().getChartVersion(), a.version().getChartVersion());
+			return (byVersion != 0) ? byVersion : a.repoName().compareToIgnoreCase(b.repoName());
+		});
+		return matches;
+	}
+
+	/**
+	 * Returns the single newest version of a chart across all configured repositories.
+	 * @param chartName the short chart name to search for (without a {@code repo/}
+	 * prefix)
+	 * @return the newest {@link ChartMatch}, or {@link Optional#empty()} if no repo has
+	 * the chart
+	 * @throws IOException if the repository configuration itself cannot be read
+	 */
+	public Optional<ChartMatch> latestOf(String chartName) throws IOException {
+		List<ChartMatch> matches = findChartVersions(chartName);
+		return matches.isEmpty() ? Optional.empty() : Optional.of(matches.getFirst());
+	}
+
 	private Map<?, ?> loadIndexEntries(String repoName) throws IOException {
 		Map<?, ?> cached = this.indexCache.get(repoName);
 		if (cached == null) {
@@ -673,79 +729,7 @@ public class RepoManager {
 	 * {@code v0.5.0}).
 	 */
 	int safeCompareVersions(String v1, String v2) {
-		if (v1 == null && v2 == null) {
-			return 0;
-		}
-		if (v1 == null) {
-			return -1;
-		}
-		if (v2 == null) {
-			return 1;
-		}
-		v1 = stripLeadingV(v1);
-		v2 = stripLeadingV(v2);
-		String core1 = v1;
-		String pre1 = "";
-		int dash1 = v1.indexOf('-');
-		if (dash1 >= 0) {
-			core1 = v1.substring(0, dash1);
-			pre1 = v1.substring(dash1 + 1);
-		}
-		String core2 = v2;
-		String pre2 = "";
-		int dash2 = v2.indexOf('-');
-		if (dash2 >= 0) {
-			core2 = v2.substring(0, dash2);
-			pre2 = v2.substring(dash2 + 1);
-		}
-		int coreCmp = compareCoreVersions(core1, core2);
-		if (coreCmp != 0) {
-			return coreCmp;
-		}
-		// Same major.minor.patch: per SemVer a normal version outranks a pre-release.
-		boolean hasPre1 = !pre1.isEmpty();
-		boolean hasPre2 = !pre2.isEmpty();
-		if (hasPre1 != hasPre2) {
-			return hasPre1 ? -1 : 1;
-		}
-		return pre1.compareTo(pre2);
-	}
-
-	private int compareCoreVersions(String core1, String core2) {
-		String[] p1 = core1.split("\\.");
-		String[] p2 = core2.split("\\.");
-		int n = Math.max(p1.length, p2.length);
-		for (int i = 0; i < n; i++) {
-			String a = (i < p1.length) ? p1[i] : "0";
-			String b = (i < p2.length) ? p2[i] : "0";
-			int ai = parseIntSafe(a);
-			int bi = parseIntSafe(b);
-			if (ai != Integer.MIN_VALUE && bi != Integer.MIN_VALUE) {
-				if (ai != bi) {
-					return Integer.compare(ai, bi);
-				}
-			}
-			else {
-				int c = a.compareTo(b);
-				if (c != 0) {
-					return c;
-				}
-			}
-		}
-		return 0;
-	}
-
-	private String stripLeadingV(String v) {
-		return (!v.isEmpty() && (v.charAt(0) == 'v' || v.charAt(0) == 'V')) ? v.substring(1) : v;
-	}
-
-	private int parseIntSafe(String s) {
-		try {
-			return Integer.parseInt(s);
-		}
-		catch (Exception ex) {
-			return Integer.MIN_VALUE;
-		}
+		return ChartVersions.compare(v1, v2);
 	}
 
 	private String asString(Object o) {
@@ -1328,9 +1312,11 @@ public class RepoManager {
 		return total;
 	}
 
+	// @Data generates equals()/hashCode(); PMD can't see the Lombok-generated methods.
+	@SuppressWarnings("PMD.OverrideBothEqualsAndHashCodeOnComparable")
 	@lombok.Data
 	@lombok.AllArgsConstructor
-	public static class ChartVersion {
+	public static class ChartVersion implements Comparable<ChartVersion> {
 
 		private String name; // repo/chart
 
@@ -1340,6 +1326,29 @@ public class RepoManager {
 
 		private String description; // description (may be null)
 
+		/**
+		 * Orders by chart version using {@link ChartVersions#compare(String, String)}
+		 * (ascending: oldest first), so a natural sort puts the newest version last.
+		 * @param other the version to compare against
+		 * @return a negative integer, zero, or a positive integer as this version is
+		 * older than, equal to, or newer than {@code other}
+		 */
+		@Override
+		public int compareTo(ChartVersion other) {
+			return ChartVersions.compare(this.chartVersion, other.chartVersion);
+		}
+
+	}
+
+	/**
+	 * A {@link ChartVersion} paired with the name of the repository it was found in, used
+	 * by the cross-repo lookups {@link #findChartVersions(String)} and
+	 * {@link #latestOf(String)}.
+	 *
+	 * @param repoName the name of the configured repository the match came from
+	 * @param version the matching chart version
+	 */
+	public record ChartMatch(String repoName, ChartVersion version) {
 	}
 
 }
