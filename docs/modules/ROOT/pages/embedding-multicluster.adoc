@@ -1,0 +1,168 @@
+= Embedding jhelm in a Multi-Cluster Host
+
+Embedding `jhelm-rest` (or `jhelm-core` + `jhelm-kube`) inside your own Spring Boot
+application lets you drive Helm operations from your platform's own API, auth, and
+lifecycle. The settings a host needs are individually documented across the
+xref:configuration.adoc[Configuration], xref:rest-api.adoc[REST API], and
+xref:security.adoc[Security] pages; this recipe pulls the multi-cluster-embedder subset
+into one place.
+
+Two shapes are common:
+
+* *Single-cluster embed* — the host talks to one cluster and simply wants jhelm's REST
+  surface under its own application, security, and file layout.
+* *Multi-cluster embed* — the host addresses many clusters (by id) and brings its own
+  Kubernetes clients, routing each request to the right cluster.
+
+== Single-cluster embed
+
+Here the host adds `jhelm-rest-starter`, keeps jhelm's ambient (auto-detected) Kubernetes
+client, and only needs to make jhelm application-owned rather than operator-owned:
+
+[source,yaml]
+----
+jhelm:
+  config-path: /var/lib/myapp/helm/repositories.yaml   # app-owned, not the operator's ~/.config/helm
+  kubernetes:
+    backend: client-java                               # pick a backend explicitly (see note below)
+  rest:
+    access-interceptor:
+      enabled: false                                   # only if the host secures the endpoints itself
+----
+
+* *`jhelm.config-path`* — set this explicitly. Left unset, jhelm reads *and writes* the
+  operator's real Helm repository file (`~/.config/helm/repositories.yaml`), so an embedded
+  server would silently mutate it. See the embedding note on
+  xref:configuration.adoc[the Configuration page].
+* *Backend* — put exactly one client library on the classpath and, optionally, pin
+  `jhelm.kubernetes.backend`. `auto` prefers `client-java` when both are present. See
+  xref:configuration.adoc#choosing-a-kubernetes-client-backend[Choosing a Kubernetes client backend].
+* *`jhelm.rest.access-interceptor.enabled=false`* — set this only if your application
+  already secures the mutating endpoints (e.g. its own Spring Security), so operations are
+  not gated twice. Otherwise leave jhelm's built-in `jhelm.security.*` gate in place. See
+  xref:rest-api.adoc[the REST API configuration table].
+
+== Multi-cluster embed
+
+A multi-cluster host owns the Kubernetes clients itself — one per target cluster — and does
+*not* want jhelm to build an ambient client from a kubeconfig. The pattern has three parts:
+turn off the ambient backend, build a decorated `KubeService` per cluster from your client,
+and route each request to the right one.
+
+=== 1. No ambient backend
+
+[source,yaml]
+----
+jhelm:
+  kubernetes:
+    backend: none            # build no ambient client and no default KubeService
+    health:
+      enabled: false         # no ambient cluster to health-check
+----
+
+`jhelm.kubernetes.backend=none` tells jhelm-kube to build *no* ambient Kubernetes client and
+*no* default singleton `KubeService` — the host supplies clients instead. With no ambient
+cluster there is nothing for the built-in Kubernetes health indicator to probe, so disable it
+with `jhelm.kubernetes.health.enabled=false` (a `backend=none` host has no indicator to begin
+with; the flag also turns it off for any other embed).
+
+=== 2. A KubeService per cluster from a host-supplied client
+
+Given a Kubernetes client the host already holds for a target cluster, build a fully-decorated
+`KubeService` (metrics, retries, observability wrappers included) with the public factory in
+`org.alexmond.jhelm.kube.KubeServices`:
+
+[source,java]
+----
+import org.alexmond.jhelm.kube.KubeServices;
+import io.fabric8.kubernetes.client.KubernetesClient;    // or io.kubernetes.client.openapi.ApiClient
+
+// Fabric8 client the host owns for a given cluster:
+KubeService svc = KubeServices.fabric8(perClusterFabric8Client);
+
+// or the official client-java ApiClient:
+KubeService svc = KubeServices.clientJava(perClusterApiClient);
+----
+
+(`org.alexmond.jhelm.kube.KubernetesProviders.fabric8(...)` / `clientJava(...)` are the
+lower-level equivalents when you want just the provider.) Cache these per cluster id in your
+own registry.
+
+=== 3. Route each request to the target cluster
+
+Supply a `KubeServiceResolver` bean (from `org.alexmond.jhelm.core.service`). When such a bean
+is present, jhelm-core exposes a `@Primary` delegating `KubeService` that routes every call
+through the resolver, so the release API transparently operates on the selected cluster — no
+controller or action changes. The resolver inspects the in-flight request (a header, a path
+variable, the security context) and returns the per-cluster `KubeService` built in step 2:
+
+[source,java]
+----
+@Bean
+@RequestScope
+public KubeServiceResolver kubeServiceResolver(HttpServletRequest request,
+        ClusterRegistry clusters) {
+    // read a cluster id from a request header and return that cluster's KubeService,
+    // built once via KubeServices.fabric8(...) / KubeServices.clientJava(...)
+    return () -> clusters.kubeServiceFor(request.getHeader("X-Cluster-Id"));
+}
+----
+
+`resolve()` must return a non-`null` `KubeService`; it is consulted once per method call, so a
+request-scoped bean selects the cluster for the current request. See
+xref:rest-api.adoc#_multi-cluster_per_request_cluster_selection[Multi-cluster / per-request cluster selection]
+for the full resolver contract.
+
+=== Other settings for a multi-cluster host
+
+* *`jhelm.rest.access-interceptor.enabled=false`* — a multi-cluster platform almost always
+  fronts jhelm with its own auth, so disable the built-in gate to avoid double-gating (see
+  xref:rest-api.adoc[REST API]).
+* *`jhelm.config-path`* — keep the repository config application-owned, exactly as in the
+  single-cluster case (xref:configuration.adoc[Configuration]).
+* *`jhelm.kubernetes.release-namespaces`* — set to a comma-separated namespace list (e.g.
+  `team-a,team-b`) to restrict release enumeration to those namespaces. Use this when the
+  host runs under namespaced RBAC and a cluster-wide release listing would be denied or
+  undesirable.
+
+== Settings summary
+
+[cols="2,3,2"]
+|===
+| Property | What it does | Reference
+
+| `jhelm.kubernetes.backend=none`
+| Build no ambient Kubernetes client / no default `KubeService`; the host supplies clients per cluster.
+| xref:configuration.adoc#choosing-a-kubernetes-client-backend[Backend selection]
+
+| `KubeServices.fabric8(client)` / `KubeServices.clientJava(apiClient)`
+| Factory that turns a host-supplied client into a fully-decorated per-cluster `KubeService`.
+| `org.alexmond.jhelm.kube.KubeServices`
+
+| `KubeServiceResolver` bean
+| Routes each request to the target cluster's `KubeService`; jhelm-core adds a `@Primary` delegating service when present.
+| xref:rest-api.adoc#_multi-cluster_per_request_cluster_selection[Per-request cluster selection]
+
+| `jhelm.rest.access-interceptor.enabled=false`
+| Disables jhelm's built-in access-mode gate so the host's own security is the single gate (no double-gating).
+| xref:rest-api.adoc[REST API]
+
+| `jhelm.config-path`
+| Point the repository config at an application-owned path so jhelm doesn't read/write the operator's `~/.config/helm`.
+| xref:configuration.adoc[Configuration]
+
+| `jhelm.kubernetes.health.enabled=false`
+| Disables the ambient Kubernetes health indicator (a `backend=none` host has none anyway).
+| xref:configuration.adoc[Configuration]
+
+| `jhelm.kubernetes.release-namespaces=team-a,team-b`
+| Restricts release enumeration to a namespace set, for namespaced RBAC.
+| xref:configuration.adoc[Configuration]
+|===
+
+== See also
+
+* xref:configuration.adoc#choosing-a-kubernetes-client-backend[Choosing a Kubernetes client backend]
+* xref:rest-api.adoc#_multi-cluster_per_request_cluster_selection[Multi-cluster / per-request cluster selection]
+* xref:rest-api.adoc[REST API Starter]
+* xref:security.adoc[Security]
