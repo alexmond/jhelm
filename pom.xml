@@ -98,11 +98,7 @@
         <module>jhelm-mcp-starter</module>
         <module>jhelm-plugin</module>
         <module>jhelm-cli</module>
-        <module>jhelm-sample</module>
-        <module>jhelm-rest-sample</module>
-        <module>jhelm-mcp-sample</module>
-        <module>jhelm-config-server-sample</module>
-        <module>jhelm-plugin-api-sample</module>
+        <module>jhelm-samples</module>
         <module>jhelm-benchmarks</module>
     </modules>
 
@@ -349,6 +345,7 @@
                              and abort the whole publish. (#560) -->
                         <excludeArtifacts>
                             <excludeArtifact>jhelm</excludeArtifact>
+                            <excludeArtifact>jhelm-samples</excludeArtifact>
                             <excludeArtifact>jhelm-sample</excludeArtifact>
                             <excludeArtifact>jhelm-rest-sample</excludeArtifact>
                             <excludeArtifact>jhelm-mcp-sample</excludeArtifact>

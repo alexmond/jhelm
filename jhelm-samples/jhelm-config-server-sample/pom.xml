@@ -6,24 +6,41 @@
 		<groupId>org.alexmond</groupId>
 		<artifactId>jhelm-parent</artifactId>
 		<version>1.3.1-SNAPSHOT</version>
+		<relativePath>../../pom.xml</relativePath>
 	</parent>
-	<artifactId>jhelm-sample</artifactId>
-	<name>jhelm-sample</name>
-	<description>Sample Spring Boot application to verify jhelm auto-configuration wiring</description>
+	<artifactId>jhelm-config-server-sample</artifactId>
+	<name>jhelm-config-server-sample</name>
+	<description>Sample Spring Cloud Config Server (security + encryption enabled) for jhelm value profiles</description>
 
 	<properties>
 		<!-- Not published; skip Javadoc (and its doclint enforcement) for the sample. -->
 		<maven.javadoc.skip>true</maven.javadoc.skip>
 	</properties>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>${spring-cloud.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 		<dependency>
-			<groupId>org.alexmond</groupId>
-			<artifactId>jhelm-core</artifactId>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-config-server</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter</artifactId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -35,6 +52,10 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<configuration>
@@ -43,4 +64,5 @@
 			</plugin>
 		</plugins>
 	</build>
+
 </project>
