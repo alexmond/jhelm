@@ -58,6 +58,11 @@ public class JhelmKubernetesProperties {
 	private Retry retry = new Retry();
 
 	/**
+	 * Kubernetes health indicator configuration.
+	 */
+	private Health health = new Health();
+
+	/**
 	 * Retry configuration for transient Kubernetes API failures, controlling the maximum
 	 * number of attempts and the exponential backoff between them.
 	 */
@@ -96,6 +101,34 @@ public class JhelmKubernetesProperties {
 		 * Maximum interval between retries in milliseconds.
 		 */
 		private long maxIntervalMs = 10000;
+
+	}
+
+	/**
+	 * Health indicator configuration for the Kubernetes integration. Controls whether the
+	 * {@code KubernetesHealthIndicator} — which probes the ambient client's cluster
+	 * connectivity and contributes to the aggregate {@code /actuator/health} — is
+	 * registered when Spring Boot Actuator is on the classpath. A host that embeds jhelm
+	 * but does not want jhelm's single-cluster health folded into its own aggregate (e.g.
+	 * a multi-cluster application) can turn it off even when an ambient client exists.
+	 */
+	@Getter
+	@Setter
+	public static class Health {
+
+		/**
+		 * Creates the health settings with default values.
+		 */
+		@SuppressWarnings("PMD.UnnecessaryConstructor")
+		public Health() {
+		}
+
+		/**
+		 * Whether the Kubernetes health indicator is registered. Defaults to
+		 * {@code true}; set to {@code false} to opt out even when a Kubernetes client is
+		 * present.
+		 */
+		private boolean enabled = true;
 
 	}
 
