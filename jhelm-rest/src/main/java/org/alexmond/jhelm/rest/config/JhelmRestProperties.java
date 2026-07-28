@@ -37,6 +37,12 @@ public class JhelmRestProperties {
 	private DataSize maxUploadSize = DataSize.ofMegabytes(100);
 
 	/**
+	 * Configuration for jhelm's built-in access-mode interceptor that gates
+	 * cluster-mutating REST endpoints.
+	 */
+	private AccessInterceptor accessInterceptor = new AccessInterceptor();
+
+	/**
 	 * Returns the configured temp directory, or the system default if not set. The
 	 * returned path is always absolute and normalized.
 	 * @return the temp directory path
@@ -51,6 +57,25 @@ public class JhelmRestProperties {
 		Path workspace = getTempDir();
 		Files.createDirectories(workspace);
 		log.info("jhelm workspace: {}", workspace);
+	}
+
+	/**
+	 * Settings for jhelm's built-in access-mode interceptor.
+	 */
+	@Getter
+	@Setter
+	public static class AccessInterceptor {
+
+		/**
+		 * Whether jhelm registers its built-in access-mode interceptor, which gates
+		 * cluster-mutating REST endpoints behind the shared {@code jhelm.security.*}
+		 * policy (deny-by-default). Set to {@code false} when the host application embeds
+		 * jhelm-rest under its own Spring Security so mutating operations are not
+		 * double-gated; the interceptor is then not registered and requests pass through
+		 * to the host's own security. Defaults to {@code true}.
+		 */
+		private boolean enabled = true;
+
 	}
 
 }

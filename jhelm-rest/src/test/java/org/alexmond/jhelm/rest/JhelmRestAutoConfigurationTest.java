@@ -2,6 +2,7 @@ package org.alexmond.jhelm.rest;
 
 import org.alexmond.jhelm.core.JhelmCoreAutoConfiguration;
 import org.alexmond.jhelm.rest.config.JhelmRestProperties;
+import org.alexmond.jhelm.rest.security.AccessModeInterceptor;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -58,6 +60,25 @@ class JhelmRestAutoConfigurationTest {
 		this.contextRunner.withUserConfiguration(CustomOpenApiConfig.class).run((context) -> {
 			OpenAPI openApi = context.getBean(OpenAPI.class);
 			assertEquals("Custom API", openApi.getInfo().getTitle());
+		});
+	}
+
+	@Test
+	void accessInterceptorEnabledByDefault() {
+		this.contextRunner.run((context) -> {
+			assertTrue(context.getBean(JhelmRestProperties.class).getAccessInterceptor().isEnabled());
+			assertNotNull(context.getBean(AccessModeInterceptor.class));
+			assertTrue(context.containsBean("jhelmAccessModeWebMvcConfigurer"));
+		});
+	}
+
+	@Test
+	void accessInterceptorCanBeDisabled() {
+		this.contextRunner.withPropertyValues("jhelm.rest.access-interceptor.enabled=false").run((context) -> {
+			assertFalse(context.getBean(JhelmRestProperties.class).getAccessInterceptor().isEnabled());
+			assertFalse(context.containsBean("accessModeInterceptor"));
+			assertEquals(0, context.getBeansOfType(AccessModeInterceptor.class).size());
+			assertFalse(context.containsBean("jhelmAccessModeWebMvcConfigurer"));
 		});
 	}
 
