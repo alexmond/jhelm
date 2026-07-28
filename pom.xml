@@ -51,6 +51,14 @@
         <fabric8-client.version>6.13.5</fabric8-client.version>
         <picocli.version>4.7.7</picocli.version>
         <semver4j.version>6.0.0</semver4j.version>
+        <!--
+            jhelm-core and jhelm-gotemplate-helm call CoreScalarResolver(boolean), added in
+            snakeyaml-engine 3.x. Spring Boot's BOM does not manage snakeyaml-engine (only
+            classic org.yaml:snakeyaml), and it arrives transitively via jackson-dataformat-yaml,
+            so pin a floor here or a downstream graph can resolve an older 2.x → runtime
+            NoSuchMethodError on the first chart load (#770).
+        -->
+        <snakeyaml-engine.version>3.0.1</snakeyaml-engine.version>
         <bouncycastle.version>1.84</bouncycastle.version>
         <!-- Only the config-server sample uses Spring Cloud; 2025.1.x (Oakwood) targets Boot 4.0. -->
         <spring-cloud.version>2025.1.2</spring-cloud.version>
@@ -192,6 +200,12 @@
                 <groupId>org.semver4j</groupId>
                 <artifactId>semver4j</artifactId>
                 <version>${semver4j.version}</version>
+            </dependency>
+            <!-- Explicit floor; see the snakeyaml-engine.version note above (#770). -->
+            <dependency>
+                <groupId>org.snakeyaml</groupId>
+                <artifactId>snakeyaml-engine</artifactId>
+                <version>${snakeyaml-engine.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.alexmond</groupId>
