@@ -1,5 +1,27 @@
 = Changelog
 
+== 1.5.0
+
+=== Pluggable Kubernetes client backend
+
+jhelm can now run on *either* Kubernetes client library — the official
+`io.kubernetes:client-java` (the historical default) or Fabric8
+`io.fabric8:kubernetes-client` — selected by whichever one is on the classpath. Both
+backends are behaviorally identical, down to a byte-identical `sh.helm.release.v1.*` release
+Secret format (a release written by one backend is readable by the other). See
+xref:configuration.adoc#choosing-a-kubernetes-client-backend[Choosing a Kubernetes client backend].
+
+* *Classpath-selected backend* -- `jhelm-kube` now declares both clients as optional, so it
+  ships neither transitively; the consumer puts one on the classpath (the CLI bundles
+  `client-java`). A new Fabric8 backend implements the full cluster surface — release
+  storage, server-side apply, delete/cascade, wait/status, and the `lookup`/`kubeVersion`
+  template data — at parity with the official-client backend (#776, #777, #778, #779).
+* *`jhelm.kubernetes.backend`* -- `auto` (default; prefers `client-java` when both are
+  present), `client-java`, or `fabric8`. Selection is deterministic — exactly one backend
+  activates even with both libraries on the classpath (#778).
+* *Library-agnostic retry* -- transient-failure classification reads the HTTP status from
+  either client's exception, so retry works on whichever backend is active (#780).
+
 == 1.4.0
 
 === External Java plugin JARs

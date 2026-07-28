@@ -190,7 +190,53 @@ Provided by `JhelmKubeAutoConfiguration` when `jhelm-kube` is on the classpath.
 | `String`
 | `null`
 | Path to the kubeconfig file. When not set, uses standard Kubernetes auto-detection: `~/.kube/config` or in-cluster credentials.
+
+| `jhelm.kubernetes.backend`
+| `String`
+| `auto`
+| Which Kubernetes client backend to use — `auto`, `client-java`, or `fabric8`. See <<Choosing a Kubernetes client backend>>.
 |===
+
+[#choosing-a-kubernetes-client-backend]
+== Choosing a Kubernetes client backend
+
+jhelm can talk to the cluster through either of two Kubernetes client libraries, and picks
+the backend based on which one is on the classpath. jhelm-kube declares both as *optional*
+dependencies, so it ships neither transitively — **the consumer puts exactly one on the
+classpath** (the `jhelm` CLI bundles the official client by default):
+
+[cols="1,3"]
+|===
+| Backend | Dependency to add
+
+| `client-java` (default)
+| `io.kubernetes:client-java` — the official Kubernetes Java client.
+
+| `fabric8`
+| `io.fabric8:kubernetes-client` — the Fabric8 Kubernetes client.
+|===
+
+Both backends are behaviorally identical from a chart's point of view: they store releases
+in the same `sh.helm.release.v1.*` Secret format (a release written by one backend is
+readable by the other), apply and delete with the same semantics, and expose the same
+`lookup`/`kubeVersion` template data.
+
+`jhelm.kubernetes.backend` selects the backend:
+
+* `auto` (default) — use the backend whose client library is present; if *both* are on the
+  classpath, prefer `client-java` (jhelm's historical default).
+* `client-java` / `fabric8` — force that backend. The named client library must be present,
+  otherwise no Kubernetes backend is configured.
+
+Selection is deterministic — exactly one backend activates regardless of configuration
+order — so having both libraries on the classpath is well-defined rather than a conflict.
+
+[source,yaml]
+----
+jhelm:
+  kubernetes:
+    backend: fabric8   # requires io.fabric8:kubernetes-client on the classpath
+----
 
 == Precedence
 
