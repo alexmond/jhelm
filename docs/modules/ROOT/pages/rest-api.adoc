@@ -91,6 +91,10 @@ Open http://localhost:8080/swagger-ui.html to see all endpoints.
 | `jhelm.rest.temp-dir`
 | System temp dir
 | Base directory for server-managed temporary files used during chart operations
+
+| `jhelm.rest.access-interceptor.enabled`
+| `true`
+| Whether jhelm registers its built-in access-mode interceptor, which gates the cluster-mutating endpoints behind the shared `jhelm.security.*` policy (deny-by-default). Set to `false` when the host application embeds `jhelm-rest` under its own Spring Security so mutating operations are not double-gated — the interceptor is then not registered and requests pass through to the host's own security.
 |===
 
 [source,yaml]
@@ -600,6 +604,7 @@ public class CustomReleaseController {
 }
 ----
 
+[#_multi-cluster_per_request_cluster_selection]
 === Multi-cluster / per-request cluster selection
 
 By default jhelm-rest is *single-cluster*: every release action is wired to the one singleton
