@@ -2,6 +2,7 @@ package org.alexmond.jhelm.core.service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.alexmond.jhelm.core.exception.KubernetesOperationException;
 import org.alexmond.jhelm.core.exception.ReleaseStorageException;
 import org.alexmond.jhelm.core.exception.WaitTimeoutException;
@@ -51,6 +52,24 @@ public interface KubeService {
 	 * @throws KubernetesOperationException if the Kubernetes API cannot be reached
 	 */
 	List<Release> listAllReleases();
+
+	/**
+	 * Returns the latest revision of every release across the given set of namespaces,
+	 * using only namespace-scoped list permission. Unlike {@link #listAllReleases()},
+	 * which needs cluster-wide {@code secrets:list} RBAC, this enumerates releases by
+	 * calling the namespace-scoped {@link #listReleases(String)} once per namespace and
+	 * flattening the results, so it works on a least-privilege cluster where the caller
+	 * is granted list access only within specific namespaces. The default implementation
+	 * composes {@link #listReleases(String)}, so it flows through every decorator (retry,
+	 * metrics) and both client backends with no per-backend implementation.
+	 * @param namespaces the namespaces to list; an empty set yields an empty list
+	 * @return the releases found across the given namespaces, or an empty list if there
+	 * are none
+	 * @throws KubernetesOperationException if the Kubernetes API cannot be reached
+	 */
+	default List<Release> listReleases(Set<String> namespaces) {
+		return namespaces.stream().flatMap((ns) -> listReleases(ns).stream()).toList();
+	}
 
 	/**
 	 * Returns all stored revisions of a release, newest first.

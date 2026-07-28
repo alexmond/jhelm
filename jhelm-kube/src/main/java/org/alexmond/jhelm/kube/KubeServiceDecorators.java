@@ -1,10 +1,12 @@
 package org.alexmond.jhelm.kube;
 
 import java.time.Duration;
+import java.util.Set;
 
 import org.alexmond.jhelm.core.metrics.JhelmMetrics;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.kube.config.JhelmKubernetesProperties;
+import org.alexmond.jhelm.kube.service.internal.NamespaceScopedReleasesKubeService;
 import org.alexmond.jhelm.kube.service.internal.ObservableKubeService;
 import org.alexmond.jhelm.kube.service.internal.RetryableKubeService;
 import org.springframework.beans.factory.ObjectProvider;
@@ -42,6 +44,11 @@ final class KubeServiceDecorators {
 		JhelmMetrics metrics = metricsProvider.getIfAvailable();
 		if (metrics != null) {
 			service = new ObservableKubeService(service, metrics);
+		}
+		// Outermost: when release listing is namespace-scoped, route listAllReleases()
+		// through the per-namespace listReleases so it still flows through retry+metrics.
+		if (!props.getReleaseNamespaces().isEmpty()) {
+			service = new NamespaceScopedReleasesKubeService(service, Set.copyOf(props.getReleaseNamespaces()));
 		}
 		return service;
 	}
