@@ -16,9 +16,11 @@ import org.springframework.context.annotation.Import;
  * client-agnostic concerns — the {@link JhelmKubernetesProperties} binding and the
  * {@link KubeService} decorator chain (see {@link KubeServiceDecorators}) — and imports
  * the client-specific backend configuration(s). The concrete Kubernetes backend is
- * selected by whichever client library is on the classpath:
- * {@link ClientJavaKubeConfiguration} activates when the official
- * {@code io.kubernetes:client-java} is present.
+ * selected by the {@code jhelm.kubernetes.backend} property and whichever client library
+ * is on the classpath (see {@link OnKubeBackendCondition}):
+ * {@link ClientJavaKubeConfiguration} for the official {@code io.kubernetes:client-java}
+ * and {@link Fabric8KubeConfiguration} for {@code io.fabric8:kubernetes-client}. Exactly
+ * one activates.
  *
  * <p>
  * The selected backend produces the base {@link KubeService}, which is wrapped with
@@ -29,7 +31,7 @@ import org.springframework.context.annotation.Import;
  */
 @AutoConfiguration(before = JhelmCoreAutoConfiguration.class, after = JhelmMetricsAutoConfiguration.class)
 @EnableConfigurationProperties(JhelmKubernetesProperties.class)
-@Import(ClientJavaKubeConfiguration.class)
+@Import({ ClientJavaKubeConfiguration.class, Fabric8KubeConfiguration.class })
 public class JhelmKubeAutoConfiguration {
 
 	/**
