@@ -492,7 +492,7 @@ public class Fabric8KubeService implements KubeService {
 				if (doc instanceof Map<?, ?> map) {
 					String[] id = identify(map);
 					if (RESTARTABLE_KINDS.contains(id[1])) {
-						restartWorkload(namespace, map, id, restartedAt);
+						restartWorkload(namespace, id, restartedAt);
 					}
 				}
 			}
@@ -505,16 +505,30 @@ public class Fabric8KubeService implements KubeService {
 		}
 	}
 
-	private void restartWorkload(String namespace, Map<?, ?> resource, String[] id, String restartedAt) {
+	private void restartWorkload(String namespace, String[] id, String restartedAt) {
 		String patchJson = "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"" + RESTART_ANNOTATION + "\":\""
 				+ restartedAt + "\"}}}}}";
-		GenericKubernetesResource gkr = toGeneric(resource);
-		metaOf(gkr).setNamespace(namespace);
+		// Identity-only target (GVK + name + namespace). A full GenericKubernetesResource
+		// would be serialized for the strategic-merge patch and trip the
+		// additionalProperties
+		// keySerializer NPE; the patch body itself is patchJson.
+		GenericKubernetesResource gkr = identityResource(id, namespace);
 		PatchContext ctx = new PatchContext.Builder().withPatchType(PatchType.STRATEGIC_MERGE)
 			.withFieldManager(FIELD_MANAGER)
 			.build();
 		this.client.resource(gkr).patch(ctx, patchJson);
 		log.info("Restarted workload {}/{}", id[1], id[2]);
+	}
+
+	private static GenericKubernetesResource identityResource(String[] id, String namespace) {
+		GenericKubernetesResource gkr = new GenericKubernetesResource();
+		gkr.setApiVersion(id[0]);
+		gkr.setKind(id[1]);
+		ObjectMeta meta = new ObjectMeta();
+		meta.setName(id[2]);
+		meta.setNamespace(namespace);
+		gkr.setMetadata(meta);
+		return gkr;
 	}
 
 	// ---------------------------------------------------------------- status / readiness
