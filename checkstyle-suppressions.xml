@@ -53,6 +53,10 @@
          status/wait), just over the line limit; splitting it would fragment one cohesive surface -->
     <suppress checks="FileLength" files="HelmKubeService\.java"/>
 
+    <!-- Fabric8KubeService is the Fabric8 counterpart of HelmKubeService (same cohesive surface),
+         suppressed for the same reason -->
+    <suppress checks="FileLength" files="Fabric8KubeService\.java"/>
+
     <!-- ConversionFunctions is one cohesive registry of YAML/JSON/TOML conversion functions
          plus the Go-faithful serialization post-processing — long by nature -->
     <suppress checks="FileLength" files="ConversionFunctions\.java"/>
