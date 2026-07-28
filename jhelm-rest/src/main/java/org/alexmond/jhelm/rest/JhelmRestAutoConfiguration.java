@@ -39,6 +39,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.info.BuildProperties;
@@ -140,24 +141,33 @@ public class JhelmRestAutoConfiguration {
 
 	/**
 	 * Registers the access-mode interceptor that gates cluster-mutating endpoints behind
-	 * the unified security policy (deny-by-default 403, then API-key 401).
+	 * the unified security policy (deny-by-default 403, then API-key 401). Skipped when
+	 * {@code jhelm.rest.access-interceptor.enabled=false} — set that when the host
+	 * application secures the endpoints itself (e.g. its own Spring Security) to avoid
+	 * double-gating.
 	 * @param securityPolicy the unified security policy that gates mutating operations
 	 * @return the access-mode interceptor bean
 	 */
 	@Bean
 	@ConditionalOnMissingBean
+	@ConditionalOnProperty(prefix = "jhelm.rest", name = "access-interceptor.enabled", havingValue = "true",
+			matchIfMissing = true)
 	public AccessModeInterceptor accessModeInterceptor(JhelmSecurityPolicy securityPolicy) {
 		return new AccessModeInterceptor(securityPolicy);
 	}
 
 	/**
 	 * Registers a {@link WebMvcConfigurer} that applies the {@link AccessModeInterceptor}
-	 * to all REST paths.
+	 * to all REST paths. Skipped when {@code jhelm.rest.access-interceptor.enabled=false}
+	 * so the interceptor is not registered and mutating requests pass through to the host
+	 * application's own security.
 	 * @param accessModeInterceptor the interceptor enforcing the access mode
 	 * @return the web MVC configurer bean
 	 */
 	@Bean
 	@ConditionalOnMissingBean(name = "jhelmAccessModeWebMvcConfigurer")
+	@ConditionalOnProperty(prefix = "jhelm.rest", name = "access-interceptor.enabled", havingValue = "true",
+			matchIfMissing = true)
 	public WebMvcConfigurer jhelmAccessModeWebMvcConfigurer(AccessModeInterceptor accessModeInterceptor) {
 		return new WebMvcConfigurer() {
 			@Override
