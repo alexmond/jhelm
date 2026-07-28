@@ -17,12 +17,34 @@ xref:configuration.adoc#choosing-a-kubernetes-client-backend[Choosing a Kubernet
   storage, server-side apply, delete/cascade, wait/status, and the `lookup`/`kubeVersion`
   template data — at parity with the official-client backend (#776, #777, #778, #779).
 * *`jhelm.kubernetes.backend`* -- `auto` (default; prefers `client-java` when both are
-  present), `client-java`, or `fabric8`. Selection is deterministic — exactly one backend
-  activates even with both libraries on the classpath (#778).
+  present), `client-java`, `fabric8`, or `none` (build no ambient client — the host supplies
+  its own). Selection is deterministic — exactly one backend activates even with both
+  libraries on the classpath (#778, #796).
 * *Library-agnostic retry* -- transient-failure classification reads the HTTP status from
   either client's exception, so retry works on whichever backend is active (#780).
 
-== 1.4.0
+=== Embedding jhelm in a multi-cluster host
+
+New building blocks let a Spring Boot host embed jhelm-core/jhelm-rest as a library and
+serve many clusters. See xref:embedding-multicluster.adoc[Embedding jhelm in a multi-cluster host].
+
+* *Public per-cluster factory* -- `KubeServices.fabric8(client)` / `KubeServices.clientJava(apiClient)`
+  (and `KubernetesProviders.*`) build a fully-decorated `KubeService`/provider from a
+  host-supplied client, with no internal-package coupling (#795).
+* *Per-request cluster routing* -- a `KubeServiceResolver` bean lets the release API resolve a
+  per-cluster `KubeService` per request (e.g. from a header) instead of one ambient client (#773).
+* *Namespace-scoped release listing* -- `jhelm.kubernetes.release-namespaces` lists releases
+  across a namespace set instead of cluster-wide, so jhelm works on namespace-scoped RBAC
+  without cluster-wide `secrets:list` (#798).
+* *Accurate error status* -- Kubernetes failures now surface the real HTTP status (401/403/404
+  pass through instead of collapsing to 500/502), with the cluster reason in the message (#797).
+* *Host-security passthrough* -- `jhelm.rest.access-interceptor.enabled=false` opts out of
+  jhelm's access interceptor when the host secures the endpoints itself (#774).
+* *Health opt-out* -- `jhelm.kubernetes.health.enabled=false` suppresses the ambient Kubernetes
+  health indicator (#800).
+* *Embedded-safe repo config* -- `jhelm.config-path` is accepted under a `jhelm.core.*` alias,
+  the resolved config/cache paths are logged at startup, and jhelm warns before implicitly
+  reading/writing the operator's `~/.config/helm` (#769).
 
 === External Java plugin JARs
 
@@ -36,6 +58,17 @@ without being on the build classpath. See xref:java-plugin-api.adoc#_loading_ext
   independent of how the application is launched (#765).
 * *CLI `--plugin-dir`* -- a global flag (also `JHELM_PLUGINS_PATH`) to set the plugin
   directory for a run (#766).
+
+=== Other improvements
+
+* *Public chart-version comparator + cross-repo lookup* -- `ChartVersions.compare`, a
+  `Comparable` `ChartVersion`, and `RepoManager.findChartVersions`/`latestOf`, plus a
+  `jhelm outdated <chart>` command reporting the latest available version and whether an
+  upgrade is available (#771).
+* *`charts/show/*` resolves the latest version* -- `show` for a `repo/chart` reference with no
+  version now resolves the newest from the repo index instead of returning HTTP 500 (#772).
+* *snakeyaml-engine floor pinned* -- jhelm requires snakeyaml-engine 3.x; the version is now
+  pinned so a transitive 2.x can't cause a runtime `NoSuchMethodError` on the first chart load (#770).
 
 == 1.3.0
 
