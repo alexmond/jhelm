@@ -19,8 +19,12 @@ public class JhelmCoreProperties {
 	private final Profiles profiles = new Profiles();
 
 	/**
-	 * Path to the Helm repository configuration file. Defaults to
-	 * {@code ~/.config/helm/repositories.yaml} when not set.
+	 * Path to the Helm repository configuration file. Bound at the {@code jhelm} root as
+	 * {@code jhelm.config-path}; {@code jhelm.core.config-path} is also accepted as a
+	 * relaxed alias (resolved in the auto-configuration). When neither is set it defaults
+	 * to the operator's real Helm location ({@code $HELM_REPOSITORY_CONFIG} or
+	 * {@code ~/.config/helm/repositories.yaml}), which jhelm reads AND writes — embedders
+	 * should set this explicitly.
 	 */
 	private String configPath;
 

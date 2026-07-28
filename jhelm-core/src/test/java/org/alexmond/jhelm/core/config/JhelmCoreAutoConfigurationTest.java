@@ -76,9 +76,42 @@ class JhelmCoreAutoConfigurationTest {
 	}
 
 	@Test
-	void testConfigPathPropertyPassedToRepoManager() {
-		contextRunner.withPropertyValues("jhelm.core.config-path=/tmp/test-repos.yaml")
-			.run((ctx) -> assertNotNull(ctx.getBean(RepoManager.class)));
+	void testCanonicalConfigPathPropertyPassedToRepoManager() {
+		contextRunner.withPropertyValues("jhelm.config-path=/tmp/canonical-repos.yaml").run((ctx) -> {
+			RepoManager repoManager = ctx.getBean(RepoManager.class);
+			assertEquals("/tmp/canonical-repos.yaml", repoManager.getConfigPath());
+		});
+	}
+
+	@Test
+	void testCoreAliasConfigPathBindsToRepoManager() {
+		// jhelm.core.config-path is the natural guess (matching jhelm.rest /
+		// jhelm.security
+		// / jhelm.plugins) but binds at the jhelm root as jhelm.config-path; the relaxed
+		// alias in JhelmCoreAutoConfiguration makes the guess work instead of silently
+		// falling through to the operator's Helm location.
+		contextRunner.withPropertyValues("jhelm.core.config-path=/tmp/alias-repos.yaml").run((ctx) -> {
+			RepoManager repoManager = ctx.getBean(RepoManager.class);
+			assertEquals("/tmp/alias-repos.yaml", repoManager.getConfigPath());
+		});
+	}
+
+	@Test
+	void testCanonicalConfigPathWinsOverCoreAlias() {
+		contextRunner
+			.withPropertyValues("jhelm.config-path=/tmp/canonical.yaml", "jhelm.core.config-path=/tmp/alias.yaml")
+			.run((ctx) -> {
+				RepoManager repoManager = ctx.getBean(RepoManager.class);
+				assertEquals("/tmp/canonical.yaml", repoManager.getConfigPath());
+			});
+	}
+
+	@Test
+	void testCoreAliasRepositoryCachePathBindsToRepoManager() {
+		contextRunner.withPropertyValues("jhelm.core.repository-cache-path=/tmp/alias-cache").run((ctx) -> {
+			RepoManager repoManager = ctx.getBean(RepoManager.class);
+			assertEquals("/tmp/alias-cache", repoManager.getRepositoryCachePath());
+		});
 	}
 
 	@Test

@@ -20,6 +20,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 import org.springframework.beans.factory.ObjectProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.action.CreateAction;
@@ -147,29 +148,92 @@ public class JhelmCoreAutoConfiguration {
 	}
 
 	/**
+	 * Resolves the Helm repository config path, accepting {@code jhelm.core.config-path}
+	 * as a relaxed alias for the canonical {@code jhelm.config-path}. The property is
+	 * bound at the {@code jhelm} root (so {@code jhelm.core.config-path} does not bind to
+	 * {@link JhelmCoreProperties}), yet embedders naturally guess the
+	 * {@code jhelm.core.*} form to match the sibling {@code jhelm.rest} /
+	 * {@code jhelm.security} / {@code jhelm.plugins} groups; this alias makes that guess
+	 * work instead of silently falling through to the operator's real Helm location.
+	 * @param bound the value bound to {@link JhelmCoreProperties} (may be {@code null})
+	 * @param environment the Spring environment, consulted for the alias
+	 * @param aliasKey the {@code jhelm.core.*} alias property name
+	 * @return the explicitly configured path, the alias value, or {@code null} when
+	 * neither is set
+	 */
+	private static String resolveAliasedPath(String bound, Environment environment, String aliasKey) {
+		if (bound != null) {
+			return bound;
+		}
+		return environment.getProperty(aliasKey);
+	}
+
+	/**
 	 * Provides the chart repository manager, configured from the jhelm properties.
 	 * @param props the jhelm core configuration properties
+	 * @param securityProps the jhelm security properties (supplies the private-network
+	 * policy)
+	 * @param environment the Spring environment, consulted for the {@code jhelm.core.*}
+	 * path aliases
 	 * @param registryManager the OCI registry auth provider
 	 * @param metrics optional metrics for instrumenting chart pulls
+	 * @param chartDownloaders optional bean-supplied chart downloaders
+	 * @param javaChartDownloaders optional plugin chart downloaders
+	 * @param pluginLoader the external-JAR plugin loader (may be absent)
 	 * @return the repository manager bean
 	 */
 	@Bean
 	@ConditionalOnMissingBean
 	public RepoManager repoManager(JhelmCoreProperties props, JhelmSecurityProperties securityProps,
-			RegistryManager registryManager, ObjectProvider<JhelmMetrics> metrics,
+			Environment environment, RegistryManager registryManager, ObjectProvider<JhelmMetrics> metrics,
 			ObjectProvider<ChartDownloader> chartDownloaders, ObjectProvider<JhelmChartDownloader> javaChartDownloaders,
 			ObjectProvider<PluginLoader> pluginLoader) {
 		boolean blockPrivate = securityProps.isBlockPrivateNetworks();
-		RepoManager repoManager = (props.getConfigPath() != null)
-				? new RepoManager(props.getConfigPath(), registryManager, props.isInsecureSkipTlsVerify(), blockPrivate)
+		String configPath = resolveAliasedPath(props.getConfigPath(), environment, "jhelm.core.config-path");
+		String cachePath = resolveAliasedPath(props.getRepositoryCachePath(), environment,
+				"jhelm.core.repository-cache-path");
+		RepoManager repoManager = (configPath != null)
+				? new RepoManager(configPath, registryManager, props.isInsecureSkipTlsVerify(), blockPrivate)
 				: new RepoManager(registryManager, props.isInsecureSkipTlsVerify(), blockPrivate);
 		repoManager.setMetrics(metrics.getIfAvailable());
-		repoManager.setRepositoryCacheOverride(props.getRepositoryCachePath());
+		repoManager.setRepositoryCacheOverride(cachePath);
 		List<ChartDownloader> downloaders = new ArrayList<>(chartDownloaders.stream().toList());
 		mergePlugins(JhelmChartDownloader.class, javaChartDownloaders.stream().toList(), pluginLoader.getIfAvailable())
 			.forEach((plugin) -> downloaders.add(new JhelmChartDownloaderAdapter(plugin)));
 		repoManager.setChartDownloaders(downloaders);
 		return repoManager;
+	}
+
+	/**
+	 * Logs the resolved Helm repository config-path and cache-path at startup, so a
+	 * mis-bound path is immediately visible. When neither {@code jhelm.config-path} nor
+	 * its {@code jhelm.core.config-path} alias was set, the manager falls back to the
+	 * operator's real Helm location (via {@code $HELM_REPOSITORY_CONFIG} or the per-OS
+	 * default), which jhelm both reads and writes; a WARN then advises embedders to set
+	 * the path explicitly so the operator's {@code ~/.config/helm} is never touched
+	 * implicitly.
+	 * @param repoManager the resolved repository manager
+	 * @param props the jhelm core configuration properties
+	 * @param environment the Spring environment, consulted for the {@code jhelm.core.*}
+	 * alias
+	 * @return an application runner that logs the resolved paths once
+	 */
+	@Bean
+	@ConditionalOnMissingBean(name = "jhelmRepoConfigPathLogger")
+	public ApplicationRunner jhelmRepoConfigPathLogger(RepoManager repoManager, JhelmCoreProperties props,
+			Environment environment) {
+		return (args) -> {
+			log.info("jhelm repository config: config-path={}, cache-path={}", repoManager.getConfigPath(),
+					repoManager.getRepositoryCachePath());
+			boolean explicit = props.getConfigPath() != null
+					|| environment.getProperty("jhelm.core.config-path") != null;
+			if (!explicit) {
+				log.warn("jhelm repository config-path was not set — using the operator's Helm location {} "
+						+ "(read AND written). Set jhelm.config-path (or jhelm.core.config-path) explicitly when "
+						+ "embedding jhelm-core so the operator's ~/.config/helm is not modified implicitly.",
+						repoManager.getConfigPath());
+			}
+		};
 	}
 
 	/**
