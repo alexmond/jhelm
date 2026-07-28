@@ -20,6 +20,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.env.Environment;
 import org.springframework.beans.factory.ObjectProvider;
 import lombok.extern.slf4j.Slf4j;
@@ -57,7 +58,9 @@ import org.alexmond.jhelm.core.service.ConfigServerClient;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.ValueEncryptor;
+import org.alexmond.jhelm.core.service.DelegatingKubeService;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.service.KubeServiceResolver;
 import org.alexmond.jhelm.core.service.LifecycleListener;
 import org.alexmond.jhelm.core.service.PostRenderProcessor;
 import org.alexmond.jhelm.core.service.RegistryManager;
@@ -349,6 +352,25 @@ public class JhelmCoreAutoConfiguration {
 	@ConditionalOnMissingBean
 	public ChartLoader chartLoader() {
 		return new ChartLoader();
+	}
+
+	/**
+	 * Exposes a {@link Primary @Primary} delegating {@link KubeService} when — and only
+	 * when — the host has supplied a {@link KubeServiceResolver} bean. The delegating
+	 * service routes every call through the resolver, so the release actions operate on
+	 * the per-request cluster the host selects. With no resolver bean (the default,
+	 * including the CLI and single-cluster REST) this bean is absent, the
+	 * {@code @Primary} marker never applies, and the actions inject the real singleton
+	 * {@link KubeService} exactly as before. The bean depends only on the resolver — not
+	 * on the real {@link KubeService} — so no bean-definition cycle is introduced.
+	 * @param resolver the host-supplied per-request cluster selector
+	 * @return the delegating {@link KubeService} routed through the resolver
+	 */
+	@Bean
+	@ConditionalOnBean(KubeServiceResolver.class)
+	@Primary
+	public KubeService delegatingKubeService(KubeServiceResolver resolver) {
+		return new DelegatingKubeService(resolver);
 	}
 
 	/**

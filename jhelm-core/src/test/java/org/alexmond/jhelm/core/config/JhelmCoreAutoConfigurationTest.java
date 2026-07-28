@@ -10,8 +10,11 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import org.alexmond.jhelm.core.action.CreateAction;
 import org.alexmond.jhelm.core.action.GetAction;
 import org.alexmond.jhelm.core.action.SearchHubAction;
@@ -25,8 +28,10 @@ import org.alexmond.jhelm.core.action.TemplateAction;
 import org.alexmond.jhelm.core.action.UninstallAction;
 import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.service.ChartLoader;
+import org.alexmond.jhelm.core.service.DelegatingKubeService;
 import org.alexmond.jhelm.core.service.Engine;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.service.KubeServiceResolver;
 import org.alexmond.jhelm.core.service.RegistryManager;
 import org.alexmond.jhelm.core.service.RepoManager;
 import java.util.Map;
@@ -149,6 +154,45 @@ class JhelmCoreAutoConfigurationTest {
 	@Test
 	void jhelmMetricsBeanAbsentWithoutMeterRegistry() {
 		contextRunner.run((ctx) -> assertEquals(0, ctx.getBeanNamesForType(JhelmMetrics.class).length));
+	}
+
+	@Test
+	void testDelegatingKubeServiceAbsentWithoutResolver() {
+		// Default single-cluster behavior: with no resolver bean the delegating service
+		// is
+		// never created, so the KubeService the context resolves — and that the actions
+		// inject — is the real singleton exactly as before.
+		KubeService real = mock(KubeService.class);
+		contextRunner.withBean("realKubeService", KubeService.class, () -> real).run((ctx) -> {
+			assertEquals(0, ctx.getBeanNamesForType(DelegatingKubeService.class).length);
+			assertSame(real, ctx.getBean(KubeService.class));
+			assertNotNull(ctx.getBean(InstallAction.class));
+		});
+	}
+
+	@Test
+	void testResolverPresentRoutesActionsThroughDelegating() {
+		// With a resolver bean present, the @Primary delegating KubeService wins
+		// injection
+		// wherever a single KubeService is required (the actions), and every call routes
+		// through the host's resolver to the per-request cluster service.
+		KubeService real = mock(KubeService.class);
+		KubeService resolved = mock(KubeService.class);
+		KubeServiceResolver resolver = () -> resolved;
+		contextRunner.withBean("realKubeService", KubeService.class, () -> real)
+			.withBean(KubeServiceResolver.class, () -> resolver)
+			.run((ctx) -> {
+				// The @Primary bean a by-type single lookup resolves — the same
+				// resolution
+				// Spring uses to inject KubeService into the actions — is the delegating
+				// one.
+				KubeService primary = ctx.getBean(KubeService.class);
+				assertInstanceOf(DelegatingKubeService.class, primary);
+				assertNotNull(ctx.getBean(InstallAction.class));
+				// A call through the delegating service reaches the resolved service.
+				primary.listAllReleases();
+				verify(resolved).listAllReleases();
+			});
 	}
 
 }
