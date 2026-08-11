@@ -118,6 +118,33 @@ public interface KubeService {
 	void apply(String namespace, String yamlContent);
 
 	/**
+	 * Applies an upgraded manifest while pruning fields the release no longer declares.
+	 * <p>
+	 * Unlike {@link #apply(String, String)} (server-side apply, which only prunes fields
+	 * the {@code helm} field manager previously owned), this computes a Helm-style
+	 * three-way JSON merge patch per resource from three states — the resource as the
+	 * <em>previous</em> release rendered it ({@code previousYaml}), as the new release
+	 * renders it ({@code yamlContent}), and as it currently lives on the cluster — so a
+	 * field the release dropped since the last apply (a removed {@code env} entry, a
+	 * deleted label) is deleted regardless of prior field ownership. Resources absent
+	 * from the cluster are created; controller-set fields the release never managed are
+	 * left untouched. See {@code ThreeWayJsonMerge}.
+	 * <p>
+	 * The default forwards to {@link #apply(String, String)} (no field-level pruning) so
+	 * implementations without three-way support degrade to plain apply; the real backends
+	 * override it, and <strong>decorators must forward this call to their
+	 * delegate</strong> or pruning is silently bypassed.
+	 * @param namespace the target namespace
+	 * @param previousYaml the manifest the previous release applied (may be {@code null}
+	 * or blank when unavailable — then nothing is pruned)
+	 * @param yamlContent the new rendered YAML manifest (may contain multiple documents)
+	 * @throws KubernetesOperationException if a resource cannot be applied
+	 */
+	default void applyWithPrune(String namespace, String previousYaml, String yamlContent) {
+		apply(namespace, yamlContent);
+	}
+
+	/**
 	 * Validates a rendered manifest against the cluster via a server-side dry-run apply
 	 * (Helm {@code --dry-run=server}). The API server admits and validates the resources
 	 * (defaulting, admission webhooks, quota) but persists nothing.

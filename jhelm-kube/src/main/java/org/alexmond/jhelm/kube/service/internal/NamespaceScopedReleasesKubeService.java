@@ -91,6 +91,11 @@ public class NamespaceScopedReleasesKubeService implements KubeService {
 	}
 
 	@Override
+	public void applyWithPrune(String namespace, String previousYaml, String yamlContent) {
+		delegate.applyWithPrune(namespace, previousYaml, yamlContent);
+	}
+
+	@Override
 	public void applyDryRun(String namespace, String yamlContent) {
 		delegate.applyDryRun(namespace, yamlContent);
 	}

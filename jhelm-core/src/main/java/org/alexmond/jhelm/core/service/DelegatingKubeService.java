@@ -77,6 +77,11 @@ public class DelegatingKubeService implements KubeService {
 	}
 
 	@Override
+	public void applyWithPrune(String namespace, String previousYaml, String yamlContent) {
+		resolver.resolve().applyWithPrune(namespace, previousYaml, yamlContent);
+	}
+
+	@Override
 	public void applyDryRun(String namespace, String yamlContent) {
 		resolver.resolve().applyDryRun(namespace, yamlContent);
 	}

@@ -146,6 +146,39 @@ class Fabric8KubeServiceIntegrationTest {
 	}
 
 	@Test
+	void applyWithPrune_removesDroppedField() {
+		String previous = """
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: jhelm-fabric8-prune-cm
+				data:
+				  keep: "1"
+				  drop: "2"
+				""";
+		String upgraded = """
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: jhelm-fabric8-prune-cm
+				data:
+				  keep: "1"
+				""";
+
+		this.fabric8.apply(NAMESPACE, previous);
+		// Upgrade drops the "drop" key; three-way prune must delete it from the live
+		// object.
+		this.fabric8.applyWithPrune(NAMESPACE, previous, upgraded);
+
+		var cm = this.fabric8Client.configMaps().inNamespace(NAMESPACE).withName("jhelm-fabric8-prune-cm").get();
+		assertNotNull(cm);
+		assertEquals("1", cm.getData().get("keep"));
+		assertFalse(cm.getData().containsKey("drop"), "dropped data key must be pruned on upgrade (#814)");
+
+		this.fabric8.delete(NAMESPACE, upgraded);
+	}
+
+	@Test
 	void getResourceStatuses_coversAllWorkloadKinds() {
 		String yaml = allWorkloadsManifest();
 		try {

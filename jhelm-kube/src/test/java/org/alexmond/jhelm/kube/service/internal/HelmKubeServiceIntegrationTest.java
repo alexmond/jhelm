@@ -13,6 +13,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(classes = { KubernetesConfig.class, HelmKubeService.class })
@@ -54,6 +55,41 @@ class HelmKubeServiceIntegrationTest {
 
 		// Cleanup
 		api.deleteNamespacedConfigMap("jhelm-test-cm", "default");
+	}
+
+	@Test
+	void testUpgradeWithPruneRemovesDroppedField() throws ApiException {
+		String previous = """
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: jhelm-prune-cm
+				data:
+				  keep: "1"
+				  drop: "2"
+				""";
+		String upgraded = """
+				apiVersion: v1
+				kind: ConfigMap
+				metadata:
+				  name: jhelm-prune-cm
+				data:
+				  keep: "1"
+				""";
+
+		helmKubeService.apply("default", previous);
+		// Upgrade drops the "drop" key; three-way prune must delete it from the live
+		// object.
+		helmKubeService.applyWithPrune("default", previous, upgraded);
+
+		CoreV1Api api = new CoreV1Api(kubeClient.apiClient());
+		V1ConfigMap cm = api.readNamespacedConfigMap("jhelm-prune-cm", "default").execute();
+		assertNotNull(cm);
+		assertEquals("1", cm.getData().get("keep"));
+		assertFalse(cm.getData().containsKey("drop"), "dropped data key must be pruned on upgrade (#814)");
+
+		// Cleanup
+		api.deleteNamespacedConfigMap("jhelm-prune-cm", "default");
 	}
 
 }

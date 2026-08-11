@@ -40,10 +40,15 @@ import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.HelmReleaseCodec;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
+import org.alexmond.jhelm.core.util.ThreeWayJsonMerge;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.List;
@@ -77,6 +82,10 @@ public class HelmKubeService implements KubeService {
 
 	// Workload kinds whose pods a rolling restart (--recreate-pods) can trigger.
 	private static final Set<String> RESTARTABLE_KINDS = Set.of("Deployment", "StatefulSet", "DaemonSet");
+
+	// Maps unstructured resource maps and live objects to/from JSON for the three-way
+	// upgrade merge patch; unstructured only, so no custom modules are needed.
+	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	/** Configured Kubernetes API client used for all cluster operations. */
 	private final ApiClient apiClient;
@@ -462,6 +471,91 @@ public class HelmKubeService implements KubeService {
 		KubernetesApiResponse<DynamicKubernetesObject> response = namespaced
 				? api.patch(namespace, name, V1Patch.PATCH_FORMAT_APPLY_YAML, patch, options)
 				: api.patch(name, V1Patch.PATCH_FORMAT_APPLY_YAML, patch, options);
+		response.throwsApiException();
+	}
+
+	@Override
+	public void applyWithPrune(String namespace, String previousYaml, String yamlContent) {
+		if (previousYaml == null || previousYaml.isBlank()) {
+			// No prior state to diff against — fall back to plain server-side apply.
+			apply(namespace, yamlContent);
+			return;
+		}
+		try {
+			Map<String, Map<String, Object>> previous = indexById(previousYaml);
+			for (Object doc : loadUnstructured(yamlContent)) {
+				if (doc instanceof Map<?, ?> map) {
+					@SuppressWarnings("unchecked")
+					Map<String, Object> resource = (Map<String, Object>) map;
+					applyResourceWithPrune(namespace, resource, previous.get(String.join("|", identify(resource))));
+				}
+			}
+		}
+		catch (ApiException ex) {
+			throw new KubernetesOperationException("Failed to apply manifest", ex, ex.getCode());
+		}
+		catch (KubernetesOperationException ex) {
+			throw ex;
+		}
+		catch (Exception ex) {
+			throw new KubernetesOperationException("Failed to apply manifest", ex);
+		}
+	}
+
+	// Indexes a manifest's documents by "apiVersion|kind|name" so an upgrade can pair
+	// each
+	// new resource with how the previous release rendered it.
+	private static Map<String, Map<String, Object>> indexById(String yamlContent) {
+		Map<String, Map<String, Object>> byId = new HashMap<>();
+		for (Object doc : loadUnstructured(yamlContent)) {
+			if (doc instanceof Map<?, ?> map) {
+				@SuppressWarnings("unchecked")
+				Map<String, Object> resource = (Map<String, Object>) map;
+				byId.put(String.join("|", identify(resource)), resource);
+			}
+		}
+		return byId;
+	}
+
+	// Applies one resource with Helm-style pruning: create it if absent, otherwise send a
+	// three-way JSON merge patch (original=previous render, modified=new render,
+	// current=live) so fields the release dropped are deleted regardless of who owns
+	// them.
+	private void applyResourceWithPrune(String namespace, Map<String, Object> resource, Map<String, Object> original)
+			throws ApiException {
+		String[] id = identify(resource);
+		String apiVersion = id[0];
+		String kind = id[1];
+		String name = id[2];
+		String group = apiVersion.contains("/") ? apiVersion.split("/")[0] : "";
+		String version = apiVersion.contains("/") ? apiVersion.split("/")[1] : apiVersion;
+		String plural = inferPlural(kind);
+		boolean namespaced = inferNamespaced(kind);
+		DynamicKubernetesApi api = new DynamicKubernetesApi(group, version, plural, apiClient);
+		KubernetesApiResponse<DynamicKubernetesObject> live = namespaced ? api.get(namespace, name) : api.get(name);
+		if (!live.isSuccess()) {
+			// Absent on the cluster — create it via server-side apply (establishes helm
+			// ownership); nothing to prune for a brand-new resource.
+			applyResource(namespace, resource, false);
+			return;
+		}
+		JsonNode current = JSON.readTree(live.getObject().getRaw().toString());
+		JsonNode modified = JSON.valueToTree(resource);
+		JsonNode originalNode = (original != null) ? JSON.valueToTree(original) : null;
+		ObjectNode patch = ThreeWayJsonMerge.threeWayMergePatch(originalNode, modified, current);
+		if (patch.isEmpty()) {
+			return;
+		}
+		if (log.isInfoEnabled()) {
+			log.info("Applying (prune) {} ({}/{}) {}{}", kind, group, version, name,
+					namespaced ? " in namespace " + namespace : " (cluster-scoped)");
+		}
+		V1Patch mergePatch = new V1Patch(JSON.writeValueAsString(patch));
+		PatchOptions options = new PatchOptions();
+		options.setFieldManager("helm");
+		KubernetesApiResponse<DynamicKubernetesObject> response = namespaced
+				? api.patch(namespace, name, V1Patch.PATCH_FORMAT_JSON_MERGE_PATCH, mergePatch, options)
+				: api.patch(name, V1Patch.PATCH_FORMAT_JSON_MERGE_PATCH, mergePatch, options);
 		response.throwsApiException();
 	}
 

@@ -1,5 +1,19 @@
 = Changelog
 
+== 1.5.1
+
+=== Fixes
+
+* *Upgrade now prunes removed fields* -- `jhelm upgrade` deleted nothing: a field dropped from
+  a chart or values file (a removed container `env` entry, a deleted flag or label) stayed on
+  the live object forever, so an upgrade could only add or change. This was security-relevant —
+  a deliberately-removed setting (for example a TLS relaxation) silently remained live while
+  the upgrade reported success. jhelm now computes a Helm-style three-way JSON merge patch per
+  resource on upgrade — comparing the previous release's manifest, the new manifest, and the
+  live object — so fields the release no longer declares are removed regardless of which field
+  manager owns them, while controller-set fields jhelm never managed are left untouched. Applies
+  to both the `client-java` and Fabric8 backends (#814).
+
 == 1.5.0
 
 === Pluggable Kubernetes client backend
