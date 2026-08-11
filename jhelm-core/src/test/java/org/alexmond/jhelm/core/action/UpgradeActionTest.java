@@ -30,7 +30,6 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.anyMap;
 import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.inOrder;
 import org.alexmond.jhelm.core.exception.DeploymentFailedException;
 import org.alexmond.jhelm.core.model.Capabilities;
@@ -644,6 +643,44 @@ class UpgradeActionTest {
 	}
 
 	@Test
+	void testUpgradeWithPreviousManifestAppliesWithPrune() throws Exception {
+		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("2.0.0").build();
+		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
+
+		String previousManifest = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
+		Release.ReleaseInfo info = Release.ReleaseInfo.builder()
+			.firstDeployed(OffsetDateTime.now().minusDays(1))
+			.lastDeployed(OffsetDateTime.now().minusDays(1))
+			.status(ReleaseStatus.DEPLOYED)
+			.build();
+		Release currentRelease = Release.builder()
+			.name("myapp")
+			.namespace("default")
+			.version(1)
+			.chart(chart)
+			.manifest(previousManifest)
+			.info(info)
+			.build();
+
+		String newManifest = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+			.thenReturn(newManifest);
+		doNothing().when(kubeService).storeRelease(any(Release.class));
+
+		upgradeAction.upgrade(UpgradeOptions.builder()
+			.currentRelease(currentRelease)
+			.newChart(chart)
+			.valueStrategy(UpgradeValueStrategy.DEFAULT)
+			.build());
+
+		// A previous manifest exists -> prune via three-way merge, not a plain apply
+		// (#814).
+		verify(kubeService).applyWithPrune("default", HookParser.stripHooks(previousManifest),
+				HookParser.stripHooks(newManifest));
+		verify(kubeService, never()).apply(anyString(), anyString());
+	}
+
+	@Test
 	void testUpgradeIncrementsVersion() throws Exception {
 		ChartMetadata metadata = ChartMetadata.builder().name("mychart").version("1.0.0").build();
 		Chart chart = Chart.builder().metadata(metadata).values(new HashMap<>()).build();
@@ -709,8 +746,10 @@ class UpgradeActionTest {
 					.valueStrategy(UpgradeValueStrategy.DEFAULT)
 					.build()));
 
-		// Verify: new manifest applied, then previous manifest re-applied on rollback
-		verify(kubeService, times(2)).apply(eq("default"), anyString());
+		// Verify: new manifest applied (with pruning, since a previous manifest exists),
+		// then the previous manifest re-applied on rollback via a plain apply.
+		verify(kubeService).applyWithPrune(eq("default"), eq(HookParser.stripHooks(previousManifest)), anyString());
+		verify(kubeService).apply(eq("default"), eq(HookParser.stripHooks(previousManifest)));
 	}
 
 	@Test

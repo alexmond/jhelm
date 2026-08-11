@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,11 @@ import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ResourceStatus;
 import org.alexmond.jhelm.core.service.CascadePolicy;
 import org.alexmond.jhelm.core.service.KubeService;
+import org.alexmond.jhelm.core.util.ThreeWayJsonMerge;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import org.yaml.snakeyaml.LoaderOptions;
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import org.yaml.snakeyaml.DumperOptions;
@@ -86,6 +92,9 @@ public class Fabric8KubeService implements KubeService {
 	private static final String FIELD_MANAGER = "helm";
 
 	private static final String RESTART_ANNOTATION = "kubectl.kubernetes.io/restartedAt";
+
+	// Maps unstructured resource maps to JSON for the three-way upgrade merge patch.
+	private static final JsonMapper JSON = JsonMapper.builder().build();
 
 	private static final Set<String> RESTARTABLE_KINDS = Set.of("Deployment", "StatefulSet", "DaemonSet");
 
@@ -406,6 +415,103 @@ public class Fabric8KubeService implements KubeService {
 		else {
 			op.patch(ctx.build());
 		}
+	}
+
+	@Override
+	public void applyWithPrune(String namespace, String previousYaml, String yamlContent) {
+		if (previousYaml == null || previousYaml.isBlank()) {
+			// No prior state to diff against — fall back to plain server-side apply.
+			apply(namespace, yamlContent);
+			return;
+		}
+		try {
+			Map<String, Map<String, Object>> previous = indexById(previousYaml);
+			for (Object doc : loadUnstructured(yamlContent)) {
+				if (doc instanceof Map<?, ?> map) {
+					@SuppressWarnings("unchecked")
+					Map<String, Object> resource = (Map<String, Object>) map;
+					applyResourceWithPrune(namespace, resource, previous.get(String.join("|", identify(resource))));
+				}
+			}
+		}
+		catch (KubernetesClientException ex) {
+			throw new KubernetesOperationException("Failed to apply manifest", ex, ex.getCode());
+		}
+		catch (KubernetesOperationException ex) {
+			throw ex;
+		}
+		catch (RuntimeException ex) {
+			throw new KubernetesOperationException("Failed to apply manifest", ex);
+		}
+	}
+
+	// Indexes a manifest's documents by "apiVersion|kind|name" so an upgrade can pair
+	// each
+	// new resource with how the previous release rendered it.
+	private static Map<String, Map<String, Object>> indexById(String yamlContent) {
+		Map<String, Map<String, Object>> byId = new HashMap<>();
+		for (Object doc : loadUnstructured(yamlContent)) {
+			if (doc instanceof Map<?, ?> map) {
+				@SuppressWarnings("unchecked")
+				Map<String, Object> resource = (Map<String, Object>) map;
+				byId.put(String.join("|", identify(resource)), resource);
+			}
+		}
+		return byId;
+	}
+
+	// Applies one resource with Helm-style pruning: create it if absent, otherwise send a
+	// three-way JSON merge patch (original=previous render, modified=new render,
+	// current=live) so fields the release dropped are deleted regardless of who owns
+	// them.
+	private void applyResourceWithPrune(String namespace, Map<String, Object> resource, Map<String, Object> original) {
+		String[] id = identify(resource);
+		String kind = id[1];
+		String name = id[2];
+		boolean namespaced = isNamespaced(kind);
+		GenericKubernetesResource identity = identityResource(id, namespaced ? namespace : null);
+		GenericKubernetesResource live = this.client.resource(identity).get();
+		if (live == null) {
+			// Absent on the cluster — create it via server-side apply (establishes helm
+			// ownership); nothing to prune for a brand-new resource.
+			applyResource(namespace, resource, false);
+			return;
+		}
+		JsonNode current = JSON.valueToTree(toMap(live));
+		JsonNode modified = JSON.valueToTree(resource);
+		JsonNode originalNode = (original != null) ? JSON.valueToTree(original) : null;
+		ObjectNode patch = ThreeWayJsonMerge.threeWayMergePatch(originalNode, modified, current);
+		if (patch.isEmpty()) {
+			return;
+		}
+		log.info("Applying (prune) {} {}{}", kind, name,
+				namespaced ? " in namespace " + namespace : " (cluster-scoped)");
+		PatchContext ctx = new PatchContext.Builder().withPatchType(PatchType.JSON_MERGE)
+			.withFieldManager(FIELD_MANAGER)
+			.build();
+		this.client.resource(identity).patch(ctx, JSON.writeValueAsString(patch));
+	}
+
+	// Reconstructs the live resource as a plain map for the three-way diff. Fabric8's own
+	// serializer NPEs on a GenericKubernetesResource whose content lives in
+	// additionalProperties (keySerializer null — the same defect worked around in #779),
+	// so
+	// we assemble the map from its typed fields + additionalProperties and let jhelm's
+	// own
+	// Jackson mapper serialize it. managedFields is dropped: its fieldsV1 "f:*"-keyed
+	// maps
+	// trip the same serializer and the diff never references them.
+	private static Map<String, Object> toMap(GenericKubernetesResource live) {
+		Map<String, Object> map = new LinkedHashMap<>(live.getAdditionalProperties());
+		map.put("apiVersion", live.getApiVersion());
+		map.put("kind", live.getKind());
+		ObjectMeta meta = live.getMetadata();
+		if (meta != null) {
+			meta.setManagedFields(null);
+			map.put("metadata", JSON.convertValue(meta, new TypeReference<Map<String, Object>>() {
+			}));
+		}
+		return map;
 	}
 
 	// ---------------------------------------------------------------- delete

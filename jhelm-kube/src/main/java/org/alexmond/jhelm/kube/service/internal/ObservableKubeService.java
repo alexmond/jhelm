@@ -104,6 +104,11 @@ public class ObservableKubeService implements KubeService {
 	}
 
 	@Override
+	public void applyWithPrune(String namespace, String previousYaml, String yamlContent) {
+		timeVoid(applyTimer, () -> delegate.applyWithPrune(namespace, previousYaml, yamlContent));
+	}
+
+	@Override
 	public void applyDryRun(String namespace, String yamlContent) {
 		timeVoid(applyTimer, () -> delegate.applyDryRun(namespace, yamlContent));
 	}

@@ -163,7 +163,21 @@ public class UpgradeAction {
 			}
 			kubeService.delete(newRelease.getNamespace(), regularManifest);
 		}
-		kubeService.apply(newRelease.getNamespace(), regularManifest);
+		// Apply with three-way pruning against the previous release's manifest, so fields
+		// the release no longer declares (a removed env entry, a deleted flag) are
+		// deleted
+		// on the live object rather than silently retained (#814). --force already
+		// deleted
+		// the resources above, so there is nothing to prune against — plain apply
+		// recreates.
+		String previousManifest = (currentRelease.getManifest() != null)
+				? HookParser.stripHooks(currentRelease.getManifest()) : null;
+		if (options.isForce() || previousManifest == null || previousManifest.isBlank()) {
+			kubeService.apply(newRelease.getNamespace(), regularManifest);
+		}
+		else {
+			kubeService.applyWithPrune(newRelease.getNamespace(), previousManifest, regularManifest);
+		}
 		try {
 			kubeService.storeRelease(newRelease);
 		}
