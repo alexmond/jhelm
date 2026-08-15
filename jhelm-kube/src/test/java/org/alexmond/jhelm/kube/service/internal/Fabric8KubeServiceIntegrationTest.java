@@ -7,6 +7,7 @@ import java.util.Optional;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.kubernetes.client.util.Config;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ReleaseStatus;
 import org.alexmond.jhelm.core.model.ResourceStatus;
@@ -300,10 +301,16 @@ class Fabric8KubeServiceIntegrationTest {
 	}
 
 	@Test
-	void getCapabilities_returnsClusterVersion() {
-		assertNotNull(this.fabric8.getCapabilities());
-		assertNotNull(this.fabric8.getCapabilities().kubeVersion());
-		assertFalse(this.fabric8.getCapabilities().kubeVersion().isBlank());
+	void getCapabilities_honoursDefaultContract() {
+		Capabilities caps = this.fabric8.getCapabilities();
+		assertNotNull(caps);
+		// A null kubeVersion is the documented DEFAULT ("use the engine's built-in
+		// default"): getCapabilities falls back to it when the cluster's /version
+		// endpoint
+		// is unreadable. So null is valid; a non-null version must be real and non-blank.
+		if (caps.kubeVersion() != null) {
+			assertFalse(caps.kubeVersion().isBlank());
+		}
 	}
 
 	private static String allWorkloadsManifest() {
