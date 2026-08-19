@@ -12,11 +12,14 @@ image:https://codecov.io/gh/alexmond/jhelm/graph/badge.svg[codecov,link=https://
 image:https://unitrack.alexmond.org/badge/5/coverage.svg[UniTrack coverage,link=https://unitrack.alexmond.org/projects/5]
 image:https://unitrack.alexmond.org/badge/5/pass.svg[UniTrack tests,link=https://unitrack.alexmond.org/projects/5]
 image:https://img.shields.io/badge/Java-21-orange.svg[Java 21]
+image:https://img.shields.io/badge/docs-alexmond.org-blue[Documentation,link={url-docs}]
 
 A native Java implementation of the https://helm.sh[Helm] package manager for Kubernetes.
 Render templates, manage charts, and deploy releases from the JVM -- as an embeddable
 library, a Spring Boot starter, a REST API, or a standalone CLI -- without shelling out to
 the Go-based Helm binary.
+
+📖 *Documentation:* https://www.alexmond.org/jhelm/current/
 
 == Why jhelm
 
