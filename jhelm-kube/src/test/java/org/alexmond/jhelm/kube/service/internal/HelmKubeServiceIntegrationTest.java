@@ -4,6 +4,7 @@ import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
+import org.alexmond.jhelm.core.model.Capabilities;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.alexmond.jhelm.kube.KubeClusterAvailable;
@@ -90,6 +91,21 @@ class HelmKubeServiceIntegrationTest {
 
 		// Cleanup
 		api.deleteNamespacedConfigMap("jhelm-prune-cm", "default");
+	}
+
+	@Test
+	void getCapabilities_honoursDefaultContract() {
+		// Mirror of the Fabric8 backend's test so both backends are covered symmetrically
+		// (#819). A null kubeVersion is the documented DEFAULT ("use the engine's
+		// built-in
+		// default") returned when the cluster's /version endpoint is unreadable; a
+		// non-null
+		// version must be real and non-blank.
+		Capabilities caps = helmKubeService.getCapabilities();
+		assertNotNull(caps);
+		if (caps.kubeVersion() != null) {
+			assertFalse(caps.kubeVersion().isBlank());
+		}
 	}
 
 }
