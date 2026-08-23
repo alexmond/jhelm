@@ -2,6 +2,13 @@
 
 == 1.5.1
 
+=== Dependencies
+
+* *Template engine moved to `gotmpl4j 1.4.0`* (from 1.3.0). The release split gotmpl4j's
+  Spring Boot integration out into its own project, so the published set changed; the
+  `gotmpl4j-core` and `gotmpl4j-sprig` sources jhelm consumes are unchanged, making this a
+  no-op for rendering.
+
 === Fixes
 
 * *Upgrade now prunes removed fields* -- `jhelm upgrade` deleted nothing: a field dropped from
