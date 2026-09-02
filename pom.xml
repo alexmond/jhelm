@@ -51,6 +51,7 @@
         <fabric8-client.version>6.13.5</fabric8-client.version>
         <picocli.version>4.7.7</picocli.version>
         <semver4j.version>6.0.0</semver4j.version>
+        <json-schema-validator.version>3.0.5</json-schema-validator.version>
         <!--
             jhelm-core and jhelm-gotemplate-helm call CoreScalarResolver(boolean), added in
             snakeyaml-engine 3.x. Spring Boot's BOM does not manage snakeyaml-engine (only
@@ -196,6 +197,13 @@
                 <groupId>org.semver4j</groupId>
                 <artifactId>semver4j</artifactId>
                 <version>${semver4j.version}</version>
+            </dependency>
+            <!-- Full-spec JSON Schema validation for values.schema.json (2019-09/2020-12,
+                 Draft-07 via a schema's own $schema); replaces the hand-rolled subset (#816). -->
+            <dependency>
+                <groupId>com.networknt</groupId>
+                <artifactId>json-schema-validator</artifactId>
+                <version>${json-schema-validator.version}</version>
             </dependency>
             <!-- Explicit floor; see the snakeyaml-engine.version note above (#770). -->
             <dependency>

@@ -77,6 +77,11 @@
             <groupId>org.semver4j</groupId>
             <artifactId>semver4j</artifactId>
         </dependency>
+        <!-- Full-spec JSON Schema validation of values.schema.json (#816). -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcpg-jdk18on</artifactId>
