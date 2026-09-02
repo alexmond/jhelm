@@ -261,4 +261,48 @@ class HelmPluginInstallerTest {
 		}
 	}
 
+	@Test
+	void resolveDestinationRefusesNamesOutsideThePluginsDirectory() throws Exception {
+		// validateName makes this unreachable through install(), so exercise the guard
+		// directly — it exists so a future relaxation of the name pattern cannot
+		// silently reintroduce the escape (#825).
+		Path plugins = this.pluginsDir;
+		assertEquals(plugins.resolve("ok"), HelmPluginInstaller.resolveDestination(plugins, "ok"));
+		for (String bad : List.of("../evil", "a/../../evil", "../")) {
+			IOException ex = assertThrows(IOException.class,
+					() -> HelmPluginInstaller.resolveDestination(plugins, bad));
+			assertTrue(ex.getMessage().contains("escapes the plugins directory"), ex.getMessage());
+		}
+	}
+
+	@Test
+	void fallsBackToDirectoryNameWhenManifestOmitsName() throws Exception {
+		// A tarball nests its files under a top-level directory, so that directory name
+		// is what the fallback sees.
+		Path src = Files.createDirectories(this.work.resolve("fallbackplugin"));
+		Files.writeString(src.resolve("plugin.yaml"), "version: 1.2.3\ncommand: run\n");
+		Path tgz = this.work.resolve("fallbackplugin.tar.gz");
+		makeTarGz(src, tgz);
+		HelmPluginInstaller installer = installer(JhelmAccessMode.FULL, failCloner());
+
+		assertEquals("fallbackplugin", installer.install(tgz.toString(), null).name());
+	}
+
+	@Test
+	void rejectsDirectoryNameFallbackHelmWouldReject() throws Exception {
+		// The fallback is a jhelm extension — helm requires a valid name in plugin.yaml
+		// and rejects a plugin without one. Validating the fallback keeps the name that
+		// becomes a directory inside the same character set (#825), so a nameless plugin
+		// whose directory carries a version suffix is refused rather than installed under
+		// a name helm would not accept.
+		Path src = Files.createDirectories(this.work.resolve("helm-diff-3.9.0"));
+		Files.writeString(src.resolve("plugin.yaml"), "version: 1.2.3\ncommand: run\n");
+		Path tgz = this.work.resolve("dotted.tar.gz");
+		makeTarGz(src, tgz);
+		HelmPluginInstaller installer = installer(JhelmAccessMode.FULL, failCloner());
+
+		IOException ex = assertThrows(IOException.class, () -> installer.install(tgz.toString(), null));
+		assertTrue(ex.getMessage().contains("invalid plugin name"), ex.getMessage());
+	}
+
 }

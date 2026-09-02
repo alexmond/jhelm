@@ -178,15 +178,7 @@ public class HelmPluginInstaller {
 			HelmPluginManifest manifest = readManifest(pluginRoot);
 			String name = resolveName(manifest, pluginRoot);
 			manifest.setName(name);
-			Path pluginsDir = this.paths.pluginsDir();
-			Path dest = pluginsDir.resolve(name).normalize();
-			// Defence in depth: resolveName already rejects anything that could
-			// traverse, but the destination is what actually gets written, so assert
-			// on it directly, mirroring the containment check extractTarGz applies to
-			// archive entries.
-			if (!dest.startsWith(pluginsDir.normalize())) {
-				throw new IOException("plugin name '" + name + "' escapes the plugins directory");
-			}
+			Path dest = resolveDestination(this.paths.pluginsDir(), name);
 			if (Files.exists(dest)) {
 				throw new IOException("plugin '" + name + "' is already installed (" + dest + ')');
 			}
@@ -312,6 +304,29 @@ public class HelmPluginInstaller {
 			return validateName(manifest.getName());
 		}
 		return validateName(pluginRoot.getFileName().toString());
+	}
+
+	/**
+	 * Resolves where a named plugin is installed, refusing any name that would land
+	 * outside the plugins directory.
+	 *
+	 * <p>
+	 * Defence in depth: {@link #validateName} already rejects every name that could
+	 * traverse, so this cannot trigger today. It guards the destination that actually
+	 * gets written, so a future relaxation of the name pattern cannot silently
+	 * reintroduce the escape (#825), and it mirrors the containment check
+	 * {@code extractTarGz} applies to archive entries.
+	 * @param pluginsDir the plugins directory the plugin must land under
+	 * @param name the validated plugin name
+	 * @return the resolved, contained destination directory
+	 * @throws IOException if the name resolves outside {@code pluginsDir}
+	 */
+	static Path resolveDestination(Path pluginsDir, String name) throws IOException {
+		Path dest = pluginsDir.resolve(name).normalize();
+		if (!dest.startsWith(pluginsDir.normalize())) {
+			throw new IOException("plugin name '" + name + "' escapes the plugins directory");
+		}
+		return dest;
 	}
 
 	/**
