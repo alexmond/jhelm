@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import tools.jackson.dataformat.yaml.YAMLMapper;
 import tools.jackson.dataformat.yaml.YAMLWriteFeature;
@@ -138,7 +139,15 @@ public class ChartFiles extends AbstractMap<String, String> {
 			return "";
 		}
 		try {
-			String yaml = YAML.writeValueAsString(map);
+			// Helm marshals a Go map here, and Go's yaml.Marshal sorts map keys, so helm
+			// always emits these entries alphabetically. Sort to match: following the
+			// chart's file-map order instead left the output unordered, so the same chart
+			// could render its keys differently between runs. That also silently
+			// truncated content — a value ending in a blank line becomes a `|+` block
+			// scalar, and whichever key sorts last has one trailing newline removed by
+			// the trim below (helm does this too), so an arbitrary key was losing it
+			// (#822).
+			String yaml = YAML.writeValueAsString(new TreeMap<>(map));
 			// Helm's toYAML trims the trailing newline; the template handles indentation.
 			return yaml.endsWith("\n") ? yaml.substring(0, yaml.length() - 1) : yaml;
 		}

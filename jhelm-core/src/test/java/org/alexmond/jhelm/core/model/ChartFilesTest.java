@@ -98,6 +98,28 @@ class ChartFilesTest {
 	}
 
 	@Test
+	void testAsConfigSortsKeysLikeHelm() {
+		// Helm's .AsConfig marshals a Go map, and Go's yaml.Marshal sorts map keys, so
+		// helm always emits ConfigMap data alphabetically. jhelm followed the chart's
+		// file-map order instead, which is unordered — the same chart could render its
+		// keys differently between runs (#822).
+		Map<String, String> original = new LinkedHashMap<>();
+		original.put("configs/zookeeper.properties", "z=1");
+		original.put("configs/authorizers.xml", "a");
+		original.put("configs/bootstrap.conf", "b");
+		ChartFiles files = new ChartFiles(original);
+		assertEquals(List.of("authorizers.xml", "bootstrap.conf", "zookeeper.properties"),
+				topLevelKeys(files.AsConfig()));
+		// AsSecrets marshals through the same path, so it sorts too.
+		assertEquals(List.of("authorizers.xml", "bootstrap.conf", "zookeeper.properties"),
+				topLevelKeys(files.AsSecrets()));
+	}
+
+	private static List<String> topLevelKeys(String yaml) {
+		return yaml.lines().filter((l) -> !l.startsWith(" ")).map((l) -> l.substring(0, l.indexOf(':'))).toList();
+	}
+
+	@Test
 	void testNullFilesMapHandled() {
 		ChartFiles files = new ChartFiles(null);
 		assertEquals("", files.Get("anything"));
