@@ -204,4 +204,105 @@ class HelmPluginInstallerTest {
 		}
 	}
 
+	@Test
+	void rejectsPluginNameThatEscapesThePluginsDirectory() throws Exception {
+		// The name comes from the plugin's own plugin.yaml and is used to build the
+		// install path, so a `..` segment in it wrote the plugin tree outside
+		// $HELM_PLUGINS. The copy happens before the install hook, so the exec policy
+		// did not gate it and it was reachable even in READ_ONLY (#825).
+		Path outside = Files.createDirectories(this.work.resolve("OUTSIDE"));
+		Path src = pluginSourceDir("evil", "");
+		Files.writeString(src.resolve("plugin.yaml"),
+				"name: ../" + this.work.getFileName() + "/OUTSIDE/pwned\nversion: 1.2.3\ncommand: run\n");
+		HelmPluginInstaller installer = installer(JhelmAccessMode.FULL, failCloner());
+
+		IOException ex = assertThrows(IOException.class, () -> installer.install(src.toString(), null));
+		assertTrue(ex.getMessage().contains("invalid plugin name"), ex.getMessage());
+		try (Stream<Path> tree = Files.walk(outside)) {
+			assertEquals(List.of(outside), tree.toList());
+		}
+	}
+
+	@Test
+	void rejectsPluginNameEscapeInReadOnlyMode() throws Exception {
+		// READ_ONLY blocks the install hook, so it is the posture a user would rely on to
+		// inspect an untrusted plugin. The file write must be blocked there too (#825).
+		Path outside = Files.createDirectories(this.work.resolve("OUTSIDE"));
+		Path src = pluginSourceDir("evil", "");
+		Files.writeString(src.resolve("plugin.yaml"),
+				"name: ../" + this.work.getFileName() + "/OUTSIDE/pwned\nversion: 1.2.3\ncommand: run\n");
+		HelmPluginInstaller installer = installer(JhelmAccessMode.READ_ONLY, failCloner());
+
+		assertThrows(IOException.class, () -> installer.install(src.toString(), null));
+		try (Stream<Path> tree = Files.walk(outside)) {
+			assertEquals(List.of(outside), tree.toList());
+		}
+	}
+
+	@Test
+	void rejectsPluginNamesHelmWouldReject() throws Exception {
+		// Matches upstream validPluginName ^[A-Za-z0-9_-]+$ so a plugin jhelm accepts is
+		// one helm accepts.
+		for (String bad : List.of("has/slash", "..", ".", "has space", "dot.ted")) {
+			Path src = Files.createDirectories(this.work.resolve("src-" + Math.abs(bad.hashCode())));
+			Files.writeString(src.resolve("plugin.yaml"), "name: " + bad + "\nversion: 1.2.3\ncommand: run\n");
+			HelmPluginInstaller installer = installer(JhelmAccessMode.FULL, failCloner());
+			assertThrows(IOException.class, () -> installer.install(src.toString(), null), "should reject: " + bad);
+		}
+	}
+
+	@Test
+	void acceptsPluginNamesHelmAccepts() throws Exception {
+		for (String good : List.of("mydiff", "helm-diff", "my_plugin", "Plugin2")) {
+			Path src = Files.createDirectories(this.work.resolve("ok-" + good));
+			Files.writeString(src.resolve("plugin.yaml"), "name: " + good + "\nversion: 1.2.3\ncommand: run\n");
+			HelmPluginInstaller installer = installer(JhelmAccessMode.FULL, failCloner());
+			assertEquals(good, installer.install(src.toString(), null).name());
+		}
+	}
+
+	@Test
+	void resolveDestinationRefusesNamesOutsideThePluginsDirectory() throws Exception {
+		// validateName makes this unreachable through install(), so exercise the guard
+		// directly — it exists so a future relaxation of the name pattern cannot
+		// silently reintroduce the escape (#825).
+		Path plugins = this.pluginsDir;
+		assertEquals(plugins.resolve("ok"), HelmPluginInstaller.resolveDestination(plugins, "ok"));
+		for (String bad : List.of("../evil", "a/../../evil", "../")) {
+			IOException ex = assertThrows(IOException.class,
+					() -> HelmPluginInstaller.resolveDestination(plugins, bad));
+			assertTrue(ex.getMessage().contains("escapes the plugins directory"), ex.getMessage());
+		}
+	}
+
+	@Test
+	void fallsBackToDirectoryNameWhenManifestOmitsName() throws Exception {
+		// A tarball nests its files under a top-level directory, so that directory name
+		// is what the fallback sees.
+		Path src = Files.createDirectories(this.work.resolve("fallbackplugin"));
+		Files.writeString(src.resolve("plugin.yaml"), "version: 1.2.3\ncommand: run\n");
+		Path tgz = this.work.resolve("fallbackplugin.tar.gz");
+		makeTarGz(src, tgz);
+		HelmPluginInstaller installer = installer(JhelmAccessMode.FULL, failCloner());
+
+		assertEquals("fallbackplugin", installer.install(tgz.toString(), null).name());
+	}
+
+	@Test
+	void rejectsDirectoryNameFallbackHelmWouldReject() throws Exception {
+		// The fallback is a jhelm extension — helm requires a valid name in plugin.yaml
+		// and rejects a plugin without one. Validating the fallback keeps the name that
+		// becomes a directory inside the same character set (#825), so a nameless plugin
+		// whose directory carries a version suffix is refused rather than installed under
+		// a name helm would not accept.
+		Path src = Files.createDirectories(this.work.resolve("helm-diff-3.9.0"));
+		Files.writeString(src.resolve("plugin.yaml"), "version: 1.2.3\ncommand: run\n");
+		Path tgz = this.work.resolve("dotted.tar.gz");
+		makeTarGz(src, tgz);
+		HelmPluginInstaller installer = installer(JhelmAccessMode.FULL, failCloner());
+
+		IOException ex = assertThrows(IOException.class, () -> installer.install(tgz.toString(), null));
+		assertTrue(ex.getMessage().contains("invalid plugin name"), ex.getMessage());
+	}
+
 }
