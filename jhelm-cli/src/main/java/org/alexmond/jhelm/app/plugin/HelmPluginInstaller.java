@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 
@@ -35,8 +36,9 @@ import tools.jackson.dataformat.yaml.YAMLMapper;
  * {@code $HELM_PLUGINS/<name>/}, keyed on the {@code name} from its {@code plugin.yaml}.
  *
  * <p>
- * Copying files is inert and runs in any posture; running the {@code install} hook is
- * arbitrary code, so it is gated on the CLI's {@code FULL} security mode (see
+ * Copying files is inert and runs in any posture (the plugin name is validated first, so
+ * the copy cannot land outside the plugins directory); running the {@code install} hook
+ * is arbitrary code, so it is gated on the CLI's {@code FULL} security mode (see
  * {@link HelmPluginExecGuard}). In {@code READ_ONLY} the files are installed and the hook
  * is skipped with a warning.
  */
@@ -45,6 +47,14 @@ import tools.jackson.dataformat.yaml.YAMLMapper;
 public class HelmPluginInstaller {
 
 	private static final YAMLMapper YAML = YAMLMapper.builder().build();
+
+	/**
+	 * Plugin names Helm accepts, from upstream's {@code validPluginName}
+	 * ({@code internal/plugin/plugin.go}): letters, digits, {@code _} and {@code -} only.
+	 * The name becomes a directory under {@code $HELM_PLUGINS}, so anything containing a
+	 * path separator or a {@code ..} segment would escape it (#825).
+	 */
+	private static final Pattern SAFE_PLUGIN_NAME = Pattern.compile("^[A-Za-z0-9_-]+$");
 
 	private final HelmPluginPaths paths;
 
@@ -168,7 +178,15 @@ public class HelmPluginInstaller {
 			HelmPluginManifest manifest = readManifest(pluginRoot);
 			String name = resolveName(manifest, pluginRoot);
 			manifest.setName(name);
-			Path dest = this.paths.pluginsDir().resolve(name);
+			Path pluginsDir = this.paths.pluginsDir();
+			Path dest = pluginsDir.resolve(name).normalize();
+			// Defence in depth: resolveName already rejects anything that could
+			// traverse, but the destination is what actually gets written, so assert
+			// on it directly, mirroring the containment check extractTarGz applies to
+			// archive entries.
+			if (!dest.startsWith(pluginsDir.normalize())) {
+				throw new IOException("plugin name '" + name + "' escapes the plugins directory");
+			}
 			if (Files.exists(dest)) {
 				throw new IOException("plugin '" + name + "' is already installed (" + dest + ')');
 			}
@@ -289,11 +307,29 @@ public class HelmPluginInstaller {
 		return YAML.readValue(manifest.toFile(), HelmPluginManifest.class);
 	}
 
-	private static String resolveName(HelmPluginManifest manifest, Path pluginRoot) {
+	private static String resolveName(HelmPluginManifest manifest, Path pluginRoot) throws IOException {
 		if (manifest.getName() != null && !manifest.getName().isBlank()) {
-			return manifest.getName();
+			return validateName(manifest.getName());
 		}
-		return pluginRoot.getFileName().toString();
+		return validateName(pluginRoot.getFileName().toString());
+	}
+
+	/**
+	 * Rejects plugin names that Helm would reject, which also rejects every name that
+	 * could escape the plugins directory. The name is attacker-controlled — it comes from
+	 * the plugin's own {@code plugin.yaml} — and is used to build the install path, so an
+	 * unvalidated {@code ../} in it writes the plugin tree anywhere the process can
+	 * write. That happens before the {@code install} hook runs, so it is not gated by the
+	 * exec policy and is reachable even in {@code READ_ONLY} (#825).
+	 * @param name the resolved plugin name
+	 * @return the same name, when it is valid
+	 * @throws IOException if the name is not a valid Helm plugin name
+	 */
+	private static String validateName(String name) throws IOException {
+		if (!SAFE_PLUGIN_NAME.matcher(name).matches()) {
+			throw new IOException("invalid plugin name '" + name + "': must contain only a-z, A-Z, 0-9, _ and -");
+		}
+		return name;
 	}
 
 	private void runInstallHook(DiscoveredHelmPlugin plugin) throws IOException, InterruptedException {
