@@ -11,6 +11,16 @@
 
 === Fixes
 
+* *`Files.AsConfig`/`AsSecrets` now emit sorted keys* -- both marshalled entries in the chart's
+  file-map iteration order, which is unordered. Helm marshals a Go map here and Go's
+  `yaml.Marshal` sorts map keys, so helm always emits them alphabetically. Two consequences:
+  output was non-deterministic between runs, and content was silently truncated — a value
+  ending in a blank line becomes a `|+` (keep) block scalar, and `toYaml` strips one trailing
+  newline from the marshalled document, so whichever key sorted last lost a newline belonging
+  to the value itself. A file mounted from such a ConfigMap came up missing its trailing
+  newline, with the victim key varying arbitrarily between runs. Keys are now sorted, matching
+  helm byte-for-byte (#822).
+
 * *Upgrade now prunes removed fields* -- `jhelm upgrade` deleted nothing: a field dropped from
   a chart or values file (a removed container `env` entry, a deleted flag or label) stayed on
   the live object forever, so an upgrade could only add or change. This was security-relevant —
