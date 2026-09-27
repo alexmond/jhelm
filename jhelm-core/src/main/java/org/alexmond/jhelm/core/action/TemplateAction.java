@@ -116,7 +116,8 @@ public class TemplateAction {
 			.revision(1)
 			.build();
 
-		String manifest = engine.render(chart, values, releaseContext, new Capabilities(kubeVersion, apiVersions));
+		String manifest = engine.render(chart, values, releaseContext, new Capabilities(kubeVersion, apiVersions),
+				overrides);
 		if (includeCrds) {
 			manifest = renderCrds(chart) + manifest;
 		}

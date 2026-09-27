@@ -121,7 +121,12 @@ public class InstallAction {
 
 		Capabilities fromCluster = (kubeService != null) ? kubeService.getCapabilities() : null;
 		Capabilities capabilities = (fromCluster != null) ? fromCluster : Capabilities.DEFAULT;
-		String manifest = runPostRenderProcessors(engine.render(chart, values, releaseContext, capabilities));
+		// options.getValues() is passed separately so Helm 4 pruning keeps the caller's
+		// own
+		// null overrides while still pruning nulls that came from the chart's
+		// values.yaml.
+		String manifest = runPostRenderProcessors(
+				engine.render(chart, values, releaseContext, capabilities, overrideValues));
 
 		release = release.toBuilder().manifest(manifest).build();
 

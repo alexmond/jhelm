@@ -57,6 +57,22 @@ public class JhelmCoreProperties {
 	private int templateCacheMaxSize = 256;
 
 	/**
+	 * Helm version reported to charts as {@code .Capabilities.HelmVersion.Version}. This
+	 * is the compatibility version charts gate on (e.g. {@code semverCompare ">=3.0.0"}),
+	 * not jhelm's own version, which templates see as
+	 * {@code .Capabilities.JhelmVersion.Version}. Defaults to the latest Helm release
+	 * ({@code v4.3.0}).
+	 */
+	private String helmVersion;
+
+	/**
+	 * Which Helm major version jhelm renders like: {@code 4} (default) or {@code 3}. Helm
+	 * 4 prunes null-valued keys from the coalesced {@code .Values}, where Helm 3 keeps
+	 * them, and the mode also selects the default {@code .Capabilities.HelmVersion}.
+	 */
+	private String helmCompatibility;
+
+	/**
 	 * Value-profile settings. Profiles gate {@code spring.config.activate.on-profile}
 	 * documents and select {@code values-<profile>.yaml} sidecar files.
 	 */

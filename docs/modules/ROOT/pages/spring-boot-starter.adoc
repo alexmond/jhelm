@@ -116,6 +116,8 @@ jhelm:
   config-path: ~/.config/helm/repositories.yaml   # Helm repo config
   insecure-skip-tls-verify: false                  # Skip TLS for chart downloads
   template-cache-enabled: true                     # Enable template AST cache
+  helm-compatibility: 4                            # Helm line to render like (4 or 3)
+  helm-version: v4.3.0                             # .Capabilities.HelmVersion seen by charts
   template-cache-max-size: 256                     # Max cached templates
   kubernetes:
     kubeconfig-path: ~/.kube/config                # Path to kubeconfig

@@ -159,10 +159,10 @@ public class LintAction {
 
 		try {
 			if (kubeVersion != null && !kubeVersion.isBlank()) {
-				engine.render(chart, values, releaseContext, new Capabilities(kubeVersion, List.of()));
+				engine.render(chart, values, releaseContext, new Capabilities(kubeVersion, List.of()), overrideValues);
 			}
 			else {
-				engine.render(chart, values, releaseContext);
+				engine.render(chart, values, releaseContext, Capabilities.DEFAULT, overrideValues);
 			}
 		}
 		catch (Exception ex) {

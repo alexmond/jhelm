@@ -2,6 +2,26 @@
 
 == 1.5.1
 
+=== Helm 4 by default
+
+* *jhelm now renders like Helm 4, with a switch back to Helm 3* -- new
+  `jhelm.helm-compatibility` (`JHELM_HELM_COMPATIBILITY`) selects the Helm line: `4` (the new
+  default) or `3`. The lines differ in the coalesced `.Values` tree: Helm 4 prunes null-valued
+  keys, so `toYaml .Values.some.map` renders `{}` where Helm 3 renders `key: null`. Helm 3
+  already pruned them for subcharts; Helm 4 prunes the top-level chart's too. `toYaml` and
+  `toJson` themselves are unchanged between the lines (verified against helm v4.3.0 and
+  v3.14.2), so a null built in a template or round-tripped through `fromYaml | toYaml` still
+  renders as `null`. *This changes rendered output* for charts that read a null-valued key out
+  of `.Values` -- set `jhelm.helm-compatibility=3` to keep the previous output (#828).
+
+* *`.Capabilities.HelmVersion` is configurable, and jhelm reports its own version separately*
+  -- the Helm version charts see was hardcoded to `v3.16.0`, several releases behind. It now
+  follows the compatibility mode (`v4.3.0` for Helm 4, `v3.19.0` for Helm 3) and can be pinned
+  with `jhelm.helm-version` (`JHELM_HELM_VERSION`) for charts that gate on a particular Helm.
+  jhelm's own build version is exposed as `.Capabilities.JhelmVersion.Version`; Go Helm never
+  sets it, so existing charts are unaffected. jhelm-core now carries its own version, so every
+  embedder reports it, not only the CLI (#828).
+
 === Dependencies
 
 * *Template engine moved to `gotmpl4j 1.4.0`* (from 1.3.0). The release split gotmpl4j's

@@ -33,6 +33,18 @@ jobs:
   parity:
     runs-on: ubuntu-latest
 
+    # One leg per maintained helm line. jhelm renders like helm 4 by default and like
+    # helm 3 under `jhelm.helm-compatibility=3` (#828); the suite pins the engine to the
+    # helm binary it is comparing against, so each leg exercises the matching semantics.
+    # Running only one line would leave the other's behaviour unverified — which is how
+    # the helm 4 values-pruning differences went unnoticed until 4.x was tried.
+    strategy:
+      fail-fast: false
+      matrix:
+        helm: [ v3.19.0, v4.3.0 ]
+
+    name: parity (helm ${{ matrix.helm }})
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,14 +62,13 @@ jobs:
         with:
           cluster_name: kind
 
-      # Pin helm to the reference version the chart pins were validated against (3.19).
       # The gate compares jhelm vs this exact helm, so a different helm build can flip
       # version-gated template branches (e.g. bitnami `common`) and surface comparison-only
-      # diffs. Keep this in lockstep with the helm used to validate/refresh the pins.
+      # diffs. Keep the 3.x leg in lockstep with the helm used to validate/refresh the pins.
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.19.0
+          version: ${{ matrix.helm }}
 
       # Cache the charts the suite pulls from upstream repos (KpsComparisonTest fetches
       # each into target/temp-charts and reuses an existing dir). Keyed on charts.csv so
@@ -94,7 +105,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
-          name: parity-surefire-reports
+          name: parity-surefire-reports-helm-${{ matrix.helm }}
           # Include the rendered manifests (expected_/actual_*.yaml) so a CI-only failure
           # can be diffed offline — the surefire XML truncates large diff messages.
           path: |

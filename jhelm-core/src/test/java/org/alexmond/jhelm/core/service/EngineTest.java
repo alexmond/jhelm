@@ -16,6 +16,7 @@ import org.alexmond.jhelm.core.model.Dependency;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.model.ResourceStatus;
+import org.alexmond.jhelm.core.util.JhelmVersion;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -197,10 +198,12 @@ class EngineTest {
 
 	@Test
 	void testSubchartNullValuesPrunedButTopLevelKept() {
-		// Helm drops null-valued keys while coalescing a subchart ("setting a key to null
-		// removes it"), but keeps them for the top-level release chart. Render the key
-		// set
-		// of an identical map in both and confirm the subchart loses its null key.
+		// Helm 3 drops null-valued keys while coalescing a subchart ("setting a key to
+		// null removes it"), but keeps them for the top-level release chart. Render the
+		// key set of an identical map in both and confirm the subchart loses its null
+		// key.
+		// Helm 4 prunes the top-level ones too — see the V4 counterpart below.
+		engine.setHelmCompatibility(HelmCompatibility.V3);
 		Map<String, Object> subCtx = new HashMap<>();
 		subCtx.put("a", 1);
 		subCtx.put("b", null);
@@ -554,6 +557,197 @@ class EngineTest {
 		String result = engine.render(chart, Map.of(), releaseInfo(), new Capabilities("vX", List.of()));
 		assertTrue(result.contains("major: 0"), result);
 		assertTrue(result.contains("minor: 0"), result);
+	}
+
+	@Test
+	void testHelmVersionFollowsTheCompatibilityMode() {
+		assertEquals(HelmCompatibility.V4.defaultHelmVersion(), engine.getHelmVersion());
+		engine.setHelmCompatibility(HelmCompatibility.V3);
+		assertEquals(HelmCompatibility.V3.defaultHelmVersion(), engine.getHelmVersion());
+	}
+
+	@Test
+	void testExplicitHelmVersionSurvivesAModeSwitch() {
+		engine.setHelmVersion("v3.14.2");
+		engine.setHelmCompatibility(HelmCompatibility.V4);
+		assertEquals("v3.14.2", engine.getHelmVersion());
+	}
+
+	@Test
+	void testHelm4ModePrunesNullValuesFromValues() {
+		Map<String, Object> nested = new HashMap<>();
+		nested.put("alsoNil", null);
+		Map<String, Object> values = new HashMap<>();
+		values.put("nilValue", null);
+		values.put("emptyStr", "");
+		values.put("present", "hello");
+		values.put("nested", nested);
+		// the nulls come from the chart's own values.yaml, which is what helm 4 prunes (a
+		// user override null is kept instead — see the pre-existing subchart tests). A
+		// map
+		// emptied of nulls renders {}, and an empty string is not a null so it stays.
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("test.yaml", "{{ .Values | toYaml }}")), values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertFalse(result.contains("nilValue"), result);
+		assertFalse(result.contains("alsoNil"), result);
+		assertTrue(result.contains("nested: {}"), result);
+		assertTrue(result.contains("emptyStr: \"\""), result);
+		assertTrue(result.contains("present: hello"), result);
+	}
+
+	@Test
+	void testHelm4ModePrunesTopLevelNullValuesToo() {
+		// Helm 3 keeps null keys for the top-level chart (only subcharts prune); helm
+		// 4.3.0 prunes them there as well, verified against the binary
+		Map<String, Object> ctx = new HashMap<>();
+		ctx.put("a", 1);
+		ctx.put("b", null);
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("k.yaml", "keys:{{ range $k, $v := .Values.ctx }} {{ $k }}{{ end }}")),
+				Map.of("ctx", ctx));
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("keys: a"), result);
+		assertFalse(result.contains("keys: a b"), result);
+	}
+
+	@Test
+	void testHelm4ModeLetsSubchartDefaultSurviveAParentNull() {
+		// signoz/clickhouse pattern: the parent nulls a key the subchart defaults. Helm
+		// drops the parent's null while coalescing, so the subchart default survives —
+		// helm 4.3.0 renders docker.io/... here. Pruning must not reach into subcharts.
+		Map<String, Object> subImage = new HashMap<>();
+		subImage.put("registry", "docker.io");
+		Chart subchart = simpleChart("sub", "1.0.0", List.of(tmpl("i.yaml", "registry: {{ .Values.image.registry }}")),
+				Map.of("image", subImage));
+		Map<String, Object> parentImage = new HashMap<>();
+		parentImage.put("registry", null);
+		Chart parent = Chart.builder()
+			.metadata(ChartMetadata.builder().name("parent").version("1.0.0").build())
+			.templates(List.of(tmpl("p.yaml", "parent: ok")))
+			.values(Map.of("sub", Map.of("image", parentImage)))
+			.dependencies(List.of(subchart))
+			.build();
+		String result = engine.render(parent, Map.of(), releaseInfo());
+		assertTrue(result.contains("registry: docker.io"), result);
+	}
+
+	@Test
+	void testHelm4ModeKeepsUserSuppliedNullOverrides() {
+		// A -f/--set null is NOT pruned: helm 4.3.0 keeps the key (hasKey true) so it
+		// overrides a default, unlike a null in the chart's own values.yaml
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("t.yaml", "haskey: {{ hasKey .Values \"opt\" }}")),
+				Map.of("opt", "default"));
+		Map<String, Object> overrides = new HashMap<>();
+		overrides.put("opt", null);
+		// the caller declares its own overrides through the 5-arg render, which is how
+		// the
+		// engine tells a user null (kept) from a chart values.yaml null (pruned)
+		String result = engine.render(chart, overrides, releaseInfo(), Capabilities.DEFAULT, overrides);
+		assertTrue(result.contains("haskey: true"), result);
+	}
+
+	@Test
+	void testHelm4ModeKeepsDeeperNullsAsTombstones() {
+		// signoz/signoz pattern: the null lives in a SUBCHART's own values (depth 1), not
+		// the release chart's, so it still deletes its subchart's default — helm 4.3.0
+		// renders signoz/zookeeper:3.7.1 there, same as helm 3. Only depth 0 is pruned.
+		Map<String, Object> leafImage = new HashMap<>();
+		leafImage.put("registry", "docker.io");
+		Chart leaf = simpleChart("leaf", "1.0.0", List.of(tmpl("i.yaml", "registry: [{{ .Values.image.registry }}]")),
+				Map.of("image", leafImage));
+		Map<String, Object> midNull = new HashMap<>();
+		midNull.put("registry", null);
+		Chart mid = Chart.builder()
+			.metadata(ChartMetadata.builder().name("leaf-parent").version("1.0.0").build())
+			.templates(List.of(tmpl("m.yaml", "mid: ok")))
+			.values(Map.of("leaf", Map.of("image", midNull)))
+			.dependencies(List.of(leaf))
+			.build();
+		Chart root = Chart.builder()
+			.metadata(ChartMetadata.builder().name("root").version("1.0.0").build())
+			.templates(List.of(tmpl("r.yaml", "root: ok")))
+			.values(Map.of())
+			.dependencies(List.of(mid))
+			.build();
+		String result = engine.render(root, Map.of(), releaseInfo());
+		assertTrue(result.contains("registry: []"), result);
+	}
+
+	@Test
+	void testHelm3ModeKeepsNullValuesInValues() {
+		engine.setHelmCompatibility(HelmCompatibility.V3);
+		Map<String, Object> values = new HashMap<>();
+		values.put("nilValue", null);
+		values.put("present", "hello");
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("test.yaml", "{{ .Values | toYaml }}")), values);
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("nilValue: null"), result);
+	}
+
+	@Test
+	void testHelm4ModeKeepsNullsInsideListsInValues() {
+		Map<String, Object> element = new HashMap<>();
+		element.put("a", null);
+		// helm's coalescing does not descend into lists, and helm 4.3.0 keeps "- a: null"
+		String result = engine.render(simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "{{ .Values.items | toYaml }}")), Map.of("items", List.of(element))),
+				Map.of(), releaseInfo());
+		assertTrue(result.contains("a: null"), result);
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "V3", "V4" })
+	void testConversionFunctionsKeepNullsInBothModes(HelmCompatibility compatibility) {
+		engine.setHelmCompatibility(compatibility);
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("test.yaml",
+				"dict: {{ dict \"x\" nil | toYaml | replace \"\\n\" \" \" }} round: {{ \"a:\" | fromYaml | toYaml }}")),
+				Map.of());
+		// verified against helm 4.3.0 AND 3.14.2: toYaml itself is identical in both
+		// lines, so only .Values pruning may differ
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("x: null"), result);
+		assertTrue(result.contains("a: null"), result);
+	}
+
+	@Test
+	void testCapabilitiesHelmVersionDefaultsToCompatVersion() {
+		Chart chart = simpleChart("mychart", "1.0.0", List.of(tmpl("test.yaml",
+				"helm: {{ .Capabilities.HelmVersion.Version }} v3: {{ semverCompare \">=3.0.0\" .Capabilities.HelmVersion.Version }}")),
+				Map.of());
+		// charts gating on Helm 3 must take the Helm 3 branch without any configuration
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("helm: " + Engine.DEFAULT_HELM_VERSION), result);
+		assertTrue(result.contains("v3: true"), result);
+		// the default tracks the latest Helm major, so a >=4 gate is satisfied too
+		assertTrue(Engine.DEFAULT_HELM_VERSION.startsWith("v4."), Engine.DEFAULT_HELM_VERSION);
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "v3.12.0, v3.12.0", "3.12.0, v3.12.0", "' 4.0.0 ', v4.0.0" })
+	void testCapabilitiesHelmVersionOverride(String configured, String expected) {
+		engine.setHelmVersion(configured);
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "helm: {{ .Capabilities.HelmVersion.Version }}")), Map.of());
+		assertTrue(engine.render(chart, Map.of(), releaseInfo()).contains("helm: " + expected));
+		assertEquals(expected, engine.getHelmVersion());
+	}
+
+	@ParameterizedTest
+	@CsvSource(value = { "NULL", "''", "'   '" }, nullValues = "NULL")
+	void testCapabilitiesBlankHelmVersionUsesDefault(String configured) {
+		engine.setHelmVersion("v3.1.0");
+		engine.setHelmVersion(configured);
+		assertEquals(Engine.DEFAULT_HELM_VERSION, engine.getHelmVersion());
+	}
+
+	@Test
+	void testCapabilitiesJhelmVersionIsJhelmsOwnVersion() {
+		Chart chart = simpleChart("mychart", "1.0.0",
+				List.of(tmpl("test.yaml", "jhelm: {{ .Capabilities.JhelmVersion.Version }}")), Map.of());
+		// independent of the Helm compat version: always the real jhelm build version
+		engine.setHelmVersion("v3.12.0");
+		String result = engine.render(chart, Map.of(), releaseInfo());
+		assertTrue(result.contains("jhelm: v" + JhelmVersion.current()), result);
 	}
 
 	@Test
@@ -1001,7 +1195,10 @@ class EngineTest {
 
 	@Test
 	void testToYamlPreservesNullValues() {
-		// Go yaml.Marshal preserves nil map entries as "null" (no omitempty on maps)
+		// Go yaml.Marshal preserves nil map entries as "null" (no omitempty on maps).
+		// The map here comes from .Values, which helm 4 prunes, so this is the Helm 3
+		// shape; toYaml itself is identical in both lines (helm 4.3.0 verified).
+		engine.setHelmCompatibility(HelmCompatibility.V3);
 		Map<String, Object> spec = new HashMap<>();
 		spec.put("replicas", 3);
 		spec.put("revisionHistoryLimit", null);
@@ -1456,7 +1653,8 @@ class EngineTest {
 
 	@Test
 	void testNullFieldPreservedInFromYamlToYamlPipeline() {
-		// Traefik pattern: include template | fromYaml | toYaml preserves null fields
+		// Traefik pattern: include template | fromYaml | toYaml preserves null fields,
+		// in both Helm lines (helm 4.3.0 verified)
 		// When lifecycle:{} is passed through with(empty) → key: with no value → fromYaml
 		// parses as null → toYaml should serialize as "lifecycle: null"
 		String helpers = """
