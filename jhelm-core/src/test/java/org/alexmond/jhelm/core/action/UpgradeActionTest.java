@@ -85,7 +85,7 @@ class UpgradeActionTest {
 		Chart newChart = Chart.builder().metadata(newMetadata).values(newValues).build();
 
 		String renderedManifest = "---\napiVersion: v1\nkind: Service";
-		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn(renderedManifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
@@ -112,7 +112,7 @@ class UpgradeActionTest {
 		verify(kubeService).pruneReleaseHistory("myapp", "default", 10);
 
 		ArgumentCaptor<ReleaseContext> releaseDataCaptor = ArgumentCaptor.forClass(ReleaseContext.class);
-		verify(engine).render(eq(newChart), anyMap(), releaseDataCaptor.capture(), any(Capabilities.class));
+		verify(engine).render(eq(newChart), anyMap(), releaseDataCaptor.capture(), any(Capabilities.class), any());
 
 		Map<String, Object> releaseData = releaseDataCaptor.getValue().toMap();
 		assertEquals("myapp", releaseData.get("Name"));
@@ -143,7 +143,7 @@ class UpgradeActionTest {
 			.metadata(ChartMetadata.builder().name("mychart").version("2.0.0").build())
 			.values(new HashMap<>())
 			.build();
-		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("---\napiVersion: v1\nkind: Service");
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
@@ -182,7 +182,7 @@ class UpgradeActionTest {
 			.metadata(ChartMetadata.builder().name("mychart").version("2.0.0").build())
 			.values(new HashMap<>())
 			.build();
-		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("---\napiVersion: v1\nkind: Service");
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
@@ -214,7 +214,7 @@ class UpgradeActionTest {
 			.values(new HashMap<>())
 			.build();
 		String renderedManifest = "---\napiVersion: v1\nkind: Service";
-		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn(renderedManifest);
 		doNothing().when(kubeService).delete(anyString(), anyString());
 		doNothing().when(kubeService).apply(anyString(), anyString());
@@ -252,7 +252,7 @@ class UpgradeActionTest {
 			.values(new HashMap<>())
 			.build();
 		String renderedManifest = "---\napiVersion: v1\nkind: Service";
-		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn(renderedManifest);
 
 		upgradeAction.upgrade(UpgradeOptions.builder()
@@ -287,7 +287,7 @@ class UpgradeActionTest {
 			.metadata(ChartMetadata.builder().name("mychart").version("2.0.0").build())
 			.values(new HashMap<>())
 			.build();
-		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(eq(newChart), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("---\napiVersion: v1\nkind: Service");
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
@@ -327,7 +327,7 @@ class UpgradeActionTest {
 		Map<String, Object> overrideValues = new HashMap<>();
 		overrideValues.put("replicaCount", 5);
 
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("manifest");
 
 		upgradeAction.upgrade(UpgradeOptions.builder()
@@ -339,7 +339,8 @@ class UpgradeActionTest {
 
 		@SuppressWarnings("unchecked")
 		ArgumentCaptor<Map<String, Object>> valuesCaptor = ArgumentCaptor.forClass(Map.class);
-		verify(engine).render(eq(chart), valuesCaptor.capture(), any(ReleaseContext.class), any(Capabilities.class));
+		verify(engine).render(eq(chart), valuesCaptor.capture(), any(ReleaseContext.class), any(Capabilities.class),
+				any());
 
 		Map<String, Object> mergedValues = valuesCaptor.getValue();
 		assertEquals(5, mergedValues.get("replicaCount"));
@@ -365,7 +366,7 @@ class UpgradeActionTest {
 			.info(info)
 			.build();
 
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("dry-run-manifest");
 
 		Release upgradedRelease = upgradeAction.upgrade(UpgradeOptions.builder()
@@ -403,7 +404,7 @@ class UpgradeActionTest {
 			.info(info)
 			.build();
 
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("manifest");
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
@@ -457,7 +458,7 @@ class UpgradeActionTest {
 		String regularYaml = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
 		String fullManifest = "---\n" + hookYaml + regularYaml;
 
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn(fullManifest);
 		doNothing().when(kubeService).delete(anyString(), anyString());
 		doNothing().when(kubeService).apply(anyString(), anyString());
@@ -514,7 +515,7 @@ class UpgradeActionTest {
 		String regularYaml = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
 		String fullManifest = "---\n" + hookYaml + regularYaml;
 
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn(fullManifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
@@ -572,7 +573,7 @@ class UpgradeActionTest {
 			.build();
 
 		String newManifest = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn(newManifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).delete(anyString(), anyString());
@@ -628,7 +629,7 @@ class UpgradeActionTest {
 				metadata:
 				  name: myapp-config
 				""";
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn(newManifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doNothing().when(kubeService).storeRelease(any(Release.class));
@@ -663,7 +664,7 @@ class UpgradeActionTest {
 			.build();
 
 		String newManifest = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: myapp-svc\n";
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn(newManifest);
 		doNothing().when(kubeService).storeRelease(any(Release.class));
 
@@ -699,7 +700,7 @@ class UpgradeActionTest {
 			.info(info)
 			.build();
 
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("manifest");
 
 		Release upgradedRelease = upgradeAction.upgrade(UpgradeOptions.builder()
@@ -734,7 +735,7 @@ class UpgradeActionTest {
 			.build();
 
 		String newManifest = "---\napiVersion: v1\nkind: Service\nmetadata:\n  name: new-svc\n";
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn(newManifest);
 		doNothing().when(kubeService).apply(anyString(), anyString());
 		doThrow(new RuntimeException("storage failed")).when(kubeService).storeRelease(any(Release.class));
@@ -814,7 +815,8 @@ class UpgradeActionTest {
 	@SuppressWarnings("unchecked")
 	private Map<String, Object> renderValuesFor(Release upgraded) {
 		ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-		verify(engine).render(any(Chart.class), captor.capture(), any(ReleaseContext.class), any(Capabilities.class));
+		verify(engine).render(any(Chart.class), captor.capture(), any(ReleaseContext.class), any(Capabilities.class),
+				any());
 		return captor.getValue();
 	}
 
@@ -822,7 +824,7 @@ class UpgradeActionTest {
 	void testDefaultNoOverridesReusesPriorConfig() {
 		Release current = currentReleaseWithPrior();
 		Chart newChart = newChartWithChangedDefault();
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("manifest");
 
 		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
@@ -846,7 +848,7 @@ class UpgradeActionTest {
 		Chart newChart = newChartWithChangedDefault();
 		Map<String, Object> overrides = new HashMap<>();
 		overrides.put("extra", "x");
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("manifest");
 
 		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
@@ -873,7 +875,7 @@ class UpgradeActionTest {
 		Chart newChart = newChartWithChangedDefault();
 		Map<String, Object> overrides = new HashMap<>();
 		overrides.put("extra", "x");
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("manifest");
 
 		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
@@ -898,7 +900,7 @@ class UpgradeActionTest {
 		Chart newChart = newChartWithChangedDefault();
 		Map<String, Object> overrides = new HashMap<>();
 		overrides.put("extra", "x");
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("manifest");
 
 		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()
@@ -926,7 +928,7 @@ class UpgradeActionTest {
 		Chart newChart = newChartWithChangedDefault();
 		Map<String, Object> overrides = new HashMap<>();
 		overrides.put("extra", "x");
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn("manifest");
 
 		Release upgraded = upgradeAction.upgrade(UpgradeOptions.builder()

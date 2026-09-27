@@ -30,6 +30,7 @@ import org.alexmond.jhelm.core.action.UpgradeAction;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.DelegatingKubeService;
 import org.alexmond.jhelm.core.service.Engine;
+import org.alexmond.jhelm.core.service.HelmCompatibility;
 import org.alexmond.jhelm.core.service.KubeService;
 import org.alexmond.jhelm.core.service.KubeServiceResolver;
 import org.alexmond.jhelm.core.service.RegistryManager;
@@ -193,6 +194,33 @@ class JhelmCoreAutoConfigurationTest {
 				primary.listAllReleases();
 				verify(resolved).listAllReleases();
 			});
+	}
+
+	@Test
+	void helmCompatibilityPropertySelectsTheMode() {
+		contextRunner.withPropertyValues("jhelm.helm-compatibility=3").run((ctx) -> {
+			Engine engine = ctx.getBean(Engine.class);
+			assertEquals(HelmCompatibility.V3, engine.getHelmCompatibility());
+			assertEquals(HelmCompatibility.V3.defaultHelmVersion(), engine.getHelmVersion());
+		});
+	}
+
+	@Test
+	void helmCompatibilityDefaultsToHelm4() {
+		contextRunner
+			.run((ctx) -> assertEquals(HelmCompatibility.V4, ctx.getBean(Engine.class).getHelmCompatibility()));
+	}
+
+	@Test
+	void helmVersionPropertyConfiguresEngine() {
+		contextRunner.withPropertyValues("jhelm.helm-version=3.12.0")
+			.run((ctx) -> assertEquals("v3.12.0", ctx.getBean(Engine.class).getHelmVersion()));
+	}
+
+	@Test
+	void helmVersionDefaultsWhenUnset() {
+		contextRunner
+			.run((ctx) -> assertEquals(Engine.DEFAULT_HELM_VERSION, ctx.getBean(Engine.class).getHelmVersion()));
 	}
 
 }

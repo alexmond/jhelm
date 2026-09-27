@@ -103,6 +103,17 @@
     </dependencies>
 
     <build>
+        <!-- jhelm-version.properties is filtered so jhelm-core knows its own version (#828);
+             everything else under src/main/resources is copied as-is. -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>src/main/resources-filtered</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
         <plugins>
             <!--
                 Branch-coverage floors for the mutation-heavy action + service packages,

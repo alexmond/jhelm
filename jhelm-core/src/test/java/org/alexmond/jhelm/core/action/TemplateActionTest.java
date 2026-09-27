@@ -54,7 +54,7 @@ class TemplateActionTest {
 		Files.writeString(chartDir.resolve("Chart.yaml"), chartYaml);
 
 		String manifest = "---\nkind: Service\nmetadata:\n  name: myservice";
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class)))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), any(Capabilities.class), any()))
 			.thenReturn(manifest);
 
 		String result = templateAction.render(chartDir.toString(), "myrelease", "default");
@@ -74,7 +74,7 @@ class TemplateActionTest {
 				""");
 
 		ArgumentCaptor<Capabilities> capsCaptor = ArgumentCaptor.forClass(Capabilities.class);
-		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), capsCaptor.capture()))
+		when(engine.render(any(Chart.class), anyMap(), any(ReleaseContext.class), capsCaptor.capture(), any()))
 			.thenReturn("---\n");
 
 		templateAction.render(chartDir.toString(), "r", "default", new HashMap<>(), "v1.29.0", List.of("custom.io/v1"));

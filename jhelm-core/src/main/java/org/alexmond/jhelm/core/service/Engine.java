@@ -38,6 +38,7 @@ import org.alexmond.jhelm.core.model.Dependency;
 import org.alexmond.jhelm.core.model.ReleaseContext;
 import org.alexmond.jhelm.core.model.Values;
 import org.alexmond.jhelm.core.model.VersionSet;
+import org.alexmond.jhelm.core.util.JhelmVersion;
 import org.alexmond.jhelm.core.util.ChartVersions;
 
 /**
@@ -82,6 +83,14 @@ public class Engine {
 	// offline `template` output matches upstream helm.
 	private static final String DEFAULT_KUBE_VERSION = "v1.35.0";
 
+	/**
+	 * The Helm version reported as {@code .Capabilities.HelmVersion.Version} in the
+	 * default {@link HelmCompatibility} mode, so charts gating on the Helm version (e.g.
+	 * {@code semverCompare ">=3.0.0"}) take the current branch. Switch modes with
+	 * {@code jhelm.helm-compatibility}, or set {@code jhelm.helm-version} alone (#828).
+	 */
+	public static final String DEFAULT_HELM_VERSION = HelmCompatibility.V4.defaultHelmVersion();
+
 	// Default parse-cache size for the no-arg constructor, matching the Spring autoconfig
 	// default (jhelm.template-cache-max-size). The Spring-wired engine already gets a
 	// cache
@@ -123,6 +132,14 @@ public class Engine {
 	// as overrides on every render. Empty unless plugins are present. Set by the
 	// autoconfig.
 	private Map<String, Function> pluginFunctions = Map.of();
+
+	// Which Helm line jhelm renders like: picks the conversion semantics and the default
+	// reported version (#828).
+	private HelmCompatibility helmCompatibility = HelmCompatibility.V4;
+
+	// The version exposed as .Capabilities.HelmVersion. Null means "follow the mode", so
+	// switching modes moves it unless it was set explicitly.
+	private String helmVersion;
 
 	// Per-render record of the text hash last parsed under each template name, so the
 	// render pass can skip re-parsing a template the collect pass already parsed (see
@@ -175,6 +192,47 @@ public class Engine {
 	 */
 	public void setKubernetesProvider(KubernetesProvider kubernetesProvider) {
 		this.kubernetesProvider = kubernetesProvider;
+	}
+
+	/**
+	 * Sets the Helm version reported to templates as
+	 * {@code .Capabilities.HelmVersion.Version}. This is the <em>compatibility</em>
+	 * version charts gate on, not jhelm's own version (that is
+	 * {@code .Capabilities.JhelmVersion}). A leading {@code v} is added when absent.
+	 * @param helmVersion the Helm version (e.g. {@code v4.3.0}), or {@code null}/blank
+	 * for {@link #DEFAULT_HELM_VERSION}
+	 */
+	public void setHelmVersion(String helmVersion) {
+		this.helmVersion = (helmVersion != null && !helmVersion.isBlank()) ? JhelmVersion.withLeadingV(helmVersion)
+				: null;
+	}
+
+	/**
+	 * Sets which Helm line jhelm renders like: the values semantics (Helm 4 prunes
+	 * null-valued keys from {@code .Values}, Helm 3 keeps them) and the reported
+	 * {@code .Capabilities.HelmVersion} unless {@link #setHelmVersion(String)} pinned
+	 * one.
+	 * @param helmCompatibility the mode, or {@code null} for {@link HelmCompatibility#V4}
+	 */
+	public void setHelmCompatibility(HelmCompatibility helmCompatibility) {
+		this.helmCompatibility = (helmCompatibility != null) ? helmCompatibility : HelmCompatibility.V4;
+	}
+
+	/**
+	 * Returns the Helm line jhelm renders like.
+	 * @return the compatibility mode, never {@code null}
+	 */
+	public HelmCompatibility getHelmCompatibility() {
+		return this.helmCompatibility;
+	}
+
+	/**
+	 * Returns the Helm-compatibility version reported as
+	 * {@code .Capabilities.HelmVersion.Version}.
+	 * @return the version in {@code vX.Y.Z} form
+	 */
+	public String getHelmVersion() {
+		return (this.helmVersion != null) ? this.helmVersion : this.helmCompatibility.defaultHelmVersion();
 	}
 
 	/**
@@ -312,11 +370,33 @@ public class Engine {
 	 */
 	@SneakyThrows
 	public String render(Chart chart, Map<String, Object> values, ReleaseContext release, Capabilities capabilities) {
+		return render(chart, values, release, capabilities, null);
+	}
+
+	/**
+	 * Renders a chart, distinguishing the caller's own overrides from the chart's values.
+	 * <p>
+	 * Helm 4 prunes null keys that come from a chart's {@code values.yaml} but keeps a
+	 * null the user supplied with {@code -f}/{@code --set}, so the two cannot be told
+	 * apart once merged. Callers that merge overrides into {@code values} before calling
+	 * (the action layer does) pass them here as well so those nulls survive.
+	 * @param chart the chart to render
+	 * @param values the merged values for this render
+	 * @param release the release context ({@code .Release})
+	 * @param capabilities the {@code .Capabilities} override, or {@code null} for the
+	 * engine built-ins
+	 * @param userOverrides the caller-supplied overrides whose null keys must survive
+	 * Helm 4 pruning, or {@code null} when {@code values} holds no user overrides
+	 * @return the rendered manifest
+	 */
+	@SneakyThrows
+	public String render(Chart chart, Map<String, Object> values, ReleaseContext release, Capabilities capabilities,
+			Map<String, Object> userOverrides) {
 		Map<String, Object> releaseInfo = release.toMap();
 		Capabilities caps = (capabilities != null) ? capabilities : Capabilities.DEFAULT;
 		long startNanos = System.nanoTime();
 		try {
-			return renderExecutor.submit(() -> doRender(chart, values, releaseInfo, caps)).get();
+			return renderExecutor.submit(() -> doRender(chart, values, releaseInfo, caps, userOverrides)).get();
 		}
 		catch (ExecutionException ex) {
 			// Unwrap so the render failure propagates exactly as if doRender ran inline.
@@ -341,7 +421,7 @@ public class Engine {
 	}
 
 	private String doRender(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo,
-			Capabilities capabilities) {
+			Capabilities capabilities, Map<String, Object> userOverrides) {
 		namedTemplates.clear();
 		templateVersions.clear();
 		parsedTextHash.clear();
@@ -382,7 +462,8 @@ public class Engine {
 			// Using a shared set for the whole rendering process to avoid redundant work
 			// and loops
 			Set<String> renderedCharts = new HashSet<>();
-			String rendered = renderWithSubcharts(chart, values, releaseInfo, renderedCharts, 0, capabilities);
+			String rendered = renderWithSubcharts(chart, values, releaseInfo, renderedCharts, 0, capabilities,
+					userOverrides);
 			return cleanManifest(rendered);
 		}
 		catch (StackOverflowError ex) {
@@ -420,8 +501,10 @@ public class Engine {
 		return Map.of("KubeVersion",
 				Map.of("Version", kubeVersion, "Major", majorMinor[0], "Minor", majorMinor[1], "GitVersion",
 						kubeVersion),
-				"HelmVersion", Map.of("Version", "v3.16.0", "GitCommit", "", "GitTreeState", "", "GoVersion", ""),
-				"APIVersions", new VersionSet(apiVersions));
+				"HelmVersion",
+				Map.of("Version", getHelmVersion(), "GitCommit", "", "GitTreeState", "", "GoVersion", ""),
+				"JhelmVersion", Map.of("Version", JhelmVersion.withLeadingV(JhelmVersion.current())), "APIVersions",
+				new VersionSet(apiVersions));
 	}
 
 	/**
@@ -748,7 +831,7 @@ public class Engine {
 	}
 
 	private String renderWithSubcharts(Chart chart, Map<String, Object> values, Map<String, Object> releaseInfo,
-			Set<String> renderedCharts, int depth, Capabilities capabilities) {
+			Set<String> renderedCharts, int depth, Capabilities capabilities, Map<String, Object> userOverrides) {
 		String chartKey = chart.getMetadata().getName() + ":" + chart.getMetadata().getVersion();
 		if (renderedCharts.contains(chartKey)) {
 			if (log.isDebugEnabled()) {
@@ -794,6 +877,19 @@ public class Engine {
 		// subchart prunes the null itself when it renders. This is the ONE pass that
 		// boxes
 		// numbers to Double.
+		// Helm 4 prunes null keys that come from chart values.yaml (the release chart's
+		// own
+		// and its subcharts' defaults) before this slicing, so they neither reach .Values
+		// nor
+		// delete a subchart's same-named default. The caller's own -f/--set nulls are
+		// exempt:
+		// helm 4.3.0 keeps those as explicit overrides. The action layer merges overrides
+		// into
+		// `values` before calling, so it passes them separately as `userOverrides` for
+		// this.
+		mergedValues = HelmCompatibilityValues.pruneIfNeeded(mergedValues, userOverrides, this.helmCompatibility,
+				depth);
+
 		Map<String, Object> subchartSliceValues = prepareRenderValues(mergedValues, null, false, true);
 		// Pruned view for THIS chart's own rendering: Helm removes null keys while
 		// coalescing a subchart (depth > 0); the top-level release chart keeps them.
@@ -808,6 +904,7 @@ public class Engine {
 		Map<String, Object> renderValues = prepareRenderValues(subchartSliceValues, chartValues, depth > 0, false);
 
 		// Validate merged values against the chart's JSON Schema (if present)
+
 		if (chart.getValuesSchema() != null) {
 			try {
 				schemaValidator.validate(chart.getMetadata().getName(), chart.getValuesSchema(), renderValues);
@@ -923,7 +1020,7 @@ public class Engine {
 				log.debug("Rendering subchart: {}", subchartName);
 			}
 			sb.append(renderWithSubcharts(subchart, subchartOverrides, releaseInfo, renderedCharts, depth + 1,
-					capabilities));
+					capabilities, null));
 		}
 
 		// This chart's own templates render last (see the ordering note above).

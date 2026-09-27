@@ -57,6 +57,7 @@ import org.alexmond.jhelm.core.service.PluginLoader;
 import org.alexmond.jhelm.core.service.ConfigServerClient;
 import org.alexmond.jhelm.core.service.ConfigServerValuesLoader;
 import org.alexmond.jhelm.core.service.Engine;
+import org.alexmond.jhelm.core.service.HelmCompatibility;
 import org.alexmond.jhelm.core.service.ValueEncryptor;
 import org.alexmond.jhelm.core.service.DelegatingKubeService;
 import org.alexmond.jhelm.core.service.KubeService;
@@ -324,6 +325,8 @@ public class JhelmCoreAutoConfiguration {
 	 * When a {@link KubernetesProvider} is on the context (jhelm-kube present), it is
 	 * wired in so the {@code lookup} template function queries the live cluster as Helm
 	 * does; otherwise {@code lookup} falls back to the empty-map stub.
+	 * @param props core properties ({@code jhelm.helm-version} sets
+	 * {@code .Capabilities.HelmVersion})
 	 * @param templateCache optional template parse cache
 	 * @param schemaValidator the values schema validator
 	 * @param metrics optional metrics for instrumentation
@@ -333,11 +336,14 @@ public class JhelmCoreAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	public Engine engine(ObjectProvider<TemplateCache> templateCache, SchemaValidator schemaValidator,
-			ObjectProvider<JhelmMetrics> metrics, ObjectProvider<KubernetesProvider> kubernetesProvider,
+	public Engine engine(JhelmCoreProperties props, ObjectProvider<TemplateCache> templateCache,
+			SchemaValidator schemaValidator, ObjectProvider<JhelmMetrics> metrics,
+			ObjectProvider<KubernetesProvider> kubernetesProvider,
 			ObjectProvider<JhelmTemplateFunctionProvider> templateFunctionPlugins,
 			ObjectProvider<PluginLoader> pluginLoader) {
 		Engine engine = new Engine(templateCache.getIfAvailable(), schemaValidator, metrics.getIfAvailable());
+		engine.setHelmCompatibility(HelmCompatibility.from(props.getHelmCompatibility()));
+		engine.setHelmVersion(props.getHelmVersion());
 		engine.setKubernetesProvider(kubernetesProvider.getIfAvailable());
 		engine.setPluginFunctions(JhelmTemplateFunctionAdapter.collect(mergePlugins(JhelmTemplateFunctionProvider.class,
 				templateFunctionPlugins.stream().toList(), pluginLoader.getIfAvailable())));

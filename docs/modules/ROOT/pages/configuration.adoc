@@ -79,6 +79,8 @@ jhelm list -n production
 | `jhelm.insecure-skip-tls-verify` | `JHELM_INSECURE_SKIP_TLS_VERIFY`
 | `jhelm.template-cache-enabled` | `JHELM_TEMPLATE_CACHE_ENABLED`
 | `jhelm.template-cache-max-size` | `JHELM_TEMPLATE_CACHE_MAX_SIZE`
+| `jhelm.helm-version` | `JHELM_HELM_VERSION`
+| `jhelm.helm-compatibility` | `JHELM_HELM_COMPATIBILITY`
 | `jhelm.kubernetes.kubeconfig-path` | `JHELM_KUBERNETES_KUBECONFIG_PATH`
 |===
 
@@ -176,6 +178,16 @@ Provided by `JhelmCoreAutoConfiguration` when `jhelm-core` is on the classpath.
 | `int`
 | `256`
 | Maximum number of parsed templates to keep in the LRU cache. Only applies when `template-cache-enabled` is `true`.
+
+| `jhelm.helm-version`
+| `String`
+| _follows `helm-compatibility`_
+| Helm version reported to charts as `.Capabilities.HelmVersion.Version` — the version charts gate on (for example `semverCompare ">=3.0.0" .Capabilities.HelmVersion.Version`). Defaults to the latest release of the configured Helm line (`v4.3.0` for Helm 4, `v3.19.0` for Helm 3); set it to pin an exact version. jhelm's own version is always available separately as `.Capabilities.JhelmVersion.Version`. A leading `v` is added if missing.
+
+| `jhelm.helm-compatibility`
+| `String`
+| `4`
+| Which Helm major version jhelm renders like: `4` (default) or `3`. The lines differ in how the coalesced `.Values` tree treats null-valued keys: Helm 4 prunes them, so `toYaml .Values.some.map` renders `{}` where Helm 3 renders `key: null`. (Helm 3 already prunes them for subcharts; Helm 4 also does it for the top-level chart.) `toYaml`/`toJson` themselves are identical in both lines. Set `3` to keep Helm 3 output.
 |===
 
 [NOTE]

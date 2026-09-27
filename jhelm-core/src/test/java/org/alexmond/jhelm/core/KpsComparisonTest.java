@@ -13,6 +13,7 @@ import org.alexmond.jhelm.core.model.ChartMetadata;
 import org.alexmond.jhelm.core.model.Release;
 import org.alexmond.jhelm.core.service.ChartLoader;
 import org.alexmond.jhelm.core.service.Engine;
+import org.alexmond.jhelm.core.service.HelmCompatibility;
 import org.alexmond.jhelm.core.service.RepoManager;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -85,13 +86,55 @@ class KpsComparisonTest {
 
 	private final ChartLoader chartLoader = new ChartLoader();
 
-	private final Engine engine = new Engine();
+	private final Engine engine = createEngine();
 
 	private final InstallAction installAction = new InstallAction(engine, null);
 
 	private final JsonMapper objectMapper = JsonMapper.builder().build();
 
 	private final Set<String> addedRepos = new HashSet<>();
+
+	/**
+	 * Builds the engine under comparison, pinning {@code .Capabilities.HelmVersion} to
+	 * the version of the {@code helm} binary this run compares against. Without it a
+	 * chart gating on the Helm version (e.g. {@code semverCompare ">=4.0.0"}) could take
+	 * a different branch in each renderer, reporting a diff that is only a version
+	 * mismatch.
+	 */
+	private static Engine createEngine() {
+		Engine engine = new Engine();
+		String version = helmBinaryVersion();
+		if (version != null) {
+			// Match the binary on BOTH axes: the reported version charts gate on, and the
+			// render semantics (Helm 4 omits nil values from toYaml/toJson). Comparing a
+			// Helm-4-mode engine against a helm 3 binary would report diffs that are only
+			// a mode mismatch.
+			engine.setHelmCompatibility(HelmCompatibility.from(version.startsWith("v4") ? "4" : "3"));
+			engine.setHelmVersion(version);
+			log.info("Pinned the engine to the helm binary under comparison: {} ({} semantics)", version,
+					engine.getHelmCompatibility());
+		}
+		else {
+			log.warn("Could not read the helm binary version; using the jhelm default {}", engine.getHelmVersion());
+		}
+		return engine;
+	}
+
+	private static String helmBinaryVersion() {
+		try {
+			Process process = new ProcessBuilder("helm", "version", "--template={{.Version}}").start();
+			String output;
+			try (InputStream is = process.getInputStream();
+					Scanner scanner = new Scanner(is, StandardCharsets.UTF_8).useDelimiter("\\A")) {
+				output = scanner.hasNext() ? scanner.next().trim() : "";
+			}
+			return (process.waitFor() == 0 && !output.isBlank()) ? output : null;
+		}
+		catch (IOException | InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			return null;
+		}
+	}
 
 	private final Set<String> skipCharts = loadSkipCharts();
 

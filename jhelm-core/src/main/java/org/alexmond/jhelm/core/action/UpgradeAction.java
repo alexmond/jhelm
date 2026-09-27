@@ -114,7 +114,7 @@ public class UpgradeAction {
 
 		Capabilities fromCluster = (kubeService != null) ? kubeService.getCapabilities() : null;
 		Capabilities capabilities = (fromCluster != null) ? fromCluster : Capabilities.DEFAULT;
-		String manifest = engine.render(newChart, renderValues, releaseContext, capabilities);
+		String manifest = engine.render(newChart, renderValues, releaseContext, capabilities, options.getValues());
 
 		for (PostRenderProcessor processor : postRenderProcessors) {
 			try {
