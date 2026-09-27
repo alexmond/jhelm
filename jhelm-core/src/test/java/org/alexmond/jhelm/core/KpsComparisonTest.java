@@ -70,6 +70,12 @@ class KpsComparisonTest {
 	private static final YAMLMapper YAML_MAPPER = YAMLMapper.builder().build();
 
 	/**
+	 * Separates the namespace in a resource pairing key. A {@code @} cannot appear in a
+	 * Kubernetes object name, so it never collides with a real name (#809).
+	 */
+	private static final String NAMESPACE_SEPARATOR = "@";
+
+	/**
 	 * Repository URL overrides for charts whose upstream repo has moved but whose
 	 * ArtifactHub metadata still advertises the old (now 404) location. Keyed by the
 	 * stale URL, mapped to the working replacement.
@@ -629,11 +635,11 @@ class KpsComparisonTest {
 		// Check for missing resources, filtering out those covered by ignore rules
 		var missingInJhelm = new LinkedHashSet<>(helmMap.keySet());
 		missingInJhelm.removeAll(jhelmMap.keySet());
-		missingInJhelm.removeIf((key) -> isIgnored(key, "*", ignoreRules));
+		missingInJhelm.removeIf((key) -> isIgnored(ignoreKey(key), "*", ignoreRules));
 
 		var extraInJhelm = new LinkedHashSet<>(jhelmMap.keySet());
 		extraInJhelm.removeAll(helmMap.keySet());
-		extraInJhelm.removeIf((key) -> isIgnored(key, "*", ignoreRules));
+		extraInJhelm.removeIf((key) -> isIgnored(ignoreKey(key), "*", ignoreRules));
 
 		List<String> failures = new ArrayList<>();
 
@@ -664,7 +670,7 @@ class KpsComparisonTest {
 
 			List<Diff> diffs = computeDiffs(helmDoc, jhelmDoc, "");
 			List<Diff> unignored = diffs.stream()
-				.filter((d) -> !isIgnored(key, d.path(), ignoreRules))
+				.filter((d) -> !isIgnored(ignoreKey(key), d.path(), ignoreRules))
 				.collect(Collectors.toList());
 
 			if (!unignored.isEmpty()) {
@@ -770,7 +776,45 @@ class KpsComparisonTest {
 			name = doc.get("metadata").get("name").asString();
 		}
 
-		map.put(kind + "/" + name, doc);
+		map.put(resourceKey(kind, name, namespaceOf(doc)), doc);
+	}
+
+	/**
+	 * Keys a resource for pairing between the two renderers. The namespace is part of the
+	 * key because an umbrella chart can bundle subcharts that ship same-named resources
+	 * in different namespaces — openfunction bundles both tekton-pipelines and
+	 * knative-serving, each with Knative's standard {@code config-observability} and
+	 * friends. Keyed by kind+name alone, helm's tekton ConfigMap pairs against jhelm's
+	 * knative one and every field looks different although each renderer put each
+	 * resource in the right namespace (#809). Cluster-scoped resources carry no namespace
+	 * and keep the bare {@code Kind/name} key.
+	 * @param kind the resource kind
+	 * @param name the resource name
+	 * @param namespace the resource namespace, or {@code ""} when cluster-scoped
+	 * @return the pairing key
+	 */
+	private static String resourceKey(String kind, String name, String namespace) {
+		return namespace.isEmpty() ? kind + "/" + name : kind + "/" + name + NAMESPACE_SEPARATOR + namespace;
+	}
+
+	private static String namespaceOf(JsonNode doc) {
+		if (doc.has("metadata") && doc.get("metadata").has("namespace")) {
+			String namespace = doc.get("metadata").get("namespace").asString();
+			return (namespace != null) ? namespace : "";
+		}
+		return "";
+	}
+
+	/**
+	 * Strips the namespace qualifier so ignore rules keep matching. Rules in
+	 * {@code application-test.yaml} are written as {@code Kind/name} globs and predate
+	 * the namespace-qualified key (#809), so they are matched against the bare form.
+	 * @param key a pairing key from {@link #resourceKey}
+	 * @return the {@code Kind/name} form
+	 */
+	private static String ignoreKey(String key) {
+		int at = key.lastIndexOf(NAMESPACE_SEPARATOR);
+		return (at >= 0) ? key.substring(0, at) : key;
 	}
 
 	private List<Diff> computeDiffs(JsonNode expected, JsonNode actual, String path) {
