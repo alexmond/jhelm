@@ -518,4 +518,16 @@ class SchemaValidatorTest {
 		}
 	}
 
+	@Test
+	void valuesNestedBeyondTheLimitFailTheChart() {
+		// the values side of the limit: a values tree deeper than jhelm allows is
+		// reported
+		// as a validation failure rather than being parsed
+		String schema = "{\"type\":\"object\"}";
+		SchemaValidator validator = new SchemaValidator();
+		SchemaValidationException ex = assertThrows(SchemaValidationException.class,
+				() -> validator.validate("deep-values", schema, nestedValues(300, "leaf")));
+		assertTrue(ex.getMessage().contains("parser limit"), ex.getMessage());
+	}
+
 }

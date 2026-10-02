@@ -6,7 +6,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.networknt.schema.InputFormat;
 import com.networknt.schema.OutputFormat;
 import com.networknt.schema.Schema;
 import com.networknt.schema.SchemaLocation;
@@ -17,6 +16,7 @@ import com.networknt.schema.output.OutputUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.SchemaValidationException;
 import tools.jackson.core.StreamReadConstraints;
+import tools.jackson.core.StreamWriteConstraints;
 import tools.jackson.core.exc.StreamConstraintsException;
 import tools.jackson.core.json.JsonFactory;
 import tools.jackson.databind.JsonNode;
@@ -78,6 +78,7 @@ public class SchemaValidator {
 				.maxNestingDepth(MAX_NESTING_DEPTH)
 				.maxDocumentLength(MAX_SCHEMA_BYTES)
 				.build())
+			.streamWriteConstraints(StreamWriteConstraints.builder().maxNestingDepth(MAX_NESTING_DEPTH).build())
 			.build())
 		.build();
 
@@ -137,9 +138,16 @@ public class SchemaValidator {
 			// Malformed schema — already logged; treat as absent, like Helm.
 			return;
 		}
-		String valuesJson;
+		// Parse the values through this class's constrained mapper and hand networknt the
+		// node: its String overload parses with its own mapper, so the nesting limit
+		// would
+		// not reach the values at all (#831).
+		JsonNode valuesNode;
 		try {
-			valuesJson = JSON_MAPPER.writeValueAsString((values != null) ? values : Map.of());
+			valuesNode = JSON_MAPPER.readTree(JSON_MAPPER.writeValueAsString((values != null) ? values : Map.of()));
+		}
+		catch (StreamConstraintsException ex) {
+			throw new SchemaValidationException(chartName, List.of("values exceed a parser limit: " + ex.getMessage()));
 		}
 		catch (RuntimeException ex) {
 			if (log.isWarnEnabled()) {
@@ -148,21 +156,7 @@ public class SchemaValidator {
 			}
 			return;
 		}
-		OutputUnit result;
-		try {
-			result = schema.validate(valuesJson, InputFormat.JSON, OutputFormat.LIST);
-		}
-		catch (StreamConstraintsException ex) {
-			// The values document breached a parser limit (depth/length).
-			throw new SchemaValidationException(chartName, List.of("values exceed a parser limit: " + ex.getMessage()));
-		}
-		catch (StackOverflowError ex) {
-			// Defence in depth: a schema whose $ref chain still recurses past the
-			// nesting limit must fail the chart, not kill the process
-			// (GHSA-5xqw-8hwv-wg92).
-			throw new SchemaValidationException(chartName,
-					List.of("values.schema.json is too deeply nested to validate"));
-		}
+		OutputUnit result = schema.validate(valuesNode, OutputFormat.LIST);
 		if (result.isValid()) {
 			return;
 		}
@@ -189,12 +183,6 @@ public class SchemaValidator {
 			// skipped), same as any unparseable schema (#831).
 			if (log.isWarnEnabled()) {
 				log.warn("values.schema.json for chart {} exceeds a parser limit: {}", chartName, ex.getMessage());
-			}
-			return null;
-		}
-		catch (StackOverflowError ex) {
-			if (log.isWarnEnabled()) {
-				log.warn("values.schema.json for chart {} is too deeply nested to compile", chartName);
 			}
 			return null;
 		}
