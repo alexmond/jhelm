@@ -305,4 +305,58 @@ class HelmPluginInstallerTest {
 		assertTrue(ex.getMessage().contains("invalid plugin name"), ex.getMessage());
 	}
 
+	// --- #827: the name fallback must describe the source, not the staging temp dir ---
+
+	@Test
+	void fallsBackToTheSourceDirectoryName(@TempDir Path tmp) throws Exception {
+		// stage() copies a directory's CONTENTS into the temp dir, so the fallback used
+		// to
+		// be the random jhelm-plugin-install<random>
+		Path src = Files.createDirectories(tmp.resolve("helm-whoami"));
+		Files.writeString(src.resolve("plugin.yaml"), "version: 1.0.0\nusage: who\n");
+		HelmPluginInstaller installer = installer(JhelmAccessMode.FULL, failCloner());
+		DiscoveredHelmPlugin plugin = installer.install(src.toString(), null);
+		assertEquals("helm-whoami", plugin.name());
+		assertTrue(Files.isRegularFile(plugin.directory().resolve("plugin.yaml")));
+	}
+
+	@Test
+	void fallsBackToTheGitRepositoryName(@TempDir Path tmp) throws Exception {
+		Path src = Files.createDirectories(tmp.resolve("content"));
+		Files.writeString(src.resolve("plugin.yaml"), "version: 1.0.0\nusage: g\n");
+		GitCloner cloner = (url, ref, dest) -> FileUtils.copyDirectory(src.toFile(), dest.toFile());
+		HelmPluginInstaller installer = installer(JhelmAccessMode.FULL, cloner);
+		DiscoveredHelmPlugin plugin = installer.install("https://github.com/someone/helm-example.git", null);
+		assertEquals("helm-example", plugin.name());
+	}
+
+	@Test
+	void tarballWithoutANameIsAnActionableError(@TempDir Path tmp) throws Exception {
+		// entries at the archive root carry no usable name; inventing one is worse than
+		// telling the author to declare it (Helm requires `name` anyway)
+		Path src = Files.createDirectories(tmp.resolve("flat"));
+		Files.writeString(src.resolve("plugin.yaml"), "version: 1.0.0\nusage: t\n");
+		Path tarball = tmp.resolve("plugin.tar.gz");
+		makeFlatTarGz(src, tarball);
+		HelmPluginInstaller installer = installer(JhelmAccessMode.FULL, failCloner());
+		IOException ex = assertThrows(IOException.class, () -> installer.install(tarball.toString(), null));
+		assertTrue(ex.getMessage().contains("add a 'name' to plugin.yaml"), ex.getMessage());
+	}
+
+	/** Writes a tar.gz whose entries sit at the archive root (no top-level directory). */
+	private static void makeFlatTarGz(Path sourceDir, Path target) throws IOException {
+		try (OutputStream fileOut = Files.newOutputStream(target);
+				GZIPOutputStream gzip = new GZIPOutputStream(fileOut);
+				TarArchiveOutputStream tar = new TarArchiveOutputStream(gzip);
+				Stream<Path> files = Files.list(sourceDir)) {
+			tar.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+			for (Path file : files.filter(Files::isRegularFile).toList()) {
+				TarArchiveEntry entry = new TarArchiveEntry(file.toFile(), file.getFileName().toString());
+				tar.putArchiveEntry(entry);
+				Files.copy(file, tar);
+				tar.closeArchiveEntry();
+			}
+		}
+	}
+
 }
