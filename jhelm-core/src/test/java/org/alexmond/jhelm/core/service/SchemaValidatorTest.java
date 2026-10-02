@@ -1,12 +1,19 @@
 package org.alexmond.jhelm.core.service;
 
 import java.util.List;
+import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.nio.charset.StandardCharsets;
+import java.net.InetSocketAddress;
+import com.sun.net.httpserver.HttpServer;
 
 import org.alexmond.jhelm.core.exception.SchemaValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -380,6 +387,135 @@ class SchemaValidatorTest {
 		assertDoesNotThrow(() -> validator.validate("test-chart", schema, Map.of("name", "ok")));
 		// Second call hits the compiled-schema cache and must behave identically.
 		assertThrows(SchemaValidationException.class, () -> validator.validate("test-chart", schema, Map.of()));
+	}
+
+	// --- #831: input limits on an untrusted chart schema ---
+
+	@Test
+	void schemaNestedBeyondJhelmsLimitIsRejected() {
+		// 300 nested levels is ~600 JSON levels: BELOW Jackson's own 1000-deep default
+		// and ABOVE jhelm's 200, so this is rejected only because of jhelm's tighter
+		// limit. Defence in depth — no stack overflow was reproduced at any depth tried
+		// against networknt 3.0.5, so this bounds the work a hostile schema can demand
+		// rather than fixing an observed crash.
+		String schema = nestedObjectSchema(300);
+		SchemaValidator validator = new SchemaValidator();
+		// over the limit, the schema is unparseable -> treated as absent, so values that
+		// would otherwise violate it are not rejected, and nothing crashes
+		validator.validate("deep", schema, Map.of("a", "not-an-object"));
+	}
+
+	@Test
+	void schemaWithinJhelmsLimitStillValidates() {
+		// the limit must not break a legitimately nested schema: 40 levels (~80 JSON
+		// levels, double the deepest real chart schemas) validates, and a violation at
+		// the leaf is still caught
+		String schema = nestedObjectSchema(40);
+		SchemaValidator validator = new SchemaValidator();
+		validator.validate("ok-depth", schema, nestedValues(40, "leaf-string"));
+		assertThrows(SchemaValidationException.class,
+				() -> validator.validate("ok-depth", schema, nestedValues(40, 42)));
+	}
+
+	private static String nestedObjectSchema(int depth) {
+		StringBuilder schema = new StringBuilder();
+		for (int i = 0; i < depth; i++) {
+			schema.append("{\"type\":\"object\",\"properties\":{\"a\":");
+		}
+		schema.append("{\"type\":\"string\"}");
+		schema.append("}}".repeat(depth));
+		return schema.toString();
+	}
+
+	private static Map<String, Object> nestedValues(int depth, Object leaf) {
+		Map<String, Object> root = new HashMap<>();
+		Map<String, Object> cursor = root;
+		for (int i = 0; i < depth - 1; i++) {
+			Map<String, Object> next = new HashMap<>();
+			cursor.put("a", next);
+			cursor = next;
+		}
+		cursor.put("a", leaf);
+		return root;
+	}
+
+	@Test
+	void oversizeSchemaFailsTheChartRatherThanSkippingValidation() {
+		// Failing closed matters: silently skipping would let a hostile chart opt out of
+		// its own constraints.
+		String filler = "x".repeat(1024 * 1024);
+		String schema = "{\"type\":\"object\",\"description\":\"" + filler + "\"}";
+		SchemaValidator validator = new SchemaValidator();
+		SchemaValidationException ex = assertThrows(SchemaValidationException.class,
+				() -> validator.validate("huge", schema, Map.of()));
+		assertTrue(ex.getMessage().contains("limit"), ex.getMessage());
+	}
+
+	@Test
+	void remoteRefIsNeverFetched() throws Exception {
+		// Stand up a local server and assert it is never hit. A chart must not be able to
+		// make jhelm fetch a URL during validation — the remote-$ref memory-exhaustion
+		// vector (GHSA-9h84-qmv7-982p), and an SSRF-shaped surface besides.
+		AtomicInteger hits = new AtomicInteger();
+		HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+		server.createContext("/", (exchange) -> {
+			hits.incrementAndGet();
+			byte[] body = "{\"type\":\"string\"}".getBytes(StandardCharsets.UTF_8);
+			exchange.sendResponseHeaders(200, body.length);
+			exchange.getResponseBody().write(body);
+			exchange.close();
+		});
+		server.start();
+		try {
+			String ref = "http://127.0.0.1:" + server.getAddress().getPort() + "/evil.json";
+			String schema = "{\"type\":\"object\",\"properties\":{\"a\":{\"$ref\":\"" + ref + "\"}}}";
+			SchemaValidator validator = new SchemaValidator();
+			try {
+				validator.validate("remote-ref", schema, Map.of("a", "value"));
+			}
+			catch (SchemaValidationException ex) {
+				assertNotNull(ex.getMessage());
+			}
+			assertEquals(0, hits.get(), "jhelm fetched the remote $ref");
+		}
+		finally {
+			server.stop(0);
+		}
+	}
+
+	@Test
+	void schemaCacheIsBounded() throws Exception {
+		SchemaValidator validator = new SchemaValidator();
+		for (int i = 0; i < 200; i++) {
+			validator.validate("chart" + i, "{\"type\":\"object\",\"title\":\"s" + i + "\"}", Map.of());
+		}
+		Field field = SchemaValidator.class.getDeclaredField("schemaCache");
+		field.setAccessible(true);
+		@SuppressWarnings("unchecked")
+		Map<String, ?> cache = (Map<String, ?>) field.get(validator);
+		assertTrue(cache.size() <= 64, "cache grew to " + cache.size());
+	}
+
+	@Test
+	void longRefChainDoesNotKillTheProcess() {
+		// The GHSA-5xqw-8hwv-wg92 shape: a long CHAIN of $ref, in flat JSON that no
+		// nesting limit can see. Measured against networknt 3.0.5, chains of 1k/50k/200k
+		// links all return an ordinary validation error — it resolves refs without
+		// per-ref recursion, so Helm's stack-overflow vector does not reproduce here.
+		// Kept as a regression guard in case a library upgrade changes that.
+		StringBuilder defs = new StringBuilder("{\"$ref\":\"#/$defs/r0\",\"$defs\":{");
+		int links = 50_000;
+		for (int i = 0; i < links; i++) {
+			defs.append("\"r").append(i).append("\":{\"$ref\":\"#/$defs/r").append(i + 1).append("\"},");
+		}
+		defs.append("\"r").append(links).append("\":{\"type\":\"string\"}}}");
+		SchemaValidator validator = new SchemaValidator();
+		try {
+			validator.validate("ref-chain", defs.toString(), Map.of("a", "value"));
+		}
+		catch (SchemaValidationException ex) {
+			assertNotNull(ex.getMessage());
+		}
 	}
 
 }

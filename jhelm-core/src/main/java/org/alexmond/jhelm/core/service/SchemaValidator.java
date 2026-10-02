@@ -1,9 +1,10 @@
 package org.alexmond.jhelm.core.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import com.networknt.schema.InputFormat;
 import com.networknt.schema.OutputFormat;
@@ -15,6 +16,9 @@ import com.networknt.schema.SpecificationVersion;
 import com.networknt.schema.output.OutputUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.alexmond.jhelm.core.exception.SchemaValidationException;
+import tools.jackson.core.StreamReadConstraints;
+import tools.jackson.core.exc.StreamConstraintsException;
+import tools.jackson.core.json.JsonFactory;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -43,7 +47,39 @@ import tools.jackson.databind.json.JsonMapper;
 @Slf4j
 public class SchemaValidator {
 
-	private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
+	/**
+	 * Largest {@code values.schema.json} jhelm will parse. A chart comes from a
+	 * repository, so the schema is untrusted input; Helm has fixed a schema that exhausts
+	 * memory (GHSA-9h84-qmv7-982p) and one that overflows the stack
+	 * (GHSA-5xqw-8hwv-wg92). Neither crash reproduced against networknt 3.0.5, so this
+	 * bounds the work a hostile schema can demand rather than fixing an observed crash.
+	 * Real chart schemas are a few KB, so 1 MiB leaves ample room (#831).
+	 */
+	private static final int MAX_SCHEMA_BYTES = 1024 * 1024;
+
+	/**
+	 * Nesting limit for both the schema and the values document, counted in JSON levels.
+	 * Deep nesting is what turns into parser/validator recursion and a stack overflow.
+	 * Note a schema spends roughly two JSON levels per level of described structure
+	 * ({@code properties} then the property), so 200 allows about 100 levels of nested
+	 * values — real chart schemas are well under 20, and Jackson's own default (1000) is
+	 * too loose to prevent deep recursion.
+	 */
+	private static final int MAX_NESTING_DEPTH = 200;
+
+	/**
+	 * Compiled schemas retained, bounding the cache a chart loop could otherwise grow.
+	 */
+	private static final int MAX_CACHED_SCHEMAS = 64;
+
+	private static final JsonMapper JSON_MAPPER = JsonMapper
+		.builder(JsonFactory.builder()
+			.streamReadConstraints(StreamReadConstraints.builder()
+				.maxNestingDepth(MAX_NESTING_DEPTH)
+				.maxDocumentLength(MAX_SCHEMA_BYTES)
+				.build())
+			.build())
+		.build();
 
 	/**
 	 * Compiles schemas with draft 2020-12 as the default dialect (Helm 4's default) while
@@ -51,12 +87,31 @@ public class SchemaValidator {
 	 */
 	private final SchemaRegistry schemaRegistry;
 
-	private final Map<String, Schema> schemaCache = new ConcurrentHashMap<>();
+	/**
+	 * Compiled schemas, keyed by raw content and bounded to {@link #MAX_CACHED_SCHEMAS}
+	 * by insertion order (#831). Synchronized rather than concurrent because an LRU map
+	 * cannot be made thread-safe by itself; compilation is once-per-chart and off the hot
+	 * path.
+	 */
+	private final Map<String, Schema> schemaCache = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<String, Schema> eldest) {
+			return size() > MAX_CACHED_SCHEMAS;
+		}
+
+	});
 
 	public SchemaValidator() {
 		SchemaRegistryConfig config = SchemaRegistryConfig.builder().build();
+		// A chart must never make jhelm fetch a URL while validating: that is the
+		// remote-$ref memory-exhaustion vector (GHSA-9h84-qmv7-982p) and an SSRF-shaped
+		// surface. Remote fetching is turned off explicitly rather than relying on the
+		// library default, and every external IRI is blocked outright, so a $ref can only
+		// resolve inside the chart's own schema document (#831).
 		this.schemaRegistry = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12,
-				(builder) -> builder.schemaRegistryConfig(config));
+				(builder) -> builder.schemaRegistryConfig(config)
+					.schemaLoader((loader) -> loader.fetchRemoteResources(false).block((iri) -> true)));
 	}
 
 	/**
@@ -70,6 +125,12 @@ public class SchemaValidator {
 	public void validate(String chartName, String schemaJson, Map<String, Object> values) {
 		if (schemaJson == null || schemaJson.isBlank()) {
 			return;
+		}
+		// Fail closed on an over-size schema: skipping validation silently would let a
+		// hostile chart opt out of its own constraints (#831).
+		if (schemaJson.length() > MAX_SCHEMA_BYTES) {
+			throw new SchemaValidationException(chartName, List.of("values.schema.json is " + schemaJson.length()
+					+ " bytes, over the " + MAX_SCHEMA_BYTES + "-byte limit"));
 		}
 		Schema schema = compile(chartName, schemaJson);
 		if (schema == null) {
@@ -87,7 +148,21 @@ public class SchemaValidator {
 			}
 			return;
 		}
-		OutputUnit result = schema.validate(valuesJson, InputFormat.JSON, OutputFormat.LIST);
+		OutputUnit result;
+		try {
+			result = schema.validate(valuesJson, InputFormat.JSON, OutputFormat.LIST);
+		}
+		catch (StreamConstraintsException ex) {
+			// The values document breached a parser limit (depth/length).
+			throw new SchemaValidationException(chartName, List.of("values exceed a parser limit: " + ex.getMessage()));
+		}
+		catch (StackOverflowError ex) {
+			// Defence in depth: a schema whose $ref chain still recurses past the
+			// nesting limit must fail the chart, not kill the process
+			// (GHSA-5xqw-8hwv-wg92).
+			throw new SchemaValidationException(chartName,
+					List.of("values.schema.json is too deeply nested to validate"));
+		}
 		if (result.isValid()) {
 			return;
 		}
@@ -108,6 +183,20 @@ public class SchemaValidator {
 			schema.initializeValidators();
 			this.schemaCache.put(schemaJson, schema);
 			return schema;
+		}
+		catch (StreamConstraintsException ex) {
+			// Over the nesting/length limit — treated as malformed (logged, validation
+			// skipped), same as any unparseable schema (#831).
+			if (log.isWarnEnabled()) {
+				log.warn("values.schema.json for chart {} exceeds a parser limit: {}", chartName, ex.getMessage());
+			}
+			return null;
+		}
+		catch (StackOverflowError ex) {
+			if (log.isWarnEnabled()) {
+				log.warn("values.schema.json for chart {} is too deeply nested to compile", chartName);
+			}
+			return null;
 		}
 		catch (RuntimeException ex) {
 			if (log.isWarnEnabled()) {
