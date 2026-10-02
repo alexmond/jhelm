@@ -467,6 +467,7 @@ codecentric/keycloak,codecentric,https://codecentric.github.io/helm-charts,18.10
 drone/drone-runner-docker,drone,https://charts.drone.io,0.7.0
 milvus/pulsarv2,milvus,https://zilliztech.github.io/milvus-helm,2.7.8
 nginx-stable/nginx-devportal,nginx-stable,https://helm.nginx.com/stable,1.7.2
+openfunction/openfunction,openfunction,https://openfunction.github.io/charts,0.7.0
 openfunction/shipwright-build,openfunction,https://openfunction.github.io/charts,0.10.0
 redpanda/connect,redpanda,https://charts.redpanda.com,3.2.18
 robusta/krr-enforcer,robusta,https://robusta-charts.storage.googleapis.com,0.3.5
