@@ -395,14 +395,15 @@ class SchemaValidatorTest {
 	void schemaNestedBeyondJhelmsLimitIsRejected() {
 		// 300 nested levels is ~600 JSON levels: BELOW Jackson's own 1000-deep default
 		// and ABOVE jhelm's 200, so this is rejected only because of jhelm's tighter
-		// limit. Defence in depth — no stack overflow was reproduced at any depth tried
-		// against networknt 3.0.5, so this bounds the work a hostile schema can demand
-		// rather than fixing an observed crash.
+		// limit. No stack overflow was reproduced at any depth against networknt 3.0.5,
+		// so the limit bounds the work a hostile schema can demand; it fails the chart
+		// rather than skipping validation, so a schema cannot opt out of its own
+		// constraints by being over-size.
 		String schema = nestedObjectSchema(300);
 		SchemaValidator validator = new SchemaValidator();
-		// over the limit, the schema is unparseable -> treated as absent, so values that
-		// would otherwise violate it are not rejected, and nothing crashes
-		validator.validate("deep", schema, Map.of("a", "not-an-object"));
+		SchemaValidationException ex = assertThrows(SchemaValidationException.class,
+				() -> validator.validate("deep", schema, Map.of("a", "not-an-object")));
+		assertTrue(ex.getMessage().contains("parser limit"), ex.getMessage());
 	}
 
 	@Test

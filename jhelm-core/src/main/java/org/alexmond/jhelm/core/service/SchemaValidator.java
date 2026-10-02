@@ -156,7 +156,22 @@ public class SchemaValidator {
 			}
 			return;
 		}
-		OutputUnit result = schema.validate(valuesNode, OutputFormat.LIST);
+		OutputUnit result;
+		try {
+			result = schema.validate(valuesNode, OutputFormat.LIST);
+		}
+		catch (StackOverflowError ex) {
+			// Unreachable against networknt 3.0.5 — no overflow reproduces at any nesting
+			// depth or $ref-chain length tried, because it resolves refs without
+			// recursing
+			// per link. Kept because how deeply this recurses is a property of the
+			// library,
+			// not of jhelm: a version bump could reintroduce Helm's overflow
+			// (GHSA-5xqw-8hwv-wg92), and a hostile chart must fail its own render rather
+			// than take the process down with it.
+			throw new SchemaValidationException(chartName,
+					List.of("values.schema.json is too deeply nested to validate"));
+		}
 		if (result.isValid()) {
 			return;
 		}
@@ -179,12 +194,18 @@ public class SchemaValidator {
 			return schema;
 		}
 		catch (StreamConstraintsException ex) {
-			// Over the nesting/length limit — treated as malformed (logged, validation
-			// skipped), same as any unparseable schema (#831).
-			if (log.isWarnEnabled()) {
-				log.warn("values.schema.json for chart {} exceeds a parser limit: {}", chartName, ex.getMessage());
-			}
-			return null;
+			// Over the nesting/length limit. Unlike an ordinary malformed schema this
+			// fails the chart instead of being skipped: skipping would let a schema that
+			// is hostile *by construction* opt out of its own constraints (#831).
+			throw new SchemaValidationException(chartName,
+					List.of("values.schema.json exceeds a parser limit: " + ex.getMessage()));
+		}
+		catch (StackOverflowError ex) {
+			// Same reasoning as the validate path: unreachable today, kept because the
+			// recursion depth belongs to the library. Fails closed rather than returning
+			// null, which would silently skip validation.
+			throw new SchemaValidationException(chartName,
+					List.of("values.schema.json is too deeply nested to compile"));
 		}
 		catch (RuntimeException ex) {
 			if (log.isWarnEnabled()) {
