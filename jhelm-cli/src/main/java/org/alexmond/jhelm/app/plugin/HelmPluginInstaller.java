@@ -324,8 +324,9 @@ public class HelmPluginInstaller {
 		if (manifest.getName() != null && !manifest.getName().isBlank()) {
 			return validateName(manifest.getName());
 		}
-		// A nested staged directory (tarball with a top-level dir) names the plugin.
-		if (!pluginRoot.equals(staging) && pluginRoot.getFileName() != null) {
+		// A nested staged directory (tarball with a top-level dir) names the plugin. Any
+		// path strictly below staging has a file name, so no null check is needed.
+		if (!pluginRoot.equals(staging)) {
 			return validateName(pluginRoot.getFileName().toString());
 		}
 		String fromSource = nameFromSource(source);
@@ -340,10 +341,14 @@ public class HelmPluginInstaller {
 	 * Derives a plugin name from the install source: a directory's own name, or the
 	 * repository name of a git URL ({@code .git} suffix removed). Returns {@code null}
 	 * for a source that carries no usable name, such as a tarball (#827).
+	 * <p>
+	 * Package-private as a testable seam, like {@link #resolveDestination}: the git-URL
+	 * shapes (scp-style, trailing slash, no {@code .git} suffix) are easier to pin
+	 * directly than through a clone.
 	 * @param source the install source
 	 * @return the derived name, or {@code null}
 	 */
-	private static String nameFromSource(String source) {
+	static String nameFromSource(String source) {
 		String lower = source.toLowerCase(Locale.ROOT);
 		if (isTarball(lower)) {
 			return null;

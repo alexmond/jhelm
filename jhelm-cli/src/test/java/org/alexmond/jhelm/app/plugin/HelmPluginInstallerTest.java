@@ -21,9 +21,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.ParameterizedTest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -357,6 +361,41 @@ class HelmPluginInstallerTest {
 				tar.closeArchiveEntry();
 			}
 		}
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "https://github.com/someone/helm-example.git, helm-example",
+			"https://github.com/someone/helm-example, helm-example",
+			"https://github.com/someone/helm-example/, helm-example",
+			"git@github.com:someone/helm-example.git, helm-example", "/opt/plugins/helm-local, helm-local",
+			"/opt/plugins/helm-local/, helm-local",
+			// a bare repo name: no '/' to split on
+			"helm-bare.git, helm-bare" })
+	void nameFromSourceDerivesTheName(String source, String expected) {
+		assertEquals(expected, HelmPluginInstaller.nameFromSource(source));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "https://example.com/plugin.tar.gz", "/tmp/plugin.tgz" })
+	void nameFromSourceHasNoNameForATarball(String source) {
+		assertNull(HelmPluginInstaller.nameFromSource(source));
+	}
+
+	@ParameterizedTest
+	// a URL that is nothing but the .git suffix, and the filesystem root: both leave
+	// nothing to name the plugin after
+	@ValueSource(strings = { "https://example.com/.git", "/" })
+	void nameFromSourceHasNoNameWhenNothingIsLeft(String source) {
+		assertNull(HelmPluginInstaller.nameFromSource(source));
+	}
+
+	@Test
+	void blankManifestNameFallsBackToTheSource(@TempDir Path tmp) throws Exception {
+		// a declared but blank name must be treated as absent, not installed as ""
+		Path src = Files.createDirectories(tmp.resolve("helm-blankname"));
+		Files.writeString(src.resolve("plugin.yaml"), "name: \"   \"\nversion: 1.0.0\nusage: b\n");
+		HelmPluginInstaller installer = installer(JhelmAccessMode.FULL, failCloner());
+		assertEquals("helm-blankname", installer.install(src.toString(), null).name());
 	}
 
 }
