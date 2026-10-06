@@ -176,7 +176,7 @@ public class HelmPluginInstaller {
 		try {
 			Path pluginRoot = stage(source, version, staging);
 			HelmPluginManifest manifest = readManifest(pluginRoot);
-			String name = resolveName(manifest, pluginRoot);
+			String name = resolveName(manifest, pluginRoot, staging, source);
 			manifest.setName(name);
 			Path dest = resolveDestination(this.paths.pluginsDir(), name);
 			if (Files.exists(dest)) {
@@ -299,11 +299,72 @@ public class HelmPluginInstaller {
 		return YAML.readValue(manifest.toFile(), HelmPluginManifest.class);
 	}
 
-	private static String resolveName(HelmPluginManifest manifest, Path pluginRoot) throws IOException {
+	/**
+	 * Resolves the plugin's name: the manifest's own {@code name} when it declares one,
+	 * else a name derived from where the plugin came from.
+	 *
+	 * <p>
+	 * The fallback used to be {@code pluginRoot.getFileName()}, which is only meaningful
+	 * when the source nests the plugin inside a directory. A local directory's contents
+	 * and a git clone are staged directly into the temp dir, so the name became the
+	 * random {@code jhelm-plugin-install<random>} (#827). It now reads the source: the
+	 * directory's own name, or a git URL's repository name. A tarball whose entries sit
+	 * at the archive root carries no usable name — rather than invent one, that is an
+	 * error telling the author to declare {@code name}, which is what Helm requires
+	 * anyway.
+	 * @param manifest the parsed plugin.yaml
+	 * @param pluginRoot the staged plugin directory
+	 * @param staging the staging temp dir, whose name is never a plugin name
+	 * @param source the install source as the user gave it
+	 * @return the validated plugin name
+	 * @throws IOException if the name is invalid, or no name can be determined
+	 */
+	private static String resolveName(HelmPluginManifest manifest, Path pluginRoot, Path staging, String source)
+			throws IOException {
 		if (manifest.getName() != null && !manifest.getName().isBlank()) {
 			return validateName(manifest.getName());
 		}
-		return validateName(pluginRoot.getFileName().toString());
+		// A nested staged directory (tarball with a top-level dir) names the plugin. Any
+		// path strictly below staging has a file name, so no null check is needed.
+		if (!pluginRoot.equals(staging)) {
+			return validateName(pluginRoot.getFileName().toString());
+		}
+		String fromSource = nameFromSource(source);
+		if (fromSource == null) {
+			throw new IOException("plugin.yaml does not declare a name and one cannot be derived from " + source
+					+ ": add a 'name' to plugin.yaml");
+		}
+		return validateName(fromSource);
+	}
+
+	/**
+	 * Derives a plugin name from the install source: a directory's own name, or the
+	 * repository name of a git URL ({@code .git} suffix removed). Returns {@code null}
+	 * for a source that carries no usable name, such as a tarball (#827).
+	 * <p>
+	 * Package-private as a testable seam, like {@link #resolveDestination}: the git-URL
+	 * shapes (scp-style, trailing slash, no {@code .git} suffix) are easier to pin
+	 * directly than through a clone.
+	 * @param source the install source
+	 * @return the derived name, or {@code null}
+	 */
+	static String nameFromSource(String source) {
+		String lower = source.toLowerCase(Locale.ROOT);
+		if (isTarball(lower)) {
+			return null;
+		}
+		if (isGit(lower)) {
+			String path = source.endsWith("/") ? source.substring(0, source.length() - 1) : source;
+			int slash = path.lastIndexOf('/');
+			String last = (slash >= 0) ? path.substring(slash + 1) : path;
+			if (last.toLowerCase(Locale.ROOT).endsWith(".git")) {
+				last = last.substring(0, last.length() - ".git".length());
+			}
+			return last.isBlank() ? null : last;
+		}
+		Path dir = Path.of(source);
+		Path fileName = dir.toAbsolutePath().normalize().getFileName();
+		return (fileName != null) ? fileName.toString() : null;
 	}
 
 	/**
