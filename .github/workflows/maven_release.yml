@@ -18,12 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -32,6 +32,16 @@ jobs:
           server-username: OSSRH_USERNAME
           server-password: OSSRH_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      # The wrapper is distributionType=only-script, so it downloads Maven itself on
+      # every run — a transient failure fetching apache-maven from Central has already
+      # broken a parity job. setup-java's `cache: maven` only covers ~/.m2/repository,
+      # so the distribution is cached separately, keyed on the pinned version.
+      - name: Cache the Maven wrapper distribution
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/wrapper
+          key: maven-wrapper-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
 
       - name: Configure Git
         run: |
@@ -46,12 +56,12 @@ jobs:
       # Verify Build needs a cluster + Helm — same as build.yml. Without it, jacoco:check
       # fails on jhelm-kube.
       - name: Create Kubernetes Cluster (Kind)
-        uses: helm/kind-action@v1.12.0
+        uses: helm/kind-action@v1.15.1
         with:
           cluster_name: kind
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: v3.14.2
 
@@ -81,7 +91,7 @@ jobs:
         run: git push && git push --tags
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.releaseVersion }}
           name: Release ${{ github.event.inputs.releaseVersion }}
