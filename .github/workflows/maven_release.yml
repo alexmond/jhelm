@@ -33,16 +33,11 @@ jobs:
           server-password: OSSRH_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
 
-      # The wrapper is distributionType=only-script, so it downloads Maven itself on
-      # every run — a transient failure fetching apache-maven from Central has already
-      # broken a parity job. setup-java's `cache: maven` only covers ~/.m2/repository,
-      # so the distribution is cached separately, keyed on the pinned version.
-      - name: Cache the Maven wrapper distribution
-        uses: actions/cache@v6
-        with:
-          path: ~/.m2/wrapper
-          key: maven-wrapper-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
-
+      # No wrapper cache here, deliberately. This job signs artifacts and publishes to
+      # Central, and a restored cache is attacker-controllable input in a way a fresh
+      # download is not: the wrapper verifies distributionSha256Sum when it DOWNLOADS,
+      # but a cache hit skips that check entirely. The release runs rarely, so paying for
+      # one download is the cheaper side of the trade (cache-poisoning review finding).
       - name: Configure Git
         run: |
           git config user.name "GitHub Actions"
