@@ -77,6 +77,22 @@ no shelling out, no glue code. See xref:mcp.adoc[MCP Server].
 * gotmpl4j 1.4.0 (Go template + Sprig engine)
 * Picocli 4.7.7 (CLI framework)
 
+== Spring Boot compatibility
+
+jhelm has its own `MAJOR.MINOR.PATCH` version. Each jhelm minor line is built on one Spring Boot
+line, so pick the jhelm line that matches the Spring Boot version of your application.
+
+[cols="1,1,1,2"]
+|===
+| jhelm | Spring Boot | Branch | Status
+
+| 1.5.x | 4.0.x | `main` | Current
+|===
+
+Moving to a new Spring Boot minor always starts a new jhelm minor line. The previous line then
+moves to a branch named after its Spring Boot line (for example `4.0`) and receives bug fixes and
+Spring Boot patch updates only -- new features go to the newest line.
+
 == Quick Links
 
 * xref:getting-started.adoc[Getting Started] -- build, run the CLI, or add jhelm as a library

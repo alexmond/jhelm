@@ -54,6 +54,21 @@ Before committing changes:
 . Add new tests for new functionality
 . Fix any test failures before pushing
 
+== Versioning and Branches
+
+jhelm keeps its own `MAJOR.MINOR.PATCH` version; it does not copy the Spring Boot version.
+Branches are named after the Spring Boot line they build on.
+
+* `main` builds on the newest supported Spring Boot line and takes all new features. A feature
+  release is a new jhelm minor, and several minors can share one Spring Boot line.
+* Moving `main` to a new Spring Boot *minor* always starts a new jhelm minor. First cut the
+  outgoing line to a branch named `<boot-major>.<boot-minor>` (for example `4.0`) from the
+  pre-bump head.
+* A maintenance branch gets bug fixes and Spring Boot *patch* bumps only, released as jhelm patch
+  versions. No new features -- the next minor numbers belong to `main`.
+* Every Spring Boot line change adds a row to the compatibility table in `README.adoc` and
+  `docs/modules/ROOT/pages/index.adoc`.
+
 == Debugging Tips
 
 * Enable detailed logging with `@Slf4j` annotations.
