@@ -22,6 +22,34 @@
   sets it, so existing charts are unaffected. jhelm-core now carries its own version, so every
   embedder reports it, not only the CLI (#828).
 
+=== JSON Schema validation
+
+* *`values.schema.json` is now validated against the full JSON Schema specification* -- the
+  previous validator knew about ten keywords and silently ignored the rest (`$ref`/`$defs`,
+  `additionalProperties`, `items`, `oneOf`/`anyOf`/`allOf`, `if`/`then`/`else`, `const`,
+  `patternProperties`, `exclusiveMinimum`/`exclusiveMaximum`, `multipleOf`, `format`), so a
+  chart whose schema used any of them could pass jhelm and fail under Helm. jhelm now uses the
+  NetworkNT `json-schema-validator`. The default dialect is draft 2020-12, as in Helm 4, and a
+  schema's own `$schema` (most charts declare Draft-07) is honoured. *Values that an ignored
+  keyword used to let through are now rejected*, as Helm rejects them. The `SchemaValidator`
+  API and `SchemaValidationException` are unchanged (#816).
+
+=== Security
+
+* *`values.schema.json` is treated as untrusted input* -- a `$ref` to a remote location was
+  fetched during validation, so rendering or linting a chart could make jhelm issue a network
+  request chosen by the chart. Remote and other external references are now blocked; a `$ref`
+  resolves only inside the schema document. The schema is also limited to 1 MiB and, with the
+  values, to 200 levels of nesting, and the compiled-schema cache is bounded. A chart over a
+  limit fails with a `SchemaValidationException` instead of skipping validation (#831).
+
+* *`jhelm plugin install` validates the plugin name* -- the install directory was built from
+  the `name` in the plugin's own `plugin.yaml` without a check, so a name containing a path
+  separator or `..` wrote the plugin tree outside the plugins directory. This happened before
+  the install hook and so was reachable under `READ_ONLY` too. Names must now match Helm's
+  rule (letters, digits, `_`, `-`), and the destination is checked to be inside the plugins
+  directory (#825).
+
 === Dependencies
 
 * *Spring Boot 4.0.8* (from 4.0.7). The `1.5.x` line is now the Spring Boot 4.0 maintenance
@@ -64,6 +92,25 @@
   live object — so fields the release no longer declares are removed regardless of which field
   manager owns them, while controller-set fields jhelm never managed are left untouched. Applies
   to both the `client-java` and Fabric8 backends (#814).
+
+* *A plugin without a `name` no longer installs under a random directory name* -- when
+  `plugin.yaml` omits `name`, `jhelm plugin install` used the temporary staging directory's
+  name (`jhelm-plugin-install<random>`) for a local directory or a git URL. The name is now
+  taken from the source: the directory name, the repository name (without `.git`), or the
+  archive's top-level directory. An archive with its files at the root and no `name` is
+  rejected with a message asking for one (#827).
+
+* *The library jars now ship Spring Boot configuration metadata* -- `jhelm-core`,
+  `jhelm-kube`, `jhelm-rest`, `jhelm-mcp` and `jhelm-plugin` declared
+  `spring-boot-configuration-processor`, but the build never ran it, so the published jars
+  (up to and including 1.5.0) had no `META-INF/spring-configuration-metadata.json`. IDEs
+  therefore offered no completion or documentation for `jhelm.*` properties. The processor
+  now runs and each of these jars carries the file. No runtime behaviour changes.
+
+=== Build
+
+* jhelm is now built and tested on JDK 21 and JDK 25 in CI. The published jars still target
+  Java 21.
 
 == 1.5.0
 
