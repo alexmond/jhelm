@@ -64,7 +64,7 @@ no shelling out, no glue code. See xref:mcp.adoc[MCP Server].
 * *Spring Boot auto-configuration* -- programmatic action API with `@ConfigurationProperties`
 * *REST API* -- Spring MVC endpoints with OpenAPI/Swagger documentation (pure library plus a `jhelm-rest-starter`)
 * *MCP server* -- exposes jhelm operations as Model Context Protocol tools for AI agents (built on Spring AI)
-* *JSON Schema validation* -- validates chart values against `values.schema.json` (Draft-07)
+* *JSON Schema validation* -- validates chart values against `values.schema.json` with a full JSON Schema validator (draft 2020-12 by default; a schema's own `$schema`, such as Draft-07, is honoured)
 * *Async Kubernetes operations* -- Java 21 virtual threads via `AsyncKubeService`
 * *Value profiles* _(beyond Helm)_ -- Spring-Boot-style `-P` profiles with document gating and `values-<profile>.yaml` sidecars
 * *Centralized & encrypted values* _(beyond Helm)_ -- fetch values from a Spring Cloud Config Server and decrypt `+{cipher}+` secrets at render time

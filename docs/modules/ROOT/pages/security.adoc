@@ -120,6 +120,18 @@ This matches how MCP is normally used: the server runs on the same machine as th
 the key only matters once the transport is exposed over the network. See the
 xref:mcp.adoc#security[MCP security section] for details.
 
+== Untrusted chart content
+
+The access mode above gates _operations_. Rendering and linting are read-only operations, but
+they still process a chart that may come from a repository you do not control. Two guards apply
+in every mode and need no configuration:
+
+* *`values.schema.json`* -- a `$ref` to an external location is never fetched, so validating a
+  chart cannot make jhelm call a URL. The schema is limited to 1 MiB, and the schema and values
+  to 200 levels of nesting; a chart over a limit fails instead of skipping validation. See
+  xref:spring-boot-starter.adoc#_json_schema_validation[JSON Schema Validation].
+* *Outbound chart and repository fetches* -- see `jhelm.security.block-private-networks` above.
+
 [#spring-security]
 == Upgrade path: Spring Security
 
