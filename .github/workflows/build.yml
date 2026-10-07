@@ -1,10 +1,13 @@
 name: Build and Integration Test
 
+# One long-lived branch per maintained Spring Boot line (main = latest line, plus a
+# <major>.<minor> maintenance branch each), so CI runs on all of them, not just main.
 on:
   push:
-    branches: [ main ]
+    branches: [ main, "[0-9]+.[0-9]+" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "**" ]
+  workflow_dispatch:   # manual run on any branch: gh workflow run build.yml --ref <branch>
 
 jobs:
   build:
