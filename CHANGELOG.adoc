@@ -1,84 +1,9 @@
 = Changelog
 
-== 0.4.0
+The changelog has one source: the docs page.
 
-The pre-1.0 *API freeze* release.
+* Source file: link:docs/modules/ROOT/pages/changelog.adoc[`docs/modules/ROOT/pages/changelog.adoc`]
+* Published page: https://www.alexmond.org/jhelm/current/changelog/
+* GitHub releases: https://github.com/alexmond/jhelm/releases
 
-* *API freeze (breaking)* -- the action layer and `KubeService` throw the unchecked
-  `JhelmException` hierarchy; kubernetes-client and BouncyCastle PGP types are wrapped
-  (`KubeClient`, `SigningKey`/`VerificationKeyring`); the action API takes immutable options
-  objects (`InstallOptions`/`UpgradeOptions`/`UninstallOptions`/`RollbackOptions`); result
-  models (`Release`/`ReleaseInfo`/`MapConfig`) are immutable, with `ReleaseStatus` /
-  `LifecyclePhase` enums.
-* *MCP server* -- new `jhelm-mcp` + `jhelm-mcp-starter` exposing jhelm operations as Model
-  Context Protocol tools for AI agents (Spring AI 2.0), with a `READ_ONLY`/`FULL` access mode.
-* *REST split* -- `jhelm-rest` is now a pure library; the new `jhelm-rest-starter` carries the
-  auto-configuration, with a `READ_ONLY`/`FULL` access mode.
-* *Upgrade value-retention flags* -- `--reset-values`, `--reuse-values`, and
-  `--reset-then-reuse-values` are now implemented; user values are persisted as the release
-  config.
-* *Engine* -- now on `gotmpl4j 1.1.0`; recursive/too-deep renders fail with a
-  `TemplateRenderException` instead of an inline `ERROR:` string.
-
-== 1.0.0
-
-The first stable release. 1.0 draws a supported public API surface, hardens security and
-provenance, verifies Helm interoperability against the real `helm` binary, and backs the
-byte-parity claim with a 540-chart gate against `helm template`. The full, categorized notes
-are in the docs changelog; the highlights:
-
-* *Security* — opt-in server-mode SSRF block of private/link-local/site-local targets
-  (`jhelm.security.block-private-networks`, default off); host-gated repository credentials,
-  a chart un-tar decompression-bomb cap, OCI URL validation, and owner-only permissions on the
-  written registry-credentials file.
-* *Provenance* — `verify` rejects revoked/expired signing keys and reverses OpenPGP
-  dash-escaping so a `helm`/GnuPG-produced `.prov` verifies correctly.
-* *Real cluster* — `.Capabilities.KubeVersion` / `.APIVersions` populated from the connected
-  cluster for install/upgrade; `template --kube-version` / `-a`/`--api-versions` pin them
-  offline.
-* *Helm interoperability* — release records are byte-schema-compatible with Helm 3's
-  `sh.helm.release.v1` Secret format (two-way `helm` ↔ `jhelm` verified in CI against a real
-  cluster); jhelm honors `HELM_*` env vars and Helm's `repositories.yaml` /
-  `registry/config.json`.
-* *Exception infrastructure* — the dedicated `JhelmException` hierarchy is applied
-  consistently (no generic `Exception`/`RuntimeException` throws); the REST layer maps each
-  subtype to a correct HTTP status.
-* *Dependency hygiene* — clean SonarQube quality gate (0 bugs, 0 vulnerabilities, A ratings).
-
-=== Engine — Helm byte-parity
-
-* `toYaml` now matches Helm's `sigs.k8s.io/yaml` output byte-for-byte: keys are sorted,
-  whole-number floats render as integers (`1.0` -> `1`), non-plain scalars use single-quote
-  style (reserving double quotes for empty/numeric/keyword strings), and values ending in
-  `:` are quoted so they round-trip.
-* `printf` implements the `%q` (quote) verb and tolerates Go/ERB format strings such as
-  `"<%= ... %>"` (`%=`, `%>`) instead of aborting the render.
-* `.Files.Get` (and other behavioural objects) work inside pipelines and after
-  `deepCopy $` — method calls now receive the piped value and `deepCopy` preserves the
-  object type.
-* Subchart values are coalesced recursively, so a parent sees the full nested default tree
-  at `.Values.<sub>.<nestedsub>.*` (Helm `CoalesceValues` behaviour).
-* Templates parse in Helm's full-path order, so a named template defined by multiple
-  subcharts resolves to the same winner as Helm; like-named umbrella/subchart helper files
-  no longer drop each other's `define`s.
-* `.Capabilities.APIVersions` matches Helm's built-in `DefaultVersionSet`; chart versions
-  are selected by SemVer (leading `v` and pre-releases handled).
-* YAML document splitting tolerates a `---` separator with trailing whitespace, so the
-  following resource is no longer glued onto the previous document.
-* `merge`/`mergeOverwrite`/`fromYaml` no longer throw on immutable maps.
-* `title` matches Go's `strings.Title`: it title-cases the letter after a separator and
-  leaves the rest of each word untouched (`xtrabackupSidecar` -> `XtrabackupSidecar`).
-* `index x` with no indexing keys returns `x` itself (Go semantics), instead of `null`.
-* `printf` matches Go's `fmt` for several verbs: `%t` prints `true`/`false`, a whole
-  `float64` via `%v` prints without a trailing `.0`, and surplus verbs emit
-  `%!verb(MISSING)` instead of aborting the render.
-
-=== Build & coverage
-
-* Spring Boot 4.0.6; `spring-retry` migrated to the `spring-core` retry API.
-* Comparison-suite coverage grown from 54 to *300 charts*, all rendering identically to
-  Helm — meeting the 0.1.0 conformance gate. Spans the bitnami library, the
-  prometheus-community exporters, grafana/loki/mimir/tempo, istio, elastic/eck,
-  victoria-metrics, the ory/percona/mongodb/kuberay/strimzi operators, and many more.
-* The chart-parity suite is tagged `comparison` and excluded from the default build, so
-  `mvn verify` stays fast; the full suite runs in a dedicated CI job.
+Add new entries to the docs page only. This file is a pointer and is not updated per release.
