@@ -14,6 +14,17 @@
   `2025.1.2` train used by the config-server sample supports Spring Boot 4.1.
 * `1.6.0` also includes every change listed under `1.5.1` below.
 
+=== Dependencies
+
+* *springdoc-openapi 3.1.1* (from 3.0.3), with `swagger-annotations` moved to 2.2.55 to match
+  the swagger-core that springdoc now brings. This is a security update for `jhelm-rest`:
+  springdoc 3.1.1 bounds the per-locale OpenAPI cache, which an unauthenticated caller could
+  grow without limit by requesting `/v3/api-docs` with many different `Accept-Language` values
+  (https://github.com/springdoc/springdoc-openapi/security/advisories/GHSA-rhhx-6j8h-8cvw[GHSA-rhhx-6j8h-8cvw],
+  high), and ships swagger-ui 5.32.14, which fixes a cross-site scripting issue in its bundled
+  DOMPurify (CVE-2026-75838). The cache is now capped by `springdoc.cache.max-entries`
+  (default `100`). No jhelm API or configuration change is needed.
+
 == 1.5.1
 
 === Helm 4 by default
