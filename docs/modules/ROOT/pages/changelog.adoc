@@ -28,6 +28,16 @@
   line on the `4.0` branch: it gets bug fixes and Spring Boot 4.0.x patch updates only. New
   features and Spring Boot 4.1 are in jhelm `1.6.x` on `main`.
 
+* *springdoc-openapi 3.1.1* (from 3.0.3), with `swagger-annotations` moved to 2.2.55 to match
+  the swagger-core that springdoc now brings. This is a security update for `jhelm-rest`:
+  springdoc 3.1.1 bounds the per-locale OpenAPI cache, which an unauthenticated caller could
+  grow without limit by requesting `/v3/api-docs` with many different `Accept-Language` values
+  (https://github.com/springdoc/springdoc-openapi/security/advisories/GHSA-rhhx-6j8h-8cvw[GHSA-rhhx-6j8h-8cvw],
+  high), and ships swagger-ui 5.32.14, which fixes a cross-site scripting issue in its bundled
+  DOMPurify (CVE-2026-75838). The fix was not released on the springdoc 3.0.x line, so the
+  Spring Boot 4.0 line takes 3.1.1 as well. The cache is now capped by
+  `springdoc.cache.max-entries` (default `100`). No jhelm API or configuration change is needed.
+
 * *Template engine moved to `gotmpl4j 1.4.0`* (from 1.3.0). The release split gotmpl4j's
   Spring Boot integration out into its own project, so the published set changed; the
   `gotmpl4j-core` and `gotmpl4j-sprig` sources jhelm consumes are unchanged, making this a
