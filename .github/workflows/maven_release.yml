@@ -25,13 +25,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.branch }}
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -41,6 +41,11 @@ jobs:
           server-password: OSSRH_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
 
+      # No wrapper cache here, deliberately. This job signs artifacts and publishes to
+      # Central, and a restored cache is attacker-controllable input in a way a fresh
+      # download is not: the wrapper verifies distributionSha256Sum when it DOWNLOADS,
+      # but a cache hit skips that check entirely. The release runs rarely, so paying for
+      # one download is the cheaper side of the trade (cache-poisoning review finding).
       - name: Configure Git
         run: |
           git config user.name "GitHub Actions"
@@ -54,12 +59,12 @@ jobs:
       # Verify Build needs a cluster + Helm — same as build.yml. Without it, jacoco:check
       # fails on jhelm-kube.
       - name: Create Kubernetes Cluster (Kind)
-        uses: helm/kind-action@v1.12.0
+        uses: helm/kind-action@v1.15.1
         with:
           cluster_name: kind
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: v3.14.2
 
@@ -92,7 +97,7 @@ jobs:
         run: git push origin "$BRANCH" && git push origin --tags
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.releaseVersion }}
           name: Release ${{ github.event.inputs.releaseVersion }}

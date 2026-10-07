@@ -14,22 +14,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
 
+      # The wrapper is distributionType=only-script, so it downloads Maven itself on
+      # every run — a transient failure fetching apache-maven from Central has already
+      # broken a parity job. setup-java's `cache: maven` only covers ~/.m2/repository,
+      # so the distribution is cached separately, keyed on the pinned version.
+      - name: Cache the Maven wrapper distribution
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/wrapper
+          key: maven-wrapper-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
+
       - name: Create Kubernetes Cluster (Kind)
-        uses: helm/kind-action@v1.12.0
+        uses: helm/kind-action@v1.15.1
         with:
           cluster_name: kind
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: v3.14.2
 
@@ -63,7 +73,7 @@ jobs:
 
       - name: Add coverage to PR
         id: jacoco
-        uses: madrapps/jacoco-report@v1.7.2
+        uses: madrapps/jacoco-report@v1.8.0
         with:
           paths: |
             ${{ github.workspace }}/jhelm-core/target/site/jacoco/jacoco.xml,
@@ -78,7 +88,7 @@ jobs:
 
       - name: Add coverage to PR
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: |
@@ -91,7 +101,7 @@ jobs:
 
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           report_type: test_results
@@ -100,4 +110,4 @@ jobs:
 
       - name: Submit Dependency Snapshot
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: advanced-security/maven-dependency-submission-action@v5
+        uses: advanced-security/maven-dependency-submission-action@v6

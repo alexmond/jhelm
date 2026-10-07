@@ -25,24 +25,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
 
+      # The wrapper is distributionType=only-script, so it downloads Maven itself on
+      # every run — a transient failure fetching apache-maven from Central has already
+      # broken a parity job. setup-java's `cache: maven` only covers ~/.m2/repository,
+      # so the distribution is cached separately, keyed on the pinned version.
+      - name: Cache the Maven wrapper distribution
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/wrapper
+          key: maven-wrapper-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
+
       - name: Create Kubernetes Cluster (Kind)
-        uses: helm/kind-action@v1.12.0
+        uses: helm/kind-action@v1.15.1
         with:
           cluster_name: kind
 
       # Match the helm version jhelm emulates (.Capabilities.HelmVersion in Engine.java),
       # so version-gated templates (e.g. bitnami common) compare apples-to-apples.
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: v3.16.0
 
@@ -68,7 +78,7 @@ jobs:
       # no-ops when there is no diff, so a week with only held/error charts opens no PR.
       - name: Open upgrade PR
         if: ${{ !cancelled() }}
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/chart-version-upgrade
           delete-branch: true
