@@ -95,7 +95,7 @@ as a dependency.
 [cols="1,1"]
 |===
 | Java | 21
-| Spring Boot | 4.0.7
+| Spring Boot | 4.1.1
 | Kubernetes Client | 26.0.0
 | Template engine | gotmpl4j 1.4.0
 | CLI framework | Picocli 4.7.7
@@ -110,7 +110,8 @@ line, so pick the jhelm line that matches the Spring Boot version of your applic
 |===
 | jhelm | Spring Boot | Branch | Status
 
-| 1.5.x | 4.0.x | `main` | Current
+| 1.6.x | 4.1.x | `main` | Current -- new features land here
+| 1.5.x | 4.0.x | `4.0` | Maintenance -- bug fixes and Spring Boot patch updates only
 |===
 
 Moving to a new Spring Boot minor always starts a new jhelm minor line. The previous line then
