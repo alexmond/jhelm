@@ -376,6 +376,15 @@
                             <artifactId>lombok</artifactId>
                             <version>${lombok.version}</version>
                         </path>
+                        <!-- Declaring annotationProcessorPaths turns off classpath
+                             discovery, so the configuration processor has to be listed
+                             here too; as an optional dependency alone it never runs and
+                             the jars ship without spring-configuration-metadata.json.
+                             The version comes from the Spring Boot parent. -->
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                        </path>
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
