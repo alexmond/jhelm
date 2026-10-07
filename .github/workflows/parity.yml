@@ -11,9 +11,12 @@ name: Chart Parity Suite
 # diff). Output is redirected to files so it isn't buffered in heap. The per-chart
 # upstream fetch is amortised by the chart cache below.
 
+# Pull requests to any branch are gated: main (latest Spring Boot line) and every
+# <major>.<minor> maintenance branch. The nightly schedule runs on the default branch only;
+# use workflow_dispatch with `ref` to run it against a maintenance branch.
 on:
   pull_request:
-    branches: [ main ]
+    branches: [ "**" ]
   schedule:
     # 03:17 UTC daily — off-peak, avoids the top-of-hour scheduler spike.
     - cron: '17 3 * * *'

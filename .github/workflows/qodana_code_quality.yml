@@ -5,6 +5,7 @@ on:
   push:
     branches: # Specify your branches here
       - main # The 'main' branch
+      - '[0-9]+.[0-9]+' # Spring Boot line maintenance branches (e.g. 4.0)
       - 'releases/*' # The release branches
 
 jobs:
