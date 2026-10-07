@@ -24,22 +24,32 @@ jobs:
       CHARTS: ${{ inputs.charts }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
 
+      # The wrapper is distributionType=only-script, so it downloads Maven itself on
+      # every run — a transient failure fetching apache-maven from Central has already
+      # broken a parity job. setup-java's `cache: maven` only covers ~/.m2/repository,
+      # so the distribution is cached separately, keyed on the pinned version.
+      - name: Cache the Maven wrapper distribution
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/wrapper
+          key: maven-wrapper-${{ hashFiles('.mvn/wrapper/maven-wrapper.properties') }}
+
       - name: Create Kubernetes Cluster (Kind)
-        uses: helm/kind-action@v1.12.0
+        uses: helm/kind-action@v1.15.1
         with:
           cluster_name: kind
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: ${{ inputs.helm-version }}
 
@@ -71,7 +81,7 @@ jobs:
       # manifests for offline comparison.
       - name: Upload diffs + rendered manifests
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: parity-debug-output
           path: |
