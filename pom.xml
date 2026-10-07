@@ -5,12 +5,12 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.7</version>
+        <version>4.1.1</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>org.alexmond</groupId>
     <artifactId>jhelm-parent</artifactId>
-    <version>1.5.1-SNAPSHOT</version>
+    <version>1.6.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>jhelm-parent</name>
     <description>jhelm parent POM</description>
@@ -61,7 +61,7 @@
         -->
         <snakeyaml-engine.version>3.0.1</snakeyaml-engine.version>
         <bouncycastle.version>1.84</bouncycastle.version>
-        <!-- Only the config-server sample uses Spring Cloud; 2025.1.x (Oakwood) targets Boot 4.0. -->
+        <!-- Only the config-server sample uses Spring Cloud; 2025.1.x (Oakwood) supports Boot 4.0 and, from 2025.1.2, Boot 4.1. -->
         <spring-cloud.version>2025.1.2</spring-cloud.version>
         <commons-compress.version>1.28.0</commons-compress.version>
         <chicory.version>1.7.5</chicory.version>

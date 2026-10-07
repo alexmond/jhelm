@@ -72,7 +72,7 @@ no shelling out, no glue code. See xref:mcp.adoc[MCP Server].
 == Technology Stack
 
 * Java 21
-* Spring Boot 4.0.7
+* Spring Boot 4.1.1
 * Kubernetes client: official `client-java` 26.0.0 or Fabric8 `kubernetes-client` 6.13.5 (selectable by classpath)
 * gotmpl4j 1.4.0 (Go template + Sprig engine)
 * Picocli 4.7.7 (CLI framework)
@@ -86,7 +86,8 @@ line, so pick the jhelm line that matches the Spring Boot version of your applic
 |===
 | jhelm | Spring Boot | Branch | Status
 
-| 1.5.x | 4.0.x | `main` | Current
+| 1.6.x | 4.1.x | `main` | Current -- new features land here
+| 1.5.x | 4.0.x | `4.0` | Maintenance -- bug fixes and Spring Boot patch updates only
 |===
 
 Moving to a new Spring Boot minor always starts a new jhelm minor line. The previous line then

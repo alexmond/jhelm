@@ -1,5 +1,19 @@
 = Changelog
 
+== 1.6.0
+
+=== Spring Boot 4.1
+
+* *jhelm now builds on Spring Boot 4.1* (4.1.1, from 4.0.7). Moving to a new Spring Boot minor
+  starts a new jhelm minor line, so `1.6.x` is the Spring Boot 4.1 line and lives on `main`.
+  The `1.5.x` line stays on Spring Boot 4.0 on the `4.0` branch, where it gets bug fixes and
+  Spring Boot patch updates only. Pick the jhelm line that matches the Spring Boot version of
+  your application -- see the compatibility table on the xref:index.adoc[home page].
+* No jhelm API or source change was needed for the move. The other pinned versions are
+  unchanged: Spring AI 2.0.0 is already built against Spring Boot 4.1, and the Spring Cloud
+  `2025.1.2` train used by the config-server sample supports Spring Boot 4.1.
+* `1.6.0` also includes every change listed under `1.5.1` below.
+
 == 1.5.1
 
 === Helm 4 by default
