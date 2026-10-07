@@ -1,5 +1,5 @@
 = jhelm
-:jhelm-version: 1.5.0
+:jhelm-version: 1.6.0
 :url-docs: https://www.alexmond.org/jhelm/current/
 :url-docs-mcp: https://www.alexmond.org/jhelm/current/mcp/
 :url-docs-rest: https://www.alexmond.org/jhelm/current/rest-api/
@@ -62,7 +62,9 @@ the Go-based Helm binary.
 * *MCP server* -- `jhelm-mcp` / `jhelm-mcp-starter` expose jhelm operations as
   https://modelcontextprotocol.io[Model Context Protocol] tools for AI agents (built on
   Spring AI), mirroring the REST operation set with the same `READ_ONLY`/`FULL` access mode.
-* *JSON Schema validation* -- validates chart values against `values.schema.json` (Draft-07).
+* *JSON Schema validation* -- validates chart values against `values.schema.json` with a full
+  JSON Schema validator (draft 2020-12 by default; a schema's own `$schema`, such as Draft-07,
+  is honoured).
 * *Async Kubernetes operations* -- Java 21 virtual threads via `AsyncKubeService`.
 * *Value management beyond Helm* -- Spring-Boot-style value profiles (per-environment
   overlays via `-P`/`--profile`), values sourced from a central Spring Cloud Config Server,
@@ -82,7 +84,8 @@ the Go-based Helm binary.
 | `jhelm-rest-starter` | Spring Boot starter that auto-configures the `jhelm-rest` API, with a `READ_ONLY`/`FULL` access mode gating cluster-mutating endpoints.
 | `jhelm-mcp` | Model Context Protocol server exposing jhelm operations as AI-agent tools (built on Spring AI), mirroring the REST operation set.
 | `jhelm-mcp-starter` | Spring Boot starter that auto-configures the `jhelm-mcp` server, with a `READ_ONLY`/`FULL` access mode.
-| `jhelm-plugin` | Maven plugin for packaging charts as part of a build.
+| `jhelm-plugin` | WebAssembly plugin runtime -- loads and runs jhelm's sandboxed `.jhp` plugins.
+| `jhelm-plugin-api` | Java plugin API -- extension points for post-renderers, chart downloaders, lifecycle listeners, and template functions.
 | `jhelm-cli` | Standalone CLI (Spring Boot + Picocli) -- 22 Helm-compatible commands plus `encrypt`/`decrypt` for secret values.
 |===
 

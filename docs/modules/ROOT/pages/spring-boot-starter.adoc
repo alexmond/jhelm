@@ -339,7 +339,21 @@ String schema = """
 schemaValidator.validate("my-chart", schema, Map.of("replicaCount", 3));
 ----
 
-Supported Draft-07 constraints: `type`, `required`, `properties`, `enum`, `minimum`, `maximum`, `minLength`, `maxLength`, `pattern`.
+Validation covers the full JSON Schema vocabulary, including `$ref`/`$defs`,
+`additionalProperties`, `items`, `oneOf`/`anyOf`/`allOf`, `if`/`then`/`else`, `const`,
+`patternProperties` and `format`. The dialect is draft 2020-12 by default, as in Helm 4. A schema
+that declares its own `$schema` (most existing charts declare Draft-07) is validated against
+that draft. A whole-valued number such as `3.0` satisfies `type: integer`, as it does in Helm.
+
+A chart's `values.schema.json` comes from a repository, so jhelm treats it as untrusted input:
+
+* A `$ref` resolves only inside the schema document itself. A `$ref` to an external location
+  (`http://`, `https://`, `file:`) is never fetched.
+* A schema larger than 1 MiB, or a schema or values document nested deeper than 200 JSON levels,
+  fails the render with a `SchemaValidationException`. It is not skipped.
+* A schema that is not valid JSON is logged as a warning and ignored, as in Helm.
+
+These limits are fixed; there is no property to change them.
 
 === Template Caching
 

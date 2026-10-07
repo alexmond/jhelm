@@ -67,13 +67,23 @@ jhelm plugin uninstall <name>                                 # delete hook + re
 Installing runs the plugin's `install` hook; `update`/`uninstall` run the `update`/`delete`
 hooks. A git-checked-out plugin is refreshed with `git pull` on update.
 
+The plugin is installed into a directory named after the `name` in its `plugin.yaml`. The name
+must match Helm's own rule: letters, digits, `_` and `-` only. A name with a path separator or
+a `..` segment is rejected, so an install cannot write outside the plugins directory.
+
+When `plugin.yaml` has no `name`, jhelm derives one from the source: the directory name for a
+local directory, the repository name for a git URL (without `.git`), or the top-level directory
+of an archive. An archive whose files sit at its root has nothing to derive a name from, so the
+install fails and asks for a `name` in `plugin.yaml`.
+
 == Security
 
 A Helm plugin is arbitrary local code, so *running* one (subcommand dispatch, downloader,
 post-renderer, and install/update/delete hooks) requires the CLI's `FULL` security posture
 — the same gate as the cluster-mutating commands (`jhelm.security.mode=FULL`, the default
 for the CLI). Installing the plugin *files* works in any mode; hooks are skipped with a
-warning under `READ_ONLY`. The local kubeconfig is the trust boundary, as with `helm`.
+warning under `READ_ONLY`. The plugin name is validated before any file is copied, in every
+mode. The local kubeconfig is the trust boundary, as with `helm`.
 
 == Deliberate gaps
 

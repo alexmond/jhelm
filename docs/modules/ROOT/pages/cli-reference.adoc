@@ -108,6 +108,12 @@ jhelm upgrade <name> <chartPath> [-n <namespace>] [--install] [--dry-run] [-f <v
 | `--timeout` | No | Timeout in seconds for `--wait` (default: `300`)
 |===
 
+An upgrade removes what the new revision no longer declares. For each resource jhelm compares
+the previous release's manifest, the new manifest and the live object (a Helm-style three-way
+merge), so a field dropped from the chart or values -- a removed `env` entry, label or flag -- is
+deleted from the live object. Fields set by controllers that the release never declared are
+left alone. With `--force` the resources are deleted and recreated instead.
+
 === uninstall
 
 Uninstall a release from the cluster.
