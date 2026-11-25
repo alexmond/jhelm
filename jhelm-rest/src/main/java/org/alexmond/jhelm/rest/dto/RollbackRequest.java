@@ -1,6 +1,7 @@
 package org.alexmond.jhelm.rest.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import lombok.Data;
 
 /**
@@ -10,7 +11,7 @@ import lombok.Data;
 @Schema(description = "Request to rollback a release to a previous revision")
 public class RollbackRequest {
 
-	@Schema(description = "Revision number to rollback to", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
+	@Schema(description = "Revision number to rollback to", example = "1", requiredMode = RequiredMode.REQUIRED)
 	private int revision;
 
 	@Schema(description = "Skip pre/post-rollback hooks", defaultValue = "false")

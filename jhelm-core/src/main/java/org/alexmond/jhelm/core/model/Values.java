@@ -33,6 +33,7 @@ public class Values extends HashMap<String, Object> {
 	}
 
 	/**
+	 * Returns these values as a map.
 	 * @return the underlying values map (this instance), matching
 	 * {@code chartutil.Values.AsMap()}
 	 */

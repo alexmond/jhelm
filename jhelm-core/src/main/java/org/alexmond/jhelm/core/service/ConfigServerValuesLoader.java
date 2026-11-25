@@ -101,6 +101,7 @@ public class ConfigServerValuesLoader {
 			Boolean failFast) {
 
 		/**
+		 * Returns options that override nothing.
 		 * @return an all-{@code null} override set (defer entirely to properties).
 		 */
 		public static Options none() {

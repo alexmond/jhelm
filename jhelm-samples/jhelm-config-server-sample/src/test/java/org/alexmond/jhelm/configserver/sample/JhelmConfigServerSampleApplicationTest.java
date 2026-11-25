@@ -2,6 +2,7 @@ package org.alexmond.jhelm.configserver.sample;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -16,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * values, and it hands back {@code {cipher}} tokens verbatim (client-side decryption)
  * rather than decrypting them server-side.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
 class JhelmConfigServerSampleApplicationTest {
 
 	@LocalServerPort

@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import lombok.Data;
 
 /**
@@ -17,7 +18,7 @@ import lombok.Data;
 public class TemplateRequest {
 
 	@Schema(description = "Chart reference (repo/chart or oci://...)", example = "bitnami/nginx",
-			requiredMode = Schema.RequiredMode.REQUIRED)
+			requiredMode = RequiredMode.REQUIRED)
 	@NotBlank(message = "chartRef is required")
 	private String chartRef;
 

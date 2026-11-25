@@ -40,7 +40,7 @@ import org.alexmond.gotmpl4j.FunctionExecutionException;
 /**
  * Helm conversion functions for YAML/JSON operations Includes Helm 4 new functions:
  * mustToYaml, mustToJson, mustFromJson, mustFromYaml Based on: <a href=
- * "https://helm.sh/docs/chart_template_guide/function_list/">https://helm.sh/docs/chart_template_guide/function_list/</a>
+ * "https://helm.sh/docs/chart_template_guide/function_list/">https://helm.sh/docs/chart_template_guide/function_list/</a>.
  */
 @Slf4j
 public final class ConversionFunctions {
@@ -217,7 +217,7 @@ public final class ConversionFunctions {
 	// ===== YAML Functions =====
 
 	/**
-	 * toYaml converts an object to YAML string Returns empty string on error
+	 * toYaml converts an object to YAML string Returns empty string on error.
 	 */
 	private static Function toYaml() {
 		return (args) -> {
@@ -285,7 +285,7 @@ public final class ConversionFunctions {
 
 	/**
 	 * mustToYaml converts an object to YAML string Throws exception on error (Helm 4 new
-	 * function)
+	 * function).
 	 */
 	private static Function mustToYaml() {
 		return (args) -> {
@@ -376,7 +376,7 @@ public final class ConversionFunctions {
 	}
 
 	/**
-	 * fromYaml parses YAML string to object Returns empty map on error
+	 * fromYaml parses YAML string to object Returns empty map on error.
 	 */
 	private static Function fromYaml() {
 		return (args) -> {
@@ -417,7 +417,7 @@ public final class ConversionFunctions {
 
 	/**
 	 * mustFromYaml parses YAML string to object Throws exception on error (Helm 4 new
-	 * function)
+	 * function).
 	 */
 	private static Function mustFromYaml() {
 		return (args) -> {
@@ -445,7 +445,7 @@ public final class ConversionFunctions {
 	}
 
 	/**
-	 * fromYamlArray parses YAML string to array/list Returns empty list on error
+	 * fromYamlArray parses YAML string to array/list Returns empty list on error.
 	 */
 	private static Function fromYamlArray() {
 		return (args) -> {
@@ -479,7 +479,7 @@ public final class ConversionFunctions {
 	}
 
 	/**
-	 * mustFromYamlArray parses YAML string to array/list Throws exception on error
+	 * mustFromYamlArray parses YAML string to array/list Throws exception on error.
 	 */
 	private static Function mustFromYamlArray() {
 		return (args) -> {
@@ -524,7 +524,7 @@ public final class ConversionFunctions {
 	// ===== JSON Functions =====
 
 	/**
-	 * toJson converts an object to JSON string Returns empty string on error
+	 * toJson converts an object to JSON string Returns empty string on error.
 	 */
 	private static Function toJson() {
 		return (args) -> {
@@ -543,7 +543,7 @@ public final class ConversionFunctions {
 
 	/**
 	 * mustToJson converts an object to JSON string Throws exception on error (Helm 4 new
-	 * function)
+	 * function).
 	 */
 	private static Function mustToJson() {
 		return (args) -> {
@@ -561,7 +561,7 @@ public final class ConversionFunctions {
 
 	/**
 	 * toPrettyJson converts an object to pretty-printed JSON string Returns empty string
-	 * on error
+	 * on error.
 	 */
 	private static Function toPrettyJson() {
 		return (args) -> {
@@ -580,7 +580,7 @@ public final class ConversionFunctions {
 
 	/**
 	 * mustToPrettyJson converts an object to pretty-printed JSON string Throws exception
-	 * on error
+	 * on error.
 	 */
 	private static Function mustToPrettyJson() {
 		return (args) -> {
@@ -599,7 +599,7 @@ public final class ConversionFunctions {
 
 	/**
 	 * toRawJson converts an object to JSON string without HTML escaping Returns empty
-	 * string on error
+	 * string on error.
 	 */
 	private static Function toRawJson() {
 		return (args) -> {
@@ -618,7 +618,7 @@ public final class ConversionFunctions {
 
 	/**
 	 * mustToRawJson converts an object to JSON string without HTML escaping Throws
-	 * exception on error
+	 * exception on error.
 	 */
 	private static Function mustToRawJson() {
 		return (args) -> {
@@ -636,7 +636,7 @@ public final class ConversionFunctions {
 	}
 
 	/**
-	 * fromJson parses JSON string to object Returns empty map on error
+	 * fromJson parses JSON string to object Returns empty map on error.
 	 */
 	private static Function fromJson() {
 		return (args) -> {
@@ -665,7 +665,7 @@ public final class ConversionFunctions {
 
 	/**
 	 * mustFromJson parses JSON string to object Throws exception on error (Helm 4 new
-	 * function)
+	 * function).
 	 */
 	private static Function mustFromJson() {
 		return (args) -> {
@@ -695,7 +695,7 @@ public final class ConversionFunctions {
 	}
 
 	/**
-	 * fromJsonArray parses JSON string to array/list Returns empty list on error
+	 * fromJsonArray parses JSON string to array/list Returns empty list on error.
 	 */
 	private static Function fromJsonArray() {
 		return (args) -> {
@@ -723,7 +723,7 @@ public final class ConversionFunctions {
 	}
 
 	/**
-	 * mustFromJsonArray parses JSON string to array/list Throws exception on error
+	 * mustFromJsonArray parses JSON string to array/list Throws exception on error.
 	 */
 	private static Function mustFromJsonArray() {
 		return (args) -> {

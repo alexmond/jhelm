@@ -35,6 +35,7 @@ public class ConfigServerCliOptions {
 	private Boolean failFast;
 
 	/**
+	 * Converts these options for the values loader.
 	 * @return these CLI overrides as a loader options record
 	 */
 	public ConfigServerValuesLoader.Options toOptions() {
