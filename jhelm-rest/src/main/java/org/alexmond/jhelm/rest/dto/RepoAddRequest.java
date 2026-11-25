@@ -3,6 +3,7 @@ package org.alexmond.jhelm.rest.dto;
 import jakarta.validation.constraints.NotBlank;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import lombok.Data;
 
 /**
@@ -12,12 +13,12 @@ import lombok.Data;
 @Schema(description = "Request to add a chart repository")
 public class RepoAddRequest {
 
-	@Schema(description = "Repository name", example = "bitnami", requiredMode = Schema.RequiredMode.REQUIRED)
+	@Schema(description = "Repository name", example = "bitnami", requiredMode = RequiredMode.REQUIRED)
 	@NotBlank(message = "name is required")
 	private String name;
 
 	@Schema(description = "Repository URL", example = "https://charts.bitnami.com/bitnami",
-			requiredMode = Schema.RequiredMode.REQUIRED)
+			requiredMode = RequiredMode.REQUIRED)
 	@NotBlank(message = "url is required")
 	private String url;
 

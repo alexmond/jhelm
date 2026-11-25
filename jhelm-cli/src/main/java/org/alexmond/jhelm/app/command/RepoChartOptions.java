@@ -45,6 +45,7 @@ public class RepoChartOptions {
 	private boolean passCredentials;
 
 	/**
+	 * Tells whether a repository URL was given.
 	 * @return {@code true} if an ad-hoc {@code --repo} URL was supplied
 	 */
 	public boolean hasRepo() {

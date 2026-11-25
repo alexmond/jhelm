@@ -6,6 +6,7 @@ import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import tools.jackson.databind.annotation.JsonDeserialize;
@@ -22,7 +23,7 @@ import lombok.Value;
  * {@code labels}) are tolerated on read, and field names match Helm's wire format.
  */
 @JsonDeserialize(builder = Release.ReleaseBuilder.class)
-@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Builder(toBuilder = true)
 @Value
@@ -59,7 +60,7 @@ public class Release {
 	}
 
 	@JsonDeserialize(builder = ReleaseInfo.ReleaseInfoBuilder.class)
-	@JsonInclude(JsonInclude.Include.NON_NULL)
+	@JsonInclude(Include.NON_NULL)
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	@Builder
 	@Value

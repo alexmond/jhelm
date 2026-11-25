@@ -12,7 +12,7 @@ import org.alexmond.gotmpl4j.FunctionExecutionException;
 /**
  * Helm template-specific functions for template inclusion and evaluation Based on:
  * <a href=
- * "https://helm.sh/docs/chart_template_guide/function_list/">https://helm.sh/docs/chart_template_guide/function_list/</a>
+ * "https://helm.sh/docs/chart_template_guide/function_list/">https://helm.sh/docs/chart_template_guide/function_list/</a>.
  */
 public final class TemplateFunctions {
 
@@ -25,7 +25,7 @@ public final class TemplateFunctions {
 	}
 
 	/**
-	 * Get template functions that require access to the GoTemplate
+	 * Get template functions that require access to the GoTemplate.
 	 * @param factory The template factory for template lookups
 	 * @return Map of function name to Function implementation
 	 */
@@ -67,7 +67,7 @@ public final class TemplateFunctions {
 
 	/**
 	 * mustInclude executes a named template and returns its output as a string Syntax:
-	 * mustInclude "templateName" $context Throws exception on error
+	 * mustInclude "templateName" $context Throws exception on error.
 	 */
 	private static Function mustInclude(GoTemplate factory) {
 		return (args) -> {

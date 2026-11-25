@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.Map;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import lombok.Data;
 
 /**
@@ -14,7 +15,7 @@ import lombok.Data;
 @Schema(description = "Metadata for installing a release from an uploaded .tgz chart archive")
 public class InstallUploadRequest {
 
-	@Schema(description = "Name for the release", example = "my-release", requiredMode = Schema.RequiredMode.REQUIRED)
+	@Schema(description = "Name for the release", example = "my-release", requiredMode = RequiredMode.REQUIRED)
 	@NotBlank(message = "releaseName is required")
 	private String releaseName;
 

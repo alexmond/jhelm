@@ -149,7 +149,7 @@ public class KubernetesClientProvider implements KubernetesProvider {
 	}
 
 	/**
-	 * Fetch a resource from Kubernetes based on apiVersion and kind
+	 * Fetch a resource from Kubernetes based on apiVersion and kind.
 	 */
 	private Object fetchResource(String apiVersion, String kind, String namespace, String name) throws ApiException {
 		// Handle empty namespace for cluster-scoped resources
@@ -214,7 +214,7 @@ public class KubernetesClientProvider implements KubernetesProvider {
 	}
 
 	/**
-	 * Fetch Apps/v1 API resources (Deployment, StatefulSet, DaemonSet, ReplicaSet)
+	 * Fetch Apps/v1 API resources (Deployment, StatefulSet, DaemonSet, ReplicaSet).
 	 */
 	private Object fetchAppsV1Resource(String kind, String namespace, String name) throws ApiException {
 		// .execute() performs the call and returns the model; see fetchCoreV1Resource.
