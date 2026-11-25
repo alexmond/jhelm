@@ -33,6 +33,7 @@ public enum CascadePolicy {
 	}
 
 	/**
+	 * Returns the Kubernetes propagation policy.
 	 * @return the Kubernetes {@code DeleteOptions.propagationPolicy} value for this
 	 * policy
 	 */

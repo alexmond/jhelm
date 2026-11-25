@@ -98,7 +98,7 @@ as a dependency.
 [cols="1,1"]
 |===
 | Java | 21
-| Spring Boot | 4.0.8
+| Spring Boot | 4.0.10
 | Kubernetes Client | 26.0.0
 | Template engine | gotmpl4j 1.4.0
 | CLI framework | Picocli 4.7.7

@@ -18,6 +18,7 @@ import org.alexmond.jhelm.core.service.RepoManager;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvFileSource;
@@ -64,7 +65,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 @SpringBootTest
 @ContextConfiguration(classes = KpsTestConfig.class)
 @ActiveProfiles("test")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestInstance(Lifecycle.PER_CLASS)
 class KpsComparisonTest {
 
 	private static final YAMLMapper YAML_MAPPER = YAMLMapper.builder().build();

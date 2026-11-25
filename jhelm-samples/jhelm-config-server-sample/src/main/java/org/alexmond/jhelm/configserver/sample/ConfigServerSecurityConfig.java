@@ -17,6 +17,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class ConfigServerSecurityConfig {
 
 	/**
+	 * Secures the sample config server.
 	 * @param http the security builder
 	 * @return a filter chain requiring authentication on every request, basic auth, CSRF
 	 * off
