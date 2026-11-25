@@ -1,5 +1,5 @@
 = jhelm
-:jhelm-version: 1.5.1
+:jhelm-version: 1.5.2
 :url-docs: https://www.alexmond.org/jhelm/current/
 :url-docs-mcp: https://www.alexmond.org/jhelm/current/mcp/
 :url-docs-rest: https://www.alexmond.org/jhelm/current/rest-api/
@@ -98,7 +98,7 @@ as a dependency.
 [cols="1,1"]
 |===
 | Java | 21
-| Spring Boot | 4.0.8
+| Spring Boot | 4.0.10
 | Kubernetes Client | 26.0.0
 | Template engine | gotmpl4j 1.4.0
 | CLI framework | Picocli 4.7.7

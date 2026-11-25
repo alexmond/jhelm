@@ -27,6 +27,7 @@ final class SsrfGuardingDnsResolver extends SystemDefaultDnsResolver {
 	}
 
 	/**
+	 * Creates a resolver that refuses internal addresses.
 	 * @param blockPrivate when {@code true}, names resolving to private/site-local
 	 * addresses are refused too (server-mode strict policy)
 	 */

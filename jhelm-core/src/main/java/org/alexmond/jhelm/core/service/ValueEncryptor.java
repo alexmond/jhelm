@@ -28,6 +28,7 @@ public class ValueEncryptor {
 	private final TextEncryptor encryptor;
 
 	/**
+	 * Creates an encryptor for values.
 	 * @param key symmetric key; {@code null}/blank disables encryption
 	 * @param salt hex salt for key derivation (must match the encrypting side)
 	 * @param failOnError whether an undecryptable value aborts rather than passing
@@ -39,6 +40,7 @@ public class ValueEncryptor {
 	}
 
 	/**
+	 * Tells whether encryption is configured.
 	 * @return {@code true} when a key is configured and (de/en)cryption is available
 	 */
 	public boolean isEnabled() {

@@ -3,6 +3,7 @@ package org.alexmond.jhelm.rest.dto;
 import jakarta.validation.constraints.NotBlank;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import lombok.Data;
 
 /**
@@ -13,7 +14,7 @@ import lombok.Data;
 public class PullRequest {
 
 	@Schema(description = "Chart reference: repo/chart, repo/chart:version, or oci://...", example = "bitnami/nginx",
-			requiredMode = Schema.RequiredMode.REQUIRED)
+			requiredMode = RequiredMode.REQUIRED)
 	@NotBlank(message = "chart is required")
 	private String chart;
 

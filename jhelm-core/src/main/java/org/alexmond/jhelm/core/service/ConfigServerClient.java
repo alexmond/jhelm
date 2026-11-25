@@ -31,6 +31,7 @@ public class ConfigServerClient {
 	private final RepoManager repoManager;
 
 	/**
+	 * Creates a client for a Spring Cloud Config server.
 	 * @param repoManager provides the shared SSRF-guarded HTTP client factory
 	 */
 	public ConfigServerClient(RepoManager repoManager) {

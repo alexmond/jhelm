@@ -27,6 +27,7 @@ public final class OutputFormat {
 	}
 
 	/**
+	 * Tells whether the output format is JSON.
 	 * @param output the requested output format
 	 * @return {@code true} if it is {@code json}
 	 */
@@ -35,6 +36,7 @@ public final class OutputFormat {
 	}
 
 	/**
+	 * Tells whether the output format is YAML.
 	 * @param output the requested output format
 	 * @return {@code true} if it is {@code yaml}
 	 */

@@ -546,7 +546,7 @@ public class Engine {
 	}
 
 	/**
-	 * Clean up the manifest by removing empty YAML documents and trailing separators
+	 * Clean up the manifest by removing empty YAML documents and trailing separators.
 	 */
 	private String cleanManifest(String manifest) {
 		if (manifest == null || manifest.isEmpty()) {
@@ -589,6 +589,7 @@ public class Engine {
 	}
 
 	/**
+	 * Tells whether a document holds only comments.
 	 * @return {@code true} if every non-blank line of the document is a YAML comment, so
 	 * the document carries no resource content and can be dropped
 	 */

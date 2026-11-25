@@ -31,6 +31,7 @@ public enum LifecyclePhase {
 	}
 
 	/**
+	 * Returns the name Helm uses for this phase.
 	 * @return the Helm wire string for this phase (e.g. {@code pre-install})
 	 */
 	public String getValue() {

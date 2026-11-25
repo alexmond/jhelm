@@ -5,7 +5,7 @@ import java.time.Instant;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,8 +23,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class VersionInfo {
 
-	@Nullable
-	private final BuildProperties buildProperties;
+	private final @Nullable BuildProperties buildProperties;
 
 	@Autowired
 	VersionInfo(ObjectProvider<BuildProperties> buildProperties) {
@@ -72,8 +71,7 @@ public class VersionInfo {
 	 * Returns the build timestamp recorded in build-info, when available.
 	 * @return the build time, or {@code null} if build-info is unavailable
 	 */
-	@Nullable
-	public Instant buildTime() {
+	public @Nullable Instant buildTime() {
 		return (this.buildProperties != null) ? this.buildProperties.getTime() : null;
 	}
 
