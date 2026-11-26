@@ -1,5 +1,17 @@
 = Changelog
 
+== 1.7.0 (unreleased)
+
+=== Spring Boot 4.2
+
+* *jhelm now builds on Spring Boot 4.2* (4.2.0, from 4.1.3). A new Spring Boot minor starts a new
+  jhelm minor line, so `1.7.x` is the Spring Boot 4.2 line on `main`. The `1.6.x` line (Spring Boot
+  4.1) continues on the `4.1` branch with bug fixes and Spring Boot patch updates.
+* Spring AI 2.1.0 (from 2.0.0), springdoc-openapi 3.2.1 (from 3.1.1) and, for the config-server
+  sample, Spring Cloud 2026.0.0 (from 2025.1.2): the releases built on Spring Boot 4.2.
+* `ValueEncryptor` keeps `Encryptors.text`, which Spring Security 7.2 deprecates. Its replacement
+  uses a different cipher, so values already encrypted with `{cipher}` would stop decrypting.
+
 == 1.6.1
 
 === Dependencies
