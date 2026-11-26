@@ -51,7 +51,7 @@
         <fabric8-client.version>6.13.5</fabric8-client.version>
         <picocli.version>4.7.7</picocli.version>
         <semver4j.version>6.0.0</semver4j.version>
-        <json-schema-validator.version>3.0.5</json-schema-validator.version>
+        <json-schema-validator.version>3.0.9</json-schema-validator.version>
         <!--
             jhelm-core and jhelm-gotemplate-helm call CoreScalarResolver(boolean), added in
             snakeyaml-engine 3.x. Spring Boot's BOM does not manage snakeyaml-engine (only
@@ -60,7 +60,7 @@
             NoSuchMethodError on the first chart load (#770).
         -->
         <snakeyaml-engine.version>3.0.1</snakeyaml-engine.version>
-        <bouncycastle.version>1.84</bouncycastle.version>
+        <bouncycastle.version>1.87</bouncycastle.version>
         <!-- Only the config-server sample uses Spring Cloud; 2025.1.x (Oakwood) supports Boot 4.0 and, from 2025.1.2, Boot 4.1. -->
         <spring-cloud.version>2025.1.2</spring-cloud.version>
         <commons-compress.version>1.28.0</commons-compress.version>
