@@ -34,6 +34,9 @@ public class ValueEncryptor {
 	 * @param failOnError whether an undecryptable value aborts rather than passing
 	 * through
 	 */
+	// Encryptors.text is deprecated in Spring Security 7.2. Its replacement uses
+	// another cipher, so existing {cipher} values would stop decrypting.
+	@SuppressWarnings("deprecation")
 	public ValueEncryptor(String key, String salt, boolean failOnError) {
 		this.failOnError = failOnError;
 		this.encryptor = (key != null && !key.isBlank()) ? Encryptors.text(key, salt) : null;

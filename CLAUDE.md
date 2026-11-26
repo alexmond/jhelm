@@ -4,9 +4,9 @@
 
 jhelm is a Java implementation of the Helm package manager for Kubernetes. It provides native Java libraries and tools to work with Helm charts without requiring the Go-based Helm CLI.
 
-**Tech Stack**: Java 21, Spring Boot 4.1.1, Kubernetes Client 26.0.0, Picocli 4.7.7, Jackson YAML, Lombok
+**Tech Stack**: Java 21, Spring Boot 4.2.0, Kubernetes Client 26.0.0, Picocli 4.7.7, Jackson YAML, Lombok
 
-**Version and branches**: jhelm keeps its own `MAJOR.MINOR.PATCH` version; branches follow the Spring Boot line. `main` is the newest line: jhelm `1.6.x` on Spring Boot 4.1. Branch `4.0` is the maintenance line: jhelm `1.5.x` on Spring Boot 4.0, bug fixes and Boot patch bumps only. Policy: `docs/modules/ROOT/pages/development.adoc` ("Versioning and Branches").
+**Version and branches**: jhelm keeps its own `MAJOR.MINOR.PATCH` version; branches follow the Spring Boot line. `main` is the newest line: jhelm `1.7.x` on Spring Boot 4.2. Branches `4.1` (jhelm `1.6.x`, Spring Boot 4.1) and `4.0` (jhelm `1.5.x`, Spring Boot 4.0) are maintenance lines: bug fixes and Boot patch bumps only. Policy: `docs/modules/ROOT/pages/development.adoc` ("Versioning and Branches").
 
 ## Project Structure
 
