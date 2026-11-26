@@ -60,7 +60,7 @@
             NoSuchMethodError on the first chart load (#770).
         -->
         <snakeyaml-engine.version>3.0.1</snakeyaml-engine.version>
-        <bouncycastle.version>1.84</bouncycastle.version>
+        <bouncycastle.version>1.87</bouncycastle.version>
         <!-- Only the config-server sample uses Spring Cloud; 2025.1.x (Oakwood) targets Boot 4.0. -->
         <spring-cloud.version>2025.1.2</spring-cloud.version>
         <commons-compress.version>1.28.0</commons-compress.version>
